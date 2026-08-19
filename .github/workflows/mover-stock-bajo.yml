@@ -1,0 +1,33 @@
+name: Mover stock bajo a Inventario
+
+on:
+  push:
+    paths:
+      - '.github/workflows/mover-stock-bajo.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mover alerta de stock bajo
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+          css = ".stats .stat:nth-child(2){display:none}body:has(#products.active) #statsBar{grid-template-columns:repeat(2,1fr)}body:has(#inventory.active) #statsBar.hidden{display:grid!important;grid-template-columns:1fr}body:has(#inventory.active) #statsBar .stat{display:none}body:has(#inventory.active) #statsBar .stat:nth-child(2){display:block;border-color:#f59e0b;background:color-mix(in srgb,#f59e0b 10%,var(--card))}body:has(#inventory.active) #statsBar .stat:nth-child(2) small{font-size:0}body:has(#inventory.active) #statsBar .stat:nth-child(2) small::after{content:'⚠️ Productos por reponer';font-size:13px;font-weight:800;color:#b45309}"
+          if css not in s:
+              s = s.replace('</style>', css + '</style>', 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Guardar cambio
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Mostrar productos por reponer en Inventario"
+          git push
