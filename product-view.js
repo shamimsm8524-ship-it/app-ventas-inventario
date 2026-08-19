@@ -57,3 +57,16 @@
   setTimeout(restore,250);
   setTimeout(restore,700);
 })();
+
+(()=>{
+  if(document.getElementById('vareliaSupabaseLoader'))return;
+  const sdk=document.createElement('script');
+  sdk.id='vareliaSupabaseLoader';
+  sdk.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+  sdk.onload=()=>{
+    const auth=document.createElement('script');
+    auth.src='supabase-auth.js?v=20260819-1';
+    document.body.appendChild(auth);
+  };
+  document.head.appendChild(sdk);
+})();
