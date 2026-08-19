@@ -20,7 +20,7 @@ jobs:
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
           css='<link rel="stylesheet" href="product-view.css?v=20260819-3">'
-          js='<script src="product-view.js?v=20260819-10"></script>'
+          js='<script src="product-view.js?v=20260819-11"></script>'
           s=re.sub(r'<link rel="stylesheet" href="product-view\.css(?:\?[^\"]*)?">',css,s)
           s=re.sub(r'<script src="product-view\.js(?:\?[^\"]*)?\"></script>',js,s)
           if css not in s:
@@ -29,7 +29,7 @@ jobs:
               s=s.replace('</body>',js+'\n</body>',1)
 
           old="render();switchView('products');"
-          new="""render();(()=>{const map={productos:'products',inventario:'inventory',categorias:'categories',proveedores:'suppliers',mercaderia:'purchases',ventas:'sales',facturacion:'billing',caja:'cash',apariencia:'appearance'};const valid=['products','inventory','categories','suppliers','purchases','sales','billing','cash','appearance'];let v=map[(location.hash||'').replace(/^#/,'')];if(!v){try{v=localStorage.getItem('miNegocio_lastView_v3')||localStorage.getItem('miNegocio_lastView_v2')||sessionStorage.getItem('miNegocio_lastView_v3')}catch{}}if(!valid.includes(v))v='products';switchView(v)})();"""
+          new="""render();(()=>{const map={productos:'products',inventario:'inventory',categorias:'categories',proveedores:'suppliers',mercaderia:'purchases',ventas:'sales',caja:'cash',apariencia:'appearance'};const valid=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];let v=map[(location.hash||'').replace(/^#/,'')];if(!v){try{v=localStorage.getItem('miNegocio_lastView_v3')||localStorage.getItem('miNegocio_lastView_v2')||sessionStorage.getItem('miNegocio_lastView_v3')}catch{}}if(!valid.includes(v))v='products';switchView(v)})();"""
           if old in s:
               s=s.replace(old,new,1)
           p.write_text(s,encoding='utf-8')
