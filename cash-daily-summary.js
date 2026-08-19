@@ -4,11 +4,16 @@
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn();
   ready(()=>{
     if(typeof sales==='undefined'||typeof closures==='undefined')return;
-    const RESET_KEY='varelia_closures_reset_20260819_1211';
+    const RESET_KEY='varelia_sales_closures_reset_20260819_1211';
     try{
       if(!localStorage.getItem(RESET_KEY)){
         closures.splice(0,closures.length);
-        if(typeof K!=='undefined'&&K.closures)localStorage.setItem(K.closures,'[]');
+        sales.splice(0,sales.length);
+        if(typeof K!=='undefined'){
+          if(K.closures)localStorage.setItem(K.closures,'[]');
+          if(K.sales)localStorage.setItem(K.sales,'[]');
+          if(K.cashStart){cashStart=new Date().toISOString();localStorage.setItem(K.cashStart,JSON.stringify(cashStart));}
+        }
         localStorage.setItem(RESET_KEY,'1');
       }
     }catch{}
@@ -37,5 +42,6 @@
       },30)
     },true);
     updateDaily();enhanceClosures();
+    try{if(typeof render==='function')render()}catch{}
   });
 })();
