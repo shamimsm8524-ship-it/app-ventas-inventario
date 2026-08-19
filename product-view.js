@@ -75,3 +75,11 @@
   };
   document.head.appendChild(sdk);
 })();
+
+(()=>{
+  if(document.getElementById('vareliaBarcodeTools'))return;
+  const s=document.createElement('script');
+  s.id='vareliaBarcodeTools';
+  s.src='barcode-tools.js?v=20260819-1';
+  document.body.appendChild(s);
+})();
