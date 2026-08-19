@@ -63,7 +63,7 @@
 
     const dialog=document.createElement('dialog');dialog.id='catalogShareDialog';dialog.innerHTML=`<div class="catalogShareBox"><div class="modalhead"><div><h2>Catálogo público</h2><p>Este enlace muestra únicamente los productos disponibles de tu negocio. Tus clientes podrán marcar lo que desean y ver las especificaciones.</p></div><button type="button" class="close" id="catalogClose">×</button></div><div class="catalogLinkBox"><input id="catalogPublicLink" readonly><button type="button" class="btn secondary" id="catalogCopy">Copiar</button></div><div class="catalogShareActions"><button type="button" class="btn primary" id="catalogOpen">Ver catálogo</button><button type="button" class="btn secondary" id="catalogShare">Compartir</button></div><div class="catalogSyncState" id="catalogSyncState">Preparando catálogo…</div></div>`;document.body.appendChild(dialog);
 
-    const $=id=>document.getElementById(id);let lastSignature='',publicId='',syncing=null;
+    const $=id=>document.getElementById(id);let lastSignature='',publicId='',publicSlug='',syncing=null;
     const toast=t=>window.vareliaToast?window.vareliaToast(t):alert(t);
     const color=()=>getComputedStyle(document.documentElement).getPropertyValue('--p').trim()||'#be185d';
     const imageCache=new Map();
@@ -83,7 +83,7 @@
     async function waitSb(){for(let i=0;i<60&&!window.vareliaSupabase;i++)await new Promise(r=>setTimeout(r,120));return window.vareliaSupabase}
     async function syncNow(force=false){
       if(syncing)return syncing;
-      const sig=signature();if(!force&&sig===lastSignature&&publicId)return publicId;
+      const sig=signature();if(!force&&sig===lastSignature&&publicId&&publicSlug)return publicId;
       syncing=(async()=>{
         const sb=await waitSb();if(!sb)throw new Error('Supabase no disponible');
         const {data:sess}=await sb.auth.getSession();if(!sess?.session?.user)throw new Error('Inicia sesión para publicar el catálogo');
@@ -91,15 +91,18 @@
         const rows=await payload();
         const {data,error}=await sb.rpc('varelia_sync_public_catalog',{p_products:rows,p_theme_color:color()});
         if(error)throw error;
-        publicId=String(data||'');lastSignature=sig;
-        const url=location.origin+'/catalogo.html?c='+encodeURIComponent(publicId);
+        publicId=String(data||'');
+        const {data:publicCatalog,error:slugError}=await sb.from('public_catalogs').select('public_slug').eq('public_id',publicId).eq('enabled',true).maybeSingle();
+        if(slugError||!publicCatalog?.public_slug)throw slugError||new Error('No se pudo crear el enlace del catálogo');
+        publicSlug=String(publicCatalog.public_slug);lastSignature=sig;
+        const url=location.origin+'/catalogo/'+encodeURIComponent(publicSlug)+'/';
         $('catalogPublicLink').value=url;$('catalogSyncState').textContent='Catálogo actualizado · '+rows.length+' producto(s) disponible(s)';
         return publicId;
       })().finally(()=>{syncing=null});
       return syncing;
     }
     window.vareliaPublicCatalogSync=()=>syncNow(true);
-    async function catalogUrl(force=false){const id=await syncNow(force);return location.origin+'/catalogo.html?c='+encodeURIComponent(id)}
+    async function catalogUrl(force=false){await syncNow(force);return location.origin+'/catalogo/'+encodeURIComponent(publicSlug)+'/'}
     btn.addEventListener('click',async()=>{btn.disabled=true;try{dialog.showModal();$('catalogSyncState').textContent='Preparando catálogo…';await catalogUrl(true)}catch(e){console.error(e);dialog.close();alert('No se pudo preparar el catálogo público. Inténtalo otra vez.')}finally{btn.disabled=false}});
     $('catalogClose').onclick=()=>dialog.close();
     $('catalogOpen').onclick=async()=>{try{const url=await catalogUrl(false);window.open(url,'_blank','noopener')}catch(e){alert('No se pudo abrir el catálogo.')}};
