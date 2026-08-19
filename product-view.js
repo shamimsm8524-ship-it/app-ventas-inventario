@@ -16,3 +16,27 @@
   window.addEventListener('pagehide',()=>{try{localStorage.setItem(K.products,JSON.stringify(compactProducts()))}catch{}});
   migrateAndHydrate();
 })();
+
+(()=>{
+  const VIEW_KEY='miNegocio_lastView_v1';
+  const validViews=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];
+  function remember(view){if(validViews.includes(view)){try{localStorage.setItem(VIEW_KEY,view)}catch{}}}
+  document.querySelectorAll('.nav [data-view]').forEach(btn=>{
+    btn.addEventListener('click',()=>remember(btn.dataset.view));
+  });
+  const originalSwitchView=typeof switchView==='function'?switchView:null;
+  if(originalSwitchView){
+    window.switchView=function(view){remember(view);return originalSwitchView(view)};
+  }
+  let saved='products';
+  try{saved=localStorage.getItem(VIEW_KEY)||'products'}catch{}
+  if(!validViews.includes(saved))saved='products';
+  setTimeout(()=>{
+    if(typeof switchView==='function')switchView(saved);
+    else{
+      document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===saved));
+      document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===saved));
+      if((saved==='suppliers'||saved==='purchases')&&typeof supplierGroup!=='undefined')supplierGroup.classList.add('open');
+    }
+  },0);
+})();
