@@ -24,7 +24,7 @@
         return code;
       }
       function persist(){try{localStorage.setItem(K.products,JSON.stringify(products.map(p=>{const c={...p};delete c.image;return c})));if(typeof save==='function')save()}catch(e){console.warn(e)}}
-      function typeOfCode(code){return isValidEAN13(code)?'EAN-13':'CODE128'}
+      function typeOfCode(code){return isValidEAN13(code)?'EAN13':'CODE128'}
       function statusHtml(code){if(!code)return '<span class="bc-status bc-bad">Sin código</span>';if(isValidEAN13(code))return '<span class="bc-status bc-ok">✓ EAN-13 válido y escaneable</span>';return '<span class="bc-status bc-ok">✓ CODE128 escaneable</span>'}
 
       const barcodeInput=document.getElementById('barcode');
@@ -44,7 +44,7 @@
       }
 
       const modal=document.createElement('div');modal.id='bcModal';modal.className='bc-modal';
-      modal.innerHTML='<div class="bc-card"><div class="bc-head"><div><h2>Códigos de barras</h2><div class="meta">Genera, valida e imprime etiquetas realmente escaneables.</div></div><button class="bc-close" type="button">×</button></div><div class="bc-note">Los códigos nuevos se generan como <b>EAN-13 válido</b>. Las etiquetas se imprimen en negro sobre blanco, con espacio libre alrededor y tamaño suficiente para lectores físicos y cámaras.</div><div id="bcList"></div></div>';
+      modal.innerHTML='<div class="bc-card"><div class="bc-head"><div><h2>Códigos de barras</h2><div class="meta">Genera, valida e imprime etiquetas realmente escaneables.</div></div><button class="bc-close" type="button">×</button></div><div class="bc-note">Si un producto tiene un código antiguo que no se puede imprimir, Varelia lo reemplazará automáticamente por un <b>EAN-13 válido</b>.</div><div id="bcList"></div></div>';
       document.body.appendChild(modal);
       modal.querySelector('.bc-close').onclick=()=>modal.classList.remove('show');
       modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('show')});
@@ -54,24 +54,30 @@
         const list=modal.querySelector('#bcList');
         if(!products.length){list.innerHTML='<div class="bc-empty">Primero crea un producto.</div>';return}
         list.innerHTML=products.map(p=>`<div class="bc-row" data-bcid="${p.id}"><div><strong>${escapeHtml(p.name||'Producto')}</strong><small>${p.barcode?escapeHtml(String(p.barcode)):'Sin código de barras'}</small>${statusHtml(p.barcode)}</div><input type="number" min="1" max="200" value="1" aria-label="Cantidad de etiquetas"><button type="button">${p.barcode?'🖨️ Imprimir':'✨ Generar'}</button></div>`).join('');
-        list.querySelectorAll('.bc-row').forEach(row=>row.querySelector('button').onclick=()=>{
+        list.querySelectorAll('.bc-row').forEach(row=>row.querySelector('button').onclick=async()=>{
           const p=products.find(x=>String(x.id)===row.dataset.bcid);if(!p)return;
           if(!p.barcode){p.barcode=uniqueEAN();persist();renderList();return}
-          const qty=Math.max(1,Math.min(200,parseInt(row.querySelector('input').value)||1));printLabels(p,qty);
+          const qty=Math.max(1,Math.min(200,parseInt(row.querySelector('input').value)||1));
+          await printLabels(p,qty);
         });
       }
       function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
       function loadJsBarcode(){return new Promise((resolve,reject)=>{if(window.JsBarcode)return resolve();const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
-      async function makeSvg(code){await loadJsBarcode();const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');const format=typeOfCode(code);JsBarcode(svg,String(code),{format,width:2.35,height:62,displayValue:true,fontSize:15,textMargin:4,margin:12,background:'#ffffff',lineColor:'#000000'});return svg}
+      async function makeSvg(code){await loadJsBarcode();const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');JsBarcode(svg,String(code),{format:typeOfCode(code),width:2.35,height:62,displayValue:true,fontSize:15,textMargin:4,margin:12,background:'#ffffff',lineColor:'#000000',valid:()=>{}});return svg}
+      async function ensurePrintableCode(p){
+        let code=String(p.barcode||'').trim();
+        if(!code){code=uniqueEAN();p.barcode=code;persist();return code}
+        try{await makeSvg(code);return code}catch(e){
+          const replacement=uniqueEAN();p.barcode=replacement;persist();renderList();alert('El código anterior no era imprimible. Varelia generó uno nuevo EAN-13 válido automáticamente.');return replacement
+        }
+      }
       async function printLabels(p,qty){
         try{await loadJsBarcode()}catch{return alert('No se pudo cargar el generador de códigos. Revisa tu conexión.')}
-        let testSvg;
-        try{testSvg=await makeSvg(p.barcode)}catch{return alert('El código no se puede convertir a un formato escaneable. Genera uno nuevo.')}
-        if(!testSvg.querySelectorAll('rect').length&&!testSvg.querySelectorAll('path').length)return alert('No se pudo validar el código para impresión.');
+        const code=await ensurePrintableCode(p);
         const labels=[];
         for(let i=0;i<qty;i++){
-          const svg=await makeSvg(p.barcode);
-          labels.push(`<div class="label"><div class="name">${escapeHtml(p.name||'Producto')}</div><div class="barcode">${svg.outerHTML}</div><div class="price">S/ ${Number(p.sellPrice||0).toFixed(2)}</div><div class="kind">${typeOfCode(p.barcode)}</div></div>`)
+          let svg;try{svg=await makeSvg(code)}catch{return alert('No se pudo preparar el código para imprimir. Intenta generar uno nuevo.')}
+          labels.push(`<div class="label"><div class="name">${escapeHtml(p.name||'Producto')}</div><div class="barcode">${svg.outerHTML}</div><div class="price">S/ ${Number(p.sellPrice||0).toFixed(2)}</div><div class="kind">${isValidEAN13(code)?'EAN-13':'CODE128'}</div></div>`)
         }
         const w=window.open('','_blank');if(!w)return alert('Tu navegador bloqueó la ventana de impresión. Permite ventanas emergentes para Varelia.');
         w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Etiquetas - ${escapeHtml(p.name||'Producto')}</title><style>@page{margin:7mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;background:#fff;color:#000}.sheet{display:grid;grid-template-columns:repeat(3,minmax(54mm,1fr));gap:4mm}.label{background:#fff;border:1px dashed #cbd5e1;border-radius:2.5mm;padding:3mm 4mm;text-align:center;break-inside:avoid;min-height:38mm;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}.name{font-size:11px;font-weight:700;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:1mm}.barcode{width:100%;background:#fff;padding:1mm 2mm}.barcode svg{display:block;width:100%;height:auto;max-height:22mm}.price{font-size:14px;font-weight:800;margin-top:1mm}.kind{font-size:8px;color:#555;margin-top:.5mm}@media print{.label{border-color:#ddd}.sheet{gap:3mm}}</style></head><body><div class="sheet">${labels.join('')}</div><script>window.onload=()=>setTimeout(()=>window.print(),350)<\/script></body></html>`);w.document.close();
