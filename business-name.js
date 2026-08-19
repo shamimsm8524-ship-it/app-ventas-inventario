@@ -6,6 +6,8 @@
   ready(()=>{
     const title=document.querySelector('.brand h1');
     if(!title)return;
+    const logo=document.querySelector('.logo');
+    if(logo)logo.textContent='VS';
     title.id='vareliaBusinessName';
 
     const row=document.createElement('div');
