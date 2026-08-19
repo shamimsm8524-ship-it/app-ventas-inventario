@@ -4,6 +4,14 @@
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn();
   ready(()=>{
     if(typeof sales==='undefined'||typeof closures==='undefined')return;
+    const RESET_KEY='varelia_closures_reset_20260819_1211';
+    try{
+      if(!localStorage.getItem(RESET_KEY)){
+        closures.splice(0,closures.length);
+        if(typeof K!=='undefined'&&K.closures)localStorage.setItem(K.closures,'[]');
+        localStorage.setItem(RESET_KEY,'1');
+      }
+    }catch{}
     const cashSection=document.getElementById('cash'),closeBtn=document.getElementById('closeCash');
     if(!cashSection||!closeBtn)return;
     const style=document.createElement('style');style.textContent=`.dailySalesCard{margin:12px 0 14px;padding:16px;border:1px solid color-mix(in srgb,var(--p) 22%,var(--line));border-radius:18px;background:linear-gradient(135deg,color-mix(in srgb,var(--p) 9%,var(--card)),var(--card));box-shadow:var(--shadow)}.dailySalesCard small{display:block;color:var(--muted);font-weight:800}.dailySalesAmount{font-size:31px;font-weight:950;color:var(--p);margin:4px 0}.dailySalesMeta{font-size:12px;color:var(--muted)}.closureSummary{display:grid;gap:4px}.closureSummary .closureDaily{color:var(--muted);font-weight:800;font-size:12px}.closureSummary .closureCash{font-size:15px;color:var(--p);font-weight:950}.closureAmount{text-align:right}.closureAmount small{display:block;color:var(--muted);font-size:10px;font-weight:800}.closureAmount strong{font-size:20px}`;document.head.appendChild(style);
@@ -13,7 +21,7 @@
     const money2=n=>'S/ '+Number(n||0).toFixed(2);
     function updateDaily(){const x=calcDay(),a=document.getElementById('dailySalesAmount'),m=document.getElementById('dailySalesMeta');if(a)a.textContent=money2(x.total);if(m)m.textContent=`${x.count} venta${x.count===1?'':'s'} · ${x.units} unidad${x.units===1?'':'es'}`}
     function closureTotal(c){if(Number.isFinite(+c.closureTotal))return +c.closureTotal;if(Number.isFinite(+c.total))return +c.total;return 0}
-    function enhanceClosures(){const list=document.getElementById('closuresList');if(!list)return;list.innerHTML=[...closures].reverse().map(c=>{const total=closureTotal(c);return `<div class="row"><div class="closureSummary"><strong>${new Date(c.closedAt).toLocaleString('es-PE')}</strong><span class="closureCash">Total de este cierre: ${money2(total)}</span><span class="closureDaily">Cierre guardado · no cambia con ventas posteriores</span></div><div class="closureAmount"><small>CIERRE</small><strong>${money2(total)}</strong></div></div>`}).join('')}
+    function enhanceClosures(){const list=document.getElementById('closuresList');if(!list)return;list.innerHTML=closures.length?[...closures].reverse().map(c=>{const total=closureTotal(c);return `<div class="row"><div class="closureSummary"><strong>${new Date(c.closedAt).toLocaleString('es-PE')}</strong><span class="closureCash">Total de este cierre: ${money2(total)}</span><span class="closureDaily">Cierre guardado · no cambia con ventas posteriores</span></div><div class="closureAmount"><small>CIERRE</small><strong>${money2(total)}</strong></div></div>`}).join(''):'<div class="empty">Sin cierres registrados.</div>'}
     if(typeof renderCash==='function'){const original=renderCash;renderCash=function(){original();updateDaily();enhanceClosures()}}
     closeBtn.addEventListener('click',()=>{
       const before=closures.length;
