@@ -1,0 +1,44 @@
+name: Patch visual color picker
+on:
+  push:
+    paths:
+      - '.github/workflows/patch-color-picker.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add visual picker
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          old_css = ".hexRow{display:flex;gap:8px;margin-top:9px}.hexPreview{width:46px;border-radius:12px;border:1px solid var(--line);background:var(--p);flex:0 0 46px}"
+          new_css = old_css + ".colorPickerBox{margin-top:12px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--bg)}.colorBigPreview{height:76px;border-radius:15px;background:var(--p);border:1px solid var(--line);box-shadow:inset 0 0 0 1px #ffffff33;margin-bottom:13px}.colorControl{display:grid;grid-template-columns:86px 1fr 44px;gap:9px;align-items:center;margin-top:10px}.colorControl span{font-size:12px;font-weight:800}.colorControl output{text-align:right;font-size:12px;font-weight:800;color:var(--muted)}.colorControl input[type=range]{padding:0;border:0;box-shadow:none;height:32px;background:transparent}.hueRange{accent-color:var(--p)}.pickerActions{display:flex;gap:8px;margin-top:14px}.pickerActions>*{flex:1}@media(max-width:560px){.colorControl{grid-template-columns:72px 1fr 38px}}"
+          if old_css not in s:
+              raise SystemExit('CSS marker not found')
+          s = s.replace(old_css, new_css, 1)
+
+          old_html = '<div class="optionCard"><strong>🎯 Color personalizado</strong><p class="notice">Opcional. Escribe un código HEX, por ejemplo #C2185B.</p><div class="hexRow"><span class="hexPreview" id="hexPreview"></span><input id="customColor" type="text" maxlength="7" placeholder="#C2185B" inputmode="text"><button class="btn primary" id="applyCustomColor" type="button">Aplicar</button></div></div>'
+          new_html = '<div class="optionCard"><strong>🎯 Color personalizado</strong><p class="notice">Ajusta la tonalidad visualmente y mira el resultado antes de aplicarlo.</p><div class="colorPickerBox"><div class="colorBigPreview" id="colorBigPreview"></div><div class="colorControl"><span>Tono</span><input id="hueSlider" class="hueRange" type="range" min="0" max="360" value="330"><output id="hueValue">330°</output></div><div class="colorControl"><span>Saturación</span><input id="satSlider" type="range" min="0" max="100" value="78"><output id="satValue">78%</output></div><div class="colorControl"><span>Brillo</span><input id="lightSlider" type="range" min="20" max="80" value="42"><output id="lightValue">42%</output></div><div class="hexRow"><span class="hexPreview" id="hexPreview"></span><input id="customColor" type="text" maxlength="7" placeholder="#C2185B" inputmode="text"></div><div class="pickerActions"><button class="btn secondary" id="resetPicker" type="button">Restablecer</button><button class="btn primary" id="applyCustomColor" type="button">Aplicar color</button></div></div></div>'
+          if old_html not in s:
+              raise SystemExit('HTML marker not found')
+          s = s.replace(old_html, new_html, 1)
+
+          old_js = "themeGrid.onclick=e=>{let b=e.target.closest('[data-color]');if(b)setThemeColor(b.dataset.color)};lightModeBtn.onclick=()=>{theme.dark=false;localStorage.setItem(K.theme,JSON.stringify(theme));applyTheme()};darkModeBtn.onclick=()=>{theme.dark=true;localStorage.setItem(K.theme,JSON.stringify(theme));applyTheme()};customColor.oninput=()=>{let c=customColor.value.trim();if(/^#[0-9a-f]{6}$/i.test(c))hexPreview.style.background=c};applyCustomColor.onclick=()=>{let c=customColor.value.trim();if(!c.startsWith('#'))c='#'+c;if(!setThemeColor(c))alert('Escribe un color válido, por ejemplo #C2185B.');};"
+          new_js = """themeGrid.onclick=e=>{let b=e.target.closest('[data-color]');if(b){setThemeColor(b.dataset.color);syncPickerFromHex(b.dataset.color)}};lightModeBtn.onclick=()=>{theme.dark=false;localStorage.setItem(K.theme,JSON.stringify(theme));applyTheme()};darkModeBtn.onclick=()=>{theme.dark=true;localStorage.setItem(K.theme,JSON.stringify(theme));applyTheme()};function hslToHex(h,s,l){s/=100;l/=100;let k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return '#'+[f(0),f(8),f(4)].map(x=>Math.round(255*x).toString(16).padStart(2,'0')).join('')}function hexToHsl(hex){hex=hex.replace('#','');let r=parseInt(hex.slice(0,2),16)/255,g=parseInt(hex.slice(2,4),16)/255,b=parseInt(hex.slice(4,6),16)/255,max=Math.max(r,g,b),min=Math.min(r,g,b),h=0,s=0,l=(max+min)/2;if(max!==min){let d=max-min;s=l>.5?d/(2-max-min):d/(max+min);switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}h*=60}return [Math.round(h),Math.round(s*100),Math.round(l*100)]}function previewPicker(){let h=+hueSlider.value,s=+satSlider.value,l=+lightSlider.value,c=hslToHex(h,s,l);hueValue.textContent=h+'°';satValue.textContent=s+'%';lightValue.textContent=l+'%';customColor.value=c.toUpperCase();hexPreview.style.background=c;colorBigPreview.style.background=c;hueSlider.style.background='linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)'}function syncPickerFromHex(c){if(!/^#[0-9a-f]{6}$/i.test(c))return;let [h,s,l]=hexToHsl(c);hueSlider.value=h;satSlider.value=s;lightSlider.value=Math.max(20,Math.min(80,l));previewPicker()}[hueSlider,satSlider,lightSlider].forEach(x=>x.oninput=previewPicker);customColor.oninput=()=>{let c=customColor.value.trim();if(/^#[0-9a-f]{6}$/i.test(c)){hexPreview.style.background=c;colorBigPreview.style.background=c;syncPickerFromHex(c)}};applyCustomColor.onclick=()=>{let c=customColor.value.trim();if(!c.startsWith('#'))c='#'+c;if(!setThemeColor(c))alert('Elige un color válido.')};resetPicker.onclick=()=>syncPickerFromHex(theme.color||'#be185d');syncPickerFromHex(theme.color||'#be185d');"""
+          if old_js not in s:
+              raise SystemExit('JS marker not found')
+          s = s.replace(old_js, new_js, 1)
+          p.write_text(s, encoding='utf-8')
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Mejorar selector visual de color"
+          git push
