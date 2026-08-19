@@ -20,9 +20,9 @@ jobs:
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
           css='<link rel="stylesheet" href="product-view.css?v=20260819-3">'
-          js='<script src="product-view.js?v=20260819-5"></script>'
+          js='<script src="product-view.js?v=20260819-6"></script>'
           s=re.sub(r'<link rel="stylesheet" href="product-view\.css(?:\?[^\"]*)?">',css,s)
-          s=re.sub(r'<script src="product-view\.js(?:\?[^\"]*)?"></script>',js,s)
+          s=re.sub(r'<script src="product-view\.js(?:\?[^\"]*)?\"></script>',js,s)
           if css not in s:
               s=s.replace('</head>',css+'\n</head>',1)
           if js not in s:
@@ -40,5 +40,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Recordar sección abierta al recargar"
+          git commit -m "Actualizar acceso de Varelia"
           git push
