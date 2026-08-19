@@ -30,7 +30,6 @@
       const style=document.createElement('style');
       style.textContent=`
       .bt-print-btn{border:1px solid color-mix(in srgb,var(--p) 40%,var(--line))!important;background:var(--card)!important;color:var(--p)!important;box-shadow:none!important}
-      .bt-system-btn{border:0!important;background:linear-gradient(135deg,#0f172a,#334155)!important;color:#fff!important;box-shadow:none!important}
       .bt-print-status{display:flex;align-items:center;gap:7px;width:100%;margin-top:2px;padding:9px 11px;border-radius:12px;background:var(--bg);color:var(--muted);font-size:12px;font-weight:800}
       .bt-dot{width:9px;height:9px;border-radius:50%;background:#94a3b8;flex:0 0 auto}.bt-dot.on{background:#16a34a;box-shadow:0 0 0 4px #16a34a22}.bt-dot.warn{background:#f59e0b;box-shadow:0 0 0 4px #f59e0b22}
       `;
@@ -45,13 +44,6 @@
       btn.className='bt-print-btn';
       btn.textContent='🖨️ Conectar impresora Bluetooth';
       toolbar.appendChild(btn);
-
-      const printBtn=document.createElement('button');
-      printBtn.type='button';
-      printBtn.id='btSystemPrintBtn';
-      printBtn.className='bt-system-btn';
-      printBtn.textContent='🧾 Abrir impresión';
-      toolbar.appendChild(printBtn);
 
       const status=document.createElement('div');
       status.className='bt-print-status';
@@ -70,7 +62,7 @@
         if(!window.isSecureContext){alert('Bluetooth requiere abrir Varelia por HTTPS.');return}
         if(!navigator.bluetooth){
           setStatus('Bluetooth web no disponible en este navegador','warn');
-          alert('Este navegador no permite conexión Bluetooth directa. En Android usa Google Chrome. Si tu impresora es Bluetooth clásica, empareja primero desde Ajustes > Bluetooth y luego toca “Abrir impresión”.');
+          alert('Este navegador no permite conexión Bluetooth directa. En Android usa Google Chrome. Si tu impresora es Bluetooth clásica, empareja primero desde Ajustes > Bluetooth.');
           return;
         }
         try{
@@ -95,15 +87,6 @@
       }
 
       btn.onclick=connectPrinter;
-      printBtn.onclick=()=>{
-        setStatus(btDevice&&btDevice.gatt?.connected?'Impresora conectada. Elige esa impresora en el diálogo de impresión.':'Selecciona tu impresora Bluetooth en el diálogo de impresión.','on');
-        window.print();
-      };
-
-      window.addEventListener('beforeprint',()=>{
-        if(btDevice&&btDevice.gatt?.connected)setStatus('Impresora conectada. Selecciónala para imprimir.','on');
-      });
-
       try{
         const saved=localStorage.getItem('varelia_bt_printer_name');
         if(saved)setStatus('Última impresora: '+saved+' · toca Conectar para volver a usarla','warn');
