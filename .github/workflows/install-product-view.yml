@@ -12,14 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Insertar recursos de vistas
+      - name: Insertar recursos y forzar versión nueva
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
-          css='<link rel="stylesheet" href="product-view.css">'
-          js='<script src="product-view.js"></script>'
+          css='<link rel="stylesheet" href="product-view.css?v=20260819-2">'
+          js='<script src="product-view.js?v=20260819-4"></script>'
+          s=re.sub(r'<link rel="stylesheet" href="product-view\.css(?:\?[^\"]*)?">',css,s)
+          s=re.sub(r'<script src="product-view\.js(?:\?[^\"]*)?"></script>',js,s)
           if css not in s:
               s=s.replace('</head>',css+'\n</head>',1)
           if js not in s:
@@ -32,5 +35,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git commit -m "Activar vistas de lista y cuadrícula en Productos"
+          git commit -m "Forzar carga de navegación actualizada"
           git push
