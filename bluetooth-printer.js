@@ -11,6 +11,12 @@
     f.src='professional-flow.js?v=20260819-1';
     document.body.appendChild(f);
   }
+  if(!document.getElementById('vareliaCashDailyLoader')){
+    const c=document.createElement('script');
+    c.id='vareliaCashDailyLoader';
+    c.src='cash-daily-summary.js?v=20260819-1';
+    document.body.appendChild(c);
+  }
 })();
 
 (()=>{
