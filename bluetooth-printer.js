@@ -23,6 +23,12 @@
     w.src='weekly-report.js?v=20260819-1';
     document.body.appendChild(w);
   }
+  if(!document.getElementById('vareliaLogoutUILoader')){
+    const l=document.createElement('script');
+    l.id='vareliaLogoutUILoader';
+    l.src='logout-ui.js?v=20260819-1';
+    document.body.appendChild(l);
+  }
 })();
 
 (()=>{
