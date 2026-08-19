@@ -22,64 +22,13 @@
   const valid=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];
   const toHash={products:'productos',inventory:'inventario',categories:'categorias',suppliers:'proveedores',purchases:'mercaderia',sales:'ventas',cash:'caja',appearance:'apariencia'};
   const fromHash=Object.fromEntries(Object.entries(toHash).map(([k,v])=>[v,k]));
-  function saveView(view){
-    if(!valid.includes(view))return;
-    try{localStorage.setItem(VIEW_KEY,view)}catch{}
-    try{sessionStorage.setItem(VIEW_KEY,view)}catch{}
-    const hash=toHash[view];
-    if(hash&&location.hash!=='#'+hash){try{history.replaceState(null,'',location.pathname+location.search+'#'+hash)}catch{}}
-  }
-  function wantedView(){
-    let v=fromHash[(location.hash||'').slice(1)];
-    if(!v){try{v=sessionStorage.getItem(VIEW_KEY)}catch{}}
-    if(!v){try{v=localStorage.getItem(VIEW_KEY)}catch{}}
-    return valid.includes(v)?v:'products';
-  }
-  function forceView(view){
-    if(!valid.includes(view))return;
-    document.querySelectorAll('.view').forEach(el=>el.classList.toggle('active',el.id===view));
-    document.querySelectorAll('.nav [data-view]').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));
-    const group=document.getElementById('supplierGroup');
-    if(group&&(view==='suppliers'||view==='purchases'))group.classList.add('open');
-  }
-  document.addEventListener('click',e=>{
-    const btn=e.target.closest('.nav [data-view]');
-    if(!btn)return;
-    saveView(btn.dataset.view);
-    setTimeout(()=>forceView(btn.dataset.view),0);
-  },true);
-  const restore=()=>{const v=wantedView();forceView(v);saveView(v)};
-  window.addEventListener('pageshow',restore);
-  window.addEventListener('hashchange',restore);
-  restore();
-  setTimeout(restore,0);
-  setTimeout(restore,80);
-  setTimeout(restore,250);
-  setTimeout(restore,700);
+  function saveView(view){if(!valid.includes(view))return;try{localStorage.setItem(VIEW_KEY,view)}catch{}try{sessionStorage.setItem(VIEW_KEY,view)}catch{}const hash=toHash[view];if(hash&&location.hash!=='#'+hash){try{history.replaceState(null,'',location.pathname+location.search+'#'+hash)}catch{}}}
+  function wantedView(){let v=fromHash[(location.hash||'').slice(1)];if(!v){try{v=sessionStorage.getItem(VIEW_KEY)}catch{}}if(!v){try{v=localStorage.getItem(VIEW_KEY)}catch{}}return valid.includes(v)?v:'products'}
+  function forceView(view){if(!valid.includes(view))return;document.querySelectorAll('.view').forEach(el=>el.classList.toggle('active',el.id===view));document.querySelectorAll('.nav [data-view]').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));const group=document.getElementById('supplierGroup');if(group&&(view==='suppliers'||view==='purchases'))group.classList.add('open')}
+  document.addEventListener('click',e=>{const btn=e.target.closest('.nav [data-view]');if(!btn)return;saveView(btn.dataset.view);setTimeout(()=>forceView(btn.dataset.view),0)},true);
+  const restore=()=>{const v=wantedView();forceView(v);saveView(v)};window.addEventListener('pageshow',restore);window.addEventListener('hashchange',restore);restore();setTimeout(restore,0);setTimeout(restore,80);setTimeout(restore,250);setTimeout(restore,700);
 })();
 
-(()=>{
-  if(document.getElementById('vareliaSupabaseLoader'))return;
-  const sdk=document.createElement('script');
-  sdk.id='vareliaSupabaseLoader';
-  sdk.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
-  sdk.onload=()=>{
-    const auth=document.createElement('script');
-    auth.src='supabase-auth.js?v=20260819-1';
-    auth.onload=()=>{
-      const enh=document.createElement('script');
-      enh.src='auth-enhancements.js?v=20260819-1';
-      document.body.appendChild(enh);
-    };
-    document.body.appendChild(auth);
-  };
-  document.head.appendChild(sdk);
-})();
+(()=>{if(document.getElementById('vareliaSupabaseLoader'))return;const sdk=document.createElement('script');sdk.id='vareliaSupabaseLoader';sdk.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';sdk.onload=()=>{const auth=document.createElement('script');auth.src='supabase-auth.js?v=20260819-1';auth.onload=()=>{const enh=document.createElement('script');enh.src='auth-enhancements.js?v=20260819-1';document.body.appendChild(enh)};document.body.appendChild(auth)};document.head.appendChild(sdk)})();
 
-(()=>{
-  if(document.getElementById('vareliaBarcodeTools'))return;
-  const s=document.createElement('script');
-  s.id='vareliaBarcodeTools';
-  s.src='barcode-tools.js?v=20260819-1';
-  document.body.appendChild(s);
-})();
+(()=>{if(document.getElementById('vareliaBarcodeTools'))return;const s=document.createElement('script');s.id='vareliaBarcodeTools';s.src='barcode-tools.js?v=20260819-2';s.onload=()=>{if(document.getElementById('vareliaBluetoothPrinter'))return;const b=document.createElement('script');b.id='vareliaBluetoothPrinter';b.src='bluetooth-printer.js?v=20260819-1';document.body.appendChild(b)};document.body.appendChild(s)})();
