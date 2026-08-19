@@ -20,7 +20,7 @@ jobs:
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
           css='<link rel="stylesheet" href="product-view.css?v=20260819-3">'
-          js='<script src="product-view.js?v=20260819-13"></script>'
+          js='<script src="product-view.js?v=20260819-14"></script>'
           s=re.sub(r'<link rel="stylesheet" href="product-view\.css(?:\?[^\"]*)?">',css,s)
           s=re.sub(r'<script src="product-view\.js(?:\?[^\"]*)?\"></script>',js,s)
           if css not in s:
