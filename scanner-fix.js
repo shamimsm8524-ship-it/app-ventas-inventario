@@ -29,49 +29,21 @@
     function resetUI(){const r=document.getElementById('vareliaReader'),res=document.getElementById('scannerProductResult'),manual=document.querySelector('.scannerManual'),info=document.getElementById('scannerInfo');if(r){r.style.display='block';r.innerHTML=''}if(res){res.hidden=true;res.innerHTML=''}if(manual)manual.style.display='flex';if(info)info.style.display='block';const m=document.getElementById('scannerManualCode');if(m)m.value=''}
     async function stopCamera(){const current=scanner;scanner=null;if(!current)return;try{const state=current.getState?.();if(state===2||state===3)await current.stop()}catch{}try{await current.clear()}catch{}await sleep(250)}
     async function closeScanner(){await stopCamera();try{if(dialog.open)dialog.close()}catch{}opening=false;finishing=false;resetUI()}
-    async function cameraConfig(){
-      try{
-        const cams=await Html5Qrcode.getCameras();
-        if(cams?.length){const back=cams.find(c=>/back|rear|environment|trasera|posterior/i.test(c.label||''))||cams[cams.length-1];if(back?.id)return back.id}
-      }catch(e){console.warn('No se pudo listar cámaras',e)}
-      return {facingMode:'environment'};
-    }
-    async function startCamera(){
-      const reader=document.getElementById('vareliaReader');reader.innerHTML='';reader.style.display='block';
-      scanner=new Html5Qrcode('vareliaReader');
-      const formats=[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.QR_CODE];
-      const config={fps:10,qrbox:{width:280,height:145},formatsToSupport:formats,aspectRatio:1.777,disableFlip:false};
-      const cam=await cameraConfig();
-      try{return await scanner.start(cam,config,text=>finish(text),()=>{})}
-      catch(first){console.warn('Primer intento de cámara falló',first);await stopCamera();scanner=new Html5Qrcode('vareliaReader');return await scanner.start({facingMode:'environment'},config,text=>finish(text),()=>{})}
-    }
-    async function openScanner(which){if(opening)return;target=which;opening=true;finishing=false;resetUI();try{
-      if(!window.isSecureContext)throw new Error('HTTPS_REQUIRED');
-      if(!navigator.mediaDevices?.getUserMedia)throw new Error('CAMERA_UNSUPPORTED');
-      await loadLib();
-      await stopCamera();
-      if(!dialog.open)dialog.showModal();
-      await sleep(180);
-      await startCamera();
-    }catch(e){console.error('Scanner',e);await stopCamera();try{if(dialog.open)dialog.close()}catch{}const msg=String(e?.name||'')+' '+String(e?.message||e);if(/NotAllowed|Permission|denied/i.test(msg))alert('Permite la cámara en Chrome para poder escanear.');else if(/NotFound|DevicesNotFound/i.test(msg))alert('No se encontró una cámara disponible en este equipo.');else if(/NotReadable|TrackStart|Could not start video source/i.test(msg))alert('La cámara está ocupada. Cierra otra app que use la cámara y vuelve a intentarlo.');else if(/HTTPS_REQUIRED/.test(msg))alert('Abre Varelia usando https:// para usar la cámara.');else alert('No se pudo iniciar la cámara. Vuelve a tocar Escanear.');}finally{opening=false}}
+    async function cameraConfig(){try{const cams=await Html5Qrcode.getCameras();if(cams?.length){const back=cams.find(c=>/back|rear|environment|trasera|posterior/i.test(c.label||''))||cams[cams.length-1];if(back?.id)return back.id}}catch(e){console.warn('No se pudo listar cámaras',e)}return {facingMode:'environment'}}
+    async function startCamera(){const reader=document.getElementById('vareliaReader');reader.innerHTML='';reader.style.display='block';scanner=new Html5Qrcode('vareliaReader');const formats=[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.QR_CODE];const config={fps:10,qrbox:{width:280,height:145},formatsToSupport:formats,aspectRatio:1.777,disableFlip:false};const cam=await cameraConfig();try{return await scanner.start(cam,config,text=>finish(text),()=>{})}catch(first){console.warn('Primer intento de cámara falló',first);await stopCamera();scanner=new Html5Qrcode('vareliaReader');return await scanner.start({facingMode:'environment'},config,text=>finish(text),()=>{})}}
+    async function openScanner(which){if(opening)return;target=which;opening=true;finishing=false;resetUI();try{if(!window.isSecureContext)throw new Error('HTTPS_REQUIRED');if(!navigator.mediaDevices?.getUserMedia)throw new Error('CAMERA_UNSUPPORTED');await loadLib();await stopCamera();if(!dialog.open)dialog.showModal();await sleep(180);await startCamera()}catch(e){console.error('Scanner',e);await stopCamera();try{if(dialog.open)dialog.close()}catch{}const msg=String(e?.name||'')+' '+String(e?.message||e);window.vareliaSound?.('error');if(/NotAllowed|Permission|denied/i.test(msg))alert('Permite la cámara en Chrome para poder escanear.');else if(/NotFound|DevicesNotFound/i.test(msg))alert('No se encontró una cámara disponible en este equipo.');else if(/NotReadable|TrackStart|Could not start video source/i.test(msg))alert('La cámara está ocupada. Cierra otra app que use la cámara y vuelve a intentarlo.');else if(/HTTPS_REQUIRED/.test(msg))alert('Abre Varelia usando https:// para usar la cámara.');else alert('No se pudo iniciar la cámara. Vuelve a tocar Escanear.')}finally{opening=false}}
     function renderCard(p,code){const result=document.getElementById('scannerProductResult'),reader=document.getElementById('vareliaReader'),manual=document.querySelector('.scannerManual'),info=document.getElementById('scannerInfo');if(reader)reader.style.display='none';if(manual)manual.style.display='none';if(info)info.style.display='none';const img=p.image?`<img class="scanProductImg" src="${p.image}" alt="">`:'<div class="scanProductImg scanNoImg">Sin imagen</div>';result.innerHTML=`<div class="scanProductTop">${img}<div class="scanProductData"><div class="scanProductName">${esc(p.name||'Producto')}</div><div class="meta">Código: ${esc(code)}</div><div class="scanStock">Stock: <b>${Number(p.stock||0)} ${esc(p.unit||'Unidad')}</b></div><div class="scanPrice">S/ ${Number(p.sellPrice||0).toFixed(2)}</div></div></div><label class="scanQtyLabel">Cantidad<input id="scannerActionQty" type="number" min="1" step="1" value="1"></label><div class="scanActions"><button type="button" class="btn secondary" id="scannerIncrease">➕ Aumentar stock</button><button type="button" class="btn primary" id="scannerSell">🛒 Vender</button></div><button type="button" class="btn secondary scanAgain" id="scannerAgain">📷 Escanear otro producto</button>`;result.hidden=false;
-      document.getElementById('scannerIncrease').onclick=()=>{const q=Math.max(1,Math.floor(+document.getElementById('scannerActionQty').value||1)),before=+p.stock||0;p.stock=before+q;persistProducts();renderCard(p,code)};
-      document.getElementById('scannerSell').onclick=async()=>{const q=Math.max(1,Math.floor(+document.getElementById('scannerActionQty').value||1));if((+p.stock||0)<q)return alert('Stock insuficiente. Disponible: '+Number(p.stock||0));await closeScanner();try{if(typeof openSale==='function')openSale();for(let i=0;i<q;i++)if(typeof addToCart==='function')addToCart(p)}catch(e){console.error(e);alert('No se pudo preparar la venta.')}};
+      document.getElementById('scannerIncrease').onclick=()=>{const q=Math.max(1,Math.floor(+document.getElementById('scannerActionQty').value||1)),before=+p.stock||0;p.stock=before+q;persistProducts();window.vareliaSound?.('add');window.vareliaToast?.('Stock actualizado: +'+q,'ok');renderCard(p,code)};
+      document.getElementById('scannerSell').onclick=async()=>{const q=Math.max(1,Math.floor(+document.getElementById('scannerActionQty').value||1));if((+p.stock||0)<q){window.vareliaSound?.('error');return alert('Stock insuficiente. Disponible: '+Number(p.stock||0))}await closeScanner();try{if(typeof openSale==='function')openSale();for(let i=0;i<q;i++)if(typeof addToCart==='function')addToCart(p);window.vareliaSound?.('sale')}catch(e){console.error(e);window.vareliaSound?.('error');alert('No se pudo preparar la venta.')}};
       document.getElementById('scannerAgain').onclick=async()=>{await stopCamera();opening=false;finishing=false;openScanner(target)};
     }
-    async function finish(raw){if(finishing)return;finishing=true;const code=norm(raw);if(!code){finishing=false;return}await stopCamera();let p=findProduct(code);
+    async function finish(raw){if(finishing)return;finishing=true;const code=norm(raw);if(!code){finishing=false;return}window.vareliaSound?.('scan');await stopCamera();let p=findProduct(code);
       if(target==='product'&&!p){const el=document.getElementById('barcode');if(el){el.value=code;el.dispatchEvent(new Event('input',{bubbles:true}))}await closeScanner();return}
       if(target==='inventory'){const el=document.getElementById('inventoryCode');if(el)el.value=code;if(!p){const selected=selectedInventoryProduct();if(selected){selected.barcode=code;persistProducts();p=selected}}}
       if(target==='sale'){const el=document.getElementById('saleSearch');if(el)el.value=code}
       if(p){renderCard(p,code);finishing=false;return}
-      alert('Código leído: '+code+'\nEste código todavía no está vinculado a un producto.');finishing=false;resetUI();try{if(dialog.open)dialog.close()}catch{}
+      window.vareliaSound?.('error');alert('Código leído: '+code+'\nEste código todavía no está vinculado a un producto.');finishing=false;resetUI();try{if(dialog.open)dialog.close()}catch{}
     }
-    if(productBtn)productBtn.onclick=e=>{e.preventDefault();openScanner('product')};
-    if(inventoryBtn)inventoryBtn.onclick=e=>{e.preventDefault();openScanner('inventory')};
-    if(saleBtn)saleBtn.onclick=e=>{e.preventDefault();openScanner('sale')};
-    if(closeBtn)closeBtn.onclick=e=>{e.preventDefault();closeScanner()};
-    dialog.addEventListener('cancel',e=>{e.preventDefault();closeScanner()});
-    document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera()});
-    window.addEventListener('pagehide',()=>stopCamera());
+    if(productBtn)productBtn.onclick=e=>{e.preventDefault();openScanner('product')};if(inventoryBtn)inventoryBtn.onclick=e=>{e.preventDefault();openScanner('inventory')};if(saleBtn)saleBtn.onclick=e=>{e.preventDefault();openScanner('sale')};if(closeBtn)closeBtn.onclick=e=>{e.preventDefault();closeScanner()};dialog.addEventListener('cancel',e=>{e.preventDefault();closeScanner()});document.addEventListener('visibilitychange',()=>{if(document.hidden)stopCamera()});window.addEventListener('pagehide',()=>stopCamera());
   })
 })();
