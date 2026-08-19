@@ -47,7 +47,7 @@
           saveSpecs();
           window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
         },0);
-      });
+      },true);
     }
 
     const actions=document.createElement('div');
