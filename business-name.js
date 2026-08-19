@@ -7,7 +7,7 @@
     const title=document.querySelector('.brand h1');
     if(!title)return;
     const logo=document.querySelector('.logo');
-    if(logo)logo.textContent='VS';
+    if(logo){logo.textContent='VS';logo.title='Varelia Store';logo.setAttribute('aria-label','Varelia Store')}
     title.id='vareliaBusinessName';
 
     const row=document.createElement('div');
@@ -27,11 +27,12 @@
 
     const style=document.createElement('style');
     style.textContent=`
+      .brand .logo{font-size:23px!important;font-weight:950!important;letter-spacing:-.06em;line-height:1}
       .vareliaBusinessNameRow{display:flex;align-items:center;gap:6px;min-width:0}
       #vareliaBusinessName{max-width:min(52vw,420px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .vareliaBusinessNameEdit{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:13px;padding:0;cursor:pointer;flex:0 0 auto}
       .vareliaBusinessNameEdit:active{transform:scale(.96)}
-      @media(max-width:560px){#vareliaBusinessName{max-width:42vw}.vareliaBusinessNameEdit{width:28px;height:28px}}
+      @media(max-width:560px){.brand .logo{font-size:22px!important}#vareliaBusinessName{max-width:42vw}.vareliaBusinessNameEdit{width:28px;height:28px}}
     `;
     document.head.appendChild(style);
 
