@@ -6,6 +6,7 @@ on:
       - 'product-view.css'
       - 'product-view.js'
       - 'public-catalog.js'
+      - 'catalog-view.js'
       - 'catalogo.html'
 permissions:
   contents: write
@@ -19,6 +20,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
+
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
           css='<link rel="stylesheet" href="product-view.css?v=20260819-3">'
@@ -42,12 +44,20 @@ jobs:
           if old in s:
               s=s.replace(old,new,1)
           p.write_text(s,encoding='utf-8')
+
+          cp=Path('catalogo.html')
+          cs=cp.read_text(encoding='utf-8')
+          catalog_view='<script src="catalog-view.js?v=20260819-1"></script>'
+          cs=re.sub(r'<script src="catalog-view\.js(?:\?[^\"]*)?\"></script>',catalog_view,cs)
+          if catalog_view not in cs:
+              cs=cs.replace('</body>',catalog_view+'\n</body>',1)
+          cp.write_text(cs,encoding='utf-8')
           PY
       - name: Guardar cambio
         run: |
           if git diff --quiet; then exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
+          git add index.html catalogo.html
           git commit -m "Actualizar acceso de Varelia"
           git push
