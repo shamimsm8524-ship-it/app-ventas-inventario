@@ -1,4 +1,13 @@
 (()=>{
+  if(!document.getElementById('vareliaBulkScanLoader')){
+    const s=document.createElement('script');
+    s.id='vareliaBulkScanLoader';
+    s.src='bulk-scan.js?v=20260819-2';
+    document.body.appendChild(s);
+  }
+})();
+
+(()=>{
   function ready(fn){document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn()}
   ready(()=>{
     const wait=setInterval(()=>{
