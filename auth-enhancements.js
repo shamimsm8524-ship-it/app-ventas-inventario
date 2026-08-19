@@ -34,7 +34,7 @@
           const msg=document.getElementById('vaMsg');
           if(msg){msg.textContent='Abriendo Google...';msg.className='va-msg'}
           try{
-            const redirectTo='https://vareliastore.tech/';
+            const redirectTo='https://vareliastore.tech/auth-callback.html';
             const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo}});
             if(error)throw error;
           }catch(e){if(msg){msg.textContent='No se pudo iniciar con Google: '+(e.message||e);msg.className='va-msg error'}}
