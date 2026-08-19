@@ -18,32 +18,42 @@
 })();
 
 (()=>{
-  const VIEW_KEY='miNegocio_lastView_v2';
-  const validViews=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];
-  const hashToView={productos:'products',inventario:'inventory',categorias:'categories',proveedores:'suppliers',mercaderia:'purchases',ventas:'sales',caja:'cash',apariencia:'appearance'};
-  const viewToHash={products:'productos',inventory:'inventario',categories:'categorias',suppliers:'proveedores',purchases:'mercaderia',sales:'ventas',cash:'caja',appearance:'apariencia'};
-  function remember(view){
-    if(!validViews.includes(view))return;
+  const VIEW_KEY='miNegocio_lastView_v3';
+  const valid=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];
+  const toHash={products:'productos',inventory:'inventario',categories:'categorias',suppliers:'proveedores',purchases:'mercaderia',sales:'ventas',cash:'caja',appearance:'apariencia'};
+  const fromHash=Object.fromEntries(Object.entries(toHash).map(([k,v])=>[v,k]));
+  function saveView(view){
+    if(!valid.includes(view))return;
     try{localStorage.setItem(VIEW_KEY,view)}catch{}
-    const h=viewToHash[view];
-    if(h&&location.hash!=='#'+h){try{history.replaceState(null,'','#'+h)}catch{location.hash=h}}
+    try{sessionStorage.setItem(VIEW_KEY,view)}catch{}
+    const hash=toHash[view];
+    if(hash&&location.hash!=='#'+hash){try{history.replaceState(null,'',location.pathname+location.search+'#'+hash)}catch{}}
   }
-  function restore(){
-    let saved=hashToView[(location.hash||'').replace(/^#/,'')];
-    if(!saved){try{saved=localStorage.getItem(VIEW_KEY)}catch{}}
-    if(!validViews.includes(saved))saved='products';
-    if(typeof switchView==='function')switchView(saved);
-    else{
-      document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===saved));
-      document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===saved));
-      if((saved==='suppliers'||saved==='purchases')&&typeof supplierGroup!=='undefined')supplierGroup.classList.add('open');
-    }
+  function wantedView(){
+    let v=fromHash[(location.hash||'').slice(1)];
+    if(!v){try{v=sessionStorage.getItem(VIEW_KEY)}catch{}}
+    if(!v){try{v=localStorage.getItem(VIEW_KEY)}catch{}}
+    return valid.includes(v)?v:'products';
+  }
+  function forceView(view){
+    if(!valid.includes(view))return;
+    document.querySelectorAll('.view').forEach(el=>el.classList.toggle('active',el.id===view));
+    document.querySelectorAll('.nav [data-view]').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));
+    const group=document.getElementById('supplierGroup');
+    if(group&&(view==='suppliers'||view==='purchases'))group.classList.add('open');
   }
   document.addEventListener('click',e=>{
     const btn=e.target.closest('.nav [data-view]');
-    if(btn)remember(btn.dataset.view);
+    if(!btn)return;
+    saveView(btn.dataset.view);
+    setTimeout(()=>forceView(btn.dataset.view),0);
   },true);
+  const restore=()=>{const v=wantedView();forceView(v);saveView(v)};
+  window.addEventListener('pageshow',restore);
   window.addEventListener('hashchange',restore);
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(restore,50));
-  else setTimeout(restore,50);
+  restore();
+  setTimeout(restore,0);
+  setTimeout(restore,80);
+  setTimeout(restore,250);
+  setTimeout(restore,700);
 })();
