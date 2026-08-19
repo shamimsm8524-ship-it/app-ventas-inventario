@@ -14,8 +14,14 @@
   if(!document.getElementById('vareliaCashDailyLoader')){
     const c=document.createElement('script');
     c.id='vareliaCashDailyLoader';
-    c.src='cash-daily-summary.js?v=20260819-1';
+    c.src='cash-daily-summary.js?v=20260819-2';
     document.body.appendChild(c);
+  }
+  if(!document.getElementById('vareliaWeeklyReportLoader')){
+    const w=document.createElement('script');
+    w.id='vareliaWeeklyReportLoader';
+    w.src='weekly-report.js?v=20260819-1';
+    document.body.appendChild(w);
   }
 })();
 
