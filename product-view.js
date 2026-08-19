@@ -18,25 +18,32 @@
 })();
 
 (()=>{
-  const VIEW_KEY='miNegocio_lastView_v1';
+  const VIEW_KEY='miNegocio_lastView_v2';
   const validViews=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];
-  function remember(view){if(validViews.includes(view)){try{localStorage.setItem(VIEW_KEY,view)}catch{}}}
-  document.querySelectorAll('.nav [data-view]').forEach(btn=>{
-    btn.addEventListener('click',()=>remember(btn.dataset.view));
-  });
-  const originalSwitchView=typeof switchView==='function'?switchView:null;
-  if(originalSwitchView){
-    window.switchView=function(view){remember(view);return originalSwitchView(view)};
+  const hashToView={productos:'products',inventario:'inventory',categorias:'categories',proveedores:'suppliers',mercaderia:'purchases',ventas:'sales',caja:'cash',apariencia:'appearance'};
+  const viewToHash={products:'productos',inventory:'inventario',categories:'categorias',suppliers:'proveedores',purchases:'mercaderia',sales:'ventas',cash:'caja',appearance:'apariencia'};
+  function remember(view){
+    if(!validViews.includes(view))return;
+    try{localStorage.setItem(VIEW_KEY,view)}catch{}
+    const h=viewToHash[view];
+    if(h&&location.hash!=='#'+h){try{history.replaceState(null,'','#'+h)}catch{location.hash=h}}
   }
-  let saved='products';
-  try{saved=localStorage.getItem(VIEW_KEY)||'products'}catch{}
-  if(!validViews.includes(saved))saved='products';
-  setTimeout(()=>{
+  function restore(){
+    let saved=hashToView[(location.hash||'').replace(/^#/,'')];
+    if(!saved){try{saved=localStorage.getItem(VIEW_KEY)}catch{}}
+    if(!validViews.includes(saved))saved='products';
     if(typeof switchView==='function')switchView(saved);
     else{
       document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===saved));
       document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===saved));
       if((saved==='suppliers'||saved==='purchases')&&typeof supplierGroup!=='undefined')supplierGroup.classList.add('open');
     }
-  },0);
+  }
+  document.addEventListener('click',e=>{
+    const btn=e.target.closest('.nav [data-view]');
+    if(btn)remember(btn.dataset.view);
+  },true);
+  window.addEventListener('hashchange',restore);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(restore,50));
+  else setTimeout(restore,50);
 })();
