@@ -19,8 +19,8 @@
 
 (()=>{
   const VIEW_KEY='miNegocio_lastView_v3';
-  const valid=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];
-  const toHash={products:'productos',inventory:'inventario',categories:'categorias',suppliers:'proveedores',purchases:'mercaderia',sales:'ventas',cash:'caja',appearance:'apariencia'};
+  const valid=['products','inventory','categories','suppliers','purchases','sales','billing','cash','appearance'];
+  const toHash={products:'productos',inventory:'inventario',categories:'categorias',suppliers:'proveedores',purchases:'mercaderia',sales:'ventas',billing:'facturacion',cash:'caja',appearance:'apariencia'};
   const fromHash=Object.fromEntries(Object.entries(toHash).map(([k,v])=>[v,k]));
   function saveView(view){if(!valid.includes(view))return;try{localStorage.setItem(VIEW_KEY,view)}catch{}try{sessionStorage.setItem(VIEW_KEY,view)}catch{}const hash=toHash[view];if(hash&&location.hash!=='#'+hash){try{history.replaceState(null,'',location.pathname+location.search+'#'+hash)}catch{}}}
   function wantedView(){let v=fromHash[(location.hash||'').slice(1)];if(!v){try{v=sessionStorage.getItem(VIEW_KEY)}catch{}}if(!v){try{v=localStorage.getItem(VIEW_KEY)}catch{}}return valid.includes(v)?v:'products'}
@@ -31,4 +31,4 @@
 
 (()=>{if(document.getElementById('vareliaSupabaseLoader'))return;const sdk=document.createElement('script');sdk.id='vareliaSupabaseLoader';sdk.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';sdk.onload=()=>{const auth=document.createElement('script');auth.src='supabase-auth.js?v=20260819-2';auth.onload=()=>{const enh=document.createElement('script');enh.src='auth-enhancements.js?v=20260819-1';document.body.appendChild(enh)};document.body.appendChild(auth)};document.head.appendChild(sdk)})();
 
-(()=>{if(!document.getElementById('vareliaProfessionalCss')){const l=document.createElement('link');l.id='vareliaProfessionalCss';l.rel='stylesheet';l.href='app-professional.css?v=20260819-2';document.head.appendChild(l)}if(!document.getElementById('vareliaProfessionalJs')){const p=document.createElement('script');p.id='vareliaProfessionalJs';p.src='app-professional.js?v=20260819-1';document.body.appendChild(p)}setTimeout(()=>{if(!document.getElementById('vareliaBluetoothPrinter')){const b=document.createElement('script');b.id='vareliaBluetoothPrinter';b.src='bluetooth-printer.js?v=20260819-3';document.body.appendChild(b)}},500)})();
+(()=>{if(!document.getElementById('vareliaProfessionalCss')){const l=document.createElement('link');l.id='vareliaProfessionalCss';l.rel='stylesheet';l.href='app-professional.css?v=20260819-2';document.head.appendChild(l)}if(!document.getElementById('vareliaProfessionalJs')){const p=document.createElement('script');p.id='vareliaProfessionalJs';p.src='app-professional.js?v=20260819-1';document.body.appendChild(p)}if(!document.getElementById('vareliaBillingSunatLoader')){const f=document.createElement('script');f.id='vareliaBillingSunatLoader';f.src='billing-sunat.js?v=20260819-1';document.body.appendChild(f)}setTimeout(()=>{if(!document.getElementById('vareliaBluetoothPrinter')){const b=document.createElement('script');b.id='vareliaBluetoothPrinter';b.src='bluetooth-printer.js?v=20260819-3';document.body.appendChild(b)}},500)})();
