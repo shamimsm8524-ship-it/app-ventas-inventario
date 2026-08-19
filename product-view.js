@@ -66,6 +66,11 @@
   sdk.onload=()=>{
     const auth=document.createElement('script');
     auth.src='supabase-auth.js?v=20260819-1';
+    auth.onload=()=>{
+      const enh=document.createElement('script');
+      enh.src='auth-enhancements.js?v=20260819-1';
+      document.body.appendChild(enh);
+    };
     document.body.appendChild(auth);
   };
   document.head.appendChild(sdk);
