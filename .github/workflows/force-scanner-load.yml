@@ -1,0 +1,31 @@
+name: Force scanner load
+on:
+  push:
+    paths:
+      - '.github/workflows/force-scanner-load.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch index
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text()
+          s=s.replace('product-view.js?v=20260819-6','product-view.js?v=20260819-9')
+          s=s.replace('barcode-tools.js?v=20260819-2','barcode-tools.js?v=20260819-5')
+          if 'scanner-fix.js?v=20260819-3' not in s:
+              s=s.replace('</body>','<script src="scanner-fix.js?v=20260819-3"></script>\n</body>')
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Load real barcode scanner directly"
+          git push
