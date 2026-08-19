@@ -2,8 +2,14 @@
   if(!document.getElementById('vareliaBulkScanLoader')){
     const s=document.createElement('script');
     s.id='vareliaBulkScanLoader';
-    s.src='bulk-scan.js?v=20260819-2';
+    s.src='bulk-scan.js?v=20260819-3';
     document.body.appendChild(s);
+  }
+  if(!document.getElementById('vareliaProfessionalFlowLoader')){
+    const f=document.createElement('script');
+    f.id='vareliaProfessionalFlowLoader';
+    f.src='professional-flow.js?v=20260819-1';
+    document.body.appendChild(f);
   }
 })();
 
