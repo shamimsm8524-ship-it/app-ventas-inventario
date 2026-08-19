@@ -74,10 +74,13 @@
       const saved=$('billSavedConfig'),form=$('billConfigForm'),cancel=$('billCancelConfig'),saveBtn=$('billSaveConfig'),box=$('billIssuerSummary');if(!saved||!form||!box)return;
       const ok=configReady();
       if(ok&&!configEditing){
-        saved.hidden=false;form.hidden=true;
+        saved.hidden=false;saved.style.display='block';
+        form.hidden=true;form.style.display='none';
         box.innerHTML=`<div>RUC<b>${esc(config.ruc)}</b></div><div>Razón social<b>${esc(config.legalName)}</b></div><div>Nombre comercial<b>${esc(config.tradeName||'No registrado')}</b></div><div>Régimen<b>${esc(config.taxRegime)}</b></div><div>Dirección fiscal<b>${esc(config.address||'No registrada')}</b></div><div>Series<b>${esc(config.invoiceSeries||'F001')} · ${esc(config.receiptSeries||'B001')}</b></div>`;
       }else{
-        saved.hidden=true;form.hidden=false;fillConfigForm();cancel.hidden=!ok;saveBtn.textContent=ok?'Guardar cambios':'Guardar configuración';
+        saved.hidden=true;saved.style.display='none';
+        form.hidden=false;form.style.display='grid';
+        fillConfigForm();cancel.hidden=!ok;cancel.style.display=ok?'block':'none';saveBtn.textContent=ok?'Guardar cambios':'Guardar configuración';
       }
     }
     function openBilling(){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='billing'));document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b===btn));if(innerWidth<=980){document.getElementById('sidebar')?.classList.remove('open');document.getElementById('overlay')?.classList.remove('show')}try{history.replaceState(null,'',location.pathname+location.search+'#facturacion')}catch{}renderAll();scrollTo({top:0,behavior:'smooth'})}
