@@ -26,5 +26,7 @@
 
     const checkoutBtn=document.getElementById('checkout');if(checkoutBtn)checkoutBtn.addEventListener('click',()=>setTimeout(()=>window.vareliaSound?.('sale'),80));
     const invBtn=document.getElementById('applyInventory');if(invBtn)invBtn.addEventListener('click',()=>setTimeout(()=>window.vareliaSound?.('add'),80));
+
+    if(!document.getElementById('vareliaBulkScan')){const s=document.createElement('script');s.id='vareliaBulkScan';s.src='bulk-scan.js?v=20260819-1';document.body.appendChild(s)}
   })
 })();
