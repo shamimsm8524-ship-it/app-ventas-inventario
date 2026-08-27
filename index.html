@@ -50,11 +50,12 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650;9..144,800&display=swap" rel="stylesheet">
+<!-- SDK DE FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-<header class="top"><div class="brand"><div class="left"><button class="menu" id="menuBtn">☰</button><div class="logo">MN</div><div><h1>Mi Negocio</h1><p class="meta">Ventas e inventario <span id="cloudStatus" style="font-size:11px;color:var(--p);font-weight:800;margin-left:6px">☁️ Sincronizado</span></p></div></div><button class="btn primary" id="newSaleTop">+ Nueva venta</button></div></header>
+<header class="top"><div class="brand"><div class="left"><button class="menu" id="menuBtn">☰</button><div class="logo">MN</div><div><h1>Mi Negocio</h1><p class="meta">Ventas e inventario <span id="cloudStatus" style="font-size:11px;color:var(--p);font-weight:800;margin-left:6px;cursor:pointer">☁️ Conectando...</span></p></div></div><button class="btn primary" id="newSaleTop">+ Nueva venta</button></div></header>
 <div class="overlay" id="overlay"></div>
 <div class="shell"><aside class="side" id="sidebar"><small>Menú principal</small><nav class="nav"><button class="active" data-view="products">📦 Productos</button><button data-view="inventory">📊 Inventario</button><button data-view="categories">🗂️ Categorías</button><div class="navgroup" id="supplierGroup"><button type="button" class="navparent" id="supplierMenu"><span>🚚 Proveedores</span><span class="arrow">⌄</span></button><div class="submenu"><button data-view="suppliers">👥 Directorio de proveedores</button><button data-view="purchases">📥 Ingreso de mercadería</button></div></div><button data-view="sales">🧾 Ventas</button><button data-view="cash">💵 Caja</button><button data-view="appearance">🎨 Apariencia</button></nav></aside>
 <main class="content">
@@ -86,62 +87,99 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
-const docRef = db.collection('datos_panel').doc('tienda_varelia');
 
 const K={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};
 const $=id=>document.getElementById(id),money=n=>'S/ '+Number(n||0).toFixed(2),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
 function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}
-let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.sales,[]),closures=load(K.closures,[]),cashStart=load(K.cashStart,new Date().toISOString()),theme=load(K.theme,{color:'#be185d',dark:false}),movements=load(K.movements,[]),suppliers=load(K.suppliers,[]),purchases=load(K.purchases,[]),activeCategory='Todos',cart=[],purchaseCart=[],inventoryProductId=null,stream=null,timer=null;
+
+let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.sales,[]),closures=load(K.closures,[]),cashStart=load(K.cashStart,new Date().toISOString()),theme=load(K.theme,{color:'#be185d',dark:false}),movements=load(K.movements,[]),suppliers=load(K.suppliers,[]),purchases=load(K.purchases,[]),activeCategory='Todos',cart=[],purchaseCart=[],inventoryProductId=null;
 products.forEach(p=>{if(p.reorderLevel==null)p.reorderLevel=5});
 
-let syncingFromCloud = false;
+let isRemoteSync = false;
 
-// Guardar en la nube y local
-function saveToCloud(){
-  if(syncingFromCloud) return;
-  docRef.set({
-    products, categories, sales, closures, cashStart, movements, suppliers, purchases, theme,
-    updatedAt: new Date().toISOString()
-  }, { merge: true }).then(()=>{
-    const st = $('cloudStatus');
-    if(st) st.textContent = '☁️ Sincronizado';
-  }).catch(e=>{
-    console.error(e);
-    const st = $('cloudStatus');
-    if(st) st.textContent = '⚠️ Sin conexión nube';
-  });
+// Colecciones en Firestore
+const colProd = db.collection('varelia_catalogo');
+const docMeta = db.collection('varelia_sistema').doc('general');
+
+// Sincronizar un producto a la nube
+function syncProductToCloud(p){
+  if(isRemoteSync) return;
+  colProd.doc(p.id).set(p).catch(e=>console.error("Error nube producto:",e));
 }
 
+// Eliminar un producto en la nube
+function deleteProductFromCloud(id){
+  if(isRemoteSync) return;
+  colProd.doc(id).delete().catch(e=>console.error("Error borrar nube:",e));
+}
+
+// Sincronizar metadatos (categorías, ventas, compras, caja)
+function syncMetaToCloud(){
+  if(isRemoteSync) return;
+  docMeta.set({
+    categories, sales, closures, cashStart, movements, suppliers, purchases, theme,
+    updatedAt: Date.now()
+  }, { merge: true }).catch(e=>console.error("Error nube meta:",e));
+}
+
+// Guardado general local + nube
 function save(){
-  for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]])localStorage.setItem(k,JSON.stringify(v));
-  saveToCloud();
+  for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]]) {
+    localStorage.setItem(k,JSON.stringify(v));
+  }
+  syncMetaToCloud();
   render();
 }
 
-// Sincronización en tiempo real desde Firestore
-docRef.onSnapshot(doc => {
-  if (doc.exists) {
-    const data = doc.data();
-    syncingFromCloud = true;
-    if (data.products) products = data.products;
-    if (data.categories) categories = data.categories;
-    if (data.sales) sales = data.sales;
-    if (data.closures) closures = data.closures;
-    if (data.cashStart) cashStart = data.cashStart;
-    if (data.movements) movements = data.movements;
-    if (data.suppliers) suppliers = data.suppliers;
-    if (data.purchases) purchases = data.purchases;
-    if (data.theme) { theme = data.theme; applyTheme(); }
-    for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]])localStorage.setItem(k,JSON.stringify(v));
-    render();
-    syncingFromCloud = false;
-    const st = $('cloudStatus');
-    if(st) st.textContent = '☁️ Sincronizado';
-  } else {
-    // Si la base de datos está vacía, sube los productos actuales
-    saveToCloud();
+// Escuchar cambios de productos en tiempo real
+colProd.onSnapshot(snap => {
+  if(snap.empty && products.length > 0){
+    // Si la nube está vacía pero el teléfono tiene productos, los sube a la nube
+    $('cloudStatus').textContent = '☁️ Respaldando en la nube...';
+    products.forEach(p => colProd.doc(p.id).set(p));
+    syncMetaToCloud();
+    return;
   }
-}, err => console.log('Escuchando local:', err));
+
+  if(!snap.empty){
+    isRemoteSync = true;
+    const remoteProducts = [];
+    snap.forEach(doc => remoteProducts.push(doc.data()));
+    products = remoteProducts;
+    localStorage.setItem(K.products, JSON.stringify(products));
+    render();
+    isRemoteSync = false;
+    $('cloudStatus').textContent = `☁️ Sincronizado (${products.length} prod.)`;
+  }
+}, err => {
+  console.error("Firestore Error:", err);
+  $('cloudStatus').textContent = '⚠️ Sin conexión a la nube';
+});
+
+// Escuchar cambios de metadatos en tiempo real
+docMeta.onSnapshot(doc => {
+  if(doc.exists){
+    const data = doc.data();
+    isRemoteSync = true;
+    if(Array.isArray(data.categories)) { categories = data.categories; localStorage.setItem(K.categories, JSON.stringify(categories)); }
+    if(Array.isArray(data.sales)) { sales = data.sales; localStorage.setItem(K.sales, JSON.stringify(sales)); }
+    if(Array.isArray(data.closures)) { closures = data.closures; localStorage.setItem(K.closures, JSON.stringify(closures)); }
+    if(data.cashStart) { cashStart = data.cashStart; localStorage.setItem(K.cashStart, JSON.stringify(cashStart)); }
+    if(Array.isArray(data.movements)) { movements = data.movements; localStorage.setItem(K.movements, JSON.stringify(movements)); }
+    if(Array.isArray(data.suppliers)) { suppliers = data.suppliers; localStorage.setItem(K.suppliers, JSON.stringify(suppliers)); }
+    if(Array.isArray(data.purchases)) { purchases = data.purchases; localStorage.setItem(K.purchases, JSON.stringify(purchases)); }
+    if(data.theme) { theme = data.theme; localStorage.setItem(K.theme, JSON.stringify(theme)); applyTheme(); }
+    render();
+    isRemoteSync = false;
+  }
+});
+
+// Forzar sincronización manual tocando el botón de la nube
+$('cloudStatus').onclick = () => {
+  $('cloudStatus').textContent = '☁️ Subiendo...';
+  products.forEach(p => colProd.doc(p.id).set(p));
+  syncMetaToCloud();
+};
 
 function shade(h,a=-28){let n=parseInt(h.slice(1),16),r=Math.max(0,Math.min(255,(n>>16)+a)),g=Math.max(0,Math.min(255,((n>>8)&255)+a)),b=Math.max(0,Math.min(255,(n&255)+a));return '#'+(b|g<<8|r<<16).toString(16).padStart(6,'0')}
 function applyTheme(){document.documentElement.style.setProperty('--p',theme.color);document.documentElement.style.setProperty('--p2',shade(theme.color));document.body.classList.toggle('dark',!!theme.dark);themeMeta.content=theme.color;document.querySelectorAll('.themeCard').forEach(b=>b.classList.toggle('active',b.dataset.color.toLowerCase()===theme.color.toLowerCase()));lightModeBtn.classList.toggle('active',!theme.dark);darkModeBtn.classList.toggle('active',!!theme.dark)}
@@ -153,8 +191,8 @@ function render(){renderProducts();renderInventory();renderCategories();renderSu
 function card(p){return `<article class="product"><div class="photo">${p.image?`<img src="${p.image}">`:'Sin imagen'}</div><div class="pb"><h3>${esc(p.name)}</h3><div class="meta">${esc(p.category)}${p.barcode?` · ${esc(p.barcode)}`:''}</div><div class="price">${money(p.sellPrice)}</div><div class="actions"><button class="btn secondary" data-edit="${p.id}">Editar</button><button class="btn primary" data-add="${p.id}">Vender</button><button class="btn danger" data-delete="${p.id}">Eliminar</button></div></div></article>`}
 function renderProducts(){let q=search.value.trim().toLowerCase(),a=products.filter(p=>(activeCategory==='Todos'||p.category===activeCategory)&&(!q||[p.name,p.barcode,p.category].some(v=>String(v||'').toLowerCase().includes(q))));productGrid.innerHTML=a.length?a.map(card).join(''):'<div class="empty">No hay productos.</div>';categoryChips.innerHTML=['Todos',...categories].map(c=>`<button class="chip ${activeCategory===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
 function renderInventory(){let low=products.filter(needsReorder).sort((a,b)=>(+a.stock)-(+b.stock));reorderList.innerHTML=low.length?low.map(p=>`<div class="alertrow"><div><strong>⚠️ ${esc(p.name)}</strong><div class="meta">${esc(p.category||'Sin sección')} · Stock actual: <b>${p.stock} ${esc(p.unit)}</b></div></div><div style="text-align:right"><label style="font-size:11px">Alertar en</label><input data-reorder="${p.id}" type="number" min="0" value="${Math.max(0,+p.reorderLevel||0)}"></div></div>`).join(''):'<div class="empty">✅ No hay productos por reponer.</div>';inventoryProductList.innerHTML=products.length?[...products].sort((a,b)=>(a.category||'').localeCompare(b.category||'')||(a.name||'').localeCompare(b.name||'')).map(p=>`<div class="row" data-invrow="${p.id}"><div><strong>${esc(p.name)}${needsReorder(p)?'<span class="warnbadge">⚠️ Reponer</span>':''}</strong><div><span class="badge">${esc(p.category||'Sin sección')}</span></div><div class="meta">Alerta configurada: ${Math.max(0,+p.reorderLevel||0)} ${esc(p.unit)}</div></div><div style="text-align:right"><strong>${p.stock} ${esc(p.unit)}</strong><div><button class="btn secondary" data-alertcfg="${p.id}" style="padding:7px 9px;margin-top:7px">⚙️ Alerta</button></div></div></div>`).join(''):'<div class="empty">Sin productos.</div>';let list=[...movements].reverse().slice(0,100);inventoryMovementList.innerHTML=list.length?list.map(m=>`<div class="row"><div><strong>${esc(m.name)}</strong><div class="meta">${new Date(m.date).toLocaleString('es-PE')} · ${esc(m.source||'')}</div><div class="meta">Stock ${m.before} → ${m.after}</div></div><div><strong>${m.qty}</strong></div></div>`).join(''):'<div class="empty">Sin movimientos.</div>'}
-reorderList.onchange=e=>{if(e.target.dataset.reorder){let p=products.find(x=>x.id===e.target.dataset.reorder);if(p){p.reorderLevel=Math.max(0,Math.floor(+e.target.value||0));save()}}};
-inventoryProductList.onclick=e=>{let a=e.target.closest('[data-alertcfg]');if(a){e.stopPropagation();let p=products.find(x=>x.id===a.dataset.alertcfg),n=prompt('¿Con cuántas unidades quieres que aparezca la alerta para '+p.name+'?',p.reorderLevel??5);if(n!==null&&n!==''&&!isNaN(n)){p.reorderLevel=Math.max(0,Math.floor(+n));save()}return}let r=e.target.closest('[data-invrow]');if(r)selectInv(products.find(p=>p.id===r.dataset.invrow))};
+reorderList.onchange=e=>{if(e.target.dataset.reorder){let p=products.find(x=>x.id===e.target.dataset.reorder);if(p){p.reorderLevel=Math.max(0,Math.floor(+e.target.value||0));syncProductToCloud(p);save()}}};
+inventoryProductList.onclick=e=>{let a=e.target.closest('[data-alertcfg]');if(a){e.stopPropagation();let p=products.find(x=>x.id===a.dataset.alertcfg),n=prompt('¿Con cuántas unidades quieres que aparezca la alerta para '+p.name+'?',p.reorderLevel??5);if(n!==null&&n!==''&&!isNaN(n)){p.reorderLevel=Math.max(0,Math.floor(+n));syncProductToCloud(p);save()}return}let r=e.target.closest('[data-invrow]');if(r)selectInv(products.find(p=>p.id===r.dataset.invrow))};
 function renderCategories(){categoryList.innerHTML=categories.length?categories.map(c=>`<div class="row" data-opencat="${esc(c)}"><div><strong>${esc(c)}</strong><div class="meta">${products.filter(p=>p.category===c).length} producto(s) · Toca para verlos</div></div><button class="btn danger" data-delcat="${esc(c)}">Eliminar</button></div>`).join(''):'<div class="empty">Crea tu primera categoría.</div>'}
 function renderSuppliers(){let q=supplierSearch.value.trim().toLowerCase(),a=suppliers.filter(s=>!q||[s.name,s.ruc,s.phone,s.email].some(v=>String(v||'').toLowerCase().includes(q)));supplierList.innerHTML=a.length?a.map(s=>`<div class="row"><div><strong>${esc(s.name)}</strong><div class="meta">${s.ruc?'RUC: '+esc(s.ruc)+' · ':''}${esc(s.phone||'Sin teléfono')}</div></div><div><button class="btn secondary" data-editsupplier="${s.id}">Editar</button> <button class="btn danger" data-delsupplier="${s.id}">Eliminar</button></div></div>`).join(''):'<div class="empty">No hay proveedores.</div>'}
 function renderPurchases(){purchaseList.innerHTML=purchases.length?[...purchases].reverse().map(p=>`<details class="panel"><summary><strong>📥 ${new Date(p.date).toLocaleString('es-PE')} · ${esc(p.supplierName)}</strong> — ${money(p.total)}</summary></details>`).join(''):'<div class="empty">Todavía no hay ingresos de mercadería.</div>'}
@@ -189,7 +227,7 @@ function openProduct(id){
 }
 newProduct.onclick=inventoryNewProduct.onclick=()=>openProduct();
 
-// Compresión optimizada para imágenes ligeras y ultrarrápidas en la nube
+// Compresión a 350px JPEG optimizado
 productImage.onchange=e=>{
   let f=e.target.files[0];
   if(!f)return;
@@ -198,7 +236,7 @@ productImage.onchange=e=>{
     let img=new Image();
     img.onload=()=>{
       let canvas=document.createElement('canvas');
-      let max=480, w=img.width, h=img.height;
+      let max=350, w=img.width, h=img.height;
       if(w>max||h>max){
         if(w>h){ h=Math.round((h*max)/w); w=max; }
         else { w=Math.round((w*max)/h); h=max; }
@@ -206,7 +244,7 @@ productImage.onchange=e=>{
       canvas.width=w; canvas.height=h;
       let ctx=canvas.getContext('2d');
       ctx.drawImage(img,0,0,w,h);
-      imagePreview.src=canvas.toDataURL('image/jpeg',0.7);
+      imagePreview.src=canvas.toDataURL('image/jpeg',0.55);
       imagePreview.hidden=false;
     };
     img.src=ev.target.result;
@@ -219,6 +257,7 @@ productForm.onsubmit=e=>{
   let id=productId.value,old=products.find(p=>p.id===id),obj={id:id||uid(),barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:old?+old.stock||0:0,unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src};
   old?Object.assign(old,obj):products.push(obj);
   productDialog.close();
+  syncProductToCloud(obj);
   save();
 };
 
@@ -226,7 +265,11 @@ function productActions(e){
   let d=e.target.dataset;
   if(d.edit)openProduct(d.edit);
   if(d.add){openSale();addToCart(products.find(p=>p.id===d.add))}
-  if(d.delete){products=products.filter(x=>x.id!==d.delete);save()}
+  if(d.delete){
+    deleteProductFromCloud(d.delete);
+    products=products.filter(x=>x.id!==d.delete);
+    save();
+  }
 }
 productGrid.onclick=productActions;
 search.oninput=renderProducts;
@@ -237,7 +280,7 @@ function renderInvSelected(){let p=products.find(x=>x.id===inventoryProductId);i
 inventoryName.oninput=()=>{let q=inventoryName.value.trim().toLowerCase();inventoryNameResults.innerHTML=q?products.filter(p=>p.name.toLowerCase().includes(q)).map(p=>`<button class="result" data-inv="${p.id}">${esc(p.name)}</button>`).join(''):''};
 inventoryNameResults.onclick=e=>{let b=e.target.closest('[data-inv]');if(b)selectInv(products.find(p=>p.id===b.dataset.inv))};
 findInventory.onclick=()=>{let p=products.find(x=>x.barcode===inventoryCode.value.trim());p?selectInv(p):alert('Código no registrado.')};
-applyInventory.onclick=()=>{let p=products.find(x=>x.id===inventoryProductId),q=Math.floor(+inventoryQty.value);if(!p||q<1)return;let before=+p.stock||0,type=inventoryMode.value==='add'?'add':'subtract';if(type==='subtract'&&q>before)return alert('No hay suficiente stock.');p.stock=before+(type==='add'?q:-q);addMovement(p,type,q,before,p.stock,'Ajuste manual');save()};
+applyInventory.onclick=()=>{let p=products.find(x=>x.id===inventoryProductId),q=Math.floor(+inventoryQty.value);if(!p||q<1)return;let before=+p.stock||0,type=inventoryMode.value==='add'?'add':'subtract';if(type==='subtract'&&q>before)return alert('No hay suficiente stock.');p.stock=before+(type==='add'?q:-q);addMovement(p,type,q,before,p.stock,'Ajuste manual');syncProductToCloud(p);save()};
 function openSupplier(id){let s=suppliers.find(x=>x.id===id);supplierForm.reset();supplierId.value=s?.id||'';supplierTitle.textContent=s?'Editar proveedor':'Nuevo proveedor';supplierName.value=s?.name||'';supplierRuc.value=s?.ruc||'';supplierPhone.value=s?.phone||'';supplierEmail.value=s?.email||'';supplierAddress.value=s?.address||'';supplierNotes.value=s?.notes||'';supplierDialog.showModal()}
 newSupplier.onclick=()=>openSupplier();
 supplierForm.onsubmit=e=>{e.preventDefault();let id=supplierId.value,obj={id:id||uid(),name:supplierName.value.trim(),ruc:supplierRuc.value.trim(),phone:supplierPhone.value.trim(),email:supplierEmail.value.trim(),address:supplierAddress.value.trim(),notes:supplierNotes.value.trim()},old=suppliers.find(x=>x.id===id);old?Object.assign(old,obj):suppliers.push(obj);supplierDialog.close();save()};
@@ -245,13 +288,13 @@ supplierSearch.oninput=renderSuppliers;
 newPurchase.onclick=()=>{purchaseCart=[];fillPurchaseSelectors();purchaseDialog.showModal()};
 function renderPurchaseCart(){purchaseItems.innerHTML=purchaseCart.map(i=>`<div>${esc(i.name)} × ${i.qty}</div>`).join('');purchaseTotal.textContent=money(purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0))}
 addPurchaseItem.onclick=()=>{let p=products.find(x=>x.id===purchaseProduct.value),q=Math.floor(+purchaseQty.value),c=+purchaseCost.value;if(p&&q>0){purchaseCart.push({id:p.id,name:p.name,qty:q,cost:c,unit:p.unit});renderPurchaseCart()}};
-savePurchase.onclick=()=>{let s=suppliers.find(x=>x.id===purchaseSupplier.value);if(!s||!purchaseCart.length)return;for(const i of purchaseCart){let p=products.find(x=>x.id===i.id);p.stock=(+p.stock||0)+i.qty}purchases.push({id:uid(),date:new Date().toISOString(),supplierName:s.name,items:purchaseCart,total:purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0)});purchaseDialog.close();save()};
+savePurchase.onclick=()=>{let s=suppliers.find(x=>x.id===purchaseSupplier.value);if(!s||!purchaseCart.length)return;for(const i of purchaseCart){let p=products.find(x=>x.id===i.id);p.stock=(+p.stock||0)+i.qty;syncProductToCloud(p);}purchases.push({id:uid(),date:new Date().toISOString(),supplierName:s.name,items:purchaseCart,total:purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0)});purchaseDialog.close();save()};
 function openSale(){cart=[];renderCart();saleDialog.showModal()}
 function addToCart(p){if(!p||p.stock<=0)return;let i=cart.find(x=>x.id===p.id);i?i.qty++:cart.push({id:p.id,name:p.name,price:+p.sellPrice,qty:1});renderCart()}
 function renderCart(){cart.innerHTML=cart.map(i=>`<div class="cartitem"><span>${esc(i.name)}</span><strong>${i.qty}</strong></div>`).join('');saleTotal.textContent=money(cart.reduce((a,i)=>a+i.price*i.qty,0))}
 saleSearch.oninput=()=>{let q=saleSearch.value.toLowerCase();saleResults.innerHTML=products.filter(p=>p.name.toLowerCase().includes(q)).map(p=>`<button class="btn secondary" data-saleadd="${p.id}">${esc(p.name)}</button>`).join('')};
 saleResults.onclick=e=>{if(e.target.dataset.saleadd)addToCart(products.find(p=>p.id===e.target.dataset.saleadd))};
-checkout.onclick=()=>{let total=cart.reduce((a,i)=>a+i.price*i.qty,0);for(const i of cart){let p=products.find(x=>x.id===i.id);p.stock-=i.qty}sales.push({id:uid(),date:new Date().toISOString(),items:cart,total});saleDialog.close();save()};
+checkout.onclick=()=>{let total=cart.reduce((a,i)=>a+i.price*i.qty,0);for(const i of cart){let p=products.find(x=>x.id===i.id);p.stock-=i.qty;syncProductToCloud(p);}sales.push({id:uid(),date:new Date().toISOString(),items:cart,total});saleDialog.close();save()};
 [newSaleTop,newSaleFab].forEach(b=>b.onclick=openSale);
 closeCash.onclick=()=>{let a=activeSales(),t=a.reduce((x,s)=>x+s.total,0);closures.push({id:uid(),closedAt:new Date().toISOString(),total:t});cashStart=new Date().toISOString();save()};
 themeGrid.onclick=e=>{let b=e.target.closest('[data-color]');if(b){setThemeColor(b.dataset.color);syncWheelFromHex(b.dataset.color)}};
