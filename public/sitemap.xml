@@ -1,15 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Generado automáticamente por .github/workflows/generar-sitemap.yml
+  a partir de la tabla public_catalogs (enabled = true) en Supabase.
+  No editar a mano: los cambios se sobrescriben en el próximo run.
+  Última generación: 2026-08-27T13:42:30+00:00
+-->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://vareliastore.tech/</loc>
-    <lastmod>2026-08-24</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://vareliastore.tech/catalogo</loc>
-    <lastmod>2026-08-24</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>
 </urlset>
