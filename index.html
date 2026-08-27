@@ -83,5 +83,22 @@ const K={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',s
 <script>
 document.querySelectorAll('[title]').forEach(el=>el.removeAttribute('title'));
 new MutationObserver(()=>document.querySelectorAll('[title]').forEach(el=>el.removeAttribute('title'))).observe(document.body,{attributes:true,subtree:true,attributeFilter:['title']});
+function esTooltipIntruso(el){
+  if(!(el instanceof HTMLElement))return false;
+  if(el.closest('dialog,.overlay,#overlay,.modal,.side,#sidebar,.top,.fab'))return false;
+  const cs=getComputedStyle(el);
+  if(cs.position!=='fixed'&&cs.position!=='absolute')return false;
+  const m=cs.backgroundColor.match(/\d+/g);
+  if(!m)return false;
+  const [r,g,b]=m.map(Number);
+  return r<45&&g<45&&b<45;
+}
+function eliminarTooltips(raiz){
+  if(esTooltipIntruso(raiz)){raiz.remove();return}
+  if(raiz.querySelectorAll)raiz.querySelectorAll('*').forEach(el=>{if(esTooltipIntruso(el))el.remove()});
+}
+new MutationObserver(muts=>{
+  for(const m of muts)m.addedNodes.forEach(n=>{if(n.nodeType===1)eliminarTooltips(n)});
+}).observe(document.body,{childList:true,subtree:true});
 </script>
 </body></html>
