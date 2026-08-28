@@ -88,8 +88,16 @@ const firebaseConfig = {
   appId: "1:193502658:web:36670abcd5a0612e2d8a5b",
   measurementId: "G-GEGCEG33R8"
 };
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+
+let db = null;
+try {
+  if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+  }
+  db = firebase.firestore();
+} catch(e) {
+  console.error("Error al iniciar Firebase:", e);
+}
 
 const K={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};
 const $=id=>document.getElementById(id),money=n=>'S/ '+Number(n||0).toFixed(2),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
@@ -106,15 +114,24 @@ window.products = products;
 
 let isRemoteSync = false;
 
-const colProd = db.collection('varelia_catalogo');
-const docMeta = db.collection('varelia_sistema').doc('general');
+const colProd = db ? db.collection('varelia_catalogo') : null;
+const docMeta = db ? db.collection('varelia_sistema').doc('general') : null;
 
-function syncProductToCloud(p){
-  if(isRemoteSync || !p || !p.id) return;
-  colProd.doc(String(p.id)).set(p).catch(e=>console.error("Error nube producto:",e));
+function setCloudStatus(txt, isError=false){
+  const el = $('cloudStatus');
+  if(!el) return;
+  el.textContent = txt;
+  el.style.color = isError ? '#b91c1c' : 'var(--p)';
 }
 
-// Función definitiva para eliminar producto
+function syncProductToCloud(p){
+  if(isRemoteSync || !colProd || !p || !p.id) return;
+  colProd.doc(String(p.id)).set(p).catch(e=>{
+    console.error("Error nube producto:", e);
+    setCloudStatus("⚠️ Permiso denegado en Firebase", true);
+  });
+}
+
 window.deleteProduct = async function(id){
   if(!id) return;
   const targetId = String(id).trim();
@@ -143,23 +160,29 @@ window.deleteProduct = async function(id){
   if(productDialog && productDialog.open) productDialog.close();
   render();
 
-  try {
-    if($('cloudStatus')) $('cloudStatus').textContent = '☁️ Eliminando...';
-    await colProd.doc(targetId).delete();
-    if($('cloudStatus')) $('cloudStatus').textContent = `☁️ Sincronizado (${products.length} prod.)`;
-  } catch(err) {
-    console.error("Error al borrar en Firestore:", err);
+  if(colProd){
+    try {
+      setCloudStatus('☁️ Eliminando...');
+      await colProd.doc(targetId).delete();
+      setCloudStatus(`☁️ Sincronizado (${products.length} prod.)`);
+    } catch(err) {
+      console.error("Error al borrar en Firestore:", err);
+      setCloudStatus("⚠️ Error de permisos en Firebase", true);
+    }
   }
 
   save();
 };
 
 function syncMetaToCloud(){
-  if(isRemoteSync) return;
+  if(isRemoteSync || !docMeta) return;
   docMeta.set({
     categories, sales, closures, cashStart, movements, suppliers, purchases, theme,
     updatedAt: Date.now()
-  }, { merge: true }).catch(e=>console.error("Error nube meta:",e));
+  }, { merge: true }).catch(e=>{
+    console.error("Error nube meta:", e);
+    setCloudStatus("⚠️ Permiso denegado en Firebase", true);
+  });
 }
 
 function save(){
@@ -171,66 +194,78 @@ function save(){
   render();
 }
 
-// Escuchar cambios de Firestore con auto-migración segura
-colProd.onSnapshot(snap => {
-  if(snap.empty && products.length > 0){
-    // Auto-respaldo inicial si la nube no tiene productos
-    products.forEach(p => colProd.doc(String(p.id)).set(p));
-    syncMetaToCloud();
-    return;
-  }
-
-  if(!snap.empty){
-    isRemoteSync = true;
-    const remoteProducts = [];
-    snap.forEach(doc => {
-      const item = doc.data();
-      if(item) {
-        if(!item.id) item.id = doc.id;
-        item.id = String(item.id);
-        remoteProducts.push(item);
-      }
-    });
-    products = remoteProducts;
-    window.products = products;
-    localStorage.setItem(K.products, JSON.stringify(products));
-    render();
-    isRemoteSync = false;
-    if($('cloudStatus')) $('cloudStatus').textContent = `☁️ Sincronizado (${products.length} prod.)`;
-  }
-}, err => {
-  console.error("Firestore Error:", err);
-  if($('cloudStatus')) $('cloudStatus').textContent = '⚠️ Sin conexión';
-});
-
-// Sincronización combinada para ventas
-docMeta.onSnapshot(doc => {
-  if(doc.exists){
-    const data = doc.data();
-    isRemoteSync = true;
-    if(Array.isArray(data.categories)) { categories = data.categories; localStorage.setItem(K.categories, JSON.stringify(categories)); }
-    
-    if(Array.isArray(data.sales)) {
-      const salesMap = new Map();
-      sales.forEach(s => salesMap.set(String(s.id || s.date), s));
-      data.sales.forEach(s => salesMap.set(String(s.id || s.date), s));
-      sales = Array.from(salesMap.values()).sort((a,b) => new Date(a.date) - new Date(b.date));
-      localStorage.setItem(K.sales, JSON.stringify(sales));
+// Inicialización de conexión a Firestore
+if(colProd){
+  colProd.onSnapshot(snap => {
+    if(snap.empty && products.length > 0){
+      setCloudStatus('☁️ Respaldando en la nube...');
+      products.forEach(p => colProd.doc(String(p.id)).set(p));
+      syncMetaToCloud();
+      return;
     }
 
-    if(Array.isArray(data.closures)) { closures = data.closures; localStorage.setItem(K.closures, JSON.stringify(closures)); }
-    if(data.cashStart) { cashStart = data.cashStart; localStorage.setItem(K.cashStart, JSON.stringify(cashStart)); }
-    if(Array.isArray(data.movements)) { movements = data.movements; localStorage.setItem(K.movements, JSON.stringify(movements)); }
-    if(Array.isArray(data.suppliers)) { suppliers = data.suppliers; localStorage.setItem(K.suppliers, JSON.stringify(suppliers)); }
-    if(Array.isArray(data.purchases)) { purchases = data.purchases; localStorage.setItem(K.purchases, JSON.stringify(purchases)); }
-    if(data.theme) { theme = data.theme; localStorage.setItem(K.theme, JSON.stringify(theme)); applyTheme(); }
-    render();
-    isRemoteSync = false;
-  }
-});
+    if(!snap.empty){
+      isRemoteSync = true;
+      const remoteProducts = [];
+      snap.forEach(doc => {
+        const item = doc.data();
+        if(item) {
+          if(!item.id) item.id = doc.id;
+          item.id = String(item.id);
+          remoteProducts.push(item);
+        }
+      });
+      products = remoteProducts;
+      window.products = products;
+      localStorage.setItem(K.products, JSON.stringify(products));
+      render();
+      isRemoteSync = false;
+      setCloudStatus(`☁️ Sincronizado (${products.length} prod.)`);
+    } else {
+      setCloudStatus(`☁️ Sincronizado (${products.length} prod.)`);
+    }
+  }, err => {
+    console.error("Firestore Error en productos:", err);
+    if(err.code === 'permission-denied'){
+      setCloudStatus('⚠️ Reglas de Firebase bloqueadas', true);
+    } else {
+      setCloudStatus('⚠️ Sin conexión a la nube', true);
+    }
+  });
+}
+
+if(docMeta){
+  docMeta.onSnapshot(doc => {
+    if(doc.exists){
+      const data = doc.data();
+      isRemoteSync = true;
+      if(Array.isArray(data.categories)) { categories = data.categories; localStorage.setItem(K.categories, JSON.stringify(categories)); }
+      
+      if(Array.isArray(data.sales)) {
+        const salesMap = new Map();
+        sales.forEach(s => salesMap.set(String(s.id || s.date), s));
+        data.sales.forEach(s => salesMap.set(String(s.id || s.date), s));
+        sales = Array.from(salesMap.values()).sort((a,b) => new Date(a.date) - new Date(b.date));
+        localStorage.setItem(K.sales, JSON.stringify(sales));
+      }
+
+      if(Array.isArray(data.closures)) { closures = data.closures; localStorage.setItem(K.closures, JSON.stringify(closures)); }
+      if(data.cashStart) { cashStart = data.cashStart; localStorage.setItem(K.cashStart, JSON.stringify(cashStart)); }
+      if(Array.isArray(data.movements)) { movements = data.movements; localStorage.setItem(K.movements, JSON.stringify(movements)); }
+      if(Array.isArray(data.suppliers)) { suppliers = data.suppliers; localStorage.setItem(K.suppliers, JSON.stringify(suppliers)); }
+      if(Array.isArray(data.purchases)) { purchases = data.purchases; localStorage.setItem(K.purchases, JSON.stringify(purchases)); }
+      if(data.theme) { theme = data.theme; localStorage.setItem(K.theme, JSON.stringify(theme)); applyTheme(); }
+      render();
+      isRemoteSync = false;
+    }
+  }, err => {
+    console.error("Firestore Error en meta:", err);
+  });
+}
 
 $('cloudStatus').onclick = () => {
-  $('cloudStatus').textContent = '☁️ Subiendo...';
+  if(!colProd) return alert('No se pudo inicializar Firebase.');
+  setCloudStatus('☁️ Subiendo...');
   products.forEach(p => colProd.doc(String(p.id)).set(p));
   syncMetaToCloud();
 };
@@ -295,7 +330,14 @@ function aggregate(list){let m={};for(const s of list)for(const i of s.items||[]
 function renderCash(){let a=activeSales(),agg=aggregate(a),t=a.reduce((x,s)=>x+s.total,0);cashTotal.textContent=money(t);cashCount.textContent=a.length;cashUnits.textContent=agg.reduce((x,i)=>x+i.qty,0);cashProducts.innerHTML=agg.length?agg.map(i=>`<div class="soldRow"><span>${esc(i.name)}</span><span>${i.qty}</span><strong>${money(i.total)}</strong></div>`).join(''):'<div class="empty">Sin ventas en esta caja.</div>';closuresList.innerHTML=closures.length?[...closures].reverse().map(c=>`<div class="row"><span>${new Date(c.closedAt).toLocaleString('es-PE')}</span><strong>${money(c.total)}</strong></div>`).join(''):'<div class="empty">Sin cierres.</div>'}
 function fillCats(){let v=productCategory.value;productCategory.innerHTML=categories.length?categories.map(c=>`<option>${esc(c)}</option>`).join(''):'<option value="">Primero crea categoría</option>';if(categories.includes(v))productCategory.value=v}
 function fillPurchaseSelectors(){purchaseSupplier.innerHTML=suppliers.length?suppliers.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join(''):'<option value="">Crea un proveedor primero</option>';purchaseProduct.innerHTML=products.length?products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''):'<option value="">Crea productos primero</option>'}
-function switchView(n){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===n));document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===n));if(n==='suppliers'||n==='purchases')supplierGroup.classList.add('open');if(innerWidth<=980){sidebar.classList.remove('open');overlay.classList.remove('show')}scrollTo({top:0,behavior:'smooth'})}
+
+function switchView(n){
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===n));
+  document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===n));
+  if(n==='suppliers'||n==='purchases')supplierGroup.classList.add('open');
+  if(innerWidth<=980){sidebar.classList.remove('open');overlay.classList.remove('show')}
+  scrollTo({top:0,behavior:'smooth'});
+}
 document.querySelectorAll('.nav [data-view]').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
 supplierMenu.onclick=()=>supplierGroup.classList.toggle('open');
 menuBtn.onclick=()=>{sidebar.classList.toggle('open');overlay.classList.toggle('show')};
@@ -423,7 +465,6 @@ function addToCart(p, qtyToAdd=1){
 }
 function renderCart(){cart.innerHTML=cart.map(i=>`<div class="cartitem"><span>${esc(i.name)}</span><strong>${i.qty}</strong></div>`).join('');saleTotal.textContent=money(cart.reduce((a,i)=>a+i.price*i.qty,0))}
 
-// Procesador de pedidos integrado en la búsqueda de ventas
 function procesarTextoPedido(txt){
   if(!txt || !txt.trim()) return false;
   if(txt.includes('pedido=')){
@@ -474,7 +515,6 @@ saleSearch.oninput=()=>{
 };
 saleResults.onclick=e=>{if(e.target.dataset.saleadd)addToCart(products.find(p=>String(p.id).trim()===String(e.target.dataset.saleadd).trim()))};
 
-// Cobro de ventas
 checkout.onclick=()=>{
   if(!cart.length) return alert('El carrito está vacío.');
   let total=cart.reduce((a,i)=>a+i.price*i.qty,0);
@@ -502,7 +542,6 @@ checkout.onclick=()=>{
   save();
 };
 
-// Detección automática al abrir enlace con pedido
 function checkUrlOrder(){
   let param = new URLSearchParams(window.location.search).get('pedido');
   if(!param && window.location.hash.includes('pedido=')){
@@ -549,7 +588,7 @@ applyTheme();
 syncWheelFromHex(theme.color||'#be185d');
 render();
 
-// Inicialización de vista forzada
+// Inicialización de vista obligatoria
 (()=>{
   const map={productos:'products',inventario:'inventory',categorias:'categories',proveedores:'suppliers',mercaderia:'purchases',ventas:'sales',caja:'cash',apariencia:'appearance'};
   const valid=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];
