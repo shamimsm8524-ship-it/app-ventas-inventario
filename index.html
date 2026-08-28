@@ -71,12 +71,10 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 </main></div>
 <button class="fab" id="newSaleFab">+ Venta</button>
 
-<!-- DIALOG PRODUCTO -->
 <dialog id="productDialog"><div class="modal"><div class="modalhead"><h2 id="productTitle">Nuevo producto</h2><button class="close" data-close="productDialog">×</button></div><form class="form" id="productForm"><input type="hidden" id="productId"><label><span>Imagen del producto</span><input id="productImage" type="file" accept="image/*"></label><img id="imagePreview" class="preview" hidden><div class="two"><label><span>Código de barras</span><input id="barcode" placeholder="Escanea o escribe el código"></label><button type="button" class="btn secondary" id="scanForProduct">📷 Escanear</button></div><label><span>Nombre del producto</span><input id="productName" required></label><label><span>Sección / Categoría</span><select id="productCategory" required></select></label><div class="two"><label><span>Precio de compra (S/)</span><input id="buyPrice" type="number" step="0.01" min="0"></label><label><span>Precio de venta (S/)</span><input id="sellPrice" type="number" step="0.01" min="0" required></label></div><label><span>Unidad de medida</span><select id="unit"><option>Unidad</option><option>Caja</option><option>Paquete</option><option>Bolsa</option><option>Botella</option><option>Lata</option><option>Docena</option><option>Kg</option><option>Gramo</option><option>Litro</option><option>Metro</option><option>m²</option><option>Rollo</option><option>Par</option><option>Set</option><option>Otro</option></select></label><label><span>Alerta de reposición</span><input id="reorderLevel" type="number" min="0" step="1" value="5"><small class="notice">Avísame cuando el stock sea igual o menor a esta cantidad.</small></label><div class="notice">El producto se crea con stock 0. El stock aumenta desde Inventario o Ingreso de mercadería.</div><label><span>Descripción</span><textarea id="description" rows="3"></textarea></label><div class="two" style="margin-top:6px"><button type="button" class="btn danger" id="deleteProductModalBtn" style="display:none">🗑️ Eliminar</button><button type="submit" class="btn primary">Guardar producto</button></div></form></div></dialog>
-
 <dialog id="supplierDialog"><div class="modal"><div class="modalhead"><h2 id="supplierTitle">Nuevo proveedor</h2><button class="close" data-close="supplierDialog">×</button></div><form class="form" id="supplierForm"><input type="hidden" id="supplierId"><label><span>Nombre / Razón social</span><input id="supplierName" required></label><div class="two"><label><span>RUC / Documento</span><input id="supplierRuc"></label><label><span>Teléfono</span><input id="supplierPhone"></label></div><label><span>Correo</span><input id="supplierEmail" type="email"></label><label><span>Dirección</span><input id="supplierAddress"></label><label><span>Notas</span><textarea id="supplierNotes" rows="3"></textarea></label><button class="btn primary">Guardar proveedor</button></form></div></dialog>
 <dialog id="purchaseDialog"><div class="modal"><div class="modalhead"><h2>Nuevo ingreso de mercadería</h2><button class="close" data-close="purchaseDialog">×</button></div><div class="form"><label><span>Proveedor</span><select id="purchaseSupplier"></select></label><label><span>Número de comprobante</span><input id="purchaseDoc" placeholder="Factura, boleta, orden, etc."></label><div class="panel"><strong>Mercadería recibida</strong><div class="three" style="margin-top:10px"><select id="purchaseProduct"></select><input id="purchaseQty" type="number" min="1" value="1" placeholder="Cantidad"><input id="purchaseCost" type="number" min="0" step="0.01" placeholder="Costo unitario"></div><button class="btn secondary" id="addPurchaseItem">+ Agregar producto</button></div><div id="purchaseItems"></div><div class="total"><span>Total del ingreso</span><span id="purchaseTotal">S/ 0.00</span></div><button class="btn primary" id="savePurchase">Registrar ingreso y aumentar stock</button></div></div></dialog>
-<dialog id="saleDialog"><div class="modal"><div class="modalhead"><h2>Nueva venta</h2><button class="close" data-close="saleDialog">×</button></div><div class="two"><input id="saleSearch" placeholder="Buscar o escanear"><button class="btn secondary" id="scanForSale">📷 Escanear</button></div><div class="list" id="saleResults"></div><div id="cart"></div><div class="total"><span>Total</span><span id="saleTotal">S/ 0.00</span></div><button class="btn primary" id="checkout" style="width:100%;margin-top:12px">Cobrar</button></div></dialog>
+<dialog id="saleDialog"><div class="modal"><div class="modalhead"><h2>Nueva venta</h2><button class="close" data-close="saleDialog">×</button></div><div class="two"><input id="saleSearch" placeholder="Buscar, escanear o pegar pedido"><button class="btn secondary" id="scanForSale">📷 Escanear</button></div><div class="list" id="saleResults"></div><div id="cart"></div><div class="total"><span>Total</span><span id="saleTotal">S/ 0.00</span></div><button class="btn primary" id="checkout" style="width:100%;margin-top:12px">Cobrar</button></div></dialog>
 <dialog id="scannerDialog"><div class="modal"><div class="modalhead"><h2>Escanear código</h2><button class="close" id="closeScanner">×</button></div><video id="scannerVideo" autoplay playsinline style="width:100%;background:black;border-radius:15px"></video></div></dialog>
 
 <script>
@@ -138,7 +136,6 @@ window.deleteProduct = async function(id){
     renderInvSelected();
   }
 
-  // Borrado local inmediato
   products = products.filter(x => String(x.id).trim() !== targetId);
   window.products = products;
   localStorage.setItem(K.products, JSON.stringify(products));
@@ -146,7 +143,6 @@ window.deleteProduct = async function(id){
   if(productDialog && productDialog.open) productDialog.close();
   render();
 
-  // Borrado en Firestore
   try {
     if($('cloudStatus')) $('cloudStatus').textContent = '☁️ Eliminando...';
     await colProd.doc(targetId).delete();
@@ -208,14 +204,13 @@ colProd.onSnapshot(snap => {
   if($('cloudStatus')) $('cloudStatus').textContent = '⚠️ Sin conexión';
 });
 
-// Sincronización combinada para no perder ventas locales
+// Sincronización combinada para ventas
 docMeta.onSnapshot(doc => {
   if(doc.exists){
     const data = doc.data();
     isRemoteSync = true;
     if(Array.isArray(data.categories)) { categories = data.categories; localStorage.setItem(K.categories, JSON.stringify(categories)); }
     
-    // Fusión de ventas sin sobrescribir lo local
     if(Array.isArray(data.sales)) {
       const salesMap = new Map();
       sales.forEach(s => salesMap.set(String(s.id || s.date), s));
@@ -285,7 +280,6 @@ function renderCategories(){categoryList.innerHTML=categories.length?categories.
 function renderSuppliers(){let q=supplierSearch.value.trim().toLowerCase(),a=suppliers.filter(s=>!q||[s.name,s.ruc,s.phone,s.email].some(v=>String(v||'').toLowerCase().includes(q)));supplierList.innerHTML=a.length?a.map(s=>`<div class="row"><div><strong>${esc(s.name)}</strong><div class="meta">${s.ruc?'RUC: '+esc(s.ruc)+' · ':''}${esc(s.phone||'Sin teléfono')}</div></div><div><button class="btn secondary" data-editsupplier="${s.id}">Editar</button> <button class="btn danger" data-delsupplier="${s.id}">Eliminar</button></div></div>`).join(''):'<div class="empty">No hay proveedores.</div>'}
 function renderPurchases(){purchaseList.innerHTML=purchases.length?[...purchases].reverse().map(p=>`<details class="panel"><summary><strong>📥 ${new Date(p.date).toLocaleString('es-PE')} · ${esc(p.supplierName)}</strong> — ${money(p.total)}</summary></details>`).join(''):'<div class="empty">Todavía no hay ingresos de mercadería.</div>'}
 
-// Render detallado de historial de ventas
 function renderSales(){
   salesList.innerHTML=sales.length?[...sales].reverse().map(s=>`
     <div class="row">
@@ -417,27 +411,75 @@ addPurchaseItem.onclick=()=>{let p=products.find(x=>String(x.id).trim()===String
 savePurchase.onclick=()=>{let s=suppliers.find(x=>String(x.id).trim()===String(purchaseSupplier.value).trim());if(!s||!purchaseCart.length)return;for(const i of purchaseCart){let p=products.find(x=>String(x.id).trim()===String(i.id).trim());if(p){p.stock=(+p.stock||0)+i.qty;syncProductToCloud(p);}}purchases.push({id:uid(),date:new Date().toISOString(),supplierName:s.name,items:purchaseCart,total:purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0)});purchaseDialog.close();save()};
 
 function openSale(){cart=[];renderCart();saleDialog.showModal()}
-function addToCart(p){
+function addToCart(p, qtyToAdd=1){
   if(!p||p.stock<=0)return alert('Este producto no tiene stock disponible.');
   let i=cart.find(x=>String(x.id).trim()===String(p.id).trim());
   if(i){
-    if(i.qty + 1 > p.stock) return alert('No hay más stock disponible.');
-    i.qty++;
+    if(i.qty + qtyToAdd > p.stock) return alert('No hay más stock disponible para '+p.name);
+    i.qty += qtyToAdd;
   } else {
-    cart.push({id:p.id,name:p.name,price:+p.sellPrice,qty:1});
+    cart.push({id:p.id,name:p.name,price:+p.sellPrice,qty:Math.min(qtyToAdd, p.stock)});
   }
   renderCart();
 }
 function renderCart(){cart.innerHTML=cart.map(i=>`<div class="cartitem"><span>${esc(i.name)}</span><strong>${i.qty}</strong></div>`).join('');saleTotal.textContent=money(cart.reduce((a,i)=>a+i.price*i.qty,0))}
-saleSearch.oninput=()=>{let q=saleSearch.value.toLowerCase();saleResults.innerHTML=products.filter(p=>p.name.toLowerCase().includes(q)).map(p=>`<button class="btn secondary" data-saleadd="${p.id}">${esc(p.name)}</button>`).join('')};
+
+// Procesador de pedidos integrado en la búsqueda de ventas
+function procesarTextoPedido(txt){
+  if(!txt || !txt.trim()) return false;
+  if(txt.includes('pedido=')){
+    let parte = txt.split('pedido=')[1].split(/\s|&/)[0];
+    try {
+      let decoded = JSON.parse(decodeURIComponent(escape(atob(parte))));
+      if(Array.isArray(decoded)){
+        decoded.forEach(item => {
+          let p = products.find(x => String(x.id).trim() === String(item.id||'').trim() || (item.name && x.name.toLowerCase().trim() === item.name.toLowerCase().trim()));
+          if(p) addToCart(p, Number(item.qty||1));
+        });
+        return true;
+      }
+    } catch(e){}
+  }
+
+  let lineas = txt.split('\n');
+  let procesado = false;
+  for(let l of lineas){
+    l = l.replace(/^[-*•]\s*/, '').trim();
+    if(!l || l.toLowerCase().includes('total') || l.toLowerCase().includes('pedido')) continue;
+    let match = l.match(/(\d+)\s*[xX*]\s*(.+)/) || l.match(/(.+)\s*[xX*]\s*(\d+)/);
+    if(match){
+      let q = isNaN(match[1]) ? Number(match[2]) : Number(match[1]);
+      let n = isNaN(match[1]) ? match[1].trim() : match[2].trim();
+      n = n.replace(/\(S\/.*?\)/, '').trim().toLowerCase();
+      let p = products.find(x => x.name.toLowerCase().trim() === n || x.name.toLowerCase().includes(n));
+      if(p){
+        addToCart(p, q);
+        procesado = true;
+      }
+    }
+  }
+  return procesado;
+}
+
+saleSearch.oninput=()=>{
+  let q=saleSearch.value.trim();
+  if(q.includes('\n') || q.includes('pedido=')){
+    if(procesarTextoPedido(q)){
+      saleSearch.value = '';
+      saleResults.innerHTML = '<div style="color:var(--p);font-weight:800;padding:6px">✅ Pedido cargado al carrito.</div>';
+      return;
+    }
+  }
+  let query = q.toLowerCase();
+  saleResults.innerHTML=products.filter(p=>p.name.toLowerCase().includes(query)).map(p=>`<button class="btn secondary" data-saleadd="${p.id}">${esc(p.name)}</button>`).join('');
+};
 saleResults.onclick=e=>{if(e.target.dataset.saleadd)addToCart(products.find(p=>String(p.id).trim()===String(e.target.dataset.saleadd).trim()))};
 
-// Cobro y registro blindado de ventas
+// Cobro de ventas
 checkout.onclick=()=>{
   if(!cart.length) return alert('El carrito está vacío.');
   let total=cart.reduce((a,i)=>a+i.price*i.qty,0);
   
-  // 1. Descontar stock
   for(const i of cart){
     let p=products.find(x=>String(x.id).trim()===String(i.id).trim());
     if(p){
@@ -448,7 +490,6 @@ checkout.onclick=()=>{
     }
   }
 
-  // 2. Guardar venta como copia independiente
   const soldItems = cart.map(item => ({...item}));
   sales.push({
     id: uid(),
@@ -461,6 +502,29 @@ checkout.onclick=()=>{
   saleDialog.close();
   save();
 };
+
+// Detección automática al abrir enlace con pedido
+function checkUrlOrder(){
+  let param = new URLSearchParams(window.location.search).get('pedido');
+  if(!param && window.location.hash.includes('pedido=')){
+    param = window.location.hash.split('pedido=')[1]?.split('&')[0];
+  }
+  if(param){
+    try {
+      let decoded = JSON.parse(decodeURIComponent(escape(atob(param))));
+      if(Array.isArray(decoded) && decoded.length){
+        setTimeout(() => {
+          openSale();
+          decoded.forEach(item => {
+            let p = products.find(x => String(x.id).trim() === String(item.id||'').trim() || (item.name && x.name.toLowerCase().trim() === item.name.toLowerCase().trim()));
+            if(p) addToCart(p, Number(item.qty||1));
+          });
+        }, 600);
+      }
+    } catch(e){}
+  }
+}
+checkUrlOrder();
 
 [newSaleTop,newSaleFab].forEach(b=>b.onclick=openSale);
 closeCash.onclick=()=>{let a=activeSales(),t=a.reduce((x,s)=>x+s.total,0);closures.push({id:uid(),closedAt:new Date().toISOString(),total:t});cashStart=new Date().toISOString();save()};
