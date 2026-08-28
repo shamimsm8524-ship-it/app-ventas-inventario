@@ -1,83 +1,34 @@
-  // Inyección de estilos de stock para la vista pública y modal
-  const s = document.createElement('style');
-  s.textContent = `
-    .public-stock-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      font-weight: 800;
-      padding: 3px 9px;
-      border-radius: 999px;
-      margin: 6px 0;
-    }
-    .public-stock-badge.in {
-      background: #d1fae5;
-      color: #047857;
-    }
-    .public-stock-badge.out {
-      background: #fee2e2;
-      color: #b91c1c;
-    }
-    .card-agotado {
-      opacity: 0.65;
-    }
-    .btn-agotado {
-      background: #e2e8f0 !important;
-      color: #94a3b8 !important;
-      cursor: not-allowed !important;
-      box-shadow: none !important;
-    }
-  `;
-  document.head.appendChild(s);
-  // Observer para insertar el stock automáticamente en todas las tarjetas del catálogo público
-  function actualizarTarjetasPublicas() {
-    const cards = document.querySelectorAll('.product, .product-card, [data-product-id], article');
-    cards.forEach(card => {
-      if (card.dataset.stockInjected) return;
-      
-      let stock = null;
-      let unit = 'Unidades';
-      
-      // Buscar en el catálogo local si está disponible
-      const id = card.dataset.productId || card.getAttribute('data-id') || card.querySelector('[data-add]')?.dataset.add || card.querySelector('[data-edit]')?.dataset.edit;
-      if (id && window.products) {
-        const p = window.products.find(x => String(x.id) === String(id));
-        if (p) {
-          stock = Number(p.stock || 0);
-          unit = p.unit || 'Unidades';
-        }
-      }
-      
-      // Si no encontró por ID, intentar leer dataset embebido de Supabase
-      if (stock === null && card.dataset.stock !== undefined) {
-        stock = Number(card.dataset.stock || 0);
-        unit = card.dataset.unit || 'Unidades';
-      }
-      );
-      if (stock !== null) {
-        card.dataset.stockInjected = "true";
-        const badge = document.createElement('div');
-        if (stock <= 0) {
-          badge.innerHTML = '<span class="public-stock-badge out">🚫 Agotado</span>';
-          card.classList.add('card-agotado');
-          const addBtn = card.querySelector('.btn-primary, [data-add], .btn-add');
-          if (addBtn) {
-            addBtn.classList.add('btn-agotado');
-            addBtn.textContent = 'Sin stock';
-            addBtn.disabled = true;
-          }
-        } else {
-          badge.innerHTML = `<span class="public-stock-badge in">🟢 Quedan ${stock} ${unit}</span>`;
-        }
-        const targetContainer = card.querySelector('.pb, .product-info, .card-body') || card;
-        const priceEl = targetContainer.querySelector('.price, .product-price');
-        if (priceEl && priceEl.nextSibling) {
-          targetContainer.insertBefore(badge, priceEl.nextSibling);
-        } else {
-          targetContainer.appendChild(badge);
-        }
-      }
-    });
-}
-  // Ejecutar periódicamente para detectar productos renderizados dinámicamente  setInterval(actualizarTarjetasPublicas, 500);  window.addEventListener('DOMContentLoaded', actualizarTarjetasPublicas);})();
+(()=>{const section=document.getElementById('products');const grid=document.getElementById('productGrid');if(section&&grid&&!document.getElementById('productViewBar')){const toolbar=section.querySelector('.toolbar');const bar=document.createElement('div');bar.id='productViewBar';bar.className='productViewBar';bar.innerHTML='<span class="productViewLabel">Ver productos como</span><div class="productViewButtons"><button type="button" class="productViewBtn" data-product-view="list">☰ Lista</button><button type="button" class="productViewBtn" data-product-view="grid">▦ Cuadrícula</button><button type="button" class="productViewBtn" data-product-view="compact">▥ Compacta</button></div>';toolbar.insertAdjacentElement('afterend',bar);const key='miNegocio_productView_v1';const valid=['list','grid','compact'];function apply(mode){if(!valid.includes(mode))mode='grid';grid.classList.remove('view-list','view-grid','view-compact');grid.classList.add('view-'+mode);bar.querySelectorAll('[data-product-view]').forEach(b=>b.classList.toggle('active',b.dataset.productView===mode));try{localStorage.setItem(key,mode)}catch{}}bar.addEventListener('click',e=>{const b=e.target.closest('[data-product-view]');if(b)apply(b.dataset.productView)});let saved='grid';try{saved=localStorage.getItem(key)||'grid'}catch{}apply(saved)}})();
+
+(()=>{
+  if(typeof products==='undefined'||typeof K==='undefined') return;
+  const DB_NAME='miNegocioDB', DB_VERSION=1, STORE='productImages';
+  function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,DB_VERSION);req.onupgradeneeded=()=>{const db=req.result;if(!db.objectStoreNames.contains(STORE))db.createObjectStore(STORE)};req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+  async function putImage(id,data){if(!id||!data)return;const db=await openDB();await new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).put(data,id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}
+  async function getImage(id){const db=await openDB();const value=await new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readonly');const req=tx.objectStore(STORE).get(id);req.onsuccess=()=>resolve(req.result||'');req.onerror=()=>reject(req.error)});db.close();return value}
+  async function deleteImage(id){const db=await openDB();await new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.objectStore(STORE).delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}
+  function compactProducts(){return products.map(p=>{const copy={...p};delete copy.image;return copy})}
+  function safeSave(){try{localStorage.setItem(K.products,JSON.stringify(compactProducts()));for(const [k,v] of [[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases]])localStorage.setItem(k,JSON.stringify(v));render();return true}catch(err){console.error('No se pudo guardar',err);alert('No se pudo guardar el cambio. El almacenamiento del navegador está lleno.');return false}}
+  save=safeSave;
+  async function migrateAndHydrate(){let changed=false;for(const p of products){if(p.image&&typeof p.image==='string'&&p.image.startsWith('data:')){try{await putImage(p.id,p.image);changed=true}catch(e){console.warn(e)}}}if(changed){try{localStorage.setItem(K.products,JSON.stringify(compactProducts()))}catch(e){console.warn(e)}}for(const p of products){if(!p.image){try{p.image=await getImage(p.id)}catch(e){}}}render()}
+  if(typeof productForm!=='undefined')productForm.onsubmit=async e=>{e.preventDefault();const id=productId.value,old=products.find(p=>p.id===id),newId=id||uid();let img='';if(!imagePreview.hidden&&imagePreview.src)img=imagePreview.src;const obj={id:newId,barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:old?+old.stock||0:0,unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:img};try{if(img)await putImage(newId,img);else await deleteImage(newId)}catch(e){console.warn(e)};old?Object.assign(old,obj):products.push(obj);productDialog.close();safeSave()};
+  if(typeof productGrid!=='undefined')productGrid.addEventListener('click',e=>{const id=e.target?.dataset?.delete;if(id)deleteImage(id).catch(()=>{})},true);
+  window.addEventListener('pagehide',()=>{try{localStorage.setItem(K.products,JSON.stringify(compactProducts()))}catch{}});
+  migrateAndHydrate();
+})();
+
+(()=>{
+  const VIEW_KEY='miNegocio_lastView_v3';
+  const valid=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];
+  const toHash={products:'productos',inventory:'inventario',categories:'categorias',suppliers:'proveedores',purchases:'mercaderia',sales:'ventas',cash:'caja',appearance:'apariencia'};
+  const fromHash=Object.fromEntries(Object.entries(toHash).map(([k,v])=>[v,k]));
+  function saveView(view){if(!valid.includes(view))return;try{localStorage.setItem(VIEW_KEY,view)}catch{}try{sessionStorage.setItem(VIEW_KEY,view)}catch{}const hash=toHash[view];if(hash&&location.hash!=='#'+hash){try{history.replaceState(null,'',location.pathname+location.search+'#'+hash)}catch{}}}
+  function wantedView(){let v=fromHash[(location.hash||'').slice(1)];if(!v){try{v=sessionStorage.getItem(VIEW_KEY)}catch{}}if(!v){try{v=localStorage.getItem(VIEW_KEY)}catch{}}return valid.includes(v)?v:'products'}
+  function forceView(view){if(!valid.includes(view))return;document.querySelectorAll('.view').forEach(el=>el.classList.toggle('active',el.id===view));document.querySelectorAll('.nav [data-view]').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));const group=document.getElementById('supplierGroup');if(group&&(view==='suppliers'||view==='purchases'))group.classList.add('open')}
+  document.addEventListener('click',e=>{const btn=e.target.closest('.nav [data-view]');if(!btn)return;saveView(btn.dataset.view);setTimeout(()=>forceView(btn.dataset.view),0)},true);
+  const restore=()=>{const v=wantedView();forceView(v);saveView(v)};window.addEventListener('pageshow',restore);window.addEventListener('hashchange',restore);restore();setTimeout(restore,0);setTimeout(restore,80);setTimeout(restore,250);setTimeout(restore,700);
+})();
+
+(()=>{if(document.getElementById('vareliaSupabaseLoader'))return;const sdk=document.createElement('script');sdk.id='vareliaSupabaseLoader';sdk.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';sdk.onload=()=>{const auth=document.createElement('script');auth.src='supabase-auth.js?v=20260819-2';auth.onload=()=>{const enh=document.createElement('script');enh.src='auth-enhancements.js?v=20260819-1';document.body.appendChild(enh)};document.body.appendChild(auth)};document.head.appendChild(sdk)})();
+
+(()=>{if(!document.getElementById('vareliaProfessionalCss')){const l=document.createElement('link');l.id='vareliaProfessionalCss';l.rel='stylesheet';l.href='app-professional.css?v=20260819-2';document.head.appendChild(l)}if(!document.getElementById('vareliaProfessionalJs')){const p=document.createElement('script');p.id='vareliaProfessionalJs';p.src='app-professional.js?v=20260819-1';document.body.appendChild(p)}if(!document.getElementById('vareliaBusinessNameLoader')){const n=document.createElement('script');n.id='vareliaBusinessNameLoader';n.src='business-name.js?v=20260819-3';document.body.appendChild(n)}setTimeout(()=>{if(!document.getElementById('vareliaBluetoothPrinter')){const b=document.createElement('script');b.id='vareliaBluetoothPrinter';b.src='bluetooth-printer.js?v=20260819-3';document.body.appendChild(b)}},500)})();
