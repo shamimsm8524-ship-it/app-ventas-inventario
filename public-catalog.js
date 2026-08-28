@@ -1,4 +1,4 @@
-  (()=>{
+(()=>{
   if(window.__vareliaPublicCatalog)return;
   window.__vareliaPublicCatalog=true;
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn();
