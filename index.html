@@ -70,7 +70,7 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 <section id="appearance" class="view"><div class="head"><div><h2>Apariencia</h2><p class="notice">Personaliza el sistema sin salir de la app.</p></div></div><div class="appearanceHero"><h3>🎨 Paleta del negocio</h3><p class="notice">Toca una paleta para aplicarla inmediatamente. Puedes cambiarla cuando quieras.</p><div class="themegrid" id="themeGrid"><button class="themeCard" data-color="#2563eb"><span class="palettePreview"><i style="background:#2563eb"></i><i style="background:#60a5fa"></i><i style="background:#dbeafe"></i></span><span class="themeName">Azul profesional</span><span class="themeDesc">Limpio y corporativo</span></button><button class="themeCard" data-color="#0f766e"><span class="palettePreview"><i style="background:#0f766e"></i><i style="background:#2dd4bf"></i><i style="background:#ccfbf1"></i></span><span class="themeName">Turquesa</span><span class="themeDesc">Moderno y fresco</span></button><button class="themeCard" data-color="#059669"><span class="palettePreview"><i style="background:#059669"></i><i style="background:#34d399"></i><i style="background:#d1fae5"></i></span><span class="themeName">Esmeralda</span><span class="themeDesc">Comercial y elegante</span></button><button class="themeCard" data-color="#7c3aed"><span class="palettePreview"><i style="background:#7c3aed"></i><i style="background:#a78bfa"></i><i style="background:#ede9fe"></i></span><span class="themeName">Violeta</span><span class="themeDesc">Creativo y premium</span></button><button class="themeCard" data-color="#be185d"><span class="palettePreview"><i style="background:#be185d"></i><i style="background:#f472b6"></i><i style="background:#fce7f3"></i></span><span class="themeName">Vino rosado</span><span class="themeDesc">Elegante y distintivo</span></button><button class="themeCard" data-color="#ea580c"><span class="palettePreview"><i style="background:#ea580c"></i><i style="background:#fb923c"></i><i style="background:#ffedd5"></i></span><span class="themeName">Naranja</span><span class="themeDesc">Energético y visible</span></button><button class="themeCard" data-color="#dc2626"><span class="palettePreview"><i style="background:#dc2626"></i><i style="background:#f87171"></i><i style="background:#fee2e2"></i></span><span class="themeName">Rojo comercial</span><span class="themeDesc">Fuerte y directo</span></button><button class="themeCard" data-color="#334155"><span class="palettePreview"><i style="background:#334155"></i><i style="background:#64748b"></i><i style="background:#e2e8f0"></i></span><span class="themeName">Grafito</span><span class="themeDesc">Sobrio y ejecutivo</span></button></div></div><div class="appearanceOptions"><div class="optionCard"><strong>☀️ Fondo de la app</strong><p class="notice">El color principal se mantiene; solo cambia el fondo.</p><div class="segmented"><button id="lightModeBtn" type="button">Claro</button><button id="darkModeBtn" type="button">Oscuro</button></div></div><div class="optionCard"><strong>🎯 Color personalizado</strong><p class="notice">Toca o desliza el dedo por la rueda para elegir exactamente la tonalidad.</p><div class="colorPickerBox"><div class="wheelWrap"><div class="colorWheel" id="colorWheel"><span class="wheelCursor" id="wheelCursor"></span></div></div><div class="pickerPreviewRow"><span class="hexPreview" id="hexPreview"></span><div class="colorBigPreview" id="colorBigPreview"></div></div><div class="brightnessRow"><span>Brillo</span><input id="lightSlider" type="range" min="20" max="80" value="45"><output id="lightValue">45%</output></div><input id="customColor" type="text" maxlength="7" placeholder="#C2185B" style="margin-top:10px"><div class="pickerActions"><button class="btn secondary" id="resetPicker" type="button">Restablecer</button><button class="btn primary" id="applyCustomColor" type="button">Aplicar color</button></div></div></div></div></section>
 </main></div>
 <button class="fab" id="newSaleFab">+ Venta</button>
-<dialog id="productDialog"><div class="modal"><div class="modalhead"><h2 id="productTitle">Nuevo producto</h2><button class="close" data-close="productDialog">×</button></div><form class="form" id="productForm"><input type="hidden" id="productId"><label><span>Imagen del producto</span><input id="productImage" type="file" accept="image/*"></label><img id="imagePreview" class="preview" hidden><div class="two"><label><span>Código de barras</span><input id="barcode" placeholder="Escanea o escribe el código"></label><button type="button" class="btn secondary" id="scanForProduct">📷 Escanear</button></div><label><span>Nombre del producto</span><input id="productName" required></label><label><span>Sección / Categoría</span><select id="productCategory" required></select></label><div class="two"><label><span>Precio de compra (S/)</span><input id="buyPrice" type="number" step="0.01" min="0"></label><label><span>Precio de venta (S/)</span><input id="sellPrice" type="number" step="0.01" min="0" required></label></div><label><span>Unidad de medida</span><select id="unit"><option>Unidad</option><option>Caja</option><option>Paquete</option><option>Bolsa</option><option>Botella</option><option>Lata</option><option>Docena</option><option>Kg</option><option>Gramo</option><option>Litro</option><option>Metro</option><option>m²</option><option>Rollo</option><option>Par</option><option>Set</option><option>Otro</option></select></label><label><span>Alerta de reposición</span><input id="reorderLevel" type="number" min="0" step="1" value="5"><small class="notice">Avísame cuando el stock sea igual o menor a esta cantidad.</small></label><div class="notice">El producto se crea con stock 0. El stock aumenta desde Inventario o Ingreso de mercadería.</div><label><span>Descripción</span><textarea id="description" rows="3"></textarea></label><button class="btn primary">Guardar producto</button></form></div></dialog>
+<dialog id="productDialog"><div class="modal"><div class="modalhead"><h2 id="productTitle">Nuevo producto</h2><button class="close" data-close="productDialog">×</button></div><form class="form" id="productForm"><input type="hidden" id="productId"><label><span>Imagen del producto</span><input id="productImage" type="file" accept="image/*"></label><img id="imagePreview" class="preview" hidden><div class="two"><label><span>Código de barras</span><input id="barcode" placeholder="Escanea o escribe el código"></label><button type="button" class="btn secondary" id="scanForProduct">📷 Escanear</button></div><label><span>Nombre del producto</span><input id="productName" required></label><label><span>Sección / Categoría</span><select id="productCategory" required></select></label><div class="two"><label><span>Precio de compra (S/)</span><input id="buyPrice" type="number" step="0.01" min="0"></label><label><span>Precio de venta (S/)</span><input id="sellPrice" type="number" step="0.01" min="0" required></label></div><label><span>Unidad de medida</span><select id="unit"><option>Unidad</option><option>Caja</option><option>Paquete</option><option>Bolsa</option><option>Botella</option><option>Lata</option><option>Docena</option><option>Kg</option><option>Gramo</option><option>Litro</option><option>Metro</option><option>m²</option><option>Rollo</option><option>Par</option><option>Set</option><option>Otro</option></select></label><label><span>Alerta de reposición</span><input id="reorderLevel" type="number" min="0" step="1" value="5"><small class="notice">Avísame cuando el stock sea igual o menor a esta cantidad.</small></label><div class="notice">El producto se crea con stock 0. El stock aumenta desde Inventario o Ingreso de mercadería.</div><label><span>Descripción</span><textarea id="description" rows="3"></textarea></label><div class="two" style="margin-top:6px"><button type="button" class="btn danger" id="deleteProductModalBtn" style="display:none">🗑️ Eliminar</button><button type="submit" class="btn primary">Guardar producto</button></div></form></div></dialog>
 <dialog id="supplierDialog"><div class="modal"><div class="modalhead"><h2 id="supplierTitle">Nuevo proveedor</h2><button class="close" data-close="supplierDialog">×</button></div><form class="form" id="supplierForm"><input type="hidden" id="supplierId"><label><span>Nombre / Razón social</span><input id="supplierName" required></label><div class="two"><label><span>RUC / Documento</span><input id="supplierRuc"></label><label><span>Teléfono</span><input id="supplierPhone"></label></div><label><span>Correo</span><input id="supplierEmail" type="email"></label><label><span>Dirección</span><input id="supplierAddress"></label><label><span>Notas</span><textarea id="supplierNotes" rows="3"></textarea></label><button class="btn primary">Guardar proveedor</button></form></div></dialog>
 <dialog id="purchaseDialog"><div class="modal"><div class="modalhead"><h2>Nuevo ingreso de mercadería</h2><button class="close" data-close="purchaseDialog">×</button></div><div class="form"><label><span>Proveedor</span><select id="purchaseSupplier"></select></label><label><span>Número de comprobante</span><input id="purchaseDoc" placeholder="Factura, boleta, orden, etc."></label><div class="panel"><strong>Mercadería recibida</strong><div class="three" style="margin-top:10px"><select id="purchaseProduct"></select><input id="purchaseQty" type="number" min="1" value="1" placeholder="Cantidad"><input id="purchaseCost" type="number" min="0" step="0.01" placeholder="Costo unitario"></div><button class="btn secondary" id="addPurchaseItem">+ Agregar producto</button></div><div id="purchaseItems"></div><div class="total"><span>Total del ingreso</span><span id="purchaseTotal">S/ 0.00</span></div><button class="btn primary" id="savePurchase">Registrar ingreso y aumentar stock</button></div></div></dialog>
 <dialog id="saleDialog"><div class="modal"><div class="modalhead"><h2>Nueva venta</h2><button class="close" data-close="saleDialog">×</button></div><div class="two"><input id="saleSearch" placeholder="Buscar o escanear"><button class="btn secondary" id="scanForSale">📷 Escanear</button></div><div class="list" id="saleResults"></div><div id="cart"></div><div class="total"><span>Total</span><span id="saleTotal">S/ 0.00</span></div><button class="btn primary" id="checkout" style="width:100%;margin-top:12px">Cobrar</button></div></dialog>
@@ -104,14 +104,32 @@ const docMeta = db.collection('varelia_sistema').doc('general');
 
 // Sincronizar un producto a la nube
 function syncProductToCloud(p){
-  if(isRemoteSync) return;
+  if(isRemoteSync || !p || !p.id) return;
   colProd.doc(p.id).set(p).catch(e=>console.error("Error nube producto:",e));
 }
 
-// Eliminar un producto en la nube
-function deleteProductFromCloud(id){
-  if(isRemoteSync) return;
-  colProd.doc(id).delete().catch(e=>console.error("Error borrar nube:",e));
+// Eliminar un producto (Local + Firestore)
+async function deleteProduct(id){
+  const p = products.find(x => x.id === id);
+  if(!p) return;
+  if(!confirm(`¿Deseas eliminar permanentemente "${p.name}"?`)) return;
+
+  // 1. Eliminar localmente
+  products = products.filter(x => x.id !== id);
+  localStorage.setItem(K.products, JSON.stringify(products));
+
+  // 2. Eliminar de Firestore
+  try {
+    await colProd.doc(id).delete();
+  } catch(e) {
+    console.error("Error al borrar de Firestore:", e);
+  }
+
+  // 3. Cerrar ventana modal si estaba abierta
+  if(productDialog.open) productDialog.close();
+
+  // 4. Actualizar vistas
+  save();
 }
 
 // Sincronizar metadatos (categorías, ventas, compras, caja)
@@ -123,7 +141,7 @@ function syncMetaToCloud(){
   }, { merge: true }).catch(e=>console.error("Error nube meta:",e));
 }
 
-// Guardado general local + nube
+// Guardado general local
 function save(){
   for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]]) {
     localStorage.setItem(k,JSON.stringify(v));
@@ -132,7 +150,7 @@ function save(){
   render();
 }
 
-// Escuchar cambios de productos en tiempo real
+// Escuchar cambios de productos en tiempo real desde Firestore
 colProd.onSnapshot(snap => {
   if(snap.empty && products.length > 0){
     $('cloudStatus').textContent = '☁️ Respaldando en la nube...';
@@ -141,10 +159,21 @@ colProd.onSnapshot(snap => {
     return;
   }
 
+  if(snap.empty && products.length === 0){
+    products = [];
+    localStorage.setItem(K.products, JSON.stringify([]));
+    render();
+    $('cloudStatus').textContent = '☁️ Sincronizado (0 prod.)';
+    return;
+  }
+
   if(!snap.empty){
     isRemoteSync = true;
     const remoteProducts = [];
-    snap.forEach(doc => remoteProducts.push(doc.data()));
+    snap.forEach(doc => {
+      const item = doc.data();
+      if(item && item.id) remoteProducts.push(item);
+    });
     products = remoteProducts;
     localStorage.setItem(K.products, JSON.stringify(products));
     render();
@@ -174,7 +203,7 @@ docMeta.onSnapshot(doc => {
   }
 });
 
-// Forzar sincronización manual tocando el botón de la nube
+// Forzar sincronización manual tocando la nube
 $('cloudStatus').onclick = () => {
   $('cloudStatus').textContent = '☁️ Subiendo...';
   products.forEach(p => colProd.doc(p.id).set(p));
@@ -190,9 +219,19 @@ function addMovement(p,type,qty,before,after,source){movements.push({id:uid(),da
 function render(){renderProducts();renderInventory();renderCategories();renderSuppliers();renderPurchases();renderSales();renderCash();fillCats();fillPurchaseSelectors();renderInvSelected()}
 function card(p){return `<article class="product"><div class="photo">${p.image?`<img src="${p.image}">`:'Sin imagen'}</div><div class="pb"><h3>${esc(p.name)}</h3><div class="meta">${esc(p.category)}${p.barcode?` · ${esc(p.barcode)}`:''}</div><div class="price">${money(p.sellPrice)}</div><div class="actions"><button class="btn secondary" data-edit="${p.id}">Editar</button><button class="btn primary" data-add="${p.id}">Vender</button><button class="btn danger" data-delete="${p.id}">Eliminar</button></div></div></article>`}
 function renderProducts(){let q=search.value.trim().toLowerCase(),a=products.filter(p=>(activeCategory==='Todos'||p.category===activeCategory)&&(!q||[p.name,p.barcode,p.category].some(v=>String(v||'').toLowerCase().includes(q))));productGrid.innerHTML=a.length?a.map(card).join(''):'<div class="empty">No hay productos.</div>';categoryChips.innerHTML=['Todos',...categories].map(c=>`<button class="chip ${activeCategory===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
-function renderInventory(){let low=products.filter(needsReorder).sort((a,b)=>(+a.stock)-(+b.stock));reorderList.innerHTML=low.length?low.map(p=>`<div class="alertrow"><div><strong>⚠️ ${esc(p.name)}</strong><div class="meta">${esc(p.category||'Sin sección')} · Stock actual: <b>${p.stock} ${esc(p.unit)}</b></div></div><div style="text-align:right"><label style="font-size:11px">Alertar en</label><input data-reorder="${p.id}" type="number" min="0" value="${Math.max(0,+p.reorderLevel||0)}"></div></div>`).join(''):'<div class="empty">✅ No hay productos por reponer.</div>';inventoryProductList.innerHTML=products.length?[...products].sort((a,b)=>(a.category||'').localeCompare(b.category||'')||(a.name||'').localeCompare(b.name||'')).map(p=>`<div class="row" data-invrow="${p.id}"><div><strong>${esc(p.name)}${needsReorder(p)?'<span class="warnbadge">⚠️ Reponer</span>':''}</strong><div><span class="badge">${esc(p.category||'Sin sección')}</span></div><div class="meta">Alerta configurada: ${Math.max(0,+p.reorderLevel||0)} ${esc(p.unit)}</div></div><div style="text-align:right"><strong>${p.stock} ${esc(p.unit)}</strong><div><button class="btn secondary" data-alertcfg="${p.id}" style="padding:7px 9px;margin-top:7px">⚙️ Alerta</button></div></div></div>`).join(''):'<div class="empty">Sin productos.</div>';let list=[...movements].reverse().slice(0,100);inventoryMovementList.innerHTML=list.length?list.map(m=>`<div class="row"><div><strong>${esc(m.name)}</strong><div class="meta">${new Date(m.date).toLocaleString('es-PE')} · ${esc(m.source||'')}</div><div class="meta">Stock ${m.before} → ${m.after}</div></div><div><strong>${m.qty}</strong></div></div>`).join(''):'<div class="empty">Sin movimientos.</div>'}
+function renderInventory(){let low=products.filter(needsReorder).sort((a,b)=>(+a.stock)-(+b.stock));reorderList.innerHTML=low.length?low.map(p=>`<div class="alertrow"><div><strong>⚠️ ${esc(p.name)}</strong><div class="meta">${esc(p.category||'Sin sección')} · Stock actual: <b>${p.stock} ${esc(p.unit)}</b></div></div><div style="text-align:right"><label style="font-size:11px">Alertar en</label><input data-reorder="${p.id}" type="number" min="0" value="${Math.max(0,+p.reorderLevel||0)}"></div></div>`).join(''):'<div class="empty">✅ No hay productos por reponer.</div>';inventoryProductList.innerHTML=products.length?[...products].sort((a,b)=>(a.category||'').localeCompare(b.category||'')||(a.name||'').localeCompare(b.name||'')).map(p=>`<div class="row" data-invrow="${p.id}"><div><strong>${esc(p.name)}${needsReorder(p)?'<span class="warnbadge">⚠️ Reponer</span>':''}</strong><div><span class="badge">${esc(p.category||'Sin sección')}</span></div><div class="meta">Alerta configurada: ${Math.max(0,+p.reorderLevel||0)} ${esc(p.unit)}</div></div><div style="text-align:right"><strong>${p.stock} ${esc(p.unit)}</strong><div style="display:flex;gap:5px;justify-content:flex-end;margin-top:7px"><button class="btn secondary" data-alertcfg="${p.id}" style="padding:6px 9px">⚙️</button><button class="btn danger" data-deleteinv="${p.id}" style="padding:6px 9px">🗑️</button></div></div></div>`).join(''):'<div class="empty">Sin productos.</div>';let list=[...movements].reverse().slice(0,100);inventoryMovementList.innerHTML=list.length?list.map(m=>`<div class="row"><div><strong>${esc(m.name)}</strong><div class="meta">${new Date(m.date).toLocaleString('es-PE')} · ${esc(m.source||'')}</div><div class="meta">Stock ${m.before} → ${m.after}</div></div><div><strong>${m.qty}</strong></div></div>`).join(''):'<div class="empty">Sin movimientos.</div>'}
+
 reorderList.onchange=e=>{if(e.target.dataset.reorder){let p=products.find(x=>x.id===e.target.dataset.reorder);if(p){p.reorderLevel=Math.max(0,Math.floor(+e.target.value||0));syncProductToCloud(p);save()}}};
-inventoryProductList.onclick=e=>{let a=e.target.closest('[data-alertcfg]');if(a){e.stopPropagation();let p=products.find(x=>x.id===a.dataset.alertcfg),n=prompt('¿Con cuántas unidades quieres que aparezca la alerta para '+p.name+'?',p.reorderLevel??5);if(n!==null&&n!==''&&!isNaN(n)){p.reorderLevel=Math.max(0,Math.floor(+n));syncProductToCloud(p);save()}return}let r=e.target.closest('[data-invrow]');if(r)selectInv(products.find(p=>p.id===r.dataset.invrow))};
+
+inventoryProductList.onclick=e=>{
+  let del=e.target.closest('[data-deleteinv]');
+  if(del){e.stopPropagation();deleteProduct(del.dataset.deleteinv);return}
+  let a=e.target.closest('[data-alertcfg]');
+  if(a){e.stopPropagation();let p=products.find(x=>x.id===a.dataset.alertcfg),n=prompt('¿Con cuántas unidades quieres que aparezca la alerta para '+p.name+'?',p.reorderLevel??5);if(n!==null&&n!==''&&!isNaN(n)){p.reorderLevel=Math.max(0,Math.floor(+n));syncProductToCloud(p);save()}return}
+  let r=e.target.closest('[data-invrow]');
+  if(r)selectInv(products.find(p=>p.id===r.dataset.invrow));
+};
+
 function renderCategories(){categoryList.innerHTML=categories.length?categories.map(c=>`<div class="row" data-opencat="${esc(c)}"><div><strong>${esc(c)}</strong><div class="meta">${products.filter(p=>p.category===c).length} producto(s) · Toca para verlos</div></div><button class="btn danger" data-delcat="${esc(c)}">Eliminar</button></div>`).join(''):'<div class="empty">Crea tu primera categoría.</div>'}
 function renderSuppliers(){let q=supplierSearch.value.trim().toLowerCase(),a=suppliers.filter(s=>!q||[s.name,s.ruc,s.phone,s.email].some(v=>String(v||'').toLowerCase().includes(q)));supplierList.innerHTML=a.length?a.map(s=>`<div class="row"><div><strong>${esc(s.name)}</strong><div class="meta">${s.ruc?'RUC: '+esc(s.ruc)+' · ':''}${esc(s.phone||'Sin teléfono')}</div></div><div><button class="btn secondary" data-editsupplier="${s.id}">Editar</button> <button class="btn danger" data-delsupplier="${s.id}">Eliminar</button></div></div>`).join(''):'<div class="empty">No hay proveedores.</div>'}
 function renderPurchases(){purchaseList.innerHTML=purchases.length?[...purchases].reverse().map(p=>`<details class="panel"><summary><strong>📥 ${new Date(p.date).toLocaleString('es-PE')} · ${esc(p.supplierName)}</strong> — ${money(p.total)}</summary></details>`).join(''):'<div class="empty">Todavía no hay ingresos de mercadería.</div>'}
@@ -223,6 +262,15 @@ function openProduct(id){
   reorderLevel.value=p?.reorderLevel??5;
   description.value=p?.description||'';
   if(p?.image){imagePreview.src=p.image;imagePreview.hidden=false}else{imagePreview.src='';imagePreview.hidden=true}
+  
+  const delBtn=$('deleteProductModalBtn');
+  if(p){
+    delBtn.style.display='block';
+    delBtn.onclick=()=>deleteProduct(p.id);
+  }else{
+    delBtn.style.display='none';
+  }
+  
   productDialog.showModal();
 }
 newProduct.onclick=inventoryNewProduct.onclick=()=>openProduct();
@@ -254,7 +302,7 @@ productImage.onchange=e=>{
 
 productForm.onsubmit=e=>{
   e.preventDefault();
-  let id=productId.value,old=products.find(p=>p.id===id),obj={id:id||uid(),barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:old?+old.stock||0:0,unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src};
+  let id=productId.value||uid(),old=products.find(p=>p.id===id),obj={id:id,barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:old?+old.stock||0:0,unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src};
   old?Object.assign(old,obj):products.push(obj);
   productDialog.close();
   syncProductToCloud(obj);
@@ -265,11 +313,7 @@ function productActions(e){
   let d=e.target.dataset;
   if(d.edit)openProduct(d.edit);
   if(d.add){openSale();addToCart(products.find(p=>p.id===d.add))}
-  if(d.delete){
-    deleteProductFromCloud(d.delete);
-    products=products.filter(x=>x.id!==d.delete);
-    save();
-  }
+  if(d.delete)deleteProduct(d.delete);
 }
 productGrid.onclick=productActions;
 search.oninput=renderProducts;
@@ -362,4 +406,3 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 </body></html>
-
