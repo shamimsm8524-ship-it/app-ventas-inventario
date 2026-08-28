@@ -71,7 +71,9 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 </main></div>
 <button class="fab" id="newSaleFab">+ Venta</button>
 
+<!-- DIALOG PRODUCTO -->
 <dialog id="productDialog"><div class="modal"><div class="modalhead"><h2 id="productTitle">Nuevo producto</h2><button class="close" data-close="productDialog">×</button></div><form class="form" id="productForm"><input type="hidden" id="productId"><label><span>Imagen del producto</span><input id="productImage" type="file" accept="image/*"></label><img id="imagePreview" class="preview" hidden><div class="two"><label><span>Código de barras</span><input id="barcode" placeholder="Escanea o escribe el código"></label><button type="button" class="btn secondary" id="scanForProduct">📷 Escanear</button></div><label><span>Nombre del producto</span><input id="productName" required></label><label><span>Sección / Categoría</span><select id="productCategory" required></select></label><div class="two"><label><span>Precio de compra (S/)</span><input id="buyPrice" type="number" step="0.01" min="0"></label><label><span>Precio de venta (S/)</span><input id="sellPrice" type="number" step="0.01" min="0" required></label></div><label><span>Unidad de medida</span><select id="unit"><option>Unidad</option><option>Caja</option><option>Paquete</option><option>Bolsa</option><option>Botella</option><option>Lata</option><option>Docena</option><option>Kg</option><option>Gramo</option><option>Litro</option><option>Metro</option><option>m²</option><option>Rollo</option><option>Par</option><option>Set</option><option>Otro</option></select></label><label><span>Alerta de reposición</span><input id="reorderLevel" type="number" min="0" step="1" value="5"><small class="notice">Avísame cuando el stock sea igual o menor a esta cantidad.</small></label><div class="notice">El producto se crea con stock 0. El stock aumenta desde Inventario o Ingreso de mercadería.</div><label><span>Descripción</span><textarea id="description" rows="3"></textarea></label><div class="two" style="margin-top:6px"><button type="button" class="btn danger" id="deleteProductModalBtn" style="display:none">🗑️ Eliminar</button><button type="submit" class="btn primary">Guardar producto</button></div></form></div></dialog>
+
 <dialog id="supplierDialog"><div class="modal"><div class="modalhead"><h2 id="supplierTitle">Nuevo proveedor</h2><button class="close" data-close="supplierDialog">×</button></div><form class="form" id="supplierForm"><input type="hidden" id="supplierId"><label><span>Nombre / Razón social</span><input id="supplierName" required></label><div class="two"><label><span>RUC / Documento</span><input id="supplierRuc"></label><label><span>Teléfono</span><input id="supplierPhone"></label></div><label><span>Correo</span><input id="supplierEmail" type="email"></label><label><span>Dirección</span><input id="supplierAddress"></label><label><span>Notas</span><textarea id="supplierNotes" rows="3"></textarea></label><button class="btn primary">Guardar proveedor</button></form></div></dialog>
 <dialog id="purchaseDialog"><div class="modal"><div class="modalhead"><h2>Nuevo ingreso de mercadería</h2><button class="close" data-close="purchaseDialog">×</button></div><div class="form"><label><span>Proveedor</span><select id="purchaseSupplier"></select></label><label><span>Número de comprobante</span><input id="purchaseDoc" placeholder="Factura, boleta, orden, etc."></label><div class="panel"><strong>Mercadería recibida</strong><div class="three" style="margin-top:10px"><select id="purchaseProduct"></select><input id="purchaseQty" type="number" min="1" value="1" placeholder="Cantidad"><input id="purchaseCost" type="number" min="0" step="0.01" placeholder="Costo unitario"></div><button class="btn secondary" id="addPurchaseItem">+ Agregar producto</button></div><div id="purchaseItems"></div><div class="total"><span>Total del ingreso</span><span id="purchaseTotal">S/ 0.00</span></div><button class="btn primary" id="savePurchase">Registrar ingreso y aumentar stock</button></div></div></dialog>
 <dialog id="saleDialog"><div class="modal"><div class="modalhead"><h2>Nueva venta</h2><button class="close" data-close="saleDialog">×</button></div><div class="two"><input id="saleSearch" placeholder="Buscar o escanear"><button class="btn secondary" id="scanForSale">📷 Escanear</button></div><div class="list" id="saleResults"></div><div id="cart"></div><div class="total"><span>Total</span><span id="saleTotal">S/ 0.00</span></div><button class="btn primary" id="checkout" style="width:100%;margin-top:12px">Cobrar</button></div></dialog>
@@ -114,7 +116,7 @@ function syncProductToCloud(p){
   colProd.doc(String(p.id)).set(p).catch(e=>console.error("Error nube producto:",e));
 }
 
-// Función de eliminación
+// Función definitiva para eliminar producto
 window.deleteProduct = async function(id){
   if(!id) return;
   const targetId = String(id).trim();
@@ -206,12 +208,22 @@ colProd.onSnapshot(snap => {
   if($('cloudStatus')) $('cloudStatus').textContent = '⚠️ Sin conexión';
 });
 
+// Sincronización combinada para no perder ventas locales
 docMeta.onSnapshot(doc => {
   if(doc.exists){
     const data = doc.data();
     isRemoteSync = true;
     if(Array.isArray(data.categories)) { categories = data.categories; localStorage.setItem(K.categories, JSON.stringify(categories)); }
-    if(Array.isArray(data.sales)) { sales = data.sales; localStorage.setItem(K.sales, JSON.stringify(sales)); }
+    
+    // Fusión de ventas sin sobrescribir lo local
+    if(Array.isArray(data.sales)) {
+      const salesMap = new Map();
+      sales.forEach(s => salesMap.set(String(s.id || s.date), s));
+      data.sales.forEach(s => salesMap.set(String(s.id || s.date), s));
+      sales = Array.from(salesMap.values()).sort((a,b) => new Date(a.date) - new Date(b.date));
+      localStorage.setItem(K.sales, JSON.stringify(sales));
+    }
+
     if(Array.isArray(data.closures)) { closures = data.closures; localStorage.setItem(K.closures, JSON.stringify(closures)); }
     if(data.cashStart) { cashStart = data.cashStart; localStorage.setItem(K.cashStart, JSON.stringify(cashStart)); }
     if(Array.isArray(data.movements)) { movements = data.movements; localStorage.setItem(K.movements, JSON.stringify(movements)); }
@@ -272,7 +284,20 @@ inventoryProductList.onclick=e=>{
 function renderCategories(){categoryList.innerHTML=categories.length?categories.map(c=>`<div class="row" data-opencat="${esc(c)}"><div><strong>${esc(c)}</strong><div class="meta">${products.filter(p=>p.category===c).length} producto(s) · Toca para verlos</div></div><button class="btn danger" data-delcat="${esc(c)}">Eliminar</button></div>`).join(''):'<div class="empty">Crea tu primera categoría.</div>'}
 function renderSuppliers(){let q=supplierSearch.value.trim().toLowerCase(),a=suppliers.filter(s=>!q||[s.name,s.ruc,s.phone,s.email].some(v=>String(v||'').toLowerCase().includes(q)));supplierList.innerHTML=a.length?a.map(s=>`<div class="row"><div><strong>${esc(s.name)}</strong><div class="meta">${s.ruc?'RUC: '+esc(s.ruc)+' · ':''}${esc(s.phone||'Sin teléfono')}</div></div><div><button class="btn secondary" data-editsupplier="${s.id}">Editar</button> <button class="btn danger" data-delsupplier="${s.id}">Eliminar</button></div></div>`).join(''):'<div class="empty">No hay proveedores.</div>'}
 function renderPurchases(){purchaseList.innerHTML=purchases.length?[...purchases].reverse().map(p=>`<details class="panel"><summary><strong>📥 ${new Date(p.date).toLocaleString('es-PE')} · ${esc(p.supplierName)}</strong> — ${money(p.total)}</summary></details>`).join(''):'<div class="empty">Todavía no hay ingresos de mercadería.</div>'}
-function renderSales(){salesList.innerHTML=sales.length?[...sales].reverse().map(s=>`<div class="row"><div><strong>${new Date(s.date).toLocaleString('es-PE')}</strong></div><strong>${money(s.total)}</strong></div>`).join(''):'<div class="empty">No hay ventas.</div>'}
+
+// Render detallado de historial de ventas
+function renderSales(){
+  salesList.innerHTML=sales.length?[...sales].reverse().map(s=>`
+    <div class="row">
+      <div>
+        <strong>${new Date(s.date).toLocaleString('es-PE')}</strong>
+        <div class="meta">${(s.items||[]).map(i=>`${esc(i.name)} (${i.qty})`).join(', ') || 'Venta registrada'}</div>
+      </div>
+      <strong style="color:var(--p)">${money(s.total)}</strong>
+    </div>
+  `).join(''):'<div class="empty">No hay ventas registradas.</div>';
+}
+
 function aggregate(list){let m={};for(const s of list)for(const i of s.items||[]){let k=i.id||i.name;if(!m[k])m[k]={name:i.name,qty:0,total:0};m[k].qty+=+i.qty;m[k].total+=+i.qty*+i.price}return Object.values(m)}
 function renderCash(){let a=activeSales(),agg=aggregate(a),t=a.reduce((x,s)=>x+s.total,0);cashTotal.textContent=money(t);cashCount.textContent=a.length;cashUnits.textContent=agg.reduce((x,i)=>x+i.qty,0);cashProducts.innerHTML=agg.length?agg.map(i=>`<div class="soldRow"><span>${esc(i.name)}</span><span>${i.qty}</span><strong>${money(i.total)}</strong></div>`).join(''):'<div class="empty">Sin ventas en esta caja.</div>';closuresList.innerHTML=closures.length?[...closures].reverse().map(c=>`<div class="row"><span>${new Date(c.closedAt).toLocaleString('es-PE')}</span><strong>${money(c.total)}</strong></div>`).join(''):'<div class="empty">Sin cierres.</div>'}
 function fillCats(){let v=productCategory.value;productCategory.innerHTML=categories.length?categories.map(c=>`<option>${esc(c)}</option>`).join(''):'<option value="">Primero crea categoría</option>';if(categories.includes(v))productCategory.value=v}
@@ -315,7 +340,6 @@ function openProduct(id){
 }
 newProduct.onclick=inventoryNewProduct.onclick=()=>openProduct();
 
-// Compresión a 350px JPEG optimizado
 productImage.onchange=e=>{
   let f=e.target.files[0];
   if(!f)return;
@@ -391,12 +415,53 @@ newPurchase.onclick=()=>{purchaseCart=[];fillPurchaseSelectors();purchaseDialog.
 function renderPurchaseCart(){purchaseItems.innerHTML=purchaseCart.map(i=>`<div>${esc(i.name)} × ${i.qty}</div>`).join('');purchaseTotal.textContent=money(purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0))}
 addPurchaseItem.onclick=()=>{let p=products.find(x=>String(x.id).trim()===String(purchaseProduct.value).trim()),q=Math.floor(+purchaseQty.value),c=+purchaseCost.value;if(p&&q>0){purchaseCart.push({id:p.id,name:p.name,qty:q,cost:c,unit:p.unit});renderPurchaseCart()}};
 savePurchase.onclick=()=>{let s=suppliers.find(x=>String(x.id).trim()===String(purchaseSupplier.value).trim());if(!s||!purchaseCart.length)return;for(const i of purchaseCart){let p=products.find(x=>String(x.id).trim()===String(i.id).trim());if(p){p.stock=(+p.stock||0)+i.qty;syncProductToCloud(p);}}purchases.push({id:uid(),date:new Date().toISOString(),supplierName:s.name,items:purchaseCart,total:purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0)});purchaseDialog.close();save()};
+
 function openSale(){cart=[];renderCart();saleDialog.showModal()}
-function addToCart(p){if(!p||p.stock<=0)return;let i=cart.find(x=>String(x.id).trim()===String(p.id).trim());i?i.qty++:cart.push({id:p.id,name:p.name,price:+p.sellPrice,qty:1});renderCart()}
+function addToCart(p){
+  if(!p||p.stock<=0)return alert('Este producto no tiene stock disponible.');
+  let i=cart.find(x=>String(x.id).trim()===String(p.id).trim());
+  if(i){
+    if(i.qty + 1 > p.stock) return alert('No hay más stock disponible.');
+    i.qty++;
+  } else {
+    cart.push({id:p.id,name:p.name,price:+p.sellPrice,qty:1});
+  }
+  renderCart();
+}
 function renderCart(){cart.innerHTML=cart.map(i=>`<div class="cartitem"><span>${esc(i.name)}</span><strong>${i.qty}</strong></div>`).join('');saleTotal.textContent=money(cart.reduce((a,i)=>a+i.price*i.qty,0))}
 saleSearch.oninput=()=>{let q=saleSearch.value.toLowerCase();saleResults.innerHTML=products.filter(p=>p.name.toLowerCase().includes(q)).map(p=>`<button class="btn secondary" data-saleadd="${p.id}">${esc(p.name)}</button>`).join('')};
 saleResults.onclick=e=>{if(e.target.dataset.saleadd)addToCart(products.find(p=>String(p.id).trim()===String(e.target.dataset.saleadd).trim()))};
-checkout.onclick=()=>{let total=cart.reduce((a,i)=>a+i.price*i.qty,0);for(const i of cart){let p=products.find(x=>String(x.id).trim()===String(i.id).trim());if(p){p.stock-=i.qty;syncProductToCloud(p);}}sales.push({id:uid(),date:new Date().toISOString(),items:cart,total});saleDialog.close();save()};
+
+// Cobro y registro blindado de ventas
+checkout.onclick=()=>{
+  if(!cart.length) return alert('El carrito está vacío.');
+  let total=cart.reduce((a,i)=>a+i.price*i.qty,0);
+  
+  // 1. Descontar stock
+  for(const i of cart){
+    let p=products.find(x=>String(x.id).trim()===String(i.id).trim());
+    if(p){
+      let before = +p.stock||0;
+      p.stock = Math.max(0, before - i.qty);
+      addMovement(p,'sale',i.qty,before,p.stock,'Venta');
+      syncProductToCloud(p);
+    }
+  }
+
+  // 2. Guardar venta como copia independiente
+  const soldItems = cart.map(item => ({...item}));
+  sales.push({
+    id: uid(),
+    date: new Date().toISOString(),
+    items: soldItems,
+    total: total
+  });
+
+  cart = [];
+  saleDialog.close();
+  save();
+};
+
 [newSaleTop,newSaleFab].forEach(b=>b.onclick=openSale);
 closeCash.onclick=()=>{let a=activeSales(),t=a.reduce((x,s)=>x+s.total,0);closures.push({id:uid(),closedAt:new Date().toISOString(),total:t});cashStart=new Date().toISOString();save()};
 themeGrid.onclick=e=>{let b=e.target.closest('[data-color]');if(b){setThemeColor(b.dataset.color);syncWheelFromHex(b.dataset.color)}};
