@@ -47,6 +47,7 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 .pb h3{font-weight:800}
 .badge{letter-spacing:.02em}
 </style>
+<link rel="stylesheet" href="product-view.css?v=20260819-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650;9..144,800&display=swap" rel="stylesheet">
@@ -74,7 +75,6 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 <dialog id="purchaseDialog"><div class="modal"><div class="modalhead"><h2>Nuevo ingreso de mercadería</h2><button class="close" data-close="purchaseDialog">×</button></div><div class="form"><label><span>Proveedor</span><select id="purchaseSupplier"></select></label><label><span>Número de comprobante</span><input id="purchaseDoc" placeholder="Factura, boleta, orden, etc."></label><div class="panel"><strong>Mercadería recibida</strong><div class="three" style="margin-top:10px"><select id="purchaseProduct"></select><input id="purchaseQty" type="number" min="1" value="1" placeholder="Cantidad"><input id="purchaseCost" type="number" min="0" step="0.01" placeholder="Costo unitario"></div><button class="btn secondary" id="addPurchaseItem">+ Agregar producto</button></div><div id="purchaseItems"></div><div class="total"><span>Total del ingreso</span><span id="purchaseTotal">S/ 0.00</span></div><button class="btn primary" id="savePurchase">Registrar ingreso y aumentar stock</button></div></div></dialog>
 <dialog id="saleDialog"><div class="modal"><div class="modalhead"><h2>Nueva venta</h2><button class="close" data-close="saleDialog">×</button></div><div class="two"><input id="saleSearch" placeholder="Buscar o escanear"><button class="btn secondary" id="scanForSale">📷 Escanear</button></div><div class="list" id="saleResults"></div><div id="cart"></div><div class="total"><span>Total</span><span id="saleTotal">S/ 0.00</span></div><button class="btn primary" id="checkout" style="width:100%;margin-top:12px">Cobrar</button></div></dialog>
 <dialog id="scannerDialog"><div class="modal"><div class="modalhead"><h2>Escanear código</h2><button class="close" id="closeScanner">×</button></div><video id="scannerVideo" autoplay playsinline style="width:100%;background:black;border-radius:15px"></video></div></dialog>
-
 <script>
 // --- CONFIGURACIÓN DE FIREBASE ---
 const firebaseConfig = {
@@ -95,6 +95,7 @@ function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{retur
 
 let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.sales,[]),closures=load(K.closures,[]),cashStart=load(K.cashStart,new Date().toISOString()),theme=load(K.theme,{color:'#be185d',dark:false}),movements=load(K.movements,[]),suppliers=load(K.suppliers,[]),purchases=load(K.purchases,[]),activeCategory='Todos',cart=[],purchaseCart=[],inventoryProductId=null;
 
+// Asegurar que cada producto tenga ID propio
 products.forEach(p=>{
   if(!p.id) p.id = uid();
   if(p.reorderLevel==null) p.reorderLevel=5;
@@ -102,15 +103,17 @@ products.forEach(p=>{
 
 let isRemoteSync = false;
 
+// Colecciones en Firestore
 const colProd = db.collection('varelia_catalogo');
 const docMeta = db.collection('varelia_sistema').doc('general');
 
+// Sincronizar un producto a la nube
 function syncProductToCloud(p){
   if(isRemoteSync || !p || !p.id) return;
   colProd.doc(String(p.id)).set(p).catch(e=>console.error("Error nube producto:",e));
 }
 
-// Eliminación directa
+// Función definitiva para eliminar producto (local + Firestore)
 async function deleteProduct(id){
   if(!id) return;
   const targetId = String(id);
@@ -119,6 +122,7 @@ async function deleteProduct(id){
   
   if(!confirm(`¿Deseas eliminar definitivamente "${nombre}"?`)) return;
 
+  // 1. Limpiar selección si estaba activo en inventario
   if(String(inventoryProductId) === targetId){
     inventoryProductId = null;
     inventoryName.value = '';
@@ -126,25 +130,28 @@ async function deleteProduct(id){
     renderInvSelected();
   }
 
-  // 1. Borrado local
+  // 2. Eliminar localmente de inmediato
   products = products.filter(x => String(x.id) !== targetId);
   localStorage.setItem(K.products, JSON.stringify(products));
   render();
 
+  // 3. Cerrar modal si estaba abierto
   if(productDialog.open) productDialog.close();
 
-  // 2. Borrado en Firestore
+  // 4. Eliminar directamente en Firestore
   try {
     $('cloudStatus').textContent = '☁️ Eliminando...';
     await colProd.doc(targetId).delete();
     $('cloudStatus').textContent = `☁️ Sincronizado (${products.length} prod.)`;
   } catch(err) {
     console.error("Error al borrar en Firestore:", err);
+    alert("Firebase rechazó el borrado. Verifica las Reglas en la consola de Firebase: " + err.message);
   }
 
   save();
 }
 
+// Sincronizar metadatos (categorías, ventas, compras, caja)
 function syncMetaToCloud(){
   if(isRemoteSync) return;
   docMeta.set({
@@ -153,6 +160,7 @@ function syncMetaToCloud(){
   }, { merge: true }).catch(e=>console.error("Error nube meta:",e));
 }
 
+// Guardado general local
 function save(){
   for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]]) {
     localStorage.setItem(k,JSON.stringify(v));
@@ -161,8 +169,12 @@ function save(){
   render();
 }
 
+// Escuchar cambios de Firestore en tiempo real
 colProd.onSnapshot(snap => {
   if(snap.empty && products.length > 0){
+    $('cloudStatus').textContent = '☁️ Respaldando en la nube...';
+    products.forEach(p => colProd.doc(String(p.id)).set(p));
+    syncMetaToCloud();
     return;
   }
 
@@ -189,9 +201,10 @@ colProd.onSnapshot(snap => {
   }
 }, err => {
   console.error("Firestore Error:", err);
-  $('cloudStatus').textContent = '⚠️ Sin conexión';
+  $('cloudStatus').textContent = '⚠️ Sin conexión a la nube';
 });
 
+// Escuchar cambios de metadatos en tiempo real
 docMeta.onSnapshot(doc => {
   if(doc.exists){
     const data = doc.data();
@@ -209,6 +222,7 @@ docMeta.onSnapshot(doc => {
   }
 });
 
+// Forzar sincronización manual tocando la nube
 $('cloudStatus').onclick = () => {
   $('cloudStatus').textContent = '☁️ Subiendo...';
   products.forEach(p => colProd.doc(String(p.id)).set(p));
@@ -292,6 +306,7 @@ function openProduct(id){
 }
 newProduct.onclick=inventoryNewProduct.onclick=()=>openProduct();
 
+// Compresión a 350px JPEG optimizado
 productImage.onchange=e=>{
   let f=e.target.files[0];
   if(!f)return;
@@ -364,7 +379,7 @@ lightModeBtn.onclick=()=>{theme.dark=false;save();applyTheme()};
 darkModeBtn.onclick=()=>{theme.dark=true;save();applyTheme()};
 let wheelH=330,wheelS=78;
 function hslToHex(h,s,l){s/=100;l/=100;let k=n=>(n+h/30)%12,a=s*Math.min(l,1-l),f=n=>l-a*Math.max(-1,Math.min(k(n)-3,Math.min(9-k(n),1)));return '#'+[f(0),f(8),f(4)].map(x=>Math.round(255*x).toString(16).padStart(2,'0')).join('')}
-function hexToHsl(hex){hex=hex.replace('#','');let r=parseInt(hex.slice(0,2),16)/255,g=parseInt(hex.slice(2,4),16)/255,b=parseInt(hex.slice(4,16),16)/255,max=Math.max(r,g,b),min=Math.min(r,g,b),h=0,ss=0,l=(max+min)/2;if(max!==min){let d=max-min;ss=l>.5?d/(2-max-min):d/(max+min);switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}h*=60}return[Math.round(h),Math.round(ss*100),Math.round(l*100)]}
+function hexToHsl(hex){hex=hex.replace('#','');let r=parseInt(hex.slice(0,2),16)/255,g=parseInt(hex.slice(2,4),16)/255,b=parseInt(hex.slice(4,6),16)/255,max=Math.max(r,g,b),min=Math.min(r,g,b),h=0,ss=0,l=(max+min)/2;if(max!==min){let d=max-min;ss=l>.5?d/(2-max-min):d/(max+min);switch(max){case r:h=(g-b)/d+(g<b?6:0);break;case g:h=(b-r)/d+2;break;default:h=(r-g)/d+4}h*=60}return[Math.round(h),Math.round(ss*100),Math.round(l*100)]}
 function refreshWheel(){let l=+lightSlider.value,c=hslToHex(wheelH,wheelS,l);customColor.value=c.toUpperCase();hexPreview.style.background=c;colorBigPreview.style.background=c;lightValue.textContent=l+'%';let rect=colorWheel.getBoundingClientRect(),r=rect.width/2,rad=(wheelH-90)*Math.PI/180,dist=(wheelS/100)*r*.82;wheelCursor.style.left=(r+Math.cos(rad)*dist)+'px';wheelCursor.style.top=(r+Math.sin(rad)*dist)+'px'}
 function pickWheel(ev){let rect=colorWheel.getBoundingClientRect(),x=ev.clientX-rect.left-rect.width/2,y=ev.clientY-rect.top-rect.height/2,r=rect.width/2,dist=Math.min(Math.hypot(x,y),r*.88);wheelS=Math.round(Math.min(100,dist/(r*.82)*100));wheelH=(Math.atan2(y,x)*180/Math.PI+90+360)%360;refreshWheel()}
 colorWheel.addEventListener('pointerdown',e=>{colorWheel.setPointerCapture(e.pointerId);pickWheel(e)});
@@ -383,9 +398,45 @@ syncWheelFromHex(theme.color||'#be185d');
 render();
 (()=>{const map={productos:'products',inventario:'inventory',categorias:'categories',proveedores:'suppliers',mercaderia:'purchases',ventas:'sales',caja:'cash',apariencia:'appearance'};const valid=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];let v=map[(location.hash||'').replace(/^#/,'')];if(!v){try{v=localStorage.getItem('miNegocio_lastView_v3')||localStorage.getItem('miNegocio_lastView_v2')||sessionStorage.getItem('miNegocio_lastView_v3')}catch{}}if(!valid.includes(v))v='products';switchView(v)})();
 </script>
+<script src="product-view.js?v=20260819-14"></script>
+<script src="public-catalog.js?v=20260819-2"></script>
+<script src="merchandise-reminders.js?v=20260819-1"></script>
+<script src="reminder-alarm.js?v=20260819-1"></script>
+<script src="barcode-tools.js?v=20260819-5"></script>
+<script src="scanner-fix.js?v=20260819-3"></script>
+<script>
+document.querySelectorAll('[title]').forEach(el=>el.removeAttribute('title'));
+new MutationObserver(()=>document.querySelectorAll('[title]').forEach(el=>el.removeAttribute('title'))).observe(document.body,{attributes:true,subtree:true,attributeFilter:['title']});
+function esTooltipIntruso(el){
+  if(!(el instanceof HTMLElement))return false;
+  if(el.closest('dialog,.overlay,#overlay,.modal,.side,#sidebar,.top,.fab,[class*="auth"],[id*="auth"],[class*="login"],[id*="login"],[class*="varelia"]'))return false;
+  const cs=getComputedStyle(el);
+  if(cs.position!=='fixed'&&cs.position!=='absolute')return false;
+  if(!el.classList.contains('tooltip') && el.getAttribute('role')!=='tooltip' && el.offsetWidth > 260) return false;
+  const m=cs.backgroundColor.match(/\d+/g);
+  if(!m)return false;
+  const [r,g,b]=m.map(Number);
+  return r<45&&g<45&&b<45;
+}
+function eliminarTooltips(raiz){
+  if(esTooltipIntruso(raiz)){raiz.remove();return}
+  if(raiz.querySelectorAll)raiz.querySelectorAll('*').forEach(el=>{if(esTooltipIntruso(el))el.remove()});
+}
+new MutationObserver(muts=>{
+  for(const m of muts)m.addedNodes.forEach(n=>{if(n.nodeType===1)eliminarTooltips(n)});
+}).observe(document.body,{childList:true,subtree:true});
+window.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(()=>{
+    if(document.body.classList.contains('varelia-auth-locked') && !document.querySelector('[class*="auth-modal"], [id*="auth-modal"]')){
+      document.body.classList.remove('varelia-auth-locked');
+    }
+  }, 1200);
+});
+</script>
 <script>
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
 }
 </script>
 </body></html>
+
