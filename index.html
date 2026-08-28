@@ -46,6 +46,9 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 .chip{font-weight:700}
 .pb h3{font-weight:800}
 .badge{letter-spacing:.02em}
+.stock-tag{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:800}
+.stock-tag.in{background:#d1fae5;color:#047857}
+.stock-tag.out{background:#fee2e2;color:#b91c1c}
 </style>
 <link rel="stylesheet" href="product-view.css?v=20260819-3">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -100,7 +103,7 @@ try {
 }
 
 const K={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};
-const $=id=>document.getElementById(id),money=n=>'S/ '+Number(n||0).toFixed(2),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id),money=n=>'S/ '+Number(n||0).toFixed(2),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}
 
 let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.sales,[]),closures=load(K.closures,[]),cashStart=load(K.cashStart,new Date().toISOString()),theme=load(K.theme,{color:'#be185d',dark:false,updatedAt:0}),movements=load(K.movements,[]),suppliers=load(K.suppliers,[]),purchases=load(K.purchases,[]),activeCategory='Todos',cart=[],purchaseCart=[],inventoryProductId=null;
@@ -303,7 +306,14 @@ function activeSales(){return sales.filter(s=>new Date(s.date)>=new Date(cashSta
 function needsReorder(p){return (+p.stock||0)<=Math.max(0,+p.reorderLevel||0)}
 function addMovement(p,type,qty,before,after,source){movements.push({id:uid(),date:new Date().toISOString(),productId:p.id,name:p.name,category:p.category||'',unit:p.unit||'Unidad',type,qty:+qty,before:+before,after:+after,source})}
 function render(){renderProducts();renderInventory();renderCategories();renderSuppliers();renderPurchases();renderSales();renderCash();fillCats();fillPurchaseSelectors();renderInvSelected()}
-function card(p){return `<article class="product"><div class="photo">${p.image?`<img src="${p.image}">`:'Sin imagen'}</div><div class="pb"><h3>${esc(p.name)}</h3><div class="meta">${esc(p.category)}${p.barcode?` · ${esc(p.barcode)}`:''}</div><div class="price">${money(p.sellPrice)}</div><div class="actions"><button class="btn secondary" data-edit="${p.id}">Editar</button><button class="btn primary" data-add="${p.id}">Vender</button><button class="btn danger" data-delete="${p.id}">Eliminar</button></div></div></article>`}
+function card(p){
+  let stock = Number(p.stock || 0);
+  let unit = p.unit || 'Unidades';
+  let badge = stock <= 0 
+    ? '<span class="stock-tag out">🚫 Agotado</span>' 
+    : `<span class="stock-tag in">🟢 Quedan ${stock} ${esc(unit)}</span>`;
+  return `<article class="product"><div class="photo">${p.image?`<img src="${p.image}">`:'Sin imagen'}</div><div class="pb"><h3>${esc(p.name)}</h3><div class="meta">${esc(p.category)}${p.barcode?` · ${esc(p.barcode)}`:''}</div><div class="price">${money(p.sellPrice)}</div><div>${badge}</div><div class="actions"><button class="btn secondary" data-edit="${p.id}">Editar</button><button class="btn primary" data-add="${p.id}">${stock<=0?'Sin stock':'Vender'}</button><button class="btn danger" data-delete="${p.id}">Eliminar</button></div></div></article>`;
+}
 function renderProducts(){let q=search.value.trim().toLowerCase(),a=products.filter(p=>(activeCategory==='Todos'||p.category===activeCategory)&&(!q||[p.name,p.barcode,p.category].some(v=>String(v||'').toLowerCase().includes(q))));productGrid.innerHTML=a.length?a.map(card).join(''):'<div class="empty">No hay productos.</div>';categoryChips.innerHTML=['Todos',...categories].map(c=>`<button class="chip ${activeCategory===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
 function renderInventory(){let low=products.filter(needsReorder).sort((a,b)=>(+a.stock)-(+b.stock));reorderList.innerHTML=low.length?low.map(p=>`<div class="alertrow"><div><strong>⚠️ ${esc(p.name)}</strong><div class="meta">${esc(p.category||'Sin sección')} · Stock actual: <b>${p.stock} ${esc(p.unit)}</b></div></div><div style="text-align:right"><label style="font-size:11px">Alertar en</label><input data-reorder="${p.id}" type="number" min="0" value="${Math.max(0,+p.reorderLevel||0)}"></div></div>`).join(''):'<div class="empty">✅ No hay productos por reponer.</div>';inventoryProductList.innerHTML=products.length?[...products].sort((a,b)=>(a.category||'').localeCompare(b.category||'')||(a.name||'').localeCompare(b.name||'')).map(p=>`<div class="row" data-invrow="${p.id}"><div><strong>${esc(p.name)}${needsReorder(p)?'<span class="warnbadge">⚠️ Reponer</span>':''}</strong><div><span class="badge">${esc(p.category||'Sin sección')}</span></div><div class="meta">Alerta configurada: ${Math.max(0,+p.reorderLevel||0)} ${esc(p.unit)}</div></div><div style="text-align:right"><strong>${p.stock} ${esc(p.unit)}</strong><div style="display:flex;gap:5px;justify-content:flex-end;margin-top:7px"><button class="btn secondary" data-alertcfg="${p.id}" style="padding:6px 9px">⚙️</button><button class="btn danger" data-deleteinv="${p.id}" style="padding:6px 9px">🗑️</button></div></div></div>`).join(''):'<div class="empty">Sin productos.</div>';let list=[...movements].reverse().slice(0,100);inventoryMovementList.innerHTML=list.length?list.map(m=>`<div class="row"><div><strong>${esc(m.name)}</strong><div class="meta">${new Date(m.date).toLocaleString('es-PE')} · ${esc(m.source||'')}</div><div class="meta">Stock ${m.before} → ${m.after}</div></div><div><strong>${m.qty}</strong></div></div>`).join(''):'<div class="empty">Sin movimientos.</div>'}
 
@@ -665,4 +675,3 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 </body></html>
-
