@@ -1,90 +1,162 @@
+/**
+ * product-view.js - Vista detallada de productos y especificaciones
+ */
 (()=>{
-  // Inyección de estilos de stock para la vista pública y modal
-  const s = document.createElement('style');
-  s.textContent = `
-    .public-stock-badge {
+  if(window.__vareliaProductViewLoaded) return;
+  window.__vareliaProductViewLoaded = true;
+
+  const style = document.createElement('style');
+  style.textContent = `
+    #productDetailDialog {
+      width: min(94vw, 480px);
+      border: 0;
+      border-radius: 24px;
+      padding: 0;
+      background: var(--card, #fff);
+      color: var(--ink, #111827);
+      box-shadow: 0 25px 60px rgba(0,0,0,0.3);
+    }
+    #productDetailDialog::backdrop {
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+    }
+    .pdetail-box {
+      padding: 20px;
+    }
+    .pdetail-img {
+      width: 100%;
+      max-height: 280px;
+      object-fit: cover;
+      border-radius: 16px;
+      background: var(--bg, #f6f8fc);
+      margin-bottom: 14px;
+    }
+    .pdetail-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin: 0 0 4px;
+    }
+    .pdetail-meta {
+      font-size: 13px;
+      color: var(--muted, #6b7280);
+      margin-bottom: 8px;
+    }
+    .pdetail-price {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--p, #be185d);
+      margin: 8px 0;
+    }
+    .pdetail-desc {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--ink, #111827);
+      background: var(--bg, #f6f8fc);
+      padding: 12px;
+      border-radius: 12px;
+      margin: 12px 0 16px;
+      white-space: pre-line;
+    }
+    .pdetail-stock {
       display: inline-flex;
       align-items: center;
       gap: 5px;
+      padding: 4px 10px;
+      border-radius: 999px;
       font-size: 12px;
       font-weight: 800;
-      padding: 3px 9px;
-      border-radius: 999px;
-      margin: 6px 0;
+      margin-bottom: 8px;
     }
-    .public-stock-badge.in {
+    .pdetail-stock.in {
       background: #d1fae5;
       color: #047857;
     }
-    .public-stock-badge.out {
+    .pdetail-stock.out {
       background: #fee2e2;
       color: #b91c1c;
     }
-    .card-agotado {
-      opacity: 0.65;
-    }
-    .btn-agotado {
-      background: #e2e8f0 !important;
-      color: #94a3b8 !important;
-      cursor: not-allowed !important;
-      box-shadow: none !important;
-    }
   `;
-  document.head.appendChild(s);
+  document.head.appendChild(style);
 
-  // Observer para insertar el stock automáticamente en todas las tarjetas del catálogo público
-  function actualizarTarjetasPublicas() {
-    const cards = document.querySelectorAll('.product, .product-card, [data-product-id], article');
-    cards.forEach(card => {
-      if (card.dataset.stockInjected) return;
-      
-      let stock = null;
-      let unit = 'Unidades';
-      
-      // Buscar en el catálogo local si está disponible
-      const id = card.dataset.productId || card.getAttribute('data-id') || card.querySelector('[data-add]')?.dataset.add || card.querySelector('[data-edit]')?.dataset.edit;
-      if (id && window.products) {
-        const p = window.products.find(x => String(x.id) === String(id));
-        if (p) {
-          stock = Number(p.stock || 0);
-          unit = p.unit || 'Unidades';
-        }
-      }
-      
-      // Si no encontró por ID, intentar leer dataset embebido de Supabase
-      if (stock === null && card.dataset.stock !== undefined) {
-        stock = Number(card.dataset.stock || 0);
-        unit = card.dataset.unit || 'Unidades';
-      }
+  const dialog = document.createElement('dialog');
+  dialog.id = 'productDetailDialog';
+  dialog.innerHTML = `
+    <div class="pdetail-box">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        <button type="button" class="close" id="closeProductDetail" style="border:0;background:transparent;font-size:22px;cursor:pointer">×</button>
+      </div>
+      <img id="pdetailImg" class="pdetail-img" src="" alt="Producto" hidden>
+      <h3 id="pdetailTitle" class="pdetail-title"></h3>
+      <div id="pdetailMeta" class="pdetail-meta"></div>
+      <div id="pdetailStockBox"></div>
+      <div id="pdetailPrice" class="pdetail-price"></div>
+      <div id="pdetailDesc" class="pdetail-desc"></div>
+      <button type="button" class="btn primary" id="pdetailAddBtn" style="width:100%">Vender</button>
+    </div>
+  `;
+  document.body.appendChild(dialog);
 
-      if (stock !== null) {
-        card.dataset.stockInjected = "true";
-        const badge = document.createElement('div');
-        if (stock <= 0) {
-          badge.innerHTML = '<span class="public-stock-badge out">🚫 Agotado</span>';
-          card.classList.add('card-agotado');
-          const addBtn = card.querySelector('.btn-primary, [data-add], .btn-add');
-          if (addBtn) {
-            addBtn.classList.add('btn-agotado');
-            addBtn.textContent = 'Sin stock';
-            addBtn.disabled = true;
-          }
-        } else {
-          badge.innerHTML = `<span class="public-stock-badge in">🟢 Quedan ${stock} ${unit}</span>`;
-        }
-        
-        const targetContainer = card.querySelector('.pb, .product-info, .card-body') || card;
-        const priceEl = targetContainer.querySelector('.price, .product-price');
-        if (priceEl && priceEl.nextSibling) {
-          targetContainer.insertBefore(badge, priceEl.nextSibling);
-        } else {
-          targetContainer.appendChild(badge);
-        }
-      }
-    });
-  }
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const money = n => 'S/ ' + Number(n || 0).toFixed(2);
 
-  // Ejecutar periódicamente para detectar productos renderizados dinámicamente
-  setInterval(actualizarTarjetasPublicas, 500);
-  window.addEventListener('DOMContentLoaded', actualizarTarjetasPublicas);
+  document.getElementById('closeProductDetail').onclick = () => dialog.close();
+
+  document.addEventListener('click', e => {
+    const photo = e.target.closest('.photo, .pb h3');
+    if (!photo) return;
+    const card = photo.closest('.product');
+    if (!card) return;
+
+    const id = card.querySelector('[data-edit]')?.dataset.edit || card.querySelector('[data-add]')?.dataset.add;
+    if (!id || !window.products) return;
+
+    const p = window.products.find(x => String(x.id).trim() === String(id).trim());
+    if (!p) return;
+
+    const img = document.getElementById('pdetailImg');
+    if (p.image) {
+      img.src = p.image;
+      img.hidden = false;
+    } else {
+      img.hidden = true;
+    }
+
+    document.getElementById('pdetailTitle').textContent = p.name;
+    document.getElementById('pdetailMeta').textContent = `${p.category || 'General'}${p.barcode ? ' · ' + p.barcode : ''}`;
+    
+    const stock = Number(p.stock || 0);
+    const unit = p.unit || 'Unidades';
+    const stockBox = document.getElementById('pdetailStockBox');
+    if (stock <= 0) {
+      stockBox.innerHTML = '<span class="pdetail-stock out">🚫 Agotado</span>';
+    } else {
+      stockBox.innerHTML = `<span class="pdetail-stock in">🟢 Quedan ${stock} ${esc(unit)}</span>`;
+    }
+
+    document.getElementById('pdetailPrice').textContent = money(p.sellPrice);
+    
+    const desc = p.description || p.specifications || 'Sin descripción adicional.';
+    document.getElementById('pdetailDesc').textContent = desc;
+
+    const addBtn = document.getElementById('pdetailAddBtn');
+    if (stock <= 0) {
+      addBtn.textContent = 'Sin stock';
+      addBtn.disabled = true;
+      addBtn.style.opacity = '0.6';
+    } else {
+      addBtn.textContent = 'Vender';
+      addBtn.disabled = false;
+      addBtn.style.opacity = '1';
+      addBtn.onclick = () => {
+        dialog.close();
+        if (typeof openSale === 'function' && typeof addToCart === 'function') {
+          openSale();
+          addToCart(p);
+        }
+      };
+    }
+
+    dialog.showModal();
+  });
 })();
+
