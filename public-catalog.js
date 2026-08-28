@@ -59,9 +59,6 @@
     const style=document.createElement('style');style.textContent=`
       .catalogHeadActions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.catalogHeadActions .btn{white-space:nowrap}
       #catalogShareDialog{width:min(92vw,520px)}.catalogShareBox{padding:18px}.catalogShareBox h2{margin:0 0 5px}.catalogShareBox p{margin:0 0 14px;color:var(--muted);font-size:13px}.catalogLinkBox{display:flex;gap:8px;align-items:center}.catalogLinkBox input{font-size:12px}.catalogShareActions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.catalogShareActions .btn{width:100%}.catalogSyncState{font-size:11px;color:var(--muted);margin-top:10px}@media(max-width:560px){.catalogHeadActions{width:100%}.catalogHeadActions .btn{flex:1}.catalogShareActions{grid-template-columns:1fr}}
-      .stock-tag{display:inline-flex;align-items:center;gap:4px;margin-top:6px;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:800}
-      .stock-tag.in{background:#d1fae5;color:#047857}
-      .stock-tag.out{background:#fee2e2;color:#b91c1c}
     `;document.head.appendChild(style);
 
     const dialog=document.createElement('dialog');dialog.id='catalogShareDialog';dialog.innerHTML=`<div class="catalogShareBox"><div class="modalhead"><div><h2>Catálogo público</h2><p>Este enlace muestra únicamente los productos disponibles de tu negocio. Tus clientes podrán marcar lo que desean y ver las especificaciones.</p></div><button type="button" class="close" id="catalogClose">×</button></div><div class="catalogLinkBox"><input id="catalogPublicLink" readonly><button type="button" class="btn secondary" id="catalogCopy">Copiar</button></div><div class="catalogShareActions"><button type="button" class="btn primary" id="catalogOpen">Ver catálogo</button><button type="button" class="btn secondary" id="catalogShare">Compartir</button></div><div class="catalogSyncState" id="catalogSyncState">Preparando catálogo…</div></div>`;document.body.appendChild(dialog);
