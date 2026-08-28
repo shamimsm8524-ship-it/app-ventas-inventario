@@ -171,13 +171,12 @@ function save(){
   render();
 }
 
+// Escuchar cambios de Firestore con auto-migración segura
 colProd.onSnapshot(snap => {
-  if(snap.empty && products.length === 0){
-    products = [];
-    window.products = products;
-    localStorage.setItem(K.products, JSON.stringify([]));
-    render();
-    if($('cloudStatus')) $('cloudStatus').textContent = '☁️ Sincronizado (0 prod.)';
+  if(snap.empty && products.length > 0){
+    // Auto-respaldo inicial si la nube no tiene productos
+    products.forEach(p => colProd.doc(String(p.id)).set(p));
+    syncMetaToCloud();
     return;
   }
 
@@ -524,7 +523,6 @@ function checkUrlOrder(){
     } catch(e){}
   }
 }
-checkUrlOrder();
 
 [newSaleTop,newSaleFab].forEach(b=>b.onclick=openSale);
 closeCash.onclick=()=>{let a=activeSales(),t=a.reduce((x,s)=>x+s.total,0);closures.push({id:uid(),closedAt:new Date().toISOString(),total:t});cashStart=new Date().toISOString();save()};
@@ -550,7 +548,17 @@ scanForProduct.onclick=scan;scanForInventory.onclick=scan;scanForSale.onclick=sc
 applyTheme();
 syncWheelFromHex(theme.color||'#be185d');
 render();
-(()=>{const map={productos:'products',inventario:'inventory',categorias:'categories',proveedores:'suppliers',mercaderia:'purchases',ventas:'sales',caja:'cash',apariencia:'appearance'};const valid=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];let v=map[(location.hash||'').replace(/^#/,'')];if(!v){try{v=localStorage.getItem('miNegocio_lastView_v3')||localStorage.getItem('miNegocio_lastView_v2')||sessionStorage.getItem('miNegocio_lastView_v3')}catch{}}if(!valid.includes(v))v='products';switchView(v)})();
+
+// Inicialización de vista forzada
+(()=>{
+  const map={productos:'products',inventario:'inventory',categorias:'categories',proveedores:'suppliers',mercaderia:'purchases',ventas:'sales',caja:'cash',apariencia:'appearance'};
+  const valid=['products','inventory','categories','suppliers','purchases','sales','cash','appearance'];
+  let v=map[(location.hash||'').replace(/^#/,'')];
+  if(!v){try{v=localStorage.getItem('miNegocio_lastView_v3')||localStorage.getItem('miNegocio_lastView_v2')||sessionStorage.getItem('miNegocio_lastView_v3')}catch{}}
+  if(!valid.includes(v))v='products';
+  switchView(v);
+  checkUrlOrder();
+})();
 </script>
 <script src="product-view.js?v=20260819-14"></script>
 <script src="public-catalog.js?v=20260819-2"></script>
