@@ -1,4 +1,11 @@
 (()=>{
+// Mantener un solo origen para que PKCE conserve el code_verifier.
+// Si alguien entra con www, enviarlo al dominio principal antes de iniciar OAuth.
+if(location.hostname.toLowerCase()==='www.vareliastore.tech'){
+  const canonical='https://vareliastore.tech'+location.pathname+location.search+location.hash;
+  location.replace(canonical);
+  return;
+}
 const SUPABASE_URL='https://onvdcaohnftrjunwdvjp.supabase.co';
 const SUPABASE_KEY=atob('c2JfcHVibGlzaGFibGVfYnoyejV1Z2xmX0VBTEplenF2NHJDd19TNzNHTU5yaA==');
 if(!window.supabase){console.error('Supabase no cargó');return;}
