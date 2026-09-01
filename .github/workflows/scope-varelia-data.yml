@@ -1,0 +1,72 @@
+name: Scope Varelia data per account
+
+on:
+  push:
+    paths:
+      - '.github/workflows/scope-varelia-data.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch account-scoped storage and cloud collections
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('index.html')
+          s = p.read_text(encoding='utf-8')
+
+          old_k = "const K={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};"
+          new_k = """const VARELIA_SCOPE=(localStorage.getItem('varelia_active_business_id')||'pending').replace(/[^a-zA-Z0-9_-]/g,'_');
+const __vareliaBaseKeys={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};
+const __vareliaScopedKey=k=>k+'__'+VARELIA_SCOPE;
+if(VARELIA_SCOPE!=='pending'&&!localStorage.getItem('varelia_legacy_migrated')){
+  for(const base of Object.values(__vareliaBaseKeys)){
+    const scoped=__vareliaScopedKey(base);
+    if(localStorage.getItem(scoped)==null&&localStorage.getItem(base)!=null)localStorage.setItem(scoped,localStorage.getItem(base));
+  }
+  localStorage.setItem('varelia_legacy_migrated',VARELIA_SCOPE);
+}
+const K=Object.fromEntries(Object.entries(__vareliaBaseKeys).map(([k,v])=>[k,__vareliaScopedKey(v)]));"""
+          if old_k in s:
+              s = s.replace(old_k, new_k, 1)
+
+          old_cloud = "const colProd = db ? db.collection('varelia_catalogo') : null;\nconst docMeta = db ? db.collection('varelia_sistema').doc('general') : null;"
+          new_cloud = "const colProd = db ? db.collection('varelia_negocios').doc(VARELIA_SCOPE).collection('catalogo') : null;\nconst docMeta = db ? db.collection('varelia_negocios').doc(VARELIA_SCOPE).collection('sistema').doc('general') : null;"
+          if old_cloud in s:
+              s = s.replace(old_cloud, new_cloud, 1)
+
+          p.write_text(s, encoding='utf-8')
+
+          p = Path('supabase-auth.js')
+          s = p.read_text(encoding='utf-8')
+          old_enter = "async function enterWithSession(session){if(!session?.user){showAuth();return}try{await ensureAccount(session.user);showApp(session.user)}catch(e){showAuth();msg('No se pudo cargar tu cuenta: '+(e.message||e),'error')}}"
+          new_enter = "async function enterWithSession(session){if(!session?.user){showAuth();return}try{const profile=await ensureAccount(session.user);const scope=String(profile?.business_id||session.user.id);const current=localStorage.getItem('varelia_active_business_id');if(current!==scope){localStorage.setItem('varelia_active_business_id',scope);location.reload();return}showApp(session.user)}catch(e){showAuth();msg('No se pudo cargar tu cuenta: '+(e.message||e),'error')}}"
+          if old_enter in s:
+              s = s.replace(old_enter, new_enter, 1)
+
+          old_logout = "$('#vareliaLogout').addEventListener('click',async()=>{await sb.auth.signOut();showAuth();msg('Sesión cerrada.','ok')});"
+          new_logout = "$('#vareliaLogout').addEventListener('click',async()=>{localStorage.removeItem('varelia_active_business_id');await sb.auth.signOut();location.reload()});"
+          if old_logout in s:
+              s = s.replace(old_logout, new_logout, 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html supabase-auth.js
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+            exit 0
+          fi
+          git commit -m "Aislar datos de Varelia por negocio"
+          git push
