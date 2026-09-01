@@ -4,8 +4,8 @@ on:
     paths:
       - '.github/workflows/forzar-varelia-auth.yml'
       - 'supabase-auth.js'
-      - 'logout-ui.js'
-      - 'bluetooth-printer.js'
+      - 'account-scope.js'
+      - 'persistence-fix.js'
 permissions:
   contents: write
 jobs:
@@ -13,28 +13,49 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Actualizar versiones de acceso y sesión
+      - name: Aislar inventario apariencia e imagenes por negocio
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
 
-          p=Path('product-view.js')
-          s=p.read_text(encoding='utf-8')
-          s=re.sub(r'supabase-auth\.js\?v=[^"\']+', 'supabase-auth.js?v=20260819-2', s)
-          s=re.sub(r'bluetooth-printer\.js\?v=[^"\']+', 'bluetooth-printer.js?v=20260819-3', s)
-          p.write_text(s,encoding='utf-8')
-
           i=Path('index.html')
           h=i.read_text(encoding='utf-8')
-          h=re.sub(r'product-view\.js\?v=[^"\']+', 'product-view.js?v=20260819-7', h)
+
+          old="const K={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};"
+          new="""const VARELIA_SCOPE=(localStorage.getItem('varelia_active_business_id')||'pending').replace(/[^a-zA-Z0-9_-]/g,'_');
+const __vareliaBaseKeys={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};
+const __vareliaScopedKey=k=>k+'__'+VARELIA_SCOPE;
+if(VARELIA_SCOPE!=='pending'){
+  let owner=localStorage.getItem('varelia_legacy_owner_scope');
+  if(!owner){owner=VARELIA_SCOPE;localStorage.setItem('varelia_legacy_owner_scope',owner)}
+  if(owner===VARELIA_SCOPE){
+    for(const base of Object.values(__vareliaBaseKeys)){
+      const scoped=__vareliaScopedKey(base);
+      if(localStorage.getItem(scoped)==null&&localStorage.getItem(base)!=null)localStorage.setItem(scoped,localStorage.getItem(base));
+    }
+  }
+}
+const K=Object.fromEntries(Object.entries(__vareliaBaseKeys).map(([k,v])=>[k,__vareliaScopedKey(v)]));"""
+          if old in h:
+            h=h.replace(old,new,1)
+
+          h=h.replace("const colProd = db ? db.collection('varelia_catalogo') : null;\nconst docMeta = db ? db.collection('varelia_sistema').doc('general') : null;",
+                      "const colProd = db && VARELIA_SCOPE!=='pending' ? db.collection('varelia_negocios').doc(VARELIA_SCOPE).collection('catalogo') : null;\nconst docMeta = db && VARELIA_SCOPE!=='pending' ? db.collection('varelia_negocios').doc(VARELIA_SCOPE).collection('sistema').doc('general') : null;",1)
+
+          h=re.sub(r'persistence-fix\.js(?:\?v=[^"\']+)?', 'persistence-fix.js?v=20260901-4', h)
+          if 'account-scope.js' not in h:
+            h=h.replace('</body>','<script src="account-scope.js?v=20260901-1"></script>\n</body>',1)
+          else:
+            h=re.sub(r'account-scope\.js(?:\?v=[^"\']+)?', 'account-scope.js?v=20260901-1', h)
+
           i.write_text(h,encoding='utf-8')
           PY
       - name: Guardar
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add product-view.js index.html
+          git add index.html
           if git diff --cached --quiet; then exit 0; fi
-          git commit -m "Forzar carga de cerrar sesión en Varelia"
+          git commit -m "Separar datos y apariencia de cada negocio"
           git push
