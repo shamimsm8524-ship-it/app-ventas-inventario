@@ -2,6 +2,8 @@
   const DB_NAME = 'miNegocioDB';
   const DB_VERSION = 1;
   const STORE = 'productImages';
+  const scope = (localStorage.getItem('varelia_active_business_id')||'').trim();
+  const scopedKey = id => scope ? `${scope}:${String(id)}` : String(id);
 
   function openDB(){
     return new Promise((resolve,reject)=>{
@@ -15,23 +17,24 @@
     });
   }
 
-  async function putImage(id,data){
-    if(!id || !data) return;
+  async function putRaw(key,data){
+    if(key===undefined || key===null || !data) return;
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(STORE,'readwrite');
-      tx.objectStore(STORE).put(data,id);
+      tx.objectStore(STORE).put(data,key);
       tx.oncomplete=()=>resolve();
       tx.onerror=()=>reject(tx.error);
     });
     db.close();
   }
 
-  async function getImage(id){
+  async function getRaw(key){
+    if(key===undefined || key===null) return '';
     const db=await openDB();
     const value=await new Promise((resolve,reject)=>{
       const tx=db.transaction(STORE,'readonly');
-      const req=tx.objectStore(STORE).get(id);
+      const req=tx.objectStore(STORE).get(key);
       req.onsuccess=()=>resolve(req.result||'');
       req.onerror=()=>reject(req.error);
     });
@@ -39,15 +42,56 @@
     return value;
   }
 
-  async function deleteImage(id){
+  async function deleteRaw(key){
+    if(key===undefined || key===null) return;
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(STORE,'readwrite');
-      tx.objectStore(STORE).delete(id);
+      tx.objectStore(STORE).delete(key);
       tx.oncomplete=()=>resolve();
       tx.onerror=()=>reject(tx.error);
     });
     db.close();
+  }
+
+  async function putImage(id,data){
+    if(!id || !data) return;
+    await putRaw(scopedKey(id),data);
+  }
+
+  async function getImage(id){
+    const candidates=[];
+    if(scope) candidates.push(scopedKey(id));
+    candidates.push(id,String(id));
+    const n=Number(id);
+    if(Number.isFinite(n)) candidates.push(n);
+    const seen=new Set();
+    for(const key of candidates){
+      const marker=typeof key+':'+String(key);
+      if(seen.has(marker)) continue;
+      seen.add(marker);
+      try{
+        const value=await getRaw(key);
+        if(value){
+          if(scope && key!==scopedKey(id)){
+            try{ await putRaw(scopedKey(id),value); }catch{}
+          }
+          return value;
+        }
+      }catch{}
+    }
+    return '';
+  }
+
+  async function deleteImage(id){
+    const keys=[scopedKey(id),id,String(id)];
+    const n=Number(id);if(Number.isFinite(n))keys.push(n);
+    const seen=new Set();
+    for(const key of keys){
+      const marker=typeof key+':'+String(key);
+      if(seen.has(marker)) continue;seen.add(marker);
+      try{await deleteRaw(key)}catch{}
+    }
   }
 
   function compactProducts(){
@@ -71,7 +115,6 @@
     }
   }
 
-  // Reemplaza el guardado anterior para que el stock y ventas no dependan del tamaño de las fotos.
   save = safeSave;
 
   async function migrateAndHydrate(){
@@ -86,7 +129,10 @@
     }
     for(const p of products){
       if(!p.image){
-        try{ p.image=await getImage(p.id); }catch(e){}
+        try{
+          const restored=await getImage(p.id);
+          if(restored) p.image=restored;
+        }catch(e){}
       }
     }
     render();
@@ -96,7 +142,7 @@
     productForm.onsubmit=async e=>{
       e.preventDefault();
       const id=productId.value;
-      const old=products.find(p=>p.id===id);
+      const old=products.find(p=>String(p.id)===String(id));
       const newId=id||uid();
       let img='';
       if(!imagePreview.hidden && imagePreview.src) img=imagePreview.src;
@@ -122,7 +168,6 @@
     };
   }
 
-  // Si se elimina un producto, también borra su imagen separada.
   if(typeof productGrid!=='undefined'){
     productGrid.addEventListener('click',e=>{
       const id=e.target?.dataset?.delete;
