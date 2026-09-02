@@ -664,4 +664,37 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js');
 }
 </script>
+<script id="vareliaReaderTruthGuardV1">
+(()=>{
+  try{localStorage.removeItem('varelia_reader_ready')}catch{}
+  window.__vareliaReaderArmed=false;
+  window.__vareliaReaderConfirmed=false;
+  const ui=(mode='off',label='Lector no conectado',button='🔗 Conectar lector')=>{
+    const b=document.getElementById('vposReaderBtn'),t=document.getElementById('vposReaderText'),d=document.getElementById('vposReaderDot');
+    if(!b||!t||!d)return false;
+    b.textContent=button;t.textContent=label;
+    d.classList.toggle('on',mode==='on');d.classList.toggle('warn',mode==='warn');
+    return true;
+  };
+  const enforce=()=>{
+    const dev=window.__vareliaBarcodeReaderDevice;
+    if(window.__vareliaReaderArmed&&dev?.opened){window.__vareliaReaderConfirmed=true}
+    if(window.__vareliaReaderConfirmed){ui('on',dev?.opened?'Conectado: '+(dev.productName||'lector USB'):'Escaneo recibido · lector activo','✓ Lector conectado');return}
+    if(window.__vareliaReaderArmed){ui('warn','Esperando el primer escaneo USB/Bluetooth','⌛ Esperando lector');return}
+    ui('off','Lector no conectado','🔗 Conectar lector');
+  };
+  document.addEventListener('click',e=>{
+    if(!e.target.closest('#vposReaderBtn'))return;
+    window.__vareliaReaderArmed=true;window.__vareliaReaderConfirmed=false;
+    setTimeout(enforce,0);setTimeout(enforce,250);setTimeout(enforce,1000);
+  },true);
+  document.addEventListener('keydown',e=>{
+    const input=e.target.closest?.('#vposInput');
+    if(!input||e.key!=='Enter'||!input.value.trim()||!window.__vareliaReaderArmed)return;
+    window.__vareliaReaderConfirmed=true;setTimeout(enforce,80);
+  },true);
+  setInterval(enforce,250);
+  addEventListener('pageshow',()=>{window.__vareliaReaderArmed=false;window.__vareliaReaderConfirmed=false;try{localStorage.removeItem('varelia_reader_ready')}catch{};setTimeout(enforce,0)});
+})();
+</script>
 </body></html>
