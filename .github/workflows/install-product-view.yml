@@ -25,7 +25,7 @@ jobs:
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
           css='<link rel="stylesheet" href="product-view.css?v=20260819-3">'
-          js='<script src="product-view.js?v=20260819-18"></script>'
+          js='<script src="product-view.js?v=20260819-19"></script>'
           catalog='<script src="public-catalog.js?v=20260819-2"></script>'
           reminders='<script src="merchandise-reminders.js?v=20260819-1"></script>'
           s=re.sub(r'<link rel="stylesheet" href="product-view\.css(?:\?[^\"]*)?">',css,s)
@@ -52,6 +52,7 @@ jobs:
             try{localStorage.removeItem('varelia_reader_ready')}catch{}
             window.__vareliaReaderArmed=false;
             window.__vareliaReaderConfirmed=false;
+            window.__vareliaReaderAttemptTimer=null;
             const ui=(mode='off',label='Lector no conectado',button='🔗 Conectar lector')=>{
               const b=document.getElementById('vposReaderBtn'),t=document.getElementById('vposReaderText'),d=document.getElementById('vposReaderDot');
               if(!b||!t||!d)return false;
@@ -59,25 +60,41 @@ jobs:
               d.classList.toggle('on',mode==='on');d.classList.toggle('warn',mode==='warn');
               return true;
             };
+            const resetReader=()=>{
+              clearTimeout(window.__vareliaReaderAttemptTimer);
+              window.__vareliaReaderArmed=false;
+              window.__vareliaReaderConfirmed=false;
+              try{localStorage.removeItem('varelia_reader_ready')}catch{}
+              ui('off','Lector no conectado','🔗 Conectar lector');
+            };
             const enforce=()=>{
               const dev=window.__vareliaBarcodeReaderDevice;
-              if(window.__vareliaReaderArmed&&dev?.opened){window.__vareliaReaderConfirmed=true}
+              if(window.__vareliaReaderArmed&&dev?.opened){
+                clearTimeout(window.__vareliaReaderAttemptTimer);
+                window.__vareliaReaderConfirmed=true;
+              }
               if(window.__vareliaReaderConfirmed){ui('on',dev?.opened?'Conectado: '+(dev.productName||'lector USB'):'Escaneo recibido · lector activo','✓ Lector conectado');return}
-              if(window.__vareliaReaderArmed){ui('warn','Esperando el primer escaneo USB/Bluetooth','⌛ Esperando lector');return}
+              if(window.__vareliaReaderArmed){ui('warn','Buscando lector USB/Bluetooth...','⌛ Esperando lector');return}
               ui('off','Lector no conectado','🔗 Conectar lector');
             };
             document.addEventListener('click',e=>{
               if(!e.target.closest('#vposReaderBtn'))return;
+              clearTimeout(window.__vareliaReaderAttemptTimer);
               window.__vareliaReaderArmed=true;window.__vareliaReaderConfirmed=false;
               setTimeout(enforce,0);setTimeout(enforce,250);setTimeout(enforce,1000);
+              window.__vareliaReaderAttemptTimer=setTimeout(()=>{
+                const dev=window.__vareliaBarcodeReaderDevice;
+                if(!window.__vareliaReaderConfirmed&&!dev?.opened)resetReader();
+              },8000);
             },true);
             document.addEventListener('keydown',e=>{
               const input=e.target.closest?.('#vposInput');
               if(!input||e.key!=='Enter'||!input.value.trim()||!window.__vareliaReaderArmed)return;
+              clearTimeout(window.__vareliaReaderAttemptTimer);
               window.__vareliaReaderConfirmed=true;setTimeout(enforce,80);
             },true);
             setInterval(enforce,250);
-            addEventListener('pageshow',()=>{window.__vareliaReaderArmed=false;window.__vareliaReaderConfirmed=false;try{localStorage.removeItem('varelia_reader_ready')}catch{};setTimeout(enforce,0)});
+            addEventListener('pageshow',resetReader);
           })();
           </script>'''
           s=re.sub(r'<script id="vareliaReaderTruthGuardV1">[\s\S]*?</script>',guard,s)
