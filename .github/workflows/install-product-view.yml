@@ -9,6 +9,7 @@ on:
       - 'catalog-view.js'
       - 'catalogo.html'
       - 'merchandise-reminders.js'
+      - 'admin-guard.js'
 permissions:
   contents: write
 jobs:
@@ -28,10 +29,12 @@ jobs:
           js='<script src="product-view.js?v=20260902-24"></script>'
           catalog='<script src="public-catalog.js?v=20260819-2"></script>'
           reminders='<script src="merchandise-reminders.js?v=20260819-1"></script>'
+          admin='<script src="admin-guard.js?v=20260902-1"></script>'
           s=re.sub(r'<link rel="stylesheet" href="product-view\.css(?:\?[^\"]*)?">',css,s)
           s=re.sub(r'<script src="product-view\.js(?:\?[^\"]*)?\"></script>',js,s)
           s=re.sub(r'<script src="public-catalog\.js(?:\?[^\"]*)?\"></script>',catalog,s)
           s=re.sub(r'<script src="merchandise-reminders\.js(?:\?[^\"]*)?\"></script>',reminders,s)
+          s=re.sub(r'<script src="admin-guard\.js(?:\?[^\"]*)?\"></script>',admin,s)
           if css not in s:
               s=s.replace('</head>',css+'\n</head>',1)
           if js not in s:
@@ -46,6 +49,13 @@ jobs:
                   s=s.replace(catalog,catalog+'\n'+reminders,1)
               else:
                   s=s.replace('</body>',reminders+'\n</body>',1)
+          if admin not in s:
+              if reminders in s:
+                  s=s.replace(reminders,reminders+'\n'+admin,1)
+              elif catalog in s:
+                  s=s.replace(catalog,catalog+'\n'+admin,1)
+              else:
+                  s=s.replace('</body>',admin+'\n</body>',1)
 
           guard='''<script id="vareliaReaderTruthGuardV1">
           (()=>{
