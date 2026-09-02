@@ -14,12 +14,14 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
+          import re
           p=Path('index.html')
           s=p.read_text()
-          s=s.replace('product-view.js?v=20260819-6','product-view.js?v=20260819-9')
           s=s.replace('barcode-tools.js?v=20260819-2','barcode-tools.js?v=20260819-5')
-          if 'scanner-fix.js?v=20260819-3' not in s:
-              s=s.replace('</body>','<script src="scanner-fix.js?v=20260819-3"></script>\n</body>')
+          scanner='<script src="scanner-fix.js?v=20260902-2"></script>'
+          s=re.sub(r'<script src="scanner-fix\.js(?:\?[^\"]*)?\"></script>',scanner,s)
+          if scanner not in s:
+              s=s.replace('</body>',scanner+'\n</body>')
           p.write_text(s)
           PY
       - name: Commit patch
@@ -27,5 +29,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git diff --cached --quiet || git commit -m "Load real barcode scanner directly"
+          git diff --cached --quiet || git commit -m "Load supermarket POS scanner"
           git push
