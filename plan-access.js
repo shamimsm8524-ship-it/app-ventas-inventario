@@ -36,7 +36,8 @@
   window.vareliaIsPremium=()=>validPremium();
   window.vareliaRequirePremium=(feature='Esta función')=>{
     if(validPremium())return true;
-    document.getElementById('vareliaPlanTitle').textContent='🔒 '+feature+' es Premium';
+    const title=document.getElementById('vareliaPlanTitle');
+    if(title)title.textContent='🔒 '+feature+' es Premium';
     showPremium();
     return false;
   };
@@ -44,14 +45,20 @@
   function applyCard(){
     const card=document.querySelector('.premiumPlan');
     if(!card)return;
-    card.classList.toggle('basic',!validPremium());
-    card.classList.toggle('premiumActive',validPremium());
-    if(validPremium()){
-      card.innerHTML='<div>♛ <b>Plan Premium</b></div><small>Todas las funciones Premium activas</small><a href="#" class="vareliaPlanLink">Ver beneficios →</a>';
-    }else{
-      card.innerHTML='<div>◇ <b>Plan Básico</b></div><small>Funciones esenciales activas</small><a href="#" class="vareliaPlanLink">Mejorar a Premium →</a>';
-    }
-    card.querySelector('.vareliaPlanLink')?.addEventListener('click',e=>{e.preventDefault();document.getElementById('vareliaPlanTitle').textContent=validPremium()?'👑 Tus beneficios Premium':'👑 Mejorar a Varelia Premium';showPremium()});
+    const state=validPremium()?'premium':'basic';
+    card.classList.toggle('basic',state==='basic');
+    card.classList.toggle('premiumActive',state==='premium');
+    if(card.dataset.planRendered===state)return;
+    card.dataset.planRendered=state;
+    card.innerHTML=state==='premium'
+      ?'<div>♛ <b>Plan Premium</b></div><small>Todas las funciones Premium activas</small><a href="#" class="vareliaPlanLink">Ver beneficios →</a>'
+      :'<div>◇ <b>Plan Básico</b></div><small>Funciones esenciales activas</small><a href="#" class="vareliaPlanLink">Mejorar a Premium →</a>';
+    card.querySelector('.vareliaPlanLink')?.addEventListener('click',e=>{
+      e.preventDefault();
+      const title=document.getElementById('vareliaPlanTitle');
+      if(title)title.textContent=validPremium()?'👑 Tus beneficios Premium':'👑 Mejorar a Varelia Premium';
+      showPremium();
+    });
   }
 
   function lockPremiumControls(){
@@ -68,7 +75,8 @@
       el.dataset.planGuard='1';
       el.addEventListener('click',e=>{
         if(validPremium())return;
-        e.preventDefault();e.stopImmediatePropagation();
+        e.preventDefault();
+        e.stopImmediatePropagation();
         window.vareliaRequirePremium(label);
       },true);
     });
@@ -103,12 +111,24 @@
 
   window.addEventListener('varelia:business-scope-ready',e=>loadPlan(e.detail?.businessId));
   const init=setInterval(()=>{
-    const businessId=window.vareliaBusinessScope||localStorage.getItem('varelia_active_business_id');
+    let businessId='';
+    try{businessId=window.vareliaBusinessScope||localStorage.getItem('varelia_active_business_id')||''}catch{}
     if(!businessId||!window.vareliaSupabase)return;
-    clearInterval(init);loadPlan(businessId);
+    clearInterval(init);
+    loadPlan(businessId);
   },250);
   setTimeout(()=>clearInterval(init),15000);
 
-  const observer=new MutationObserver(()=>{applyCard();lockPremiumControls()});
+  let pending=false;
+  const observer=new MutationObserver(()=>{
+    if(pending)return;
+    pending=true;
+    requestAnimationFrame(()=>{
+      pending=false;
+      applyCard();
+      lockPremiumControls();
+    });
+  });
   observer.observe(document.body,{childList:true,subtree:true});
+  apply();
 })();
