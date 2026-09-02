@@ -12,8 +12,8 @@
     const checkoutBtn=document.getElementById('checkout');if(checkoutBtn)checkoutBtn.addEventListener('click',()=>setTimeout(()=>window.vareliaSound?.('sale'),80));const invBtn=document.getElementById('applyInventory');if(invBtn)invBtn.addEventListener('click',()=>setTimeout(()=>window.vareliaSound?.('add'),80));
     if(!document.getElementById('vareliaBulkScan')){const s=document.createElement('script');s.id='vareliaBulkScan';s.src='bulk-scan.js?v=20260819-1';document.body.appendChild(s)}
     if(!document.getElementById('vareliaPosSalesJs')){const s=document.createElement('script');s.id='vareliaPosSalesJs';s.src='pos-sales.js?v=20260902-2';document.body.appendChild(s)}
-    if(!document.getElementById('vareliaPosReceiptJs')){const s=document.createElement('script');s.id='vareliaPosReceiptJs';s.src='pos-receipt.js?v=20260902-2';document.body.appendChild(s)}
-    if(!document.getElementById('vareliaReaderStatusFixJs')){const s=document.createElement('script');s.id='vareliaReaderStatusFixJs';s.src='reader-status-fix.js?v=20260902-1';document.body.appendChild(s)}
+    const loadReaderFix=()=>{if(document.getElementById('vareliaReaderStatusFixJs'))return;const r=document.createElement('script');r.id='vareliaReaderStatusFixJs';r.src='reader-status-fix.js?v=20260902-2';document.body.appendChild(r)};
+    if(!document.getElementById('vareliaPosReceiptJs')){const s=document.createElement('script');s.id='vareliaPosReceiptJs';s.src='pos-receipt.js?v=20260902-2';s.onload=loadReaderFix;document.body.appendChild(s)}else{setTimeout(loadReaderFix,0)}
     setTimeout(()=>{
       if(!document.getElementById('vareliaApprovedDashboardCss')){const l=document.createElement('link');l.id='vareliaApprovedDashboardCss';l.rel='stylesheet';l.href='dashboard-premium.css?v=20260902-6';document.head.appendChild(l)}
       if(!document.getElementById('vareliaApprovedDashboardJs')){const s=document.createElement('script');s.id='vareliaApprovedDashboardJs';s.src='dashboard-premium.js?v=20260902-6';document.body.appendChild(s)}
