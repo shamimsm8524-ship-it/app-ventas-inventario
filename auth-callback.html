@@ -6,7 +6,7 @@
 <title>Ingresando a Varelia...</title>
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="/favicon.ico" sizes="any">
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:linear-gradient(145deg,#f8fafc,#eef2ff);color:#111827}.box{background:#fff;border:1px solid #e5e7eb;border-radius:24px;padding:28px;box-shadow:0 20px 50px #0f172a1f;text-align:center;max-width:360px;margin:20px}.logo{width:56px;height:56px;border-radius:18px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;display:grid;place-items:center;font-weight:900;font-size:24px;margin:0 auto 14px}.msg{color:#64748b;font-size:14px}</style>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:linear-gradient(145deg,#f8fafc,#eef2ff);color:#111827}.box{background:#fff;border:1px solid #e5e7eb;border-radius:24px;padding:28px;box-shadow:0 20px 50px #0f172a1f;text-align:center;max-width:360px;margin:20px}.logo{width:56px;height:56px;border-radius:18px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;display:grid;place-items:center;font-weight:900;font-size:24px;margin:0 auto 14px}.msg{color:#64748b;font-size:14px;line-height:1.45}</style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -15,20 +15,45 @@
 (async()=>{
 const SUPABASE_URL='https://onvdcaohnftrjunwdvjp.supabase.co';
 const SUPABASE_KEY=atob('c2JfcHVibGlzaGFibGVfYnoyejV1Z2xmX0VBTEplenF2NHJDd19TNzNHTU5yaA==');
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce'}});
+const CALLBACK='https://vareliastore.tech/auth-callback.html';
+const HOME='https://vareliastore.tech/';
 const msg=document.getElementById('msg');
+const goHome=()=>location.replace(HOME+'?login=ok&t='+Date.now());
 try{
- const code=new URLSearchParams(location.search).get('code');
- if(code){
-   const {error}=await sb.auth.exchangeCodeForSession(code);
-   if(error)throw error;
- }
- const {data,error}=await sb.auth.getSession();
- if(error)throw error;
- if(!data.session)throw new Error('No se creó la sesión.');
- location.replace('https://vareliastore.tech/?login=ok&t='+Date.now());
+  // Primero aceptar un retorno OAuth sin PKCE. Esto evita fallos en navegadores
+  // móviles/in-app que cambian de contexto y pierden el code_verifier.
+  const implicit=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'implicit'}});
+  await new Promise(r=>setTimeout(r,80));
+  let {data:implicitData,error:implicitError}=await implicit.auth.getSession();
+  if(implicitError)throw implicitError;
+  if(implicitData?.session){goHome();return;}
+
+  const code=new URLSearchParams(location.search).get('code');
+  if(code){
+    const pkce=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce'}});
+    msg.textContent='Completando inicio con Google...';
+    const {data,error}=await pkce.auth.exchangeCodeForSession(code);
+    if(!error&&data?.session){goHome();return;}
+
+    // Si el navegador perdió el verificador PKCE, iniciar un segundo intento
+    // desde este mismo contexto usando el flujo compatible con SPA.
+    const detail=String(error?.message||'').toLowerCase();
+    if(detail.includes('code verifier')||detail.includes('pkce')){
+      msg.textContent='Tu navegador cambió de contexto. Reintentando el inicio con Google de forma compatible...';
+      history.replaceState({},document.title,location.pathname);
+      const {error:retryError}=await implicit.auth.signInWithOAuth({provider:'google',options:{redirectTo:CALLBACK}});
+      if(retryError)throw retryError;
+      return;
+    }
+    if(error)throw error;
+  }
+
+  msg.textContent='Reintentando inicio con Google...';
+  const {error:startError}=await implicit.auth.signInWithOAuth({provider:'google',options:{redirectTo:CALLBACK}});
+  if(startError)throw startError;
 }catch(e){
- msg.textContent='No se pudo completar el inicio: '+(e.message||e);
+  console.error('Varelia OAuth callback',e);
+  msg.textContent='No se pudo completar el inicio con Google. Cierra esta ventana, vuelve a Varelia e inténtalo nuevamente.';
 }
 })();
 </script>
