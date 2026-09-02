@@ -28,5 +28,11 @@
     const invBtn=document.getElementById('applyInventory');if(invBtn)invBtn.addEventListener('click',()=>setTimeout(()=>window.vareliaSound?.('add'),80));
 
     if(!document.getElementById('vareliaBulkScan')){const s=document.createElement('script');s.id='vareliaBulkScan';s.src='bulk-scan.js?v=20260819-1';document.body.appendChild(s)}
+
+    /* Load the approved dashboard after the existing app/auth boot sequence. */
+    setTimeout(()=>{
+      if(!document.getElementById('vareliaApprovedDashboardCss')){const l=document.createElement('link');l.id='vareliaApprovedDashboardCss';l.rel='stylesheet';l.href='dashboard-premium.css?v=20260902-5';document.head.appendChild(l)}
+      if(!document.getElementById('vareliaApprovedDashboardJs')){const s=document.createElement('script');s.id='vareliaApprovedDashboardJs';s.src='dashboard-premium.js?v=20260902-5';document.body.appendChild(s)}
+    },1500);
   })
 })();
