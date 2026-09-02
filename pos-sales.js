@@ -65,6 +65,15 @@
       const matches=q=>{q=norm(q);if(!q)return[];return allProducts().filter(p=>norm(p.barcode).includes(q)||norm(p.name).includes(q)).slice(0,7)};
 
       function legacyRows(){
+        try{
+          if(Array.isArray(cart)){
+            return cart.map(i=>{
+              const p=allProducts().find(x=>String(x.id)===String(i.id))||byName(i.name)||{id:i.id,name:i.name,barcode:'',stock:0,sellPrice:i.price};
+              const name=String(i.name||p.name||'Producto'),qty=Math.max(1,Number(i.qty)||1),price=Number(i.price??p.sellPrice??0);
+              return {p,name,qty,price,subtotal:price*qty};
+            });
+          }
+        }catch(e){console.warn('POS cart',e)}
         return [...legacyCart.querySelectorAll('.cartitem')].map(row=>{
           const name=(row.querySelector('.posCartName b')?.textContent||row.querySelector('span')?.textContent||'').trim();
           let qty=parseInt((row.querySelector('.posCartQty')?.textContent||row.querySelector('strong')?.textContent||'1').replace(/\D/g,''))||1;
