@@ -26,6 +26,23 @@ jobs:
 
           p=Path('index.html')
           s=p.read_text(encoding='utf-8')
+
+          # SEO de la marca pública: ayuda a Google a reconocer el sitio como VareliaStore.
+          s=re.sub(r'<title>[\s\S]*?</title>','<title>VareliaStore</title>',s,count=1)
+          s=re.sub(r'<meta\s+name="description"\s+content="[^"]*"\s*/?>','<meta name="description" content="VareliaStore: sistema de ventas, inventario y caja para gestionar tu negocio de forma simple y profesional.">',s,count=1)
+          s=re.sub(r'<meta\s+name="robots"\s+content="[^"]*"\s*/?>','<meta name="robots" content="index, follow, max-image-preview:large">',s,count=1)
+          seo='''<meta id="vareliaSeoBrand" name="application-name" content="VareliaStore">
+          <meta property="og:site_name" content="VareliaStore">
+          <meta property="og:title" content="VareliaStore">
+          <meta property="og:description" content="Sistema de ventas, inventario y caja para gestionar tu negocio de forma simple y profesional.">
+          <meta property="og:type" content="website">
+          <meta property="og:url" content="https://vareliastore.tech/">
+          <meta name="twitter:card" content="summary">
+          <script id="vareliaSeoSchema" type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"VareliaStore","alternateName":"Varelia Store","url":"https://vareliastore.tech/"}</script>'''
+          s=re.sub(r'<meta id="vareliaSeoBrand"[\s\S]*?<script id="vareliaSeoSchema"[\s\S]*?</script>',seo,s,count=1)
+          if 'id="vareliaSeoBrand"' not in s:
+              s=s.replace('</head>',seo+'\n</head>',1)
+
           css='<link rel="stylesheet" href="product-view.css?v=20260819-3">'
           js='<script src="product-view.js?v=20260902-24"></script>'
           catalog='<script src="public-catalog.js?v=20260819-2"></script>'
