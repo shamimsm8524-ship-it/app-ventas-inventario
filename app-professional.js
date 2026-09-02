@@ -11,7 +11,7 @@
     const updateOnline=()=>{document.body.classList.toggle('is-offline',!navigator.onLine);if(!navigator.onLine)window.vareliaToast?.('Sin conexión. Los cambios locales se conservarán.','warn')};addEventListener('online',updateOnline);addEventListener('offline',updateOnline);updateOnline();try{if(Array.isArray(products)){products.forEach(p=>{if((+p.stock||0)<0)p.stock=0})}}catch{}
     const checkoutBtn=document.getElementById('checkout');if(checkoutBtn)checkoutBtn.addEventListener('click',()=>setTimeout(()=>window.vareliaSound?.('sale'),80));const invBtn=document.getElementById('applyInventory');if(invBtn)invBtn.addEventListener('click',()=>setTimeout(()=>window.vareliaSound?.('add'),80));
     if(!document.getElementById('vareliaBulkScan')){const s=document.createElement('script');s.id='vareliaBulkScan';s.src='bulk-scan.js?v=20260819-1';document.body.appendChild(s)}
-    if(!document.getElementById('vareliaPosSalesJs')){const s=document.createElement('script');s.id='vareliaPosSalesJs';s.src='pos-sales.js?v=20260902-1';document.body.appendChild(s)}
+    if(!document.getElementById('vareliaPosSalesJs')){const s=document.createElement('script');s.id='vareliaPosSalesJs';s.src='pos-sales.js?v=20260902-2';document.body.appendChild(s)}
     if(!document.getElementById('vareliaPosReceiptJs')){const s=document.createElement('script');s.id='vareliaPosReceiptJs';s.src='pos-receipt.js?v=20260902-1';document.body.appendChild(s)}
     setTimeout(()=>{
       if(!document.getElementById('vareliaApprovedDashboardCss')){const l=document.createElement('link');l.id='vareliaApprovedDashboardCss';l.rel='stylesheet';l.href='dashboard-premium.css?v=20260902-6';document.head.appendChild(l)}
