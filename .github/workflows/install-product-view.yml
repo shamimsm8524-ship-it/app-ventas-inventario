@@ -10,6 +10,7 @@ on:
       - 'catalogo.html'
       - 'merchandise-reminders.js'
       - 'admin-guard.js'
+      - 'dashboard-premium-summary.js'
 permissions:
   contents: write
 jobs:
@@ -30,11 +31,13 @@ jobs:
           catalog='<script src="public-catalog.js?v=20260819-2"></script>'
           reminders='<script src="merchandise-reminders.js?v=20260819-1"></script>'
           admin='<script src="admin-guard.js?v=20260902-1"></script>'
+          premium_summary='<script src="dashboard-premium-summary.js?v=20260902-1"></script>'
           s=re.sub(r'<link rel="stylesheet" href="product-view\.css(?:\?[^\"]*)?">',css,s)
           s=re.sub(r'<script src="product-view\.js(?:\?[^\"]*)?\"></script>',js,s)
           s=re.sub(r'<script src="public-catalog\.js(?:\?[^\"]*)?\"></script>',catalog,s)
           s=re.sub(r'<script src="merchandise-reminders\.js(?:\?[^\"]*)?\"></script>',reminders,s)
           s=re.sub(r'<script src="admin-guard\.js(?:\?[^\"]*)?\"></script>',admin,s)
+          s=re.sub(r'<script src="dashboard-premium-summary\.js(?:\?[^\"]*)?\"></script>',premium_summary,s)
           if css not in s:
               s=s.replace('</head>',css+'\n</head>',1)
           if js not in s:
@@ -56,6 +59,13 @@ jobs:
                   s=s.replace(catalog,catalog+'\n'+admin,1)
               else:
                   s=s.replace('</body>',admin+'\n</body>',1)
+          if premium_summary not in s:
+              if admin in s:
+                  s=s.replace(admin,admin+'\n'+premium_summary,1)
+              elif reminders in s:
+                  s=s.replace(reminders,reminders+'\n'+premium_summary,1)
+              else:
+                  s=s.replace('</body>',premium_summary+'\n</body>',1)
 
           guard='''<script id="vareliaReaderTruthGuardV1">
           (()=>{
