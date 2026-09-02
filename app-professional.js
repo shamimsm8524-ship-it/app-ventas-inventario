@@ -27,8 +27,8 @@
     const checkoutBtn=document.getElementById('checkout');if(checkoutBtn)checkoutBtn.addEventListener('click',()=>setTimeout(()=>window.vareliaSound?.('sale'),80));
     const invBtn=document.getElementById('applyInventory');if(invBtn)invBtn.addEventListener('click',()=>setTimeout(()=>window.vareliaSound?.('add'),80));
 
-    if(!document.getElementById('vareliaPremiumDashboardCss')){const l=document.createElement('link');l.id='vareliaPremiumDashboardCss';l.rel='stylesheet';l.href='dashboard-premium.css?v=20260902-1';document.head.appendChild(l)}
-    if(!document.getElementById('vareliaPremiumDashboardJs')){const s=document.createElement('script');s.id='vareliaPremiumDashboardJs';s.src='dashboard-premium.js?v=20260902-1';document.body.appendChild(s)}
+    if(!document.getElementById('vareliaPremiumDashboardCss')){const l=document.createElement('link');l.id='vareliaPremiumDashboardCss';l.rel='stylesheet';l.href='dashboard-premium.css?v=20260902-2';document.head.appendChild(l)}
+    if(!document.getElementById('vareliaPremiumDashboardJs')){const s=document.createElement('script');s.id='vareliaPremiumDashboardJs';s.src='dashboard-premium.js?v=20260902-2';s.onload=()=>setTimeout(()=>{try{switchView('dashboard');window.refreshVareliaDashboard?.()}catch{}},950);document.body.appendChild(s)}
     if(!document.getElementById('vareliaBulkScan')){const s=document.createElement('script');s.id='vareliaBulkScan';s.src='bulk-scan.js?v=20260819-1';document.body.appendChild(s)}
   })
 })();
