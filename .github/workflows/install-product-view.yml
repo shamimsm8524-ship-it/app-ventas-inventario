@@ -10,6 +10,7 @@ on:
       - 'catalogo.html'
       - 'merchandise-reminders.js'
       - 'admin-guard.js'
+      - 'premium-admin-open-fix.js'
       - 'dashboard-premium-summary.js'
 permissions:
   contents: write
@@ -48,12 +49,14 @@ jobs:
           catalog='<script src="public-catalog.js?v=20260819-2"></script>'
           reminders='<script src="merchandise-reminders.js?v=20260819-1"></script>'
           admin='<script src="admin-guard.js?v=20260902-1"></script>'
+          admin_open_fix='<script src="premium-admin-open-fix.js?v=20260902-1"></script>'
           premium_summary='<script src="dashboard-premium-summary.js?v=20260902-1"></script>'
           s=re.sub(r'<link rel="stylesheet" href="product-view\.css(?:\?[^\"]*)?">',css,s)
           s=re.sub(r'<script src="product-view\.js(?:\?[^\"]*)?\"></script>',js,s)
           s=re.sub(r'<script src="public-catalog\.js(?:\?[^\"]*)?\"></script>',catalog,s)
           s=re.sub(r'<script src="merchandise-reminders\.js(?:\?[^\"]*)?\"></script>',reminders,s)
           s=re.sub(r'<script src="admin-guard\.js(?:\?[^\"]*)?\"></script>',admin,s)
+          s=re.sub(r'<script src="premium-admin-open-fix\.js(?:\?[^\"]*)?\"></script>',admin_open_fix,s)
           s=re.sub(r'<script src="dashboard-premium-summary\.js(?:\?[^\"]*)?\"></script>',premium_summary,s)
           if css not in s:
               s=s.replace('</head>',css+'\n</head>',1)
@@ -76,8 +79,15 @@ jobs:
                   s=s.replace(catalog,catalog+'\n'+admin,1)
               else:
                   s=s.replace('</body>',admin+'\n</body>',1)
-          if premium_summary not in s:
+          if admin_open_fix not in s:
               if admin in s:
+                  s=s.replace(admin,admin+'\n'+admin_open_fix,1)
+              else:
+                  s=s.replace('</body>',admin_open_fix+'\n</body>',1)
+          if premium_summary not in s:
+              if admin_open_fix in s:
+                  s=s.replace(admin_open_fix,admin_open_fix+'\n'+premium_summary,1)
+              elif admin in s:
                   s=s.replace(admin,admin+'\n'+premium_summary,1)
               elif reminders in s:
                   s=s.replace(reminders,reminders+'\n'+premium_summary,1)
