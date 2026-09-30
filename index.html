@@ -72,7 +72,11 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 #productGrid .price,#productGrid .price *{font-family:Arial,system-ui,sans-serif!important;font-variant-numeric:tabular-nums!important;font-size:24px!important;font-weight:850!important;letter-spacing:-.015em!important;line-height:1.05!important;color:var(--p)!important;white-space:nowrap!important}
 @media(max-width:650px){#productGrid.view-list .price,#productGrid.view-list .price *{font-size:24px!important;margin-top:7px!important}}
 </style>
-</head>
+<style id="vareliaNoTopQty">
+#vstaffQuickQtyWrap{display:none!important}
+#vareliaPosSales .vposSearch{grid-template-columns:1fr!important}
+#vareliaPosSales .vposSearch #vposScan{grid-column:auto!important}
+</style></head>
 <body>
 <header class="top"><div class="brand"><div class="left"><button class="menu" id="menuBtn">☰</button><div class="logo">MN</div><div><h1>Mi Negocio</h1><p class="meta">Ventas e inventario <span id="cloudStatus" style="font-size:11px;color:var(--p);font-weight:800;margin-left:6px;cursor:pointer">☁️ Conectando...</span></p></div></div><button class="btn primary" id="newSaleTop">+ Nueva venta</button></div></header>
 <div class="overlay" id="overlay"></div>
@@ -871,92 +875,9 @@ if ('serviceWorker' in navigator) {
 #vposItems .vforceQtyInput{width:54px!important;height:38px!important;padding:4px!important;border:1px solid var(--line)!important;border-radius:11px!important;background:var(--bg)!important;color:var(--ink)!important;text-align:center!important;font-size:17px!important;font-weight:950!important;box-shadow:none!important}
 #vposItems .vforceQtyInput::-webkit-inner-spin-button,#vposItems .vforceQtyInput::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 </style>
-<script id="vareliaQtyEmergencyPatch">
-(()=>{
-  if(window.__vareliaQtyEmergencyPatch)return;
-  window.__vareliaQtyEmergencyPatch=true;
-
-  const getCart=()=>{try{return Array.isArray(cart)?cart:[]}catch{return[]}};
-  const getProducts=()=>{try{return Array.isArray(products)?products:[]}catch{return[]}};
-  const money=v=>'S/ '+Number(v||0).toFixed(2);
-  const maxFor=item=>{
-    const p=getProducts().find(x=>String(x.id)===String(item?.id));
-    return Math.max(1,Math.floor(Number(p?.stock)||1));
-  };
-
-  const render=()=>{
-    const box=document.getElementById('vposItems');
-    if(!box)return;
-    const items=getCart();
-    const rows=[...box.querySelectorAll('.vposRow')];
-    if(!items.length||!rows.length)return;
-
-    rows.forEach((row,i)=>{
-      const item=items[i];
-      if(!item)return;
-      const max=maxFor(item);
-      let q=Math.max(1,Math.min(Math.floor(Number(item.qty)||1),max));
-      item.qty=q;
-      let qty=row.querySelector('.vposQty');
-      if(!qty)return;
-      if(!qty.querySelector('[data-force-qty]')){
-        qty.innerHTML='<button type="button" class="vforceQtyBtn" data-force-minus="'+i+'" aria-label="Restar">−</button><input data-force-qty="'+i+'" class="vforceQtyInput" type="number" inputmode="numeric" min="1" max="'+max+'" value="'+q+'" aria-label="Cantidad"><button type="button" class="vforceQtyBtn" data-force-plus="'+i+'" aria-label="Sumar">+</button>';
-      }else{
-        const inp=qty.querySelector('[data-force-qty]');
-        if(inp&&document.activeElement!==inp){inp.max=max;inp.value=q}
-      }
-      const subtotal=row.querySelector('.vposSubtotal');
-      if(subtotal)subtotal.textContent=money(Number(item.price||0)*q);
-    });
-
-    const units=items.reduce((a,x)=>a+(Number(x.qty)||1),0);
-    const total=items.reduce((a,x)=>a+(Number(x.price)||0)*(Number(x.qty)||1),0);
-    const count=document.getElementById('vposCount');
-    const totalEl=document.getElementById('vposTotal');
-    const checkout=document.getElementById('vposCheckout');
-    if(count)count.innerHTML='<b>'+units+'</b> '+(units===1?'unidad':'unidades')+' · '+items.length+' '+(items.length===1?'producto':'productos');
-    if(totalEl)totalEl.textContent=money(total);
-    if(checkout)checkout.textContent=total>0?'💳 Cobrar '+money(total):'💳 Cobrar venta';
-    try{if(typeof saleTotal!=='undefined'&&saleTotal)saleTotal.textContent=money(total)}catch{}
-  };
-
-  const setQty=(index,value)=>{
-    const items=getCart(),item=items[index];
-    if(!item)return;
-    const max=maxFor(item);
-    let q=Math.floor(Number(value)||1);
-    q=Math.max(1,Math.min(q,max));
-    item.qty=q;
-    render();
-  };
-
-  document.addEventListener('click',e=>{
-    const plus=e.target.closest('[data-force-plus]');
-    const minus=e.target.closest('[data-force-minus]');
-    if(!plus&&!minus)return;
-    e.preventDefault();e.stopPropagation();
-    const i=Number((plus||minus).dataset[plus?'forcePlus':'forceMinus']);
-    const item=getCart()[i];
-    if(!item)return;
-    setQty(i,(Number(item.qty)||1)+(plus?1:-1));
-  },true);
-
-  document.addEventListener('change',e=>{
-    const inp=e.target.closest('[data-force-qty]');
-    if(!inp)return;
-    setQty(Number(inp.dataset.forceQty),inp.value);
-  },true);
-
-  let pending=false;
-  const schedule=()=>{if(pending)return;pending=true;requestAnimationFrame(()=>{pending=false;render()})};
-  new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true});
-  setInterval(render,1200);
-  addEventListener('pageshow',()=>setTimeout(render,100));
-})();
-</script>
 <script src="sale-sound.js?v=20260930-2"></script>
 <script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20260930-4"></script>
-<script src="staff-operations.js?v=20260930-3"></script>
+<script src="staff-operations.js?v=20260930-4"></script>
 <script src="payment-options.js?v=20260930-2"></script>
 <script src="auto-ticket-print.js?v=20260930-1"></script>
 </body></html>
