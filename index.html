@@ -58,8 +58,8 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650;9..144,800&display=swap" rel="stylesheet">
 <!-- SDK DE FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+
 <meta id="vareliaSeoBrand" name="application-name" content="VareliaStore">
 <meta property="og:site_name" content="VareliaStore">
 <meta property="og:title" content="VareliaStore">
@@ -100,204 +100,19 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 <dialog id="scannerDialog"><div class="modal"><div class="modalhead"><h2>Escanear código</h2><button class="close" id="closeScanner">×</button></div><video id="scannerVideo" autoplay playsinline style="width:100%;background:black;border-radius:15px"></video></div></dialog>
 
 <script>
-// --- CONFIGURACIÓN DE FIREBASE ---
-const firebaseConfig = {
-  apiKey: "AIzaSyC7wDXPSM9TVhja3e5EJuMsAV1tqCXEY4",
-  authDomain: "varelia-panel.firebaseapp.com",
-  projectId: "varelia-panel",
-  storageBucket: "varelia-panel.firebasestorage.app",
-  messagingSenderId: "193502658",
-  appId: "1:193502658:web:36670abcd5a0612e2d8a5b",
-  measurementId: "G-GEGCEG33R8"
-};
-
-let db = null;
-try {
-  if (!firebase.apps.length) {
-    firebase.initializeApp(firebaseConfig);
-  }
-  db = firebase.firestore();
-} catch(e) {
-  console.error("Error al iniciar Firebase:", e);
-}
-
+// --- NUBE PRINCIPAL: SUPABASE ---
+let db=null;
 const K={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};
-const $=id=>document.getElementById(id),money=n=>'S/ '+Number(n||0).toFixed(2),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id),money=n=>'S/ '+Number(n||0).toFixed(2),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),esc=s=>String(s??'');
 function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}
-
 let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.sales,[]),closures=load(K.closures,[]),cashStart=load(K.cashStart,new Date().toISOString()),theme=load(K.theme,{color:'#be185d',dark:false,updatedAt:0}),movements=load(K.movements,[]),suppliers=load(K.suppliers,[]),purchases=load(K.purchases,[]),activeCategory='Todos',cart=[],purchaseCart=[],inventoryProductId=null;
-
-products.forEach(p=>{
-  if(!p.id) p.id = uid();
-  p.id = String(p.id);
-  if(p.reorderLevel==null) p.reorderLevel=5;
-});
-window.products = products;
-
-let isRemoteSync = false;
-
-const colProd = db ? db.collection('varelia_catalogo') : null;
-const docMeta = db ? db.collection('varelia_sistema').doc('general') : null;
-
-function setCloudStatus(txt, isError=false){
-  const el = $('cloudStatus');
-  if(!el) return;
-  el.textContent = txt;
-  el.style.color = isError ? '#b91c1c' : 'var(--p)';
-}
-
-function syncProductToCloud(p){
-  if(isRemoteSync || !colProd || !p || !p.id) return;
-  colProd.doc(String(p.id)).set(p).catch(e=>{
-    console.error("Error nube producto:", e);
-    setCloudStatus("⚠️ Permiso denegado en Firebase", true);
-  });
-}
-
-window.deleteProduct = async function(id){
-  if(!id) return;
-  const targetId = String(id).trim();
-  const p = products.find(x => String(x.id).trim() === targetId);
-  const nombre = p ? p.name : 'este producto';
-  
-  let confirmed = true;
-  try {
-    confirmed = confirm(`¿Deseas eliminar definitivamente "${nombre}"?`);
-  } catch(e) {
-    confirmed = true;
-  }
-  if(!confirmed) return;
-
-  if(String(inventoryProductId).trim() === targetId){
-    inventoryProductId = null;
-    if($('inventoryName')) $('inventoryName').value = '';
-    if($('inventoryCode')) $('inventoryCode').value = '';
-    renderInvSelected();
-  }
-
-  products = products.filter(x => String(x.id).trim() !== targetId);
-  window.products = products;
-  localStorage.setItem(K.products, JSON.stringify(products));
-
-  if(productDialog && productDialog.open) productDialog.close();
-  render();
-
-  if(colProd){
-    try {
-      setCloudStatus('☁️ Eliminando...');
-      await colProd.doc(targetId).delete();
-      setCloudStatus(`☁️ Sincronizado (${products.length} prod.)`);
-    } catch(err) {
-      console.error("Error al borrar en Firestore:", err);
-      setCloudStatus("⚠️ Error de permisos en Firebase", true);
-    }
-  }
-
-  save();
-};
-
-function syncMetaToCloud(){
-  if(isRemoteSync || !docMeta) return;
-  docMeta.set({
-    categories, sales, closures, cashStart, movements, suppliers, purchases, theme,
-    updatedAt: Date.now()
-  }, { merge: true }).catch(e=>{
-    console.error("Error nube meta:", e);
-    setCloudStatus("⚠️ Permiso denegado en Firebase", true);
-  });
-}
-
-function save(){
-  for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]]) {
-    localStorage.setItem(k,JSON.stringify(v));
-  }
-  window.products = products;
-  syncMetaToCloud();
-  render();
-}
-
-if(colProd){
-  colProd.onSnapshot(snap => {
-    if(snap.empty && products.length > 0){
-      setCloudStatus('☁️ Respaldando en la nube...');
-      products.forEach(p => colProd.doc(String(p.id)).set(p));
-      syncMetaToCloud();
-      return;
-    }
-
-    if(!snap.empty){
-      isRemoteSync = true;
-      const remoteProducts = [];
-      snap.forEach(doc => {
-        const item = doc.data();
-        if(item) {
-          if(!item.id) item.id = doc.id;
-          item.id = String(item.id);
-          remoteProducts.push(item);
-        }
-      });
-      products = remoteProducts;
-      window.products = products;
-      localStorage.setItem(K.products, JSON.stringify(products));
-      render();
-      isRemoteSync = false;
-      setCloudStatus(`☁️ Sincronizado (${products.length} prod.)`);
-    } else {
-      setCloudStatus(`☁️ Sincronizado (${products.length} prod.)`);
-    }
-  }, err => {
-    console.error("Firestore Error en productos:", err);
-    if(err.code === 'permission-denied'){
-      setCloudStatus('⚠️ Reglas de Firebase bloqueadas', true);
-    } else {
-      setCloudStatus('⚠️ Sin conexión a la nube', true);
-    }
-  });
-}
-
-if(docMeta){
-  docMeta.onSnapshot(doc => {
-    if(doc.exists){
-      const data = doc.data();
-      isRemoteSync = true;
-      if(Array.isArray(data.categories)) { categories = data.categories; localStorage.setItem(K.categories, JSON.stringify(categories)); }
-      
-      if(Array.isArray(data.sales)) {
-        const salesMap = new Map();
-        sales.forEach(s => salesMap.set(String(s.id || s.date), s));
-        data.sales.forEach(s => salesMap.set(String(s.id || s.date), s));
-        sales = Array.from(salesMap.values()).sort((a,b) => new Date(a.date) - new Date(b.date));
-        localStorage.setItem(K.sales, JSON.stringify(sales));
-      }
-
-      if(Array.isArray(data.closures)) { closures = data.closures; localStorage.setItem(K.closures, JSON.stringify(closures)); }
-      if(data.cashStart) { cashStart = data.cashStart; localStorage.setItem(K.cashStart, JSON.stringify(cashStart)); }
-      if(Array.isArray(data.movements)) { movements = data.movements; localStorage.setItem(K.movements, JSON.stringify(movements)); }
-      if(Array.isArray(data.suppliers)) { suppliers = data.suppliers; localStorage.setItem(K.suppliers, JSON.stringify(suppliers)); }
-      if(Array.isArray(data.purchases)) { purchases = data.purchases; localStorage.setItem(K.purchases, JSON.stringify(purchases)); }
-      
-      // Bloqueo de sobrescritura: solo actualiza si Firestore trae una versión más reciente
-      if(data.theme && (!theme.updatedAt || (data.updatedAt && data.updatedAt > (theme.updatedAt || 0)))) {
-        theme = Object.assign({}, theme, data.theme);
-        localStorage.setItem(K.theme, JSON.stringify(theme));
-        applyTheme();
-      }
-
-      render();
-      isRemoteSync = false;
-    }
-  }, err => {
-    console.error("Firestore Error en meta:", err);
-  });
-}
-
-$('cloudStatus').onclick = () => {
-  if(!colProd) return alert('No se pudo inicializar Firebase.');
-  setCloudStatus('☁️ Subiendo...');
-  products.forEach(p => colProd.doc(String(p.id)).set(p));
-  syncMetaToCloud();
-};
-
+products.forEach(p=>{if(!p.id)p.id=uid();p.id=String(p.id);if(p.reorderLevel==null)p.reorderLevel=5});window.products=products;
+let isRemoteSync=false;
+function setCloudStatus(txt,isError=false){const el=$('cloudStatus');if(!el)return;el.textContent=txt;el.style.color=isError?'#b91c1c':'var(--p)'}
+function syncProductToCloud(){}
+function syncMetaToCloud(){}
+function save(){for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]])localStorage.setItem(k,JSON.stringify(v));window.products=products;render()}
+setCloudStatus('☁️ Iniciando...');window.addEventListener('varelia:business-scope-ready',()=>setCloudStatus('☁️ Conectado'));
 function shade(h,a=-28){let n=parseInt(h.slice(1),16),r=Math.max(0,Math.min(255,(n>>16)+a)),g=Math.max(0,Math.min(255,((n>>8)&255)+a)),b=Math.max(0,Math.min(255,(n&255)+a));return '#'+(b|g<<8|r<<16).toString(16).padStart(6,'0')}
 
 function applyTheme(){
