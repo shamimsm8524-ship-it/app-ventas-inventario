@@ -58,6 +58,21 @@
     function equivalent(a,b){a=norm(a);b=norm(b);if(!a||!b)return false;if(a===b)return true;const ad=digits(a),bd=digits(b);if(ad&&bd){if(ad===bd)return true;if(ad.replace(/^0+/,'')===bd.replace(/^0+/,''))return true;if(ad.length>=12&&bd.length>=12&&ad.slice(-12)===bd.slice(-12))return true}return false}
     function loadLib(){return new Promise((resolve,reject)=>{if(window.Html5Qrcode)return resolve();let existing=document.querySelector('script[data-varelia-html5qrcode]');if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return}const s=document.createElement('script');s.dataset.vareliaHtml5qrcode='1';s.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
     function allStoredProducts(){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k||!/product/i.test(k))continue;let v;try{v=JSON.parse(localStorage.getItem(k)||'null')}catch{continue}if(Array.isArray(v))v.forEach(x=>{if(x&&typeof x==='object'&&('barcode'in x||'name'in x))out.push(x)})}}catch{}return out}
+    async function lookupFactoryProduct(code){
+      const sources=[
+        'https://world.openfoodfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_es,brands,manufacturing_places,categories_tags,image_front_url',
+        'https://world.openbeautyfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_es,brands,manufacturing_places,categories_tags,image_front_url',
+        'https://world.openproductsfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_es,brands,manufacturing_places,categories_tags,image_front_url'
+      ];
+      for(const url of sources){try{const res=await fetch(url,{headers:{Accept:'application/json'}});if(!res.ok)continue;const j=await res.json();const x=j?.product;if(j?.status===1&&x){const name=String(x.product_name_es||x.product_name||'').trim(),brand=String(x.brands||'').trim(),maker=String(x.manufacturing_places||'').trim();if(name||brand)return {name:name||brand,brand,maker,image:x.image_front_url||'',source:url.includes('openbeauty')?'Open Beauty Facts':url.includes('openproducts')?'Open Products Facts':'Open Food Facts'};}}catch(e){console.warn('Consulta de producto',e)}}return null;
+    }
+    async function offerNewProduct(code){
+      const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent='Buscando nombre y marca del producto…'}
+      const data=await lookupFactoryProduct(code);await closeScanner();
+      if(typeof openProduct==='function')openProduct();else try{document.getElementById('newProduct')?.click()}catch{}
+      await sleep(120);const bc=document.getElementById('barcode'),nm=document.getElementById('productName'),ds=document.getElementById('description'),preview=document.getElementById('imagePreview');
+      if(bc)bc.value=code;if(data){if(nm&&!nm.value)nm.value=data.name;const details=[data.brand&&'Marca: '+data.brand,data.maker&&'Fabricación: '+data.maker,'Datos encontrados en '+data.source].filter(Boolean).join(' · ');if(ds&&!ds.value)ds.value=details;if(preview&&data.image){preview.src=data.image;preview.hidden=false}window.vareliaToast?.('Producto identificado: '+data.name,'ok');}else{window.vareliaToast?.('Código leído. No figura en las bases públicas; completa el nombre manualmente.','warn')}
+    }
     function findProduct(code){const pools=[];try{if(Array.isArray(products))pools.push(...products)}catch{}pools.push(...allStoredProducts());const found=pools.find(x=>equivalent(x?.barcode,code));if(!found)return null;try{const live=products.find(x=>String(x.id)===String(found.id))||products.find(x=>equivalent(x.barcode,code));return live||found}catch{return found}}
     function persistProducts(){try{if(typeof save==='function')save();else if(typeof K!=='undefined'&&K.products)localStorage.setItem(K.products,JSON.stringify(products.map(p=>{const c={...p};delete c.image;return c})))}catch(e){console.warn(e)}}
     function selectedInventoryProduct(){try{return inventoryProductId?products.find(x=>String(x.id)===String(inventoryProductId))||null:null}catch{return null}}
@@ -89,6 +104,7 @@
         window.vareliaSound?.('error');alert('Código leído: '+code+'\nEste código todavía no está vinculado a un producto.');try{if(dialog.open)dialog.close()}catch{}opening=false;finishing=false;setTimeout(()=>{if(saleDialog?.open)openScanner('sale')},500);return;
       }
       if(p){renderCard(p,code);finishing=false;return}
+      if(target==='inventory'||target==='product'){await offerNewProduct(code);finishing=false;return}
       window.vareliaSound?.('error');alert('Código leído: '+code+'\nEste código todavía no está vinculado a un producto.');finishing=false;resetUI();try{if(dialog.open)dialog.close()}catch{}
     }
     if(saleSearch&&!saleSearch.dataset.posEnter){saleSearch.dataset.posEnter='1';saleSearch.addEventListener('keydown',async e=>{if(e.key!=='Enter')return;const code=norm(saleSearch.value);const p=findProduct(code);if(!p)return;e.preventDefault();await addSaleScan(p);saleSearch.select()})}
