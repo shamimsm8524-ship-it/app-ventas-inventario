@@ -95,8 +95,26 @@
       }
       mode.disabled=false;qty.disabled=false;btn.disabled=false;
       btn.textContent='Registrar y actualizar stock';
-      btn.onclick=null;
-      btn.dataset.centralStockIn='1';
+      btn.onclick=async()=>{
+        const p=getProducts().find(x=>String(x.id)===String(typeof inventoryProductId!=='undefined'?inventoryProductId:''));
+        const q=Math.floor(Number(qty.value)||0);
+        const event=mode.value==='return'?'return':'restock';
+        if(!p)return toast('Selecciona primero un producto.');
+        if(q<1)return toast('Indica una cantidad mayor a 0.');
+        if(typeof window.vareliaCentralStockIn!=='function')return toast('Actualiza la página e inténtalo nuevamente.');
+        btn.disabled=true;
+        try{
+          await window.vareliaCentralStockIn({product:p,event,qty:q});
+          qty.value='1';
+          try{if(typeof renderInvSelected==='function')renderInvSelected()}catch{}
+          toast(event==='return'
+            ? 'Devolución registrada. Se repusieron '+q+' unidad(es).'
+            : 'Mercadería repuesta. Se agregaron '+q+' unidad(es).','ok');
+        }catch(err){
+          console.error(err);
+          toast(err?.message||'No se pudo actualizar el stock.');
+        }finally{btn.disabled=false}
+      };
     }else if(mode.dataset.staffMode==='1'){
       mode.innerHTML=mode.dataset.ownerHtml||'<option value="add">➕ Entrada</option><option value="subtract">➖ Salida</option>';
       delete mode.dataset.staffMode;
@@ -105,47 +123,7 @@
     }
   }
 
-  let stockSubmitBusy=false;
-  async function submitInventoryStock(){
-    if(stockSubmitBusy||!isStaff())return;
-    const mode=$('inventoryMode'),qty=$('inventoryQty'),btn=$('applyInventory');
-    if(!mode||!qty||!btn)return;
-    const selectedId=String(typeof inventoryProductId!=='undefined'?inventoryProductId:'');
-    const p=getProducts().find(x=>String(x.id)===selectedId);
-    const q=Math.floor(Number(qty.value)||0);
-    const event=mode.value==='return'?'return':'restock';
-    if(!p)return toast('Selecciona primero un producto.');
-    if(q<1)return toast('Indica una cantidad mayor a 0.');
-    if(typeof window.vareliaCentralStockIn!=='function')return toast('Inventario todavía conectando. Espera un momento y vuelve a tocar el botón.');
-    stockSubmitBusy=true;btn.disabled=true;
-    try{
-      const result=await window.vareliaCentralStockIn({product:p,event,qty:q});
-      qty.value='1';
-      try{if(typeof renderInvSelected==='function')renderInvSelected()}catch{}
-      try{if(typeof render==='function')render()}catch{}
-      const finalStock=Number(result?.stock_after);
-      toast(event==='return'
-        ? 'Devolución registrada. Stock actualizado'+(Number.isFinite(finalStock)?': '+finalStock:'')+'.'
-        : 'Reposición registrada. Stock actualizado'+(Number.isFinite(finalStock)?': '+finalStock:'.'),'ok');
-    }catch(err){
-      console.error('Reposición/devolución',err);
-      toast(err?.message||'No se pudo actualizar el stock.');
-    }finally{
-      stockSubmitBusy=false;
-      btn.disabled=false;
-    }
-  }
-
-  document.addEventListener('click',e=>{
-    const btn=e.target.closest?.('#applyInventory');
-    if(!btn||!isStaff())return;
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    e.stopPropagation();
-    submitInventoryStock();
-  },true);
-
-    function apply(){
+  function apply(){
     const staff=isStaff();
     document.body.classList.toggle('varelia-staff-mode',staff);
     ensureNotes();
