@@ -152,6 +152,27 @@
       if(a==='appearance'){if(!owner())return window.vareliaToast?.('Solo el propietario puede cambiar los ajustes.','warn');return clickView('appearance')}
     },true);
 
+    // El logo/nombre Varelia funciona como botón Inicio.
+    const homeTargets=[document.querySelector('.brand .logo'),document.querySelector('.brand h1'),document.querySelector('.brand .left')].filter(Boolean);
+    const goHome=e=>{
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
+      if(rawShow('dashboard')){
+        nav.querySelectorAll('[data-mobile-tab]').forEach(b=>b.classList.remove('active'));
+        try{history.replaceState(null,'',location.pathname+location.search+'#inicio')}catch{}
+      }
+    };
+    homeTargets.forEach(el=>{
+      el.style.cursor='pointer';
+      el.addEventListener('click',goHome,true);
+      el.addEventListener('pointerdown',ev=>{
+        if(ev.pointerType==='mouse')return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        goHome(ev);
+      },{passive:false,capture:true});
+    });
+
     // Keep the bottom tab highlighted even when another script changes the visible view.
     document.addEventListener('click',e=>{
       const v=e.target.closest('#sidebar .nav [data-view]');
