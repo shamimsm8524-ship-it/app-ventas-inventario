@@ -209,6 +209,22 @@
     }catch(e){console.warn('Catálogo stock',e)}
   }
 
+  async function ensureCloudProductId(p){
+    if(!p)return '';
+    if(p._cloudId)return String(p._cloudId);
+    const legacy=String(p.id||'').trim();
+    if(legacy){
+      const q=await sb.from('varelia_products').select('id').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
+      if(q.error)throw q.error;
+      if(q.data?.id){p._cloudId=String(q.data.id);return p._cloudId}
+    }
+    if(isOwner()){
+      await syncProduct(p);
+      return String(p._cloudId||'');
+    }
+    return '';
+  }
+
   async function centralCheckout(){
     if(saleBusy)return;
     let current=[];
@@ -225,11 +241,9 @@
       for(const item of current){
         let p=localProducts().find(x=>String(x.id)===String(item.id));
         if(!p)throw new Error('Producto no encontrado: '+String(item.name||''));
-        if(!p._cloudId){
-          if(isOwner()){await syncProduct(p)}
-          else throw new Error('Este producto aún no está sincronizado. Pide al administrador que abra Varelia una vez.');
-        }
-        payload.push({product_id:p._cloudId,qty:Math.max(1,Math.floor(Number(item.qty)||1))});
+        const cloudId=await ensureCloudProductId(p);
+        if(!cloudId)throw new Error('Este producto aún no está sincronizado. Actualiza la página e inténtalo nuevamente.');
+        payload.push({product_id:cloudId,qty:Math.max(1,Math.floor(Number(item.qty)||1))});
       }
 
       const {data,error}=await sb.rpc('varelia_commit_sale',{p_items:payload,p_source:'Venta'});
@@ -279,6 +293,21 @@
     btn.onclick=centralCheckout;
     btn.dataset.centralStock='1';
   }
+
+  window.vareliaCentralStockIn=async function({product,event='restock',qty}){
+    if(!product)throw new Error('Selecciona un producto.');
+    const cloudId=await ensureCloudProductId(product);
+    if(!cloudId)throw new Error('El producto todavía no está sincronizado.');
+    const {data,error}=await sb.rpc('varelia_staff_stock_in',{
+      p_product_id:cloudId,
+      p_qty:Math.max(1,Math.floor(Number(qty)||1)),
+      p_event:event==='return'?'return':'restock'
+    });
+    if(error)throw error;
+    await refreshCloud();
+    await refreshPublicStock();
+    return data||{};
+  };
 
   window.vareliaCentralReturn=async function({saleId,saleItemId,qty}){
     if(!saleId||!saleItemId)throw new Error('La venta anterior no está vinculada a la nube.');
