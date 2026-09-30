@@ -2,7 +2,7 @@
   "name": "Panel Varelia",
   "short_name": "Varelia",
   "description": "Panel de administración, inventario y ventas de Varelia Store",
-  "start_url": "/",
+  "start_url": "/?_v=20260930-12",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#be185d",
@@ -20,5 +20,6 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "scope": "/"
 }
