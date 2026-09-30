@@ -15,7 +15,7 @@
   font-weight:900!important;
   letter-spacing:0!important;
   line-height:1!important;
-  color:#111827!important;
+  color:var(--p)!important;
   white-space:nowrap!important;
 }
 @media(max-width:650px){
