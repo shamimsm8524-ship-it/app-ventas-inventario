@@ -5,7 +5,7 @@
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn();
   ready(()=>{
     const STORE='varelia_video_settings_v1';
-    const DEFAULTS={businessName:'',logo:'',ruc:'',phone:'',address:'',ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',thermalWidth:'80',autoBarcode:true,enableVariants:false,socialTikTok:'',socialFacebook:'',socialInstagram:'',socialWhatsApp:'',socialYouTube:'',socialOther:''};
+    const DEFAULTS={businessName:'',logo:'',ruc:'',phone:'',address:'',businessHours:'',publicMapUrl:'',publicAllowDelivery:true,publicAllowPickup:true,publicPaymentMethods:'Efectivo,Yape,Plin,Transferencia',ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',thermalWidth:'80',autoBarcode:true,enableVariants:false,socialTikTok:'',socialFacebook:'',socialInstagram:'',socialWhatsApp:'',socialYouTube:'',socialOther:''};
     const loadSettings=()=>{try{return {...DEFAULTS,...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{return {...DEFAULTS}}};
     let cfg=loadSettings();
     const saveCfg=()=>{try{localStorage.setItem(STORE,JSON.stringify(cfg))}catch{}};
@@ -144,7 +144,9 @@
             <label class="full">Nombre del negocio<input id="vsetBusiness" value="${esc(cfg.businessName)}" placeholder="Varelia"></label>
             <label>RUC / Documento<input id="vsetRuc" value="${esc(cfg.ruc)}"></label>
             <label>Teléfono<input id="vsetPhone" value="${esc(cfg.phone)}"></label>
-            <label class="full">Dirección<input id="vsetAddress" value="${esc(cfg.address)}"></label>
+            <label class="full">Dirección<input id="vsetAddress" value="${esc(cfg.address)}" placeholder="Dirección que verán tus clientes"></label>
+            <label class="full">Horario de atención<input id="vsetBusinessHours" value="${esc(cfg.businessHours||'')}" placeholder="Ej.: Lun–Sáb 9:00 a. m. – 8:00 p. m."></label>
+            <label class="full">Enlace de ubicación / Google Maps<input id="vsetMapUrl" value="${esc(cfg.publicMapUrl||'')}" placeholder="Opcional: https://maps.google.com/..."></label>
             <label class="full">Mensaje al pie del ticket<textarea id="vsetMessage" rows="2">${esc(cfg.ticketMessage)}</textarea></label>
             <label>Moneda<select id="vsetCurrency"><option value="S/" ${cfg.currency==='S/'?'selected':''}>S/ Soles</option><option value="$" ${cfg.currency==='$'?'selected':''}>$ Dólares</option></select></label>
           </div></div>
@@ -156,6 +158,14 @@
             <label class="full">WhatsApp<input id="vsetWhatsApp" value="${esc(cfg.socialWhatsApp||'')}" placeholder="Número o enlace de WhatsApp"></label>
             <label class="full">YouTube<input id="vsetYouTube" value="${esc(cfg.socialYouTube||'')}" placeholder="https://www.youtube.com/@tucanal"></label>
             <label class="full">Otras plataformas<textarea id="vsetSocialOther" rows="4" placeholder="Una por línea: Nombre | https://enlace.com">${esc(cfg.socialOther||'')}</textarea><small style="color:var(--muted)">Ej.: Telegram | https://t.me/tuusuario</small></label>
+          </div></div>
+
+          <div class="vsettingsSection"><h3>Catálogo público y pedidos</h3><p>Elige cómo pueden comprar tus clientes desde el catálogo.</p><div class="vsettingsGrid">
+            <label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px"><input type="checkbox" id="vsetAllowDelivery" ${cfg.publicAllowDelivery!==false?'checked':''} style="width:18px">Permitir Delivery</label>
+            <label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px"><input type="checkbox" id="vsetAllowPickup" ${cfg.publicAllowPickup!==false?'checked':''} style="width:18px">Permitir Recojo en tienda</label>
+            <div class="full"><b style="font-size:12px">Métodos de pago aceptados</b><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:9px">
+              ${['Efectivo','Yape','Plin','Transferencia','Tarjeta','Otro'].map(m=>`<label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:7px"><input type="checkbox" data-public-payment="${m}" ${String(cfg.publicPaymentMethods||'Efectivo,Yape,Plin,Transferencia').split(',').map(x=>x.trim()).includes(m)?'checked':''} style="width:18px">${m}</label>`).join('')}
+            </div></div>
           </div></div>
 
           <div class="vsettingsSection"><h3>Métodos de pago</h3><p>Sube tus QR para mostrarlos al cobrar con Yape o Plin.</p>
@@ -176,7 +186,7 @@
         sec.querySelector('#vsetYapeQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.yapeQr=v;sec.querySelector('#vYapePreview').src=v}};
         sec.querySelector('#vsetPlinQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.plinQr=v;sec.querySelector('#vPlinPreview').src=v}};
         sec.querySelector('#vsettingsSave').onclick=()=>{
-          cfg.businessName=sec.querySelector('#vsetBusiness').value.trim();cfg.ruc=sec.querySelector('#vsetRuc').value.trim();cfg.phone=sec.querySelector('#vsetPhone').value.trim();cfg.address=sec.querySelector('#vsetAddress').value.trim();cfg.ticketMessage=sec.querySelector('#vsetMessage').value.trim()||DEFAULTS.ticketMessage;cfg.currency=sec.querySelector('#vsetCurrency').value;cfg.socialTikTok=sec.querySelector('#vsetTikTok').value.trim();cfg.socialFacebook=sec.querySelector('#vsetFacebook').value.trim();cfg.socialInstagram=sec.querySelector('#vsetInstagram').value.trim();cfg.socialWhatsApp=sec.querySelector('#vsetWhatsApp').value.trim();cfg.socialYouTube=sec.querySelector('#vsetYouTube').value.trim();cfg.socialOther=sec.querySelector('#vsetSocialOther').value.trim();cfg.yapeHolder=sec.querySelector('#vsetYapeHolder').value.trim();cfg.plinHolder=sec.querySelector('#vsetPlinHolder').value.trim();cfg.thermalWidth=sec.querySelector('#vsetThermal').value;cfg.autoBarcode=sec.querySelector('#vsetAutoBarcode').checked;cfg.enableVariants=sec.querySelector('#vsetVariants').checked;saveCfg();applyBusinessName();setupProductExtras(true);window.dispatchEvent(new CustomEvent('varelia:catalog-settings-changed'));try{window.vareliaPublicCatalogSync?.()}catch{}window.vareliaToast?.('Configuración guardada.','ok')
+          cfg.businessName=sec.querySelector('#vsetBusiness').value.trim();cfg.ruc=sec.querySelector('#vsetRuc').value.trim();cfg.phone=sec.querySelector('#vsetPhone').value.trim();cfg.address=sec.querySelector('#vsetAddress').value.trim();cfg.businessHours=sec.querySelector('#vsetBusinessHours').value.trim();cfg.publicMapUrl=sec.querySelector('#vsetMapUrl').value.trim();cfg.publicAllowDelivery=sec.querySelector('#vsetAllowDelivery').checked;cfg.publicAllowPickup=sec.querySelector('#vsetAllowPickup').checked;cfg.publicPaymentMethods=[...sec.querySelectorAll('[data-public-payment]:checked')].map(x=>x.dataset.publicPayment).join(',');cfg.ticketMessage=sec.querySelector('#vsetMessage').value.trim()||DEFAULTS.ticketMessage;cfg.currency=sec.querySelector('#vsetCurrency').value;cfg.socialTikTok=sec.querySelector('#vsetTikTok').value.trim();cfg.socialFacebook=sec.querySelector('#vsetFacebook').value.trim();cfg.socialInstagram=sec.querySelector('#vsetInstagram').value.trim();cfg.socialWhatsApp=sec.querySelector('#vsetWhatsApp').value.trim();cfg.socialYouTube=sec.querySelector('#vsetYouTube').value.trim();cfg.socialOther=sec.querySelector('#vsetSocialOther').value.trim();cfg.yapeHolder=sec.querySelector('#vsetYapeHolder').value.trim();cfg.plinHolder=sec.querySelector('#vsetPlinHolder').value.trim();cfg.thermalWidth=sec.querySelector('#vsetThermal').value;cfg.autoBarcode=sec.querySelector('#vsetAutoBarcode').checked;cfg.enableVariants=sec.querySelector('#vsetVariants').checked;saveCfg();applyBusinessName();setupProductExtras(true);window.dispatchEvent(new CustomEvent('varelia:catalog-settings-changed'));try{window.vareliaPublicCatalogSync?.()}catch{}window.vareliaToast?.('Configuración guardada.','ok')
         };
       };
       sec.onclick=e=>{
