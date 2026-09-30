@@ -724,4 +724,22 @@ if ('serviceWorker' in navigator) {
  new MutationObserver(clean).observe(document.documentElement,{childList:true,subtree:true});
  addEventListener('pageshow',clean);
 })();
+</script><script id="vareliaAdminSessionEmergency">
+(()=>{
+ const esc=s=>String(s??'').replace(/[&<>"]/g,'');
+ async function mount(){
+  const hub=document.getElementById('mobileAdminHub'); if(!hub)return;
+  let card=document.getElementById('vareliaAdminSessionVisible');
+  if(!card){
+   card=document.createElement('div');card.id='vareliaAdminSessionVisible';
+   card.style.cssText='margin:0 0 18px;padding:15px;border:1px solid #dfe3ea;border-radius:18px;background:#fff;box-shadow:0 5px 18px #0000000d';
+   card.innerHTML='<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px"><div style="font-size:25px">👤</div><div style="min-width:0"><b style="display:block">Cuenta conectada</b><span id="vareliaAdminSessionEmail" style="display:block;color:#64748b;font-size:12px;overflow:hidden;text-overflow:ellipsis"></span><strong id="vareliaAdminSessionRole" style="display:block;color:#2563eb;font-size:12px;margin-top:3px"></strong></div></div><button id="vareliaAdminSessionLogout" type="button" style="width:100%;padding:12px;border:1px solid #dfe3ea;border-radius:12px;background:#f8fafc;font-weight:900;color:#111827">Cerrar sesión</button>';
+   const head=hub.querySelector('.vmobileHubHead');head?head.insertAdjacentElement('afterend',card):hub.prepend(card);
+   card.querySelector('#vareliaAdminSessionLogout').onclick=async e=>{const b=e.currentTarget;b.disabled=true;b.textContent='Cerrando sesión…';try{await window.vareliaSupabase?.auth.signOut()}catch{}location.replace('/login.html')};
+  }
+  const sb=window.vareliaSupabase;if(!sb)return;
+  try{const {data:s}=await sb.auth.getSession();const u=s?.session?.user;if(!u)return;document.getElementById('vareliaAdminSessionEmail').textContent=esc(u.email||'Cuenta activa');let role='Administrador';try{const {data:p}=await sb.from('profiles').select('role').eq('id',u.id).maybeSingle();const r=String(p?.role||'').toLowerCase();role=r==='staff'?'Personal':r==='owner'?'Administrador':(p?.role||role)}catch{}document.getElementById('vareliaAdminSessionRole').textContent=role}catch{}
+ }
+ const obs=new MutationObserver(()=>mount());obs.observe(document.documentElement,{childList:true,subtree:true});mount();setInterval(mount,1000);
+})();
 </script></body></html>
