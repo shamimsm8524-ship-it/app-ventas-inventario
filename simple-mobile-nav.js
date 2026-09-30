@@ -28,7 +28,7 @@
         body.varelia-simple-mobile #newSaleFab{display:none!important}
         body.varelia-simple-mobile .content{padding-bottom:92px!important}
         .vmobileNav{position:fixed;left:0;right:0;bottom:0;z-index:9990;height:76px;padding:6px max(7px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--card) 97%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--line);box-shadow:0 -8px 28px rgba(15,23,42,.1)}
-        .vmobileNav button{border:0;background:transparent;color:var(--muted);border-radius:13px;display:grid;place-items:center;align-content:center;gap:3px;padding:5px 2px;font-size:10px;font-weight:850;min-width:0}
+        .vmobileNav button{border:0;background:transparent;color:var(--muted);border-radius:13px;display:grid;place-items:center;align-content:center;gap:3px;padding:5px 2px;font-size:10px;font-weight:850;min-width:0;pointer-events:auto!important;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
         .vmobileNav button span{font-size:27px;line-height:1}.vmobileNav button.active{color:var(--p);background:color-mix(in srgb,var(--p) 7%,var(--card))}
         .vmobileNav button.active span{transform:translateY(-1px)}
       }
@@ -95,10 +95,15 @@
       return true;
     }
     function clickView(id){
+      const ok=rawShow(id);
+      if(!ok)return false;
       const b=document.querySelector('#sidebar .nav [data-view="'+id+'"]');
-      if(b){b.click();setTimeout(()=>setActive(id),30);return true}
-      try{if(typeof switchView==='function'){switchView(id);setTimeout(()=>setActive(id),30);return true}}catch{}
-      return rawShow(id);
+      if(b)b.classList.add('active');
+      try{
+        const map={sales:'ventas',products:'productos',inventory:'inventario',categories:'categorias',suppliers:'proveedores',purchases:'mercaderia',cash:'caja',appearance:'apariencia'};
+        if(map[id])history.replaceState(null,'',location.pathname+location.search+'#'+map[id]);
+      }catch{}
+      return true;
     }
     function setActive(id){
       let tab=id;
@@ -107,17 +112,11 @@
       nav.querySelectorAll('[data-mobile-tab]').forEach(b=>b.classList.toggle('active',b.dataset.mobileTab===tab));
     }
     function openExtra(kind){
-      if(kind==='reports'){
-        if(!can('reports'))return window.vareliaToast?.('No tienes permiso para ver Reportes.','warn');
-        const b=document.querySelector('.premiumReportsItem');if(b){b.click();setActive('reports');return}
-      }
-      if(kind==='profit'){
-        if(!can('profit'))return window.vareliaToast?.('No tienes permiso para ver Ganancias.','warn');
-        const b=document.querySelector('.premiumGainItem');if(b){b.click();setActive('profit');return}
-      }
-      if(kind==='help'){
-        const b=document.querySelector('.premiumHelpItem');if(b){b.click();setActive('help');return}
-      }
+      if(kind==='reports'&&!can('reports'))return window.vareliaToast?.('No tienes permiso para ver Reportes.','warn');
+      if(kind==='profit'&&!can('profit'))return window.vareliaToast?.('No tienes permiso para ver Ganancias.','warn');
+      if(document.getElementById(kind)){rawShow(kind);setActive(kind);return}
+      try{window.vareliaShowExtraView?.(kind)}catch{}
+      if(document.getElementById(kind)){rawShow(kind);setActive(kind);return}
       setTimeout(()=>openExtra(kind),250);
     }
     function openSeller(){
@@ -127,14 +126,19 @@
       setTimeout(openSeller,250);
     }
 
-    nav.addEventListener('click',e=>{
-      const b=e.target.closest('[data-mobile-tab]');if(!b)return;
-      const id=b.dataset.mobileTab;
+    function activateMobileTab(id){
       if(id==='sales'){if(!can('sales'))return window.vareliaToast?.('No tienes permiso para Ventas.','warn');clickView('sales')}
       else if(id==='products'){if(!can('products'))return window.vareliaToast?.('No tienes permiso para Catálogo.','warn');clickView('products')}
       else if(id==='inventory'){if(!can('inventory'))return window.vareliaToast?.('No tienes permiso para Inventario.','warn');clickView('inventory')}
-      else rawShow(id);
+      else if(id==='mobileHistoryHub'||id==='mobileSettingsHub')rawShow(id);
       setActive(id);
+    }
+    nav.querySelectorAll('[data-mobile-tab]').forEach(btn=>{
+      btn.onclick=e=>{e.preventDefault();e.stopPropagation();activateMobileTab(btn.dataset.mobileTab)};
+      btn.addEventListener('pointerdown',e=>{
+        if(e.pointerType==='mouse')return;
+        e.preventDefault();e.stopPropagation();activateMobileTab(btn.dataset.mobileTab);
+      },{passive:false});
     });
 
     document.addEventListener('click',e=>{
