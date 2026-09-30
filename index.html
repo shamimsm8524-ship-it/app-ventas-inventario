@@ -507,7 +507,37 @@ function addToCart(p, qtyToAdd=1){
   }
   renderCart();
 }
-function renderCart(){cart.innerHTML=cart.map(i=>`<div class="cartitem"><span>${esc(i.name)}</span><strong>${i.qty}</strong></div>`).join('');saleTotal.textContent=money(cart.reduce((a,i)=>a+i.price*i.qty,0))}
+function setCartQty(id,value){
+  const item=cart.find(x=>String(x.id).trim()===String(id).trim());
+  const p=products.find(x=>String(x.id).trim()===String(id).trim());
+  if(!item||!p)return;
+  const max=Math.max(1,Math.floor(Number(p.stock)||1));
+  let q=Math.floor(Number(value)||1);
+  q=Math.max(1,Math.min(q,max));
+  if(Number(value)>max)alert('Stock disponible: '+max);
+  item.qty=q;
+  renderCart();
+}
+function renderCart(){
+  const box=$('cart');
+  if(!box)return;
+  box.innerHTML=cart.length?cart.map(i=>`<div class="cartitem" data-cart-row="${esc(i.id)}"><span>${esc(i.name)}</span><div style="display:flex;align-items:center;gap:6px"><button type="button" class="btn secondary" data-cart-minus="${esc(i.id)}" style="padding:6px 10px">−</button><input type="number" inputmode="numeric" min="1" max="${Math.max(1,Number(products.find(p=>String(p.id)===String(i.id))?.stock)||1)}" value="${i.qty}" data-cart-qty="${esc(i.id)}" style="width:64px;text-align:center;padding:7px"><button type="button" class="btn secondary" data-cart-plus="${esc(i.id)}" style="padding:6px 10px">+</button></div></div>`).join(''):'';
+  saleTotal.textContent=money(cart.reduce((a,i)=>a+i.price*i.qty,0));
+  if(!box.dataset.qtyBound){
+    box.dataset.qtyBound='1';
+    box.addEventListener('click',e=>{
+      const plus=e.target.closest('[data-cart-plus]'),minus=e.target.closest('[data-cart-minus]');
+      const b=plus||minus;if(!b)return;
+      const item=cart.find(x=>String(x.id)===String(b.dataset[plus?'cartPlus':'cartMinus']));
+      if(!item)return;
+      setCartQty(item.id,(Number(item.qty)||1)+(plus?1:-1));
+    });
+    box.addEventListener('change',e=>{
+      const inp=e.target.closest('[data-cart-qty]');if(!inp)return;
+      setCartQty(inp.dataset.cartQty,inp.value);
+    });
+  }
+}
 
 function procesarTextoPedido(txt){
   if(!txt || !txt.trim()) return false;
@@ -924,5 +954,5 @@ if ('serviceWorker' in navigator) {
   addEventListener('pageshow',()=>setTimeout(render,100));
 })();
 </script>
-<script src="staff-stock-guard.js?v=20260930-3"></script>\n<script src="central-stock-sync.js?v=20260930-1"></script>
+<script src="staff-stock-guard.js?v=20260930-4"></script>\n<script src="central-stock-sync.js?v=20260930-2"></script>
 </body></html>
