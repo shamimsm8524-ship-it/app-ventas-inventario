@@ -35,6 +35,11 @@
     body.varelia-staff-readonly #reorderList input[data-reorder]{pointer-events:none!important;opacity:.65!important}
     body.varelia-staff-readonly #inventoryMode,
     body.varelia-staff-readonly #inventoryQty{pointer-events:none!important;opacity:.65!important}
+    body.varelia-staff-readonly #mobileSettingsHub input,
+    body.varelia-staff-readonly #mobileSettingsHub textarea,
+    body.varelia-staff-readonly #mobileSettingsHub select,
+    body.varelia-staff-readonly #mobileSettingsHub button{pointer-events:none!important;opacity:.68!important}
+    body.varelia-staff-readonly #vareliaEditBusinessName{display:none!important}
     .vstaffReadOnlyNote{display:none;margin:0 0 14px;padding:12px 14px;border:1px solid #dbeafe;border-radius:14px;background:#eff6ff;color:#1e3a8a;font-size:12px;font-weight:800}
     body.varelia-staff-readonly .vstaffReadOnlyNote{display:block}
     .vreturnBtn{border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);padding:8px 10px;font-size:11px;font-weight:900;white-space:nowrap}
@@ -46,11 +51,13 @@
   document.head.appendChild(style);
 
   function ensureReadOnlyNote(){
-    for(const id of ['products','inventory']){
+    for(const id of ['products','inventory','mobileSettingsHub']){
       const sec=$(id);if(!sec||sec.querySelector('.vstaffReadOnlyNote'))continue;
       const note=document.createElement('div');note.className='vstaffReadOnlyNote';
-      note.textContent='Modo personal: puedes consultar los productos y el stock, pero no modificar datos ni cantidades manualmente. El stock solo cambia por ventas o devoluciones.';
-      const head=sec.querySelector('.head');
+      note.textContent=id==='mobileSettingsHub'
+        ? 'Solo el administrador puede editar los datos del negocio, logo, RUC, teléfono, dirección, horario, redes, pagos y métodos de entrega.'
+        : 'Modo personal: puedes consultar los productos y el stock, pero no modificar datos ni cantidades manualmente. El stock solo cambia por ventas o devoluciones.';
+      const head=sec.querySelector('.head,.vmobileHubHead');
       if(head)head.insertAdjacentElement('afterend',note);else sec.prepend(note);
     }
   }
@@ -63,6 +70,7 @@
 
     ['inventoryMode','inventoryQty'].forEach(id=>{const el=$(id);if(el)el.disabled=true});
     document.querySelectorAll('#reorderList input[data-reorder]').forEach(el=>el.disabled=true);
+    document.querySelectorAll('#mobileSettingsHub input,#mobileSettingsHub textarea,#mobileSettingsHub select,#mobileSettingsHub button').forEach(el=>el.disabled=true);
 
     const active=document.querySelector('.view.active')?.id;
     if(['categories','suppliers','purchases','appearance','mobileAdminHub'].includes(active)){
@@ -76,7 +84,8 @@
     '#newProduct','#inventoryNewProduct','#applyInventory','#addCategory','#newSupplier','#newPurchase','#addPurchaseItem','#savePurchase',
     '[data-edit]','[data-delete]','[data-deleteinv]','[data-alertcfg]','[data-delcat]','[data-editsupplier]','[data-delsupplier]',
     '.nav [data-view="categories"]','.nav [data-view="suppliers"]','.nav [data-view="purchases"]',
-    '[data-admin-open="categories"]','[data-admin-open="suppliers"]','[data-admin-open="purchases"]'
+    '[data-admin-open="categories"]','[data-admin-open="suppliers"]','[data-admin-open="purchases"]',
+    '#mobileSettingsHub button','#mobileSettingsHub input[type="file"]'
   ].join(',');
 
   document.addEventListener('click',e=>{
@@ -89,7 +98,7 @@
 
   document.addEventListener('submit',e=>{
     if(!isStaff())return;
-    if(e.target?.matches?.('#productForm,#supplierForm')){
+    if(e.target?.matches?.('#productForm,#supplierForm')||e.target?.closest?.('#mobileSettingsHub')){
       e.preventDefault();e.stopImmediatePropagation();
       toast('Esta acción está disponible solo para el propietario.','warn');
     }
@@ -97,7 +106,7 @@
 
   document.addEventListener('change',e=>{
     if(!isStaff())return;
-    if(e.target?.matches?.('#reorderList input[data-reorder],#inventoryMode,#inventoryQty')){
+    if(e.target?.matches?.('#reorderList input[data-reorder],#inventoryMode,#inventoryQty')||e.target?.closest?.('#mobileSettingsHub')){
       e.preventDefault();e.stopImmediatePropagation();
       toast('El stock no se puede cambiar manualmente desde una cuenta de personal.','warn');
     }
