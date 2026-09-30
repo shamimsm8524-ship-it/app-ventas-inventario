@@ -5,7 +5,7 @@
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn();
   ready(()=>{
     const STORE='varelia_video_settings_v1';
-    const DEFAULTS={businessName:'',logo:'',ruc:'',phone:'',address:'',ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',thermalWidth:'80',autoBarcode:true,enableVariants:false};
+    const DEFAULTS={businessName:'',logo:'',ruc:'',phone:'',address:'',ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',thermalWidth:'80',autoBarcode:true,enableVariants:false,socialTikTok:'',socialFacebook:'',socialInstagram:'',socialWhatsApp:'',socialYouTube:'',socialOther:''};
     const loadSettings=()=>{try{return {...DEFAULTS,...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{return {...DEFAULTS}}};
     let cfg=loadSettings();
     const saveCfg=()=>{try{localStorage.setItem(STORE,JSON.stringify(cfg))}catch{}};
@@ -149,6 +149,15 @@
             <label>Moneda<select id="vsetCurrency"><option value="S/" ${cfg.currency==='S/'?'selected':''}>S/ Soles</option><option value="$" ${cfg.currency==='$'?'selected':''}>$ Dólares</option></select></label>
           </div></div>
 
+          <div class="vsettingsSection"><h3>Redes sociales</h3><p>Estos enlaces aparecerán en tu catálogo público y tus clientes podrán abrirlos con un toque.</p><div class="vsettingsGrid">
+            <label class="full">TikTok<input id="vsetTikTok" value="${esc(cfg.socialTikTok||'')}" placeholder="https://www.tiktok.com/@tuusuario"></label>
+            <label class="full">Facebook<input id="vsetFacebook" value="${esc(cfg.socialFacebook||'')}" placeholder="https://www.facebook.com/tupagina"></label>
+            <label class="full">Instagram<input id="vsetInstagram" value="${esc(cfg.socialInstagram||'')}" placeholder="https://www.instagram.com/tuusuario"></label>
+            <label class="full">WhatsApp<input id="vsetWhatsApp" value="${esc(cfg.socialWhatsApp||'')}" placeholder="Número o enlace de WhatsApp"></label>
+            <label class="full">YouTube<input id="vsetYouTube" value="${esc(cfg.socialYouTube||'')}" placeholder="https://www.youtube.com/@tucanal"></label>
+            <label class="full">Otras plataformas<textarea id="vsetSocialOther" rows="4" placeholder="Una por línea: Nombre | https://enlace.com">${esc(cfg.socialOther||'')}</textarea><small style="color:var(--muted)">Ej.: Telegram | https://t.me/tuusuario</small></label>
+          </div></div>
+
           <div class="vsettingsSection"><h3>Métodos de pago</h3><p>Sube tus QR para mostrarlos al cobrar con Yape o Plin.</p>
             <div class="vqrRow"><img class="vqrPreview" id="vYapePreview" src="${cfg.yapeQr||''}"><div><label>QR de Yape<input type="file" accept="image/*" id="vsetYapeQr"></label><label style="margin-top:7px">Titular<input id="vsetYapeHolder" value="${esc(cfg.yapeHolder)}"></label></div></div>
             <div class="vqrRow" style="margin-top:12px"><img class="vqrPreview" id="vPlinPreview" src="${cfg.plinQr||''}"><div><label>QR de Plin<input type="file" accept="image/*" id="vsetPlinQr"></label><label style="margin-top:7px">Titular<input id="vsetPlinHolder" value="${esc(cfg.plinHolder)}"></label></div></div>
@@ -167,7 +176,7 @@
         sec.querySelector('#vsetYapeQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.yapeQr=v;sec.querySelector('#vYapePreview').src=v}};
         sec.querySelector('#vsetPlinQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.plinQr=v;sec.querySelector('#vPlinPreview').src=v}};
         sec.querySelector('#vsettingsSave').onclick=()=>{
-          cfg.businessName=sec.querySelector('#vsetBusiness').value.trim();cfg.ruc=sec.querySelector('#vsetRuc').value.trim();cfg.phone=sec.querySelector('#vsetPhone').value.trim();cfg.address=sec.querySelector('#vsetAddress').value.trim();cfg.ticketMessage=sec.querySelector('#vsetMessage').value.trim()||DEFAULTS.ticketMessage;cfg.currency=sec.querySelector('#vsetCurrency').value;cfg.yapeHolder=sec.querySelector('#vsetYapeHolder').value.trim();cfg.plinHolder=sec.querySelector('#vsetPlinHolder').value.trim();cfg.thermalWidth=sec.querySelector('#vsetThermal').value;cfg.autoBarcode=sec.querySelector('#vsetAutoBarcode').checked;cfg.enableVariants=sec.querySelector('#vsetVariants').checked;saveCfg();applyBusinessName();setupProductExtras(true);window.vareliaToast?.('Configuración guardada.','ok')
+          cfg.businessName=sec.querySelector('#vsetBusiness').value.trim();cfg.ruc=sec.querySelector('#vsetRuc').value.trim();cfg.phone=sec.querySelector('#vsetPhone').value.trim();cfg.address=sec.querySelector('#vsetAddress').value.trim();cfg.ticketMessage=sec.querySelector('#vsetMessage').value.trim()||DEFAULTS.ticketMessage;cfg.currency=sec.querySelector('#vsetCurrency').value;cfg.socialTikTok=sec.querySelector('#vsetTikTok').value.trim();cfg.socialFacebook=sec.querySelector('#vsetFacebook').value.trim();cfg.socialInstagram=sec.querySelector('#vsetInstagram').value.trim();cfg.socialWhatsApp=sec.querySelector('#vsetWhatsApp').value.trim();cfg.socialYouTube=sec.querySelector('#vsetYouTube').value.trim();cfg.socialOther=sec.querySelector('#vsetSocialOther').value.trim();cfg.yapeHolder=sec.querySelector('#vsetYapeHolder').value.trim();cfg.plinHolder=sec.querySelector('#vsetPlinHolder').value.trim();cfg.thermalWidth=sec.querySelector('#vsetThermal').value;cfg.autoBarcode=sec.querySelector('#vsetAutoBarcode').checked;cfg.enableVariants=sec.querySelector('#vsetVariants').checked;saveCfg();applyBusinessName();setupProductExtras(true);window.dispatchEvent(new CustomEvent('varelia:catalog-settings-changed'));try{window.vareliaPublicCatalogSync?.()}catch{}window.vareliaToast?.('Configuración guardada.','ok')
         };
       };
       sec.onclick=e=>{
