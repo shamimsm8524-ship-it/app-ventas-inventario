@@ -27,12 +27,12 @@
         body.varelia-simple-mobile #menuBtn{display:none!important}
         body.varelia-simple-mobile #newSaleFab{display:none!important}
         body.varelia-simple-mobile .content{padding-bottom:92px!important}
-        .vmobileNav{position:fixed;left:0;right:0;bottom:0;z-index:9990;height:68px;padding:6px max(7px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--card) 97%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--line);box-shadow:0 -8px 28px rgba(15,23,42,.1)}
-        .vmobileNav button{border:0;background:transparent;color:var(--muted);border-radius:13px;display:grid;place-items:center;align-content:center;gap:2px;padding:4px 2px;font-size:9px;font-weight:850;min-width:0}
-        .vmobileNav button span{font-size:19px;line-height:1}.vmobileNav button.active{color:var(--p);background:color-mix(in srgb,var(--p) 7%,var(--card))}
+        .vmobileNav{position:fixed;left:0;right:0;bottom:0;z-index:9990;height:76px;padding:6px max(7px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--card) 97%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--line);box-shadow:0 -8px 28px rgba(15,23,42,.1)}
+        .vmobileNav button{border:0;background:transparent;color:var(--muted);border-radius:13px;display:grid;place-items:center;align-content:center;gap:3px;padding:5px 2px;font-size:10px;font-weight:850;min-width:0}
+        .vmobileNav button span{font-size:27px;line-height:1}.vmobileNav button.active{color:var(--p);background:color-mix(in srgb,var(--p) 7%,var(--card))}
         .vmobileNav button.active span{transform:translateY(-1px)}
       }
-      @media(max-width:360px){.vmobileNav button{font-size:8px}.vmobileNav button span{font-size:18px}.vmobileHubGrid{gap:8px}.vmobileHubCard{padding:12px}}
+      @media(max-width:360px){.vmobileNav button{font-size:9px}.vmobileNav button span{font-size:24px}.vmobileHubGrid{gap:8px}.vmobileHubCard{padding:12px}}
     `;
     document.head.appendChild(style);
 
