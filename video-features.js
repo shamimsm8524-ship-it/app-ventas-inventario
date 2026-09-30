@@ -158,15 +158,6 @@
             <label>Ancho del rollo<select id="vsetThermal"><option value="58" ${cfg.thermalWidth==='58'?'selected':''}>58 mm</option><option value="80" ${cfg.thermalWidth==='80'?'selected':''}>80 mm</option></select></label>
           </div><button class="vsettingsAction" data-vsetting-action="printer">🖨️ Conectar impresora Bluetooth</button><button class="vsettingsAction" data-vsetting-action="test-ticket">Imprimir ticket de prueba</button></div>
 
-          <div class="vsettingsSection"><h3>Administración</h3><p>Las funciones están agrupadas para no repetir opciones.</p><div class="vsettingsLinks">
-            <button class="vsettingsLink" data-open-existing="sellers"><span>♙</span><b>Vendedores</b><small>Cuentas y permisos</small></button>
-            <button class="vsettingsLink" data-open-existing="categories"><span>◇</span><b>Categorías</b><small>Organizar catálogo</small></button>
-            <button class="vsettingsLink" data-open-existing="purchases"><span>▣</span><b>Compras</b><small>Ingreso de mercadería</small></button>
-            <button class="vsettingsLink" data-open-existing="suppliers"><span>▱</span><b>Proveedores</b><small>Directorio</small></button>
-            <button class="vsettingsLink" data-open-existing="appearance"><span>⚙</span><b>Apariencia</b><small>Colores y tema</small></button>
-            <button class="vsettingsLink" data-open-existing="help"><span>?</span><b>Ayuda</b><small>Guía rápida</small></button>
-          </div></div>
-
           <div class="vsettingsSection"><h3>Respaldo</h3><p>Descarga una copia de los datos de este dispositivo o restaura una copia.</p><button class="vsettingsAction primary" data-vsetting-action="download">⬇ Descargar respaldo</button><button class="vsettingsAction" data-vsetting-action="upload">⬆ Subir respaldo</button><input type="file" id="vbackupFile" accept="application/json" hidden></div>
 
           <div class="vsettingsSection"><h3>Avanzado</h3><p>Opciones adicionales del catálogo.</p><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px"><input type="checkbox" id="vsetAutoBarcode" ${cfg.autoBarcode?'checked':''} style="width:18px">Generar código de barras automáticamente</label><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px;margin-top:10px"><input type="checkbox" id="vsetVariants" ${cfg.enableVariants?'checked':''} style="width:18px">Activar campo de tallas / colores / variantes</label></div>
