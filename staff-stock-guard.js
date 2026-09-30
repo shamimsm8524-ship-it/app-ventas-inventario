@@ -14,7 +14,6 @@
   style.textContent=`
     body.varelia-staff-readonly #newProduct,
     body.varelia-staff-readonly #inventoryNewProduct,
-    body.varelia-staff-readonly #applyInventory,
     body.varelia-staff-readonly #addCategory,
     body.varelia-staff-readonly #newSupplier,
     body.varelia-staff-readonly #newPurchase,
@@ -34,7 +33,12 @@
     body.varelia-staff-readonly [data-admin-open="purchases"]{display:none!important}
     body.varelia-staff-readonly #reorderList input[data-reorder]{pointer-events:none!important;opacity:.65!important}
     body.varelia-staff-readonly #inventoryMode,
-    body.varelia-staff-readonly #inventoryQty{pointer-events:none!important;opacity:.65!important}
+    body.varelia-staff-readonly #inventoryQty,
+    body.varelia-staff-readonly #applyInventory{pointer-events:auto!important;opacity:1!important}
+    body.varelia-staff-readonly .vposQtyInput,
+    body.varelia-staff-readonly .vforceQtyInput,
+    body.varelia-staff-readonly .vposQtyBtn,
+    body.varelia-staff-readonly .vforceQtyBtn{pointer-events:auto!important;opacity:1!important}
     body.varelia-staff-readonly #mobileSettingsHub input,
     body.varelia-staff-readonly #mobileSettingsHub textarea,
     body.varelia-staff-readonly #mobileSettingsHub select,
@@ -56,9 +60,32 @@
       const note=document.createElement('div');note.className='vstaffReadOnlyNote';
       note.textContent=id==='mobileSettingsHub'
         ? 'Solo el administrador puede editar los datos del negocio, logo, RUC, teléfono, dirección, horario, redes, pagos y métodos de entrega.'
-        : 'Modo personal: puedes consultar los productos y el stock, pero no modificar datos ni cantidades manualmente. El stock solo cambia por ventas o devoluciones.';
+        : 'Modo personal: puedes vender, elegir cantidades, reponer mercadería y registrar devoluciones. No puedes editar productos ni cambiar el stock por otros medios.';
       const head=sec.querySelector('.head,.vmobileHubHead');
       if(head)head.insertAdjacentElement('afterend',note);else sec.prepend(note);
+    }
+  }
+
+  function configureInventoryControls(staff){
+    const mode=$('inventoryMode'),qty=$('inventoryQty'),btn=$('applyInventory');
+    if(mode){
+      if(!mode.dataset.ownerOptions)mode.dataset.ownerOptions=mode.innerHTML;
+      if(staff){
+        if(mode.dataset.staffOptions!=='1'){
+          mode.innerHTML='<option value="restock">📦 Reponer mercadería</option><option value="return">↩️ Devolución de cliente</option>';
+          mode.dataset.staffOptions='1';
+        }
+        mode.disabled=false;
+      }else if(mode.dataset.ownerOptions&&mode.dataset.staffOptions==='1'){
+        mode.innerHTML=mode.dataset.ownerOptions;
+        delete mode.dataset.staffOptions;
+        mode.disabled=false;
+      }
+    }
+    if(qty)qty.disabled=false;
+    if(btn){
+      btn.disabled=false;
+      if(staff)btn.textContent='Registrar y actualizar stock';
     }
   }
 
@@ -66,11 +93,12 @@
     const staff=isStaff();
     document.body.classList.toggle('varelia-staff-readonly',staff);
     ensureReadOnlyNote();
+    configureInventoryControls(staff);
     if(!staff)return;
 
-    ['inventoryMode','inventoryQty'].forEach(id=>{const el=$(id);if(el)el.disabled=true});
     document.querySelectorAll('#reorderList input[data-reorder]').forEach(el=>el.disabled=true);
     document.querySelectorAll('#mobileSettingsHub input,#mobileSettingsHub textarea,#mobileSettingsHub select,#mobileSettingsHub button').forEach(el=>el.disabled=true);
+    document.querySelectorAll('.vposQtyInput,.vforceQtyInput,.vposQtyBtn,.vforceQtyBtn').forEach(el=>el.disabled=false);
 
     const active=document.querySelector('.view.active')?.id;
     if(['categories','suppliers','purchases','appearance','mobileAdminHub'].includes(active)){
@@ -81,7 +109,7 @@
   }
 
   const forbiddenClickSelector=[
-    '#newProduct','#inventoryNewProduct','#applyInventory','#addCategory','#newSupplier','#newPurchase','#addPurchaseItem','#savePurchase',
+    '#newProduct','#inventoryNewProduct','#addCategory','#newSupplier','#newPurchase','#addPurchaseItem','#savePurchase',
     '[data-edit]','[data-delete]','[data-deleteinv]','[data-alertcfg]','[data-delcat]','[data-editsupplier]','[data-delsupplier]',
     '.nav [data-view="categories"]','.nav [data-view="suppliers"]','.nav [data-view="purchases"]',
     '[data-admin-open="categories"]','[data-admin-open="suppliers"]','[data-admin-open="purchases"]',
@@ -106,11 +134,40 @@
 
   document.addEventListener('change',e=>{
     if(!isStaff())return;
-    if(e.target?.matches?.('#reorderList input[data-reorder],#inventoryMode,#inventoryQty')||e.target?.closest?.('#mobileSettingsHub')){
+    if(e.target?.matches?.('#reorderList input[data-reorder]')||e.target?.closest?.('#mobileSettingsHub')){
       e.preventDefault();e.stopImmediatePropagation();
       toast('El stock no se puede cambiar manualmente desde una cuenta de personal.','warn');
     }
   },true);
+
+  async function handleStaffInventory(e){
+    if(!isStaff())return;
+    const b=e.target.closest?.('#applyInventory');
+    if(!b)return;
+    e.preventDefault();e.stopImmediatePropagation();e.stopPropagation();
+
+    const p=getProducts().find(x=>String(x.id)===String(typeof inventoryProductId!=='undefined'?inventoryProductId:''));
+    const qty=Math.floor(Number($('inventoryQty')?.value)||0);
+    const event=$('inventoryMode')?.value==='return'?'return':'restock';
+    if(!p)return toast('Selecciona primero un producto.','warn');
+    if(qty<1)return toast('Indica una cantidad mayor a 0.','warn');
+    if(typeof window.vareliaCentralStockIn!=='function')return toast('Actualiza la página para activar la reposición de stock.','warn');
+
+    b.disabled=true;
+    try{
+      const data=await window.vareliaCentralStockIn({product:p,event,qty});
+      if($('inventoryQty'))$('inventoryQty').value='1';
+      try{if(typeof renderInvSelected==='function')renderInvSelected()}catch{}
+      toast(event==='return'
+        ? 'Devolución registrada. Se repusieron '+qty+' unidad(es) al stock.'
+        : 'Mercadería repuesta. Se agregaron '+qty+' unidad(es) al stock.','ok');
+    }catch(err){
+      console.error(err);
+      toast(err?.message||'No se pudo actualizar el stock.','warn');
+    }finally{b.disabled=false}
+  }
+
+  document.addEventListener('click',handleStaffInventory,true);
 
   function getSales(){try{return Array.isArray(sales)?sales:[]}catch{return[]}}
   function getProducts(){try{return Array.isArray(products)?products:[]}catch{return[]}}
