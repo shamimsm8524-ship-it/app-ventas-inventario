@@ -115,6 +115,12 @@
         if(!item)return;
         setProductQty(id,(Number(item.qty)||1)+(plus?1:-1));
       });
+      itemsEl.addEventListener('input',e=>{
+        const input=e.target.closest('[data-pos-qty]');if(!input)return;
+        const raw=String(input.value||'').trim();
+        if(raw===''||!/^\\d+$/.test(raw))return;
+        setProductQty(input.dataset.posQty,raw);
+      });
       itemsEl.addEventListener('change',e=>{
         const input=e.target.closest('[data-pos-qty]');if(!input)return;
         setProductQty(input.dataset.posQty,input.value);
