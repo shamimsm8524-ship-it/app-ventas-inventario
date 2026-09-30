@@ -268,7 +268,8 @@
         if(!rows.length||total<=0)return;
         try{window.VareliaSaleExtrasUpdate?.()}catch{}
         const extras=window.VareliaSaleExtras||{};
-        if(paymentMethod.value==='Fiado'&&!String(extras.customerName||'').trim()){
+        const activePaymentMethod=document.getElementById('vposPaymentMethod')?.value||paymentMethod.value||'Efectivo';
+        if(activePaymentMethod==='Fiado'&&!String(extras.customerName||'').trim()){
           e.preventDefault();e.stopImmediatePropagation();alert('Escribe el nombre del cliente para registrar el fiado.');return;
         }
         let before=0;try{before=Array.isArray(sales)?sales.length:0}catch{}
@@ -277,7 +278,7 @@
           printWindow=window.open('','_blank','width=420,height=720');
           if(printWindow)printWindow.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Preparando ticket</title></head><body style="font-family:system-ui;padding:20px">Preparando ticket...</body></html>');
         }catch{}
-        pending={before,paymentMethod:paymentMethod.value,total,extras:{...extras},printWindow};
+        pending={before,paymentMethod:activePaymentMethod,total,extras:{...extras},printWindow};
         setTimeout(()=>{
           if(!pending)return;
           try{
