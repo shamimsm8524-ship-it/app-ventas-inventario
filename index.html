@@ -885,7 +885,21 @@ if ('serviceWorker' in navigator) {
  const clean=()=>{
    document.getElementById('vstaffQuickQtyWrap')?.remove();
    const s=document.querySelector('#vareliaPosSales .vposSearch');
-   if(s)s.style.gridTemplateColumns='';
+   if(s){
+     s.style.setProperty('grid-template-columns','1fr','important');
+     [...s.children].forEach(el=>{
+       const txt=(el.textContent||'').trim().toLowerCase();
+       if(el.id==='vstaffQuickQtyWrap'||(txt==='cantidad'&&el.querySelector('input[type="number"]')))el.remove();
+     });
+   }
+   // Keep only the header New sale button; remove any duplicate inside the POS body.
+   document.querySelectorAll('#vareliaPosSales .vposNew,#vareliaPosSales #vposNew').forEach(el=>el.remove());
+   const hero=document.querySelector('#vareliaPosSales .vposHero');
+   if(hero){
+     [...hero.querySelectorAll('button')].forEach(b=>{
+       if((b.textContent||'').toLowerCase().includes('nueva venta'))b.remove();
+     });
+   }
  };
  clean();
  new MutationObserver(clean).observe(document.documentElement,{childList:true,subtree:true});
