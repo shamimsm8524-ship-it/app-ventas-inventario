@@ -13,67 +13,17 @@
     document.querySelectorAll('[data-view="profits"]').forEach(el=>el.remove());
     document.getElementById('profits')?.remove();
 
-    const oldCashBtn=nav.querySelector('[data-view="cash"]');
-    let cashBtn=oldCashBtn,weeklyBtn=nav.querySelector('[data-view="weeklyReport"]');
-    const placeReportItems=()=>{
-      const reportsGroup=nav.querySelector('#reportsMenuGroup');
-      const reportsSub=reportsGroup?.querySelector('.premiumReportsSubmenu,.submenu');
-      const gainBtn=reportsSub?.querySelector('.premiumGainItem');
-      if(!reportsSub||!gainBtn){setTimeout(placeReportItems,250);return}
-
-      const oldGroup=document.getElementById('cashSubGroup');
-      if(oldGroup){
-        const existingCash=oldGroup.querySelector('[data-view="cash"]');
-        if(existingCash)cashBtn=existingCash;
-        oldGroup.remove();
-      }
-
-      if(!cashBtn){
-        cashBtn=document.createElement('button');
-        cashBtn.type='button';
-        cashBtn.dataset.view='cash';
-      }
-      cashBtn.classList.add('reportCashItem');
-      cashBtn.innerHTML='<span class="premiumNavIcon">▣</span><span>Cierre de caja</span>';
-
-      if(!weeklyBtn){
-        weeklyBtn=document.createElement('button');
-        weeklyBtn.type='button';
-        weeklyBtn.dataset.view='weeklyReport';
-        weeklyBtn.className='weeklyReportNavItem';
-      }
-      weeklyBtn.innerHTML='<span class="premiumNavIcon">📧</span><span>Respaldo semanal</span>';
-
-      gainBtn.insertAdjacentElement('afterend',weeklyBtn);
-      weeklyBtn.insertAdjacentElement('afterend',cashBtn);
-
-      cashBtn.onclick=e=>{e.preventDefault();e.stopPropagation();openView('cash',cashBtn)};
-      weeklyBtn.onclick=e=>{e.preventDefault();e.stopPropagation();openView('weeklyReport',weeklyBtn)};
-    };
-
-    function openView(id,btn){
-      document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));
-      document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b===btn));
-      document.getElementById('reportsMenuGroup')?.classList.add('open');
-      if(innerWidth<=980){
-        document.getElementById('sidebar')?.classList.remove('open','show');
-        document.getElementById('overlay')?.classList.remove('show');
-      }
-      try{history.replaceState(null,'',location.pathname+location.search+(id==='weeklyReport'?'#respaldo-semanal':id==='cash'?'#caja':''))}catch{}
-      scrollTo({top:0,behavior:'smooth'});
-    }
-
-    placeReportItems();
-    if(location.hash==='#respaldo-semanal')setTimeout(()=>openView('weeklyReport',weeklyBtn),1800);
-    if(location.hash==='#caja')setTimeout(()=>openView('cash',cashBtn),1800);
-
+    // Las acciones de respaldo/cierre se muestran dentro de Reportes; no se duplican en el menú lateral.
     function money(n){return 'S/ '+Number(n||0).toFixed(2)}
     const emailEl=document.getElementById('weeklyEmail');
     async function getEmail(){let e=document.getElementById('vareliaUserEmail')?.textContent?.trim()||'';if(!e&&window.vareliaSupabase){try{const {data}=await window.vareliaSupabase.auth.getSession();e=data?.session?.user?.email||''}catch{}}emailEl.textContent=e||'No disponible';return e}
     function report(){const now=new Date(),total=sales.reduce((a,s)=>a+(Number(s.total)||0),0),units=sales.reduce((a,s)=>a+(s.items||[]).reduce((b,i)=>b+(Number(i.qty)||0),0),0);const lines=[`REPORTE SEMANAL VARELIA`,`Generado: ${now.toLocaleString('es-PE')}`,``,`RESUMEN`,`Ventas registradas: ${sales.length}`,`Unidades vendidas: ${units}`,`Total vendido: ${money(total)}`,`Cierres de caja: ${closures.length}`,``,`VENTAS`];if(!sales.length)lines.push('Sin ventas registradas.');sales.forEach((s,idx)=>{lines.push(`Venta ${idx+1} - ${new Date(s.date).toLocaleString('es-PE')} - ${money(s.total)}`);(s.items||[]).forEach(i=>lines.push(`  • ${i.name} x${i.qty} @ ${money(i.price)} = ${money((Number(i.qty)||0)*(Number(i.price)||0))}`))});lines.push('', 'CIERRES DE CAJA');if(!closures.length)lines.push('Sin cierres registrados.');closures.forEach((c,idx)=>lines.push(`Cierre ${idx+1} - ${new Date(c.closedAt).toLocaleString('es-PE')} - ${money(c.closureTotal??c.total)}`));return lines.join('\n')}
     async function openMail(subject){const email=await getEmail();if(!email)return alert('No se pudo detectar el correo afiliado. Cierra sesión y vuelve a ingresar.');const body=report();try{localStorage.setItem('varelia_last_weekly_backup',JSON.stringify({createdAt:new Date().toISOString(),email,body,sales:JSON.parse(JSON.stringify(sales)),closures:JSON.parse(JSON.stringify(closures))}))}catch{};location.href=`mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;return true}
-    document.getElementById('weeklySend').onclick=()=>openMail('Varelia - Historial de ventas y caja');
-    document.getElementById('weeklyReset').onclick=async()=>{if(!sales.length&&!closures.length)return alert('No hay ventas ni cierres para enviar esta semana.');const ok=confirm('Primero se abrirá Gmail con todo el historial. Varelia NO borrará nada todavía. ¿Continuar?');if(!ok)return;const opened=await openMail('Varelia - Cierre semanal de ventas y caja');if(!opened)return;sessionStorage.setItem('varelia_weekly_reset_pending','1')};
+    const sendBackup=()=>openMail('Varelia - Historial de ventas y caja');
+    const closeWeek=async()=>{if(!sales.length&&!closures.length)return alert('No hay ventas ni cierres para enviar esta semana.');const ok=confirm('Primero se abrirá Gmail con todo el historial. Varelia NO borrará nada todavía. ¿Continuar?');if(!ok)return;const opened=await openMail('Varelia - Cierre semanal de ventas y caja');if(!opened)return;sessionStorage.setItem('varelia_weekly_reset_pending','1')};
+    document.getElementById('weeklySend').onclick=sendBackup;
+    document.getElementById('weeklyReset').onclick=closeWeek;
+    window.VareliaWeeklyReport={send:sendBackup,close:closeWeek,getEmail,report};
     window.addEventListener('focus',()=>{setTimeout(()=>{if(sessionStorage.getItem('varelia_weekly_reset_pending')!=='1')return;const sent=confirm('¿Ya enviaste el correo con el historial semanal?\n\nAceptar = borrar Ventas y Caja y empezar la nueva semana en S/ 0.00.\nCancelar = conservar todo.');if(!sent){sessionStorage.removeItem('varelia_weekly_reset_pending');return}sales.splice(0,sales.length);closures.splice(0,closures.length);cashStart=new Date().toISOString();try{localStorage.setItem(K.sales,'[]');localStorage.setItem(K.closures,'[]');localStorage.setItem(K.cashStart,JSON.stringify(cashStart));localStorage.setItem('varelia_last_weekly_reset',new Date().toISOString())}catch{}sessionStorage.removeItem('varelia_weekly_reset_pending');try{if(typeof save==='function')save();else if(typeof render==='function')render()}catch{}window.vareliaSound?.('sale');window.vareliaToast?.('Semana cerrada. Ventas y Caja están en 0.');},500)});
     getEmail();
   });
