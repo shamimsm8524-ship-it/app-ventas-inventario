@@ -24,3 +24,15 @@
     margin-top:8px!important;
   }
 }
+
+/* Precio completo del catálogo: símbolo y número con el mismo color */
+#productGrid .price,
+#productGrid .price *{
+  color:var(--p)!important;
+}
+@media(max-width:650px){
+  #productGrid.view-list .price,
+  #productGrid.view-list .price *{
+    font-size:26px!important;
+  }
+}
