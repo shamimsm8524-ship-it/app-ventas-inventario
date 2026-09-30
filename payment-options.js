@@ -111,9 +111,9 @@
     const bottom=pos?.querySelector('.vposBottom');
     if(!pos||!box||!bottom)return false;
 
+    document.querySelectorAll('.vposPaymentBar').forEach(x=>x.remove());
     let existing=document.getElementById('vareliaPaymentPanel');
     if(!existing){
-      document.querySelectorAll('.vposPaymentBar').forEach(x=>x.remove());
       existing=document.createElement('div');
       existing.id='vareliaPaymentPanel';
       existing.innerHTML='<div class="vpayHead"><b>💳 Método de pago</b><span style="font-size:11px;color:var(--muted)">El personal puede elegir cómo pagó el cliente</span></div><select id="vposPaymentMethod"></select><div id="vareliaPaymentDetail"></div>';
