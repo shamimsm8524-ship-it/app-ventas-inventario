@@ -181,7 +181,14 @@
     async function invoke(body){
       const sb=window.vareliaSupabase;
       const {data,error}=await sb.functions.invoke('varelia-sellers',{body});
-      if(error)throw new Error(error.message||'No se pudo completar la operación');
+      if(error){
+        let message=error.message||'No se pudo completar la operación';
+        try{
+          const detail=await error.context?.json?.();
+          if(detail?.error)message=detail.error;
+        }catch{}
+        throw new Error(message);
+      }
       if(data?.error)throw new Error(data.error);
       return data;
     }
