@@ -16,9 +16,10 @@
     const oldCashBtn=nav.querySelector('[data-view="cash"]');
     let cashBtn=oldCashBtn,weeklyBtn=nav.querySelector('[data-view="weeklyReport"]');
     const placeReportItems=()=>{
-      const appearanceBtn=nav.querySelector('[data-view="appearance"]');
-      const gainBtn=nav.querySelector('.premiumGainItem');
-      if(!appearanceBtn){setTimeout(placeReportItems,250);return}
+      const reportsGroup=nav.querySelector('#reportsMenuGroup');
+      const reportsSub=reportsGroup?.querySelector('.premiumReportsSubmenu,.submenu');
+      const gainBtn=reportsSub?.querySelector('.premiumGainItem');
+      if(!reportsSub||!gainBtn){setTimeout(placeReportItems,250);return}
 
       const oldGroup=document.getElementById('cashSubGroup');
       if(oldGroup){
@@ -43,13 +44,8 @@
       }
       weeklyBtn.innerHTML='<span class="premiumNavIcon">📧</span><span>Respaldo semanal</span>';
 
-      if(gainBtn){
-        gainBtn.insertAdjacentElement('afterend',weeklyBtn);
-        weeklyBtn.insertAdjacentElement('afterend',cashBtn);
-      }else{
-        nav.insertBefore(weeklyBtn,appearanceBtn);
-        nav.insertBefore(cashBtn,appearanceBtn);
-      }
+      gainBtn.insertAdjacentElement('afterend',weeklyBtn);
+      weeklyBtn.insertAdjacentElement('afterend',cashBtn);
 
       cashBtn.onclick=e=>{e.preventDefault();e.stopPropagation();openView('cash',cashBtn)};
       weeklyBtn.onclick=e=>{e.preventDefault();e.stopPropagation();openView('weeklyReport',weeklyBtn)};
@@ -58,6 +54,7 @@
     function openView(id,btn){
       document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));
       document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b===btn));
+      document.getElementById('reportsMenuGroup')?.classList.add('open');
       if(innerWidth<=980){
         document.getElementById('sidebar')?.classList.remove('open','show');
         document.getElementById('overlay')?.classList.remove('show');
@@ -67,8 +64,8 @@
     }
 
     placeReportItems();
-    if(location.hash==='#respaldo-semanal')setTimeout(()=>openView('weeklyReport',weeklyBtn),500);
-    if(location.hash==='#caja')setTimeout(()=>openView('cash',cashBtn),500);
+    if(location.hash==='#respaldo-semanal')setTimeout(()=>openView('weeklyReport',weeklyBtn),1800);
+    if(location.hash==='#caja')setTimeout(()=>openView('cash',cashBtn),1800);
 
     function money(n){return 'S/ '+Number(n||0).toFixed(2)}
     const emailEl=document.getElementById('weeklyEmail');
