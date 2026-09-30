@@ -11,9 +11,7 @@
   const style=document.createElement('style');
   style.id='vareliaStaffOperationsCss';
   style.textContent=`
-    #vstaffQuickQtyWrap{display:grid;gap:3px;min-width:92px}
-    #vstaffQuickQtyWrap span{font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase}
-    #vstaffQuickQty{width:92px!important;min-width:92px!important;text-align:center!important;font-size:18px!important;font-weight:950!important;padding:10px!important}
+    #vstaffQuickQtyWrap{display:none!important}
     #vstaffOpsCard{margin:0 0 16px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--card)}
     #vstaffOpsCard h3{margin:0 0 5px;font-size:15px}#vstaffOpsCard p{margin:0 0 12px;color:var(--muted);font-size:12px}
     .vstaffOpsButtons{display:grid;grid-template-columns:1fr 1fr;gap:9px}
@@ -29,53 +27,21 @@
     .vstaffStockSave{border:0;border-radius:13px;padding:13px;background:var(--p);color:#fff;font-weight:900}
     #vstaffPosReturn{margin-left:8px}
     @media(max-width:650px){
-      #vareliaPosSales .vposSearch{grid-template-columns:minmax(0,1fr) 88px!important}
-      #vareliaPosSales .vposSearch #vposScan{grid-column:1/-1}
-      #vstaffQuickQtyWrap{min-width:88px}#vstaffQuickQty{width:88px!important;min-width:88px!important}
+      #vareliaPosSales .vposSearch{grid-template-columns:1fr!important}
+      #vareliaPosSales .vposSearch #vposScan{grid-column:auto}
       .vstaffOpsButtons{grid-template-columns:1fr}
       #vstaffPosReturn{margin-left:0;margin-top:8px;width:100%}
     }
   `;
   document.head.appendChild(style);
 
-  function ensureQuickQty(){
+  function removeQuickQty(){
+    const wrap=document.getElementById('vstaffQuickQtyWrap');
+    if(wrap)wrap.remove();
     const search=document.querySelector('#vareliaPosSales .vposSearch');
-    const input=document.getElementById('vposInput');
-    const scan=document.getElementById('vposScan');
-    if(!search||!input||!scan)return false;
-    if(!document.getElementById('vstaffQuickQtyWrap')){
-      const wrap=document.createElement('label');
-      wrap.id='vstaffQuickQtyWrap';
-      wrap.innerHTML='<span>Cantidad</span><input id="vstaffQuickQty" type="number" inputmode="numeric" min="1" step="1" value="1">';
-      search.insertBefore(wrap,scan);
-    }
-    search.style.gridTemplateColumns='minmax(0,1fr) 92px auto';
+    if(search)search.style.gridTemplateColumns='';
     return true;
   }
-
-  function quickQty(){
-    const el=document.getElementById('vstaffQuickQty');
-    return Math.max(1,Math.floor(Number(el?.value)||1));
-  }
-
-  function resetQuickQty(){
-    const el=document.getElementById('vstaffQuickQty');if(el)el.value='1';
-  }
-
-  document.addEventListener('click',e=>{
-    const suggestion=e.target.closest?.('#vposSuggestions [data-pos-id]');
-    if(!suggestion)return;
-    const qty=quickQty();
-    if(qty<=1)return;
-    const p=getProducts().find(x=>String(x.id)===String(suggestion.dataset.posId));
-    if(!p)return;
-    e.preventDefault();e.stopImmediatePropagation();e.stopPropagation();
-    if(window.VareliaPOS?.addProduct?.(p,qty)){
-      resetQuickQty();
-      const s=document.getElementById('vposSuggestions');if(s){s.innerHTML='';s.classList.remove('show')}
-      const input=document.getElementById('vposInput');if(input){input.value='';input.focus()}
-    }
-  },true);
 
   function setCartQtyById(id,value){
     try{
@@ -107,28 +73,43 @@
     setCartQtyById(id,current+(plus?1:-1));
   },true);
 
-  function changeVisibleCartQty(inp){
+  function resolveVisibleCartId(inp){
     let id=inp?.dataset?.posQty||'';
     if(!id&&inp?.dataset?.forceQty!=null){try{id=String(cart?.[Number(inp.dataset.forceQty)]?.id||'')}catch{}}
+    return id;
+  }
+
+  function commitVisibleCartQty(inp){
+    const id=resolveVisibleCartId(inp);
     if(!id)return;
-    setCartQtyById(id,inp.value);
+    const raw=String(inp.value??'').trim();
+    if(raw===''){inp.value='1';setCartQtyById(id,1);return}
+    setCartQtyById(id,raw);
   }
 
   document.addEventListener('input',e=>{
     const inp=e.target.closest?.('[data-pos-qty],[data-force-qty]');
-    if(inp)changeVisibleCartQty(inp);
+    if(!inp)return;
+    // Do not re-render while the user is deleting/typing the number.
+    const raw=String(inp.value??'').trim();
+    if(raw==='')return;
   },true);
 
   document.addEventListener('change',e=>{
     const inp=e.target.closest?.('[data-pos-qty],[data-force-qty]');
-    if(inp)changeVisibleCartQty(inp);
+    if(inp)commitVisibleCartQty(inp);
+  },true);
+
+  document.addEventListener('focusout',e=>{
+    const inp=e.target.closest?.('[data-pos-qty],[data-force-qty]');
+    if(inp)commitVisibleCartQty(inp);
   },true);
 
   document.addEventListener('keydown',e=>{
     const inp=e.target.closest?.('[data-pos-qty],[data-force-qty]');
     if(!inp||e.key!=='Enter')return;
     e.preventDefault();
-    changeVisibleCartQty(inp);
+    commitVisibleCartQty(inp);
     inp.blur();
   },true);
 
@@ -218,7 +199,7 @@
   });
 
   function tick(){
-    ensureQuickQty();
+    removeQuickQty();
     ensureOps();
   }
 
