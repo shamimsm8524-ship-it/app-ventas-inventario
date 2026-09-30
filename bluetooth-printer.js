@@ -20,7 +20,7 @@
   if(!document.getElementById('vareliaWeeklyReportLoader')){
     const w=document.createElement('script');
     w.id='vareliaWeeklyReportLoader';
-    w.src='weekly-report.js?v=20260819-1';
+    w.src='weekly-report.js?v=20260929-2';
     document.body.appendChild(w);
   }
   if(!document.getElementById('vareliaLogoutUILoader')){
