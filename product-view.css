@@ -5,3 +5,22 @@
 /* Precio del catálogo: números claros y fáciles de leer en móvil */
 #productGrid .price{font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif!important;font-weight:950!important;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:"tnum" 1,"lnum" 1;letter-spacing:.015em!important;line-height:1!important;color:var(--ink)!important}
 @media(max-width:650px){#productGrid.view-list .price{font-size:34px!important;letter-spacing:.02em!important}}
+
+
+/* Corrección final: precio de venta legible en Catálogo */
+#productGrid .price{
+  font-family:Arial,system-ui,sans-serif!important;
+  font-variant-numeric:tabular-nums!important;
+  font-size:34px!important;
+  font-weight:900!important;
+  letter-spacing:0!important;
+  line-height:1!important;
+  color:#111827!important;
+  white-space:nowrap!important;
+}
+@media(max-width:650px){
+  #productGrid.view-list .price{
+    font-size:38px!important;
+    margin-top:10px!important;
+  }
+}
