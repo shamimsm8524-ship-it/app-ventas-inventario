@@ -5,7 +5,7 @@
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn();
   ready(()=>{
     const STORE='varelia_video_settings_v1';
-    const DEFAULTS={businessName:'',ruc:'',phone:'',address:'',ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',thermalWidth:'80',autoBarcode:true,enableVariants:false};
+    const DEFAULTS={businessName:'',logo:'',ruc:'',phone:'',address:'',ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',thermalWidth:'80',autoBarcode:true,enableVariants:false};
     const loadSettings=()=>{try{return {...DEFAULTS,...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{return {...DEFAULTS}}};
     let cfg=loadSettings();
     const saveCfg=()=>{try{localStorage.setItem(STORE,JSON.stringify(cfg))}catch{}};
@@ -140,7 +140,7 @@
         cfg=loadSettings();
         sec.innerHTML=`
           <div class="vrefHead"><div><h2>Ajustes</h2><p>Configura tu negocio, pagos, tickets y equipo desde un solo lugar.</p></div></div>
-          <div class="vsettingsSection"><h3>Datos del negocio</h3><p>Estos datos pueden aparecer en tus comprobantes.</p><div class="vsettingsGrid">
+          <div class="vsettingsSection"><h3>Datos del negocio</h3><p>Estos datos pueden aparecer en tus comprobantes.</p><div class="vqrRow" style="margin-bottom:12px"><img class="vqrPreview" id="vLogoPreview" src="${cfg.logo||''}"><div><label>Logo del negocio<input type="file" accept="image/*" id="vsetLogo"></label><small style="color:var(--muted)">Se usará en la vista del ticket.</small></div></div><div class="vsettingsGrid">
             <label class="full">Nombre del negocio<input id="vsetBusiness" value="${esc(cfg.businessName)}" placeholder="Varelia"></label>
             <label>RUC / Documento<input id="vsetRuc" value="${esc(cfg.ruc)}"></label>
             <label>Teléfono<input id="vsetPhone" value="${esc(cfg.phone)}"></label>
@@ -172,6 +172,7 @@
           <div class="vsettingsSection"><h3>Avanzado</h3><p>Opciones adicionales del catálogo.</p><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px"><input type="checkbox" id="vsetAutoBarcode" ${cfg.autoBarcode?'checked':''} style="width:18px">Generar código de barras automáticamente</label><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px;margin-top:10px"><input type="checkbox" id="vsetVariants" ${cfg.enableVariants?'checked':''} style="width:18px">Activar campo de tallas / colores / variantes</label></div>
           <button class="vsettingsAction primary" id="vsettingsSave">Guardar configuración</button>
         `;
+        sec.querySelector('#vsetLogo').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.logo=v;sec.querySelector('#vLogoPreview').src=v}};
         sec.querySelector('#vsetYapeQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.yapeQr=v;sec.querySelector('#vYapePreview').src=v}};
         sec.querySelector('#vsetPlinQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.plinQr=v;sec.querySelector('#vPlinPreview').src=v}};
         sec.querySelector('#vsettingsSave').onclick=()=>{
