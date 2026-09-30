@@ -14,7 +14,7 @@
   if(!document.getElementById('vareliaCashDailyLoader')){
     const c=document.createElement('script');
     c.id='vareliaCashDailyLoader';
-    c.src='cash-daily-summary.js?v=20260819-2';
+    c.src='cash-daily-summary.js?v=20260930-19';
     document.body.appendChild(c);
   }
   if(!document.getElementById('vareliaWeeklyReportLoader')){
@@ -26,7 +26,7 @@
   if(!document.getElementById('vareliaLogoutUILoader')){
     const l=document.createElement('script');
     l.id='vareliaLogoutUILoader';
-    l.src='logout-ui.js?v=20260819-2';
+    l.src='logout-ui.js?v=20260930-19';
     document.body.appendChild(l);
   }
 })();
