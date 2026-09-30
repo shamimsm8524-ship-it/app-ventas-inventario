@@ -17,7 +17,7 @@
     if(!document.getElementById('vareliaPlanAccessJs')){const s=document.createElement('script');s.id='vareliaPlanAccessJs';s.src='plan-access.js?v=20260902-5';s.onload=()=>{if(!document.getElementById('vareliaPremiumAdminJs')){const a=document.createElement('script');a.id='vareliaPremiumAdminJs';a.src='premium-admin.js?v=20260902-2';document.body.appendChild(a)}};document.body.appendChild(s)}else if(!document.getElementById('vareliaPremiumAdminJs')){const a=document.createElement('script');a.id='vareliaPremiumAdminJs';a.src='premium-admin.js?v=20260902-2';document.body.appendChild(a)}
     setTimeout(()=>{
       if(!document.getElementById('vareliaApprovedDashboardCss')){const l=document.createElement('link');l.id='vareliaApprovedDashboardCss';l.rel='stylesheet';l.href='dashboard-premium.css?v=20260902-6';document.head.appendChild(l)}
-      if(!document.getElementById('vareliaApprovedDashboardJs')){const s=document.createElement('script');s.id='vareliaApprovedDashboardJs';s.src='dashboard-premium.js?v=20260902-6';document.body.appendChild(s)}
+      if(!document.getElementById('vareliaApprovedDashboardJs')){const s=document.createElement('script');s.id='vareliaApprovedDashboardJs';s.src='dashboard-premium.js?v=20260929-10';document.body.appendChild(s)}
       setTimeout(()=>{if(!document.getElementById('vareliaReportsProfitJs')){const r=document.createElement('script');r.id='vareliaReportsProfitJs';r.src='reports-profit.js?v=20260929-7';document.body.appendChild(r)}},500);
     },1500);
   })
