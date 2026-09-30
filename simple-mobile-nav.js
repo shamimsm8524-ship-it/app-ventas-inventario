@@ -27,12 +27,12 @@
         body.varelia-simple-mobile #menuBtn{display:none!important}
         body.varelia-simple-mobile #newSaleFab{display:none!important}
         body.varelia-simple-mobile .content{padding-bottom:92px!important}
-        .vmobileNav{position:fixed;left:0;right:0;bottom:0;z-index:9990;height:76px;padding:6px max(7px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);background:color-mix(in srgb,var(--card) 97%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--line);box-shadow:0 -8px 28px rgba(15,23,42,.1)}
-        .vmobileNav button{border:0;background:transparent;color:var(--muted);border-radius:13px;display:grid;place-items:center;align-content:center;gap:3px;padding:5px 2px;font-size:10px;font-weight:850;min-width:0;pointer-events:auto!important;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
-        .vmobileNav button span{font-size:27px;line-height:1}.vmobileNav button.active{color:var(--p);background:color-mix(in srgb,var(--p) 7%,var(--card))}
+        .vmobileNav{position:fixed;left:0;right:0;bottom:0;z-index:9990;height:76px;padding:6px max(7px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(6,1fr);background:color-mix(in srgb,var(--card) 97%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--line);box-shadow:0 -8px 28px rgba(15,23,42,.1)}
+        .vmobileNav button{border:0;background:transparent;color:var(--muted);border-radius:13px;display:grid;place-items:center;align-content:center;gap:3px;padding:5px 1px;font-size:9px;font-weight:850;min-width:0;pointer-events:auto!important;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
+        .vmobileNav button span{font-size:25px;line-height:1}.vmobileNav button.active{color:var(--p);background:color-mix(in srgb,var(--p) 7%,var(--card))}
         .vmobileNav button.active span{transform:translateY(-1px)}
       }
-      @media(max-width:360px){.vmobileNav button{font-size:9px}.vmobileNav button span{font-size:24px}.vmobileHubGrid{gap:8px}.vmobileHubCard{padding:12px}}
+      @media(max-width:360px){.vmobileNav button{font-size:8px}.vmobileNav button span{font-size:22px}.vmobileHubGrid{gap:8px}.vmobileHubCard{padding:12px}}
     `;
     document.head.appendChild(style);
 
@@ -50,19 +50,27 @@
       </div>`;
     main.appendChild(history);
 
-    const settings=document.createElement('section');
-    settings.id='mobileSettingsHub';
-    settings.className='view vmobileHub';
-    settings.innerHTML=`
-      <div class="vmobileHubHead"><h2>Ajustes</h2><p>Las herramientas de administración están agrupadas aquí, como en el ejemplo que mostraste.</p></div>
+    const admin=document.createElement('section');
+    admin.id='mobileAdminHub';
+    admin.className='view vmobileHub';
+    admin.innerHTML=`
+      <div class="vmobileHubHead"><h2>Administración</h2><p>Gestiona el equipo, catálogo y operación del negocio.</p></div>
       <div class="vmobileHubGrid">
         <button class="vmobileHubCard" type="button" data-mobile-action="sellers"><span class="vmobileHubIcon">♙</span><div><b>Vendedores</b><small>Cuentas y permisos del equipo.</small></div></button>
         <button class="vmobileHubCard" type="button" data-mobile-action="categories"><span class="vmobileHubIcon">◇</span><div><b>Categorías</b><small>Organiza los productos.</small></div></button>
         <button class="vmobileHubCard" type="button" data-mobile-action="purchases"><span class="vmobileHubIcon">▣</span><div><b>Compras</b><small>Ingreso de mercadería.</small></div></button>
         <button class="vmobileHubCard" type="button" data-mobile-action="suppliers"><span class="vmobileHubIcon">▱</span><div><b>Proveedores</b><small>Directorio de proveedores.</small></div></button>
-        <button class="vmobileHubCard" type="button" data-mobile-action="appearance"><span class="vmobileHubIcon">⚙</span><div><b>Apariencia</b><small>Colores y preferencias.</small></div></button>
+        <button class="vmobileHubCard" type="button" data-mobile-action="appearance"><span class="vmobileHubIcon">◉</span><div><b>Apariencia</b><small>Colores y tema.</small></div></button>
         <button class="vmobileHubCard" type="button" data-mobile-action="help"><span class="vmobileHubIcon">?</span><div><b>Ayuda</b><small>Guía rápida de Varelia.</small></div></button>
       </div>`;
+    main.appendChild(admin);
+
+    const settings=document.createElement('section');
+    settings.id='mobileSettingsHub';
+    settings.className='view vmobileHub';
+    settings.innerHTML=`
+      <div class="vmobileHubHead"><h2>Ajustes</h2><p>Configuración del negocio, pagos, tickets y respaldo.</p></div>
+      <div class="vrefPanel"><div class="empty">Cargando configuración…</div></div>`;
     main.appendChild(settings);
 
     const nav=document.createElement('nav');
@@ -74,6 +82,7 @@
       <button type="button" data-mobile-tab="products"><span>◇</span>Catálogo</button>
       <button type="button" data-mobile-tab="inventory"><span>▥</span>Inventario</button>
       <button type="button" data-mobile-tab="mobileHistoryHub"><span>◷</span>Historial</button>
+      <button type="button" data-mobile-tab="mobileAdminHub"><span>▦</span>Administración</button>
       <button type="button" data-mobile-tab="mobileSettingsHub"><span>⚙</span>Ajustes</button>`;
     document.body.appendChild(nav);
 
@@ -108,7 +117,7 @@
     function setActive(id){
       let tab=id;
       if(['reports','profit','cash'].includes(id))tab='mobileHistoryHub';
-      if(['sellers','categories','purchases','suppliers','appearance','help'].includes(id))tab='mobileSettingsHub';
+      if(['sellers','categories','purchases','suppliers','appearance','help'].includes(id))tab='mobileAdminHub';
       nav.querySelectorAll('[data-mobile-tab]').forEach(b=>b.classList.toggle('active',b.dataset.mobileTab===tab));
     }
     function openExtra(kind){
@@ -130,7 +139,7 @@
       if(id==='sales'){if(!can('sales'))return window.vareliaToast?.('No tienes permiso para Ventas.','warn');clickView('sales')}
       else if(id==='products'){if(!can('products'))return window.vareliaToast?.('No tienes permiso para Catálogo.','warn');clickView('products')}
       else if(id==='inventory'){if(!can('inventory'))return window.vareliaToast?.('No tienes permiso para Inventario.','warn');clickView('inventory')}
-      else if(id==='mobileHistoryHub'||id==='mobileSettingsHub')rawShow(id);
+      else if(id==='mobileHistoryHub'||id==='mobileAdminHub'||id==='mobileSettingsHub')rawShow(id);
       setActive(id);
     }
     nav.querySelectorAll('[data-mobile-tab]').forEach(btn=>{
