@@ -14,7 +14,7 @@
     if(!document.getElementById('vareliaPosSalesJs')){const s=document.createElement('script');s.id='vareliaPosSalesJs';s.src='pos-sales.js?v=20261001-1';document.body.appendChild(s)}
     const loadReaderFix=()=>{if(document.getElementById('vareliaReaderStatusFixJs'))return;const r=document.createElement('script');r.id='vareliaReaderStatusFixJs';r.src='reader-status-fix.js?v=20260902-3';document.body.appendChild(r)};
     if(!document.getElementById('vareliaPosReceiptJs')){const s=document.createElement('script');s.id='vareliaPosReceiptJs';s.src='pos-receipt-20260930-17.js?v=20260930-19';s.onload=loadReaderFix;document.body.appendChild(s)}else{setTimeout(loadReaderFix,0)}
-    if(!document.getElementById('vareliaSimpleMobileNavJs')){const s=document.createElement('script');s.id='vareliaSimpleMobileNavJs';s.src='simple-mobile-nav.js?v=20260929-6';document.body.appendChild(s)}
+    if(!document.getElementById('vareliaSimpleMobileNavJs')){const s=document.createElement('script');s.id='vareliaSimpleMobileNavJs';s.src='simple-mobile-nav.js?v=20261001-account-1';document.body.appendChild(s)}
     if(!document.getElementById('vareliaSellersJs')){const s=document.createElement('script');s.id='vareliaSellersJs';s.src='sellers.js?v=20260929-2';document.body.appendChild(s)}
     if(!document.getElementById('vareliaLargeScannerJs')){const s=document.createElement('script');s.id='vareliaLargeScannerJs';s.src='scanner-large.js?v=20260929-1';document.body.appendChild(s)}
     if(!document.getElementById('vareliaVideoFeaturesJs')){const s=document.createElement('script');s.id='vareliaVideoFeaturesJs';s.src='video-features.js?v=20260930-8';document.body.appendChild(s)}
