@@ -67,6 +67,16 @@
     const toast=t=>window.vareliaToast?window.vareliaToast(t):alert(t);
     const color=()=>getComputedStyle(document.documentElement).getPropertyValue('--p').trim()||'#be185d';
     const settings=()=>{try{return JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')||{}}catch{return{}}};
+    const catalogBusinessName=()=>{
+      const s=settings();
+      const candidates=[
+        s.businessName,
+        document.getElementById('vareliaBusinessName')?.textContent,
+        document.querySelector('.brand h1')?.textContent
+      ];
+      const name=candidates.map(v=>String(v||'').trim().replace(/\s+/g,' ')).find(v=>v&&v!=='Mi Negocio'&&v!=='Catálogo');
+      return String(name||'').slice(0,80);
+    };
     const normalizeSocialUrl=(value,type='other')=>{
       let v=String(value||'').trim();if(!v)return '';
       if(type==='whatsapp'){
@@ -99,7 +109,7 @@
     const imageCache=new Map();
     const specFor=p=>String(specs[String(p.id)]??p.specifications??'');
 
-    function signature(){return JSON.stringify({c:color(),s:socialLinks(),p:products.map(p=>[p.id,p.name,p.category,+p.sellPrice||0,+p.stock||0,p.unit,p.description||'',specFor(p),p.image?.length||0,p.image?.slice(-32)||''])})}
+    function signature(){return JSON.stringify({c:color(),n:catalogBusinessName(),s:socialLinks(),p:products.map(p=>[p.id,p.name,p.category,+p.sellPrice||0,+p.stock||0,p.unit,p.description||'',specFor(p),p.image?.length||0,p.image?.slice(-32)||''])})}
     function compressImage(src){
       if(!src||!String(src).startsWith('data:image/'))return Promise.resolve('');
       const key=src.length+'|'+src.slice(-48);if(imageCache.has(key))return Promise.resolve(imageCache.get(key));
@@ -119,7 +129,7 @@
         const {data:sess}=await sb.auth.getSession();if(!sess?.session?.user)throw new Error('Inicia sesión para publicar el catálogo');
         $('catalogSyncState').textContent='Actualizando productos disponibles…';
         const rows=await payload();
-        const {data,error}=await sb.rpc('varelia_sync_public_catalog_v2',{p_products:rows,p_theme_color:color(),p_social_links:socialLinks()});
+        const {data,error}=await sb.rpc('varelia_sync_public_catalog_v3',{p_products:rows,p_theme_color:color(),p_social_links:socialLinks(),p_business_name:catalogBusinessName()});
         if(error)throw error;
         publicId=String(data||'');
         const {data:publicCatalog,error:slugError}=await sb.from('public_catalogs').select('public_slug').eq('public_id',publicId).eq('enabled',true).maybeSingle();
