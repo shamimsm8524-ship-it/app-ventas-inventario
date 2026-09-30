@@ -1,0 +1,276 @@
+(()=>{
+  if(window.__vareliaVideoFeatures)return;
+  window.__vareliaVideoFeatures=true;
+
+  const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn();
+  ready(()=>{
+    const STORE='varelia_video_settings_v1';
+    const DEFAULTS={businessName:'',ruc:'',phone:'',address:'',ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',thermalWidth:'80',autoBarcode:true,enableVariants:false};
+    const loadSettings=()=>{try{return {...DEFAULTS,...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{return {...DEFAULTS}}};
+    let cfg=loadSettings();
+    const saveCfg=()=>{try{localStorage.setItem(STORE,JSON.stringify(cfg))}catch{}};
+    const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const money=n=>(cfg.currency||'S/')+' '+Number(n||0).toFixed(2);
+    const arr=name=>{try{return typeof window[name]!=='undefined'&&Array.isArray(window[name])?window[name]:(eval('typeof '+name+"!=='undefined'?"+name+':[]'))}catch{return[]}};
+    const salesList=()=>{try{return typeof sales!=='undefined'&&Array.isArray(sales)?sales:[]}catch{return[]}};
+    const productsList=()=>{try{return typeof products!=='undefined'&&Array.isArray(products)?products:[]}catch{return[]}};
+    const saveAll=()=>{try{if(typeof save==='function')save()}catch{}};
+
+    const style=document.createElement('style');
+    style.id='vareliaVideoFeaturesCss';
+    style.textContent=`
+      .vrefHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:13px}.vrefHead h2{margin:0;font-size:25px}.vrefHead p{margin:4px 0 0;color:var(--muted);font-size:11px}
+      .vrefTabs{display:flex;gap:7px;overflow:auto;padding-bottom:4px;margin-bottom:12px;scrollbar-width:none}.vrefTabs::-webkit-scrollbar{display:none}.vrefTab{border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--muted);padding:9px 13px;font-weight:900;font-size:11px;white-space:nowrap}.vrefTab.active{background:var(--p);border-color:var(--p);color:#fff}
+      .vrefStats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.vrefStat{border:1px solid var(--line);border-radius:16px;background:var(--card);padding:13px}.vrefStat small{display:block;color:var(--muted);font-size:10px}.vrefStat strong{display:block;margin-top:4px;font-size:21px}
+      .vrefPanel{margin-top:12px;border:1px solid var(--line);border-radius:18px;background:var(--card);padding:14px}.vrefPanel h3{margin:0 0 11px;font-size:14px}.vrefPayments{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.vrefPayment{padding:10px;border-radius:13px;background:var(--bg);display:flex;justify-content:space-between;gap:8px;font-size:11px}.vrefPayment b{color:var(--p)}
+      .vrefTicket{border-top:1px solid var(--line);padding:11px 0}.vrefTicket:first-of-type{border-top:0}.vrefTicketTop{display:flex;justify-content:space-between;gap:8px}.vrefTicketTop b{font-size:12px}.vrefTicketTop strong{color:var(--p)}.vrefTicketMeta{font-size:10px;color:var(--muted);margin-top:3px}.vrefTicketBtns{display:flex;gap:7px;margin-top:8px}.vrefTicketBtns button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:7px 9px;font-size:10px;font-weight:850}
+      .vrefCredit{border:1px solid color-mix(in srgb,#9333ea 25%,var(--line));background:color-mix(in srgb,#9333ea 4%,var(--card));border-radius:15px;padding:12px;margin-top:9px}.vrefCreditTop{display:flex;justify-content:space-between;gap:10px}.vrefCredit strong{color:#9333ea}.vrefCredit small{display:block;color:var(--muted);margin-top:3px}.vrefCredit button{width:100%;margin-top:9px;border:0;border-radius:10px;padding:9px;background:#9333ea;color:#fff;font-weight:900}
+      .vrefTools{display:flex;gap:7px;overflow:auto;margin-top:12px}.vrefTools button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:11px;padding:9px 11px;font-size:10px;font-weight:850;white-space:nowrap}
+      .vsettingsSection{border:1px solid var(--line);border-radius:18px;background:var(--card);padding:14px;margin-bottom:11px}.vsettingsSection h3{margin:0 0 4px;font-size:14px}.vsettingsSection>p{margin:0 0 12px;color:var(--muted);font-size:10px}.vsettingsGrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.vsettingsGrid .full{grid-column:1/-1}.vsettingsSection label{display:grid;gap:5px;font-size:10px;font-weight:850}.vsettingsSection input,.vsettingsSection textarea,.vsettingsSection select{border-radius:11px;padding:10px 11px;font-size:12px}.vsettingsAction{width:100%;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);padding:10px 11px;font-weight:900;margin-top:7px}.vsettingsAction.primary{border:0;background:linear-gradient(135deg,#f0066e,#a92bf5);color:#fff}.vsettingsAction.danger{background:#fff1f2;color:#be123c;border-color:#fecdd3}.vsettingsLinks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.vsettingsLink{min-height:76px;border:1px solid var(--line);border-radius:14px;background:var(--bg);color:var(--ink);padding:11px;text-align:left}.vsettingsLink span{display:block;font-size:18px;margin-bottom:6px}.vsettingsLink b{font-size:11px}.vsettingsLink small{display:block;color:var(--muted);font-size:9px;margin-top:2px}
+      .vqrPreview{width:82px;height:82px;border:1px dashed var(--line);border-radius:12px;object-fit:contain;background:#fff}.vqrRow{display:grid;grid-template-columns:90px 1fr;gap:10px;align-items:center}
+      .vposExtras{margin-top:12px;display:grid;gap:9px}.vposExtraGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.vposExtraGrid label{display:grid;gap:5px;font-size:11px;font-weight:850;color:var(--muted)}.vposExtraGrid input,.vposExtraGrid textarea{border-radius:11px;padding:9px 10px}.vposExtraGrid .full{grid-column:1/-1}.vposDue{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--p) 6%,var(--card));font-size:12px}.vposDue strong{font-size:18px;color:var(--p)}
+      .vposQrBox{display:none;grid-template-columns:84px 1fr;gap:10px;align-items:center;border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--card)}.vposQrBox.show{display:grid}.vposQrBox img{width:82px;height:82px;object-fit:contain;background:#fff;border-radius:10px}.vposQrBox b{display:block}.vposQrBox small{color:var(--muted)}
+      .vprodExtras{display:grid;gap:10px;border:1px solid var(--line);border-radius:14px;padding:11px;background:var(--bg)}.vbarcodeRow{display:grid;grid-template-columns:1fr auto;gap:7px}.vbarcodeGen{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;padding:8px 10px;font-weight:850;font-size:11px}
+      @media(max-width:560px){.vsettingsGrid,.vposExtraGrid{grid-template-columns:1fr}.vsettingsGrid .full,.vposExtraGrid .full{grid-column:auto}.vsettingsLinks{grid-template-columns:1fr 1fr}.vrefPayments{grid-template-columns:1fr 1fr}}
+    `;
+    document.head.appendChild(style);
+
+    function ean13(){
+      const base=Array.from({length:12},()=>Math.floor(Math.random()*10));
+      let sum=0;for(let i=0;i<12;i++)sum+=base[i]*(i%2===0?1:3);
+      const check=(10-(sum%10))%10;return base.join('')+check;
+    }
+
+    function periodSales(period){
+      const all=salesList(),now=new Date();
+      if(period==='all')return [...all];
+      return all.filter(s=>{
+        const d=new Date(s.date);
+        if(period==='today')return d.toDateString()===now.toDateString();
+        if(period==='week'){const start=new Date(now);start.setHours(0,0,0,0);start.setDate(start.getDate()-((start.getDay()+6)%7));return d>=start}
+        if(period==='month')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
+        return true;
+      });
+    }
+
+    function showView(id){
+      const target=document.getElementById(id);if(!target)return false;
+      document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v===target));
+      try{scrollTo({top:0,behavior:'smooth'})}catch{}
+      return true;
+    }
+    function openExisting(kind){
+      if(kind==='reports'||kind==='profit'||kind==='help'){
+        try{window.vareliaShowExtraView?.(kind)}catch{}
+        setTimeout(()=>showView(kind),20);return;
+      }
+      if(kind==='sellers'){if(showView('sellers'))return;document.querySelector('.premiumSellersItem')?.click();return}
+      const b=document.querySelector('#sidebar .nav [data-view="'+kind+'"]');
+      if(b){b.click();return}
+      showView(kind);
+    }
+
+    function setupHistory(){
+      const sec=document.getElementById('mobileHistoryHub');if(!sec)return false;
+      let period='today',mode='tickets';
+      const render=()=>{
+        const ss=periodSales(period),total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
+        const payments={};ss.forEach(s=>{const k=s.paymentMethod||'No registrado';payments[k]=(payments[k]||0)+(Number(s.total)||0)});
+        const fiados=salesList().filter(s=>(s.paymentMethod||'')==='Fiado'&&Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0))>0);
+        sec.innerHTML=`
+          <div class="vrefHead"><div><h2>Historial</h2><p>Tickets, fiados y resumen de ventas.</p></div></div>
+          <div class="vrefTabs">
+            <button class="vrefTab ${mode==='tickets'?'active':''}" data-hmode="tickets">Historial de tickets</button>
+            <button class="vrefTab ${mode==='credits'?'active':''}" data-hmode="credits">Cuaderno de fiados</button>
+          </div>
+          <div class="vrefStats">
+            <div class="vrefStat"><small>Venta total acumulada</small><strong>${money(total)}</strong></div>
+            <div class="vrefStat"><small>Ticket promedio</small><strong>${money(avg)}</strong></div>
+            <div class="vrefStat"><small>Transacciones</small><strong>${ss.length}</strong></div>
+            <div class="vrefStat"><small>Fiado pendiente</small><strong>${money(fiados.reduce((a,s)=>a+Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0)),0))}</strong></div>
+          </div>
+          <div class="vrefPanel"><h3>Desglose por método de pago</h3><div class="vrefPayments">${Object.keys(payments).length?Object.entries(payments).map(([k,v])=>`<div class="vrefPayment"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join(''):'<div class="vrefPayment"><span>Sin ventas</span><b>${money(0)}</b></div>'}</div></div>
+          <div class="vrefTabs" style="margin-top:12px;margin-bottom:0">
+            ${[['today','Hoy'],['week','Semana'],['month','Mes'],['all','Todo']].map(([k,l])=>`<button class="vrefTab ${period===k?'active':''}" data-period="${k}">${l}</button>`).join('')}
+          </div>
+          <div class="vrefPanel" id="vhistoryBody"></div>
+          <div class="vrefTools"><button data-open-existing="reports">Reportes</button><button data-open-existing="profit">Ganancias</button><button data-open-existing="cash">Caja y cierres</button></div>
+        `;
+        const body=sec.querySelector('#vhistoryBody');
+        if(mode==='credits'){
+          body.innerHTML='<h3>Cuaderno de fiados</h3>'+(
+            fiados.length?fiados.map(s=>{
+              const bal=Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0));
+              return `<div class="vrefCredit" data-credit-id="${esc(s.id)}"><div class="vrefCreditTop"><div><b>${esc(s.customerName||'Cliente sin nombre')}</b><small>${new Date(s.date).toLocaleString('es-PE')}</small></div><strong>${money(bal)}</strong></div><small>Vendido al crédito: ${money(s.total)} · Abonado: ${money(s.paidAmount||0)}</small><button type="button" data-credit-pay="${esc(s.id)}">Registrar abono</button></div>`
+            }).join(''):'<div class="empty">No hay fiados pendientes.</div>'
+          );
+        }else{
+          const list=[...ss].reverse();
+          body.innerHTML='<h3>Historial de tickets</h3>'+(
+            list.length?list.map(s=>`<div class="vrefTicket"><div class="vrefTicketTop"><div><b>#${esc(s.receiptNumber||String(s.id||'').slice(-8).toUpperCase())}</b><div class="vrefTicketMeta">${new Date(s.date).toLocaleString('es-PE')} · ${esc(s.paymentMethod||'No registrado')}${s.customerName?' · '+esc(s.customerName):''}</div></div><strong>${money(s.total)}</strong></div><div class="vrefTicketMeta">${(s.items||[]).map(i=>esc(i.name)+' x'+Number(i.qty||0)).join(', ')||'Venta registrada'}</div><div class="vrefTicketBtns"><button type="button" data-ticket-print="${esc(s.id)}">🖨️ Imprimir</button><button type="button" data-ticket-share="${esc(s.id)}">↗ Compartir</button></div></div>`).join(''):'<div class="empty">No hay ventas en este período.</div>'
+          );
+        }
+      };
+      sec.onclick=e=>{
+        const hm=e.target.closest('[data-hmode]');if(hm){mode=hm.dataset.hmode;render();return}
+        const pr=e.target.closest('[data-period]');if(pr){period=pr.dataset.period;render();return}
+        const op=e.target.closest('[data-open-existing]');if(op){openExisting(op.dataset.openExisting);return}
+        const pp=e.target.closest('[data-credit-pay]');if(pp){
+          const s=salesList().find(x=>String(x.id)===String(pp.dataset.creditPay));if(!s)return;
+          const bal=Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0));
+          const raw=prompt('Saldo pendiente: '+money(bal)+'\n¿Cuánto está abonando?',String(bal.toFixed(2)));if(raw===null)return;
+          const amount=Math.max(0,Math.min(bal,Number(String(raw).replace(',','.'))||0));if(!amount)return;
+          s.paidAmount=(Number(s.paidAmount)||0)+amount;s.payments=Array.isArray(s.payments)?s.payments:[];s.payments.push({amount,date:new Date().toISOString()});saveAll();render();window.vareliaToast?.('Abono registrado: '+money(amount),'ok');return
+        }
+        const pi=e.target.closest('[data-ticket-print]');if(pi){const s=salesList().find(x=>String(x.id)===String(pi.dataset.ticketPrint));if(s)window.VareliaReceipt?.print?.(s);return}
+        const sh=e.target.closest('[data-ticket-share]');if(sh){const s=salesList().find(x=>String(x.id)===String(sh.dataset.ticketShare));if(s)window.VareliaReceipt?.share?.(s);return}
+      };
+      window.VareliaVideoHistory={render:()=>render()};
+      render();return true;
+    }
+
+    const readImage=input=>new Promise(resolve=>{
+      const f=input.files?.[0];if(!f)return resolve('');
+      const r=new FileReader();r.onload=e=>resolve(String(e.target.result||''));r.onerror=()=>resolve('');r.readAsDataURL(f);
+    });
+
+    function setupSettings(){
+      const sec=document.getElementById('mobileSettingsHub');if(!sec)return false;
+      const render=()=>{
+        cfg=loadSettings();
+        sec.innerHTML=`
+          <div class="vrefHead"><div><h2>Ajustes</h2><p>Configura tu negocio, pagos, tickets y equipo desde un solo lugar.</p></div></div>
+          <div class="vsettingsSection"><h3>Datos del negocio</h3><p>Estos datos pueden aparecer en tus comprobantes.</p><div class="vsettingsGrid">
+            <label class="full">Nombre del negocio<input id="vsetBusiness" value="${esc(cfg.businessName)}" placeholder="Varelia"></label>
+            <label>RUC / Documento<input id="vsetRuc" value="${esc(cfg.ruc)}"></label>
+            <label>Teléfono<input id="vsetPhone" value="${esc(cfg.phone)}"></label>
+            <label class="full">Dirección<input id="vsetAddress" value="${esc(cfg.address)}"></label>
+            <label class="full">Mensaje al pie del ticket<textarea id="vsetMessage" rows="2">${esc(cfg.ticketMessage)}</textarea></label>
+            <label>Moneda<select id="vsetCurrency"><option value="S/" ${cfg.currency==='S/'?'selected':''}>S/ Soles</option><option value="$" ${cfg.currency==='$'?'selected':''}>$ Dólares</option></select></label>
+          </div></div>
+
+          <div class="vsettingsSection"><h3>Métodos de pago</h3><p>Sube tus QR para mostrarlos al cobrar con Yape o Plin.</p>
+            <div class="vqrRow"><img class="vqrPreview" id="vYapePreview" src="${cfg.yapeQr||''}"><div><label>QR de Yape<input type="file" accept="image/*" id="vsetYapeQr"></label><label style="margin-top:7px">Titular<input id="vsetYapeHolder" value="${esc(cfg.yapeHolder)}"></label></div></div>
+            <div class="vqrRow" style="margin-top:12px"><img class="vqrPreview" id="vPlinPreview" src="${cfg.plinQr||''}"><div><label>QR de Plin<input type="file" accept="image/*" id="vsetPlinQr"></label><label style="margin-top:7px">Titular<input id="vsetPlinHolder" value="${esc(cfg.plinHolder)}"></label></div></div>
+          </div>
+
+          <div class="vsettingsSection"><h3>Tickets e impresora</h3><p>Conecta tu impresora y elige el ancho del rollo térmico.</p><div class="vsettingsGrid">
+            <label>Ancho del rollo<select id="vsetThermal"><option value="58" ${cfg.thermalWidth==='58'?'selected':''}>58 mm</option><option value="80" ${cfg.thermalWidth==='80'?'selected':''}>80 mm</option></select></label>
+          </div><button class="vsettingsAction" data-vsetting-action="printer">🖨️ Conectar impresora Bluetooth</button><button class="vsettingsAction" data-vsetting-action="test-ticket">Imprimir ticket de prueba</button></div>
+
+          <div class="vsettingsSection"><h3>Administración</h3><p>Las funciones están agrupadas para no repetir opciones.</p><div class="vsettingsLinks">
+            <button class="vsettingsLink" data-open-existing="sellers"><span>♙</span><b>Vendedores</b><small>Cuentas y permisos</small></button>
+            <button class="vsettingsLink" data-open-existing="categories"><span>◇</span><b>Categorías</b><small>Organizar catálogo</small></button>
+            <button class="vsettingsLink" data-open-existing="purchases"><span>▣</span><b>Compras</b><small>Ingreso de mercadería</small></button>
+            <button class="vsettingsLink" data-open-existing="suppliers"><span>▱</span><b>Proveedores</b><small>Directorio</small></button>
+            <button class="vsettingsLink" data-open-existing="appearance"><span>⚙</span><b>Apariencia</b><small>Colores y tema</small></button>
+            <button class="vsettingsLink" data-open-existing="help"><span>?</span><b>Ayuda</b><small>Guía rápida</small></button>
+          </div></div>
+
+          <div class="vsettingsSection"><h3>Respaldo</h3><p>Descarga una copia de los datos de este dispositivo o restaura una copia.</p><button class="vsettingsAction primary" data-vsetting-action="download">⬇ Descargar respaldo</button><button class="vsettingsAction" data-vsetting-action="upload">⬆ Subir respaldo</button><input type="file" id="vbackupFile" accept="application/json" hidden></div>
+
+          <div class="vsettingsSection"><h3>Avanzado</h3><p>Opciones adicionales del catálogo.</p><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px"><input type="checkbox" id="vsetAutoBarcode" ${cfg.autoBarcode?'checked':''} style="width:18px">Generar código de barras automáticamente</label><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px;margin-top:10px"><input type="checkbox" id="vsetVariants" ${cfg.enableVariants?'checked':''} style="width:18px">Activar campo de tallas / colores / variantes</label></div>
+          <button class="vsettingsAction primary" id="vsettingsSave">Guardar configuración</button>
+        `;
+        sec.querySelector('#vsetYapeQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.yapeQr=v;sec.querySelector('#vYapePreview').src=v}};
+        sec.querySelector('#vsetPlinQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.plinQr=v;sec.querySelector('#vPlinPreview').src=v}};
+        sec.querySelector('#vsettingsSave').onclick=()=>{
+          cfg.businessName=sec.querySelector('#vsetBusiness').value.trim();cfg.ruc=sec.querySelector('#vsetRuc').value.trim();cfg.phone=sec.querySelector('#vsetPhone').value.trim();cfg.address=sec.querySelector('#vsetAddress').value.trim();cfg.ticketMessage=sec.querySelector('#vsetMessage').value.trim()||DEFAULTS.ticketMessage;cfg.currency=sec.querySelector('#vsetCurrency').value;cfg.yapeHolder=sec.querySelector('#vsetYapeHolder').value.trim();cfg.plinHolder=sec.querySelector('#vsetPlinHolder').value.trim();cfg.thermalWidth=sec.querySelector('#vsetThermal').value;cfg.autoBarcode=sec.querySelector('#vsetAutoBarcode').checked;cfg.enableVariants=sec.querySelector('#vsetVariants').checked;saveCfg();applyBusinessName();setupProductExtras(true);window.vareliaToast?.('Configuración guardada.','ok')
+        };
+      };
+      sec.onclick=e=>{
+        const op=e.target.closest('[data-open-existing]');if(op){openExisting(op.dataset.openExisting);return}
+        const act=e.target.closest('[data-vsetting-action]');if(!act)return;
+        const a=act.dataset.vsettingAction;
+        if(a==='printer'){const b=document.getElementById('btPrinterBtn');if(b)b.click();else window.vareliaToast?.('La impresora todavía está cargando.','warn');return}
+        if(a==='test-ticket'){
+          const sample={id:'PRUEBA',date:new Date().toISOString(),paymentMethod:'Efectivo',items:[{name:'Producto de prueba',qty:1,price:1}],total:1,receiptNumber:'PRUEBA-001'};
+          if(window.VareliaReceipt?.print)window.VareliaReceipt.print(sample);else alert('El módulo de impresión todavía está cargando.');return
+        }
+        if(a==='download'){
+          const data={version:1,exportedAt:new Date().toISOString(),settings:cfg,products:productsList(),sales:salesList(),categories:(typeof categories!=='undefined'?categories:[]),closures:(typeof closures!=='undefined'?closures:[]),movements:(typeof movements!=='undefined'?movements:[]),suppliers:(typeof suppliers!=='undefined'?suppliers:[]),purchases:(typeof purchases!=='undefined'?purchases:[])};
+          const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),x=document.createElement('a');x.href=url;x.download='varelia-respaldo-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(x);x.click();x.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);return
+        }
+        if(a==='upload'){sec.querySelector('#vbackupFile').click();return}
+      };
+      sec.addEventListener('change',async e=>{
+        if(e.target.id!=='vbackupFile')return;const f=e.target.files?.[0];if(!f)return;
+        try{
+          const data=JSON.parse(await f.text());if(!confirm('¿Restaurar este respaldo? Reemplazará los datos locales actuales.'))return;
+          const map=[[K?.products||'miNegocio_products_v1',data.products],[K?.categories||'miNegocio_categories_v1',data.categories],[K?.sales||'miNegocio_sales_v1',data.sales],[K?.closures||'miNegocio_closures_v1',data.closures],[K?.movements||'miNegocio_movements_v1',data.movements],[K?.suppliers||'miNegocio_suppliers_v1',data.suppliers],[K?.purchases||'miNegocio_purchases_v1',data.purchases]];
+          map.forEach(([k,v])=>{if(Array.isArray(v))localStorage.setItem(k,JSON.stringify(v))});if(data.settings)localStorage.setItem(STORE,JSON.stringify({...DEFAULTS,...data.settings}));alert('Respaldo restaurado. Varelia se recargará.');location.reload()
+        }catch(err){alert('Ese archivo no es un respaldo válido de Varelia.')}
+      });
+      render();return true;
+    }
+
+    function applyBusinessName(){
+      cfg=loadSettings();if(!cfg.businessName)return;
+      document.querySelectorAll('#vareliaBusinessName,#dashBusinessName').forEach(el=>el.textContent=cfg.businessName);
+    }
+
+    function setupSaleExtras(){
+      const pos=document.getElementById('vareliaPosSales'),payment=document.getElementById('vposPaymentMethod');if(!pos||!payment||document.getElementById('vposVideoExtras'))return false;
+      if(![...payment.options].some(o=>o.value==='Fiado'))payment.add(new Option('Fiado','Fiado'));
+      const bottom=pos.querySelector('.vposPaymentBar');
+      const box=document.createElement('div');box.id='vposVideoExtras';box.className='vposExtras';
+      box.innerHTML=`<div class="vposExtraGrid"><label>Descuento (S/)<input id="vposDiscount" type="number" min="0" step="0.01" value="0"></label><label id="vposCustomerWrap" style="display:none">Cliente / Fiado<input id="vposCustomer" placeholder="Nombre del cliente"></label><label class="full">Notas / Observaciones<textarea id="vposNotes" rows="2" placeholder="Opcional"></textarea></label></div><div class="vposQrBox" id="vposQrBox"><img id="vposQrImg"><div><b id="vposQrTitle"></b><small id="vposQrHolder"></small></div></div><div class="vposDue"><span>Total después del descuento</span><strong id="vposDue">S/ 0.00</strong></div>`;
+      bottom.insertAdjacentElement('afterend',box);
+      const discount=box.querySelector('#vposDiscount'),customer=box.querySelector('#vposCustomer'),notes=box.querySelector('#vposNotes'),due=box.querySelector('#vposDue'),cw=box.querySelector('#vposCustomerWrap'),qb=box.querySelector('#vposQrBox'),qi=box.querySelector('#vposQrImg'),qt=box.querySelector('#vposQrTitle'),qh=box.querySelector('#vposQrHolder');
+      const baseTotal=()=>{try{return Number(window.VareliaPOS?.sync?.().total||0)}catch{return 0}};
+      const update=()=>{
+        cfg=loadSettings();const method=payment.value,d=Math.max(0,Number(discount.value)||0),total=Math.max(0,baseTotal()-d);due.textContent=money(total);cw.style.display=method==='Fiado'?'grid':'none';
+        const qr=method==='Yape'?cfg.yapeQr:method==='Plin'?cfg.plinQr:'';const holder=method==='Yape'?cfg.yapeHolder:cfg.plinHolder;
+        qb.classList.toggle('show',!!qr);if(qr){qi.src=qr;qt.textContent='Escanea para pagar con '+method;qh.textContent=holder?('Titular: '+holder):''}
+        window.VareliaSaleExtras={discount:d,notes:notes.value.trim(),customerName:customer.value.trim(),paymentMethod:method,total};
+      };
+      ['input','change'].forEach(ev=>box.addEventListener(ev,update));payment.addEventListener('change',update);setTimeout(update,30);
+      document.addEventListener('click',e=>{if(e.target.closest('#vposCheckout'))update()},true);
+      window.VareliaSaleExtrasUpdate=update;return true;
+    }
+
+    function setupProductExtras(force=false){
+      const form=document.getElementById('productForm'),barcode=document.getElementById('barcode');if(!form||!barcode)return false;
+      let root=document.getElementById('vproductExtras');
+      if(!root){
+        root=document.createElement('div');root.id='vproductExtras';root.className='vprodExtras';root.innerHTML=`<div><b style="font-size:11px">Herramientas del producto</b></div><div class="vbarcodeRow"><button type="button" class="vbarcodeGen" id="vGenerateBarcode">Generar código de barras</button><button type="button" class="vbarcodeGen" id="vPrintLabel">Imprimir etiqueta</button></div><label id="vVariantWrap" style="display:none"><span>Variantes / Tallas / Colores</span><textarea id="vProductVariants" rows="2" placeholder="Ej.: S rojo, M negro, 500 ml..."></textarea></label>`;
+        barcode.closest('.two')?.insertAdjacentElement('afterend',root);
+        root.querySelector('#vGenerateBarcode').onclick=()=>{barcode.value=ean13();window.vareliaToast?.('Código generado.','ok')};
+        root.querySelector('#vPrintLabel').onclick=()=>{
+          const name=document.getElementById('productName')?.value||'Producto',price=document.getElementById('sellPrice')?.value||0,bc=barcode.value||'SIN CÓDIGO';const w=window.open('','_blank','width=360,height=400');if(!w)return;
+          w.document.write('<html><head><meta charset="utf-8"><style>@page{size:58mm 35mm;margin:2mm}body{font-family:Arial;text-align:center;margin:0}.n{font-weight:800;font-size:12px}.b{font-family:monospace;font-size:18px;letter-spacing:1px;margin:6px 0}.p{font-size:16px;font-weight:900}</style></head><body><div class="n">'+esc(name)+'</div><div class="b">'+esc(bc)+'</div><div class="p">'+money(price)+'</div><script>onload=()=>{print();setTimeout(()=>close(),500)}<\/script></body></html>');w.document.close()
+        };
+        form.addEventListener('submit',()=>{
+          const id=document.getElementById('productId')?.value,name=document.getElementById('productName')?.value.trim(),variants=document.getElementById('vProductVariants')?.value.trim()||'';
+          if(cfg.autoBarcode&&!barcode.value.trim())barcode.value=ean13();
+          setTimeout(()=>{const p=productsList().find(x=>(id&&String(x.id)===String(id))||(!id&&x.name===name));if(p){p.variants=variants;saveAll()}},60);
+        },true);
+      }
+      cfg=loadSettings();root.querySelector('#vVariantWrap').style.display=cfg.enableVariants?'grid':'none';
+      const dlg=document.getElementById('productDialog');
+      if(dlg&&!dlg.__vVariantBound){dlg.__vVariantBound=true;dlg.addEventListener('click',()=>setTimeout(()=>{const id=document.getElementById('productId')?.value,p=productsList().find(x=>String(x.id)===String(id));const ta=document.getElementById('vProductVariants');if(ta)ta.value=p?.variants||''},0),true)}
+      return true;
+    }
+
+    function updateInventorySummary(){
+      const sec=document.getElementById('inventory');if(!sec||document.getElementById('vInventoryVideoSummary'))return false;
+      const head=sec.querySelector('.head');if(!head)return false;
+      const box=document.createElement('div');box.id='vInventoryVideoSummary';box.className='vrefStats';box.style.marginBottom='13px';
+      head.insertAdjacentElement('afterend',box);
+      const render=()=>{const ps=productsList(),val=ps.reduce((a,p)=>a+(Number(p.stock)||0)*(Number(p.buyPrice)||0),0),low=ps.filter(p=>(Number(p.stock)||0)<=Math.max(0,Number(p.reorderLevel)||0)).length,out=ps.filter(p=>(Number(p.stock)||0)<=0).length;box.innerHTML=`<div class="vrefStat"><small>SKUs / Productos</small><strong>${ps.length}</strong></div><div class="vrefStat"><small>Valor del stock</small><strong>${money(val)}</strong></div><div class="vrefStat"><small>Por reponer</small><strong>${low}</strong></div><div class="vrefStat"><small>Agotados</small><strong>${out}</strong></div>`};
+      render();window.VareliaInventorySummary={render};return true;
+    }
+
+    function init(){
+      applyBusinessName();
+      setupHistory();
+      setupSettings();
+      setupSaleExtras();
+      setupProductExtras();
+      updateInventorySummary();
+      setTimeout(()=>{setupHistory();setupSettings();setupSaleExtras();setupProductExtras();updateInventorySummary()},1200);
+    }
+    let tries=0;const t=setInterval(()=>{tries++;init();if(tries>30)clearInterval(t)},300);
+    window.addEventListener('focus',()=>{window.VareliaVideoHistory?.render?.();window.VareliaInventorySummary?.render?.()});
+  });
+})();
