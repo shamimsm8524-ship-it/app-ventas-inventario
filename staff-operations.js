@@ -12,7 +12,7 @@
   style.id='vareliaStaffOperationsCss';
   style.textContent=`
     #vstaffQuickQtyWrap{display:none!important}
-    #vstaffOpsCard{margin:0 0 16px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--card)}
+    #vstaffOpsCard{display:none!important}
     #vstaffOpsCard h3{margin:0 0 5px;font-size:15px}#vstaffOpsCard p{margin:0 0 12px;color:var(--muted);font-size:12px}
     .vstaffOpsButtons{display:grid;grid-template-columns:1fr 1fr;gap:9px}
     .vstaffOpBtn{border:0;border-radius:13px;padding:13px 11px;font-weight:900;font-size:13px;background:var(--bg);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line)}
@@ -173,14 +173,7 @@
 
   function ensureOps(){
     if(!isStaff())return false;
-    const inv=document.getElementById('inventory');
-    if(inv&&!document.getElementById('vstaffOpsCard')){
-      const card=document.createElement('div');
-      card.id='vstaffOpsCard';
-      card.innerHTML='<h3>Movimientos permitidos al personal</h3><p>Estas operaciones son las únicas que pueden aumentar el stock.</p><div class="vstaffOpsButtons"><button type="button" class="vstaffOpBtn restock" data-vstaff-op="restock">📦 Reponer mercadería</button><button type="button" class="vstaffOpBtn return" data-vstaff-op="return">↩ Devolver mercadería</button></div>';
-      const head=inv.querySelector('.head');
-      if(head)head.insertAdjacentElement('afterend',card);else inv.prepend(card);
-    }
+    document.getElementById('vstaffOpsCard')?.remove();
 
     const hero=document.querySelector('#vareliaPosSales .vposHero');
     if(hero&&!document.getElementById('vstaffPosReturn')){
