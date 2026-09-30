@@ -90,7 +90,14 @@
         if(type==='youtube')return 'https://www.youtube.com/@'+h;
       }
       if(!/^https?:\/\//i.test(v))v='https://'+v.replace(/^\/+/, '');
-      try{const u=new URL(v);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}
+      try{
+        const u=new URL(v);
+        if(type==='tiktok'&&/(^|\.)tiktok\.com$/i.test(u.hostname)){
+          const seg=u.pathname.split('/').filter(Boolean)[0]||'';
+          if(seg&&!seg.startsWith('@'))u.pathname='/@'+seg;
+        }
+        return ['http:','https:'].includes(u.protocol)?u.href:''
+      }catch{return ''}
     };
     const socialLinks=()=>{
       const s=settings(),out=[];
