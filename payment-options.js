@@ -29,8 +29,8 @@
     #vareliaPaymentAdmin .vpayAdminGrid{display:grid;gap:11px}
     #vareliaPaymentAdmin label{display:grid;gap:6px;font-size:12px;font-weight:850}
     #vareliaPaymentAdmin input,#vareliaPaymentAdmin textarea{width:100%;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);padding:11px}
-    #vpayAdminQrPreview{display:none;width:min(240px,75vw);max-height:240px;object-fit:contain;border-radius:12px;background:#fff;padding:8px;border:1px solid var(--line)}
-    #vpayAdminQrPreview.show{display:block}
+    #vpayAdminYapeQrPreview,#vpayAdminPlinQrPreview,#vpayAdminGenericQrPreview{display:none;width:min(240px,75vw);max-height:240px;object-fit:contain;border-radius:12px;background:#fff;padding:8px;border:1px solid var(--line)}
+    #vpayAdminYapeQrPreview.show,#vpayAdminPlinQrPreview.show,#vpayAdminGenericQrPreview.show{display:block}
     #vpayAdminSave{border:0;border-radius:12px;padding:12px 14px;background:var(--p);color:#fff;font-weight:900}
     .vpayMethodsNote{font-size:11px;color:var(--muted);line-height:1.45}
   `;
@@ -79,19 +79,22 @@
   async function loadSettings(){
     if(!sb||!businessId)return null;
     const {data,error}=await sb.from('varelia_business_settings')
-      .select('business_id,payment_methods,payment_qr_data,payment_holder,transfer_details')
+      .select('business_id,payment_methods,payment_qr_data,yape_qr_data,plin_qr_data,generic_qr_data,payment_holder,transfer_details')
       .eq('business_id',businessId).maybeSingle();
     if(error)throw error;
-    settings=data||{business_id:businessId,payment_methods:METHODS,payment_qr_data:null,payment_holder:'',transfer_details:''};
+    settings=data||{business_id:businessId,payment_methods:METHODS,payment_qr_data:null,yape_qr_data:null,plin_qr_data:null,generic_qr_data:null,payment_holder:'',transfer_details:''};
 
-    if(isOwner()&&!settings.payment_qr_data){
+    if(isOwner()&&!settings.yape_qr_data&&!settings.plin_qr_data&&!settings.generic_qr_data){
       const legacy=findLegacyQr();
       if(legacy){
         const up=await sb.from('varelia_business_settings').upsert({
           business_id:businessId,
           payment_qr_data:legacy,
+          yape_qr_data:legacy,
+          plin_qr_data:legacy,
+          generic_qr_data:legacy,
           payment_methods:METHODS
-        },{onConflict:'business_id'}).select('business_id,payment_methods,payment_qr_data,payment_holder,transfer_details').single();
+        },{onConflict:'business_id'}).select('business_id,payment_methods,payment_qr_data,yape_qr_data,plin_qr_data,generic_qr_data,payment_holder,transfer_details').single();
         if(!up.error)settings=up.data;
       }
     }
@@ -141,7 +144,11 @@
     if(!detail||!sel)return;
     const method=sel.value;
     const holder=String(settings?.payment_holder||'').trim();
-    const qr=String(settings?.payment_qr_data||'');
+    const qr=method==='Yape'
+      ? String(settings?.yape_qr_data||settings?.payment_qr_data||'')
+      : method==='Plin'
+        ? String(settings?.plin_qr_data||settings?.payment_qr_data||'')
+        : String(settings?.generic_qr_data||settings?.yape_qr_data||settings?.plin_qr_data||settings?.payment_qr_data||'');
     const transfer=String(settings?.transfer_details||'').trim();
 
     if(['Yape','Plin','QR'].includes(method)){
@@ -172,11 +179,15 @@
     card.id='vareliaPaymentAdmin';
     card.innerHTML=`
       <h3>💳 Métodos de pago</h3>
-      <p>Configura el QR que verá el personal al cobrar con Yape, Plin o QR.</p>
+      <p>Configura QR diferentes para Yape, Plin y un QR adicional.</p>
       <div class="vpayAdminGrid">
         <label>Titular del pago<input id="vpayAdminHolder" type="text" maxlength="120" placeholder="Nombre del titular"></label>
-        <label>QR de Yape / Plin<input id="vpayAdminQr" type="file" accept="image/*"></label>
-        <img id="vpayAdminQrPreview" alt="Vista previa del QR">
+        <label>QR de Yape<input id="vpayAdminYapeQr" type="file" accept="image/*"></label>
+        <img id="vpayAdminYapeQrPreview" alt="Vista previa QR Yape">
+        <label>QR de Plin<input id="vpayAdminPlinQr" type="file" accept="image/*"></label>
+        <img id="vpayAdminPlinQrPreview" alt="Vista previa QR Plin">
+        <label>QR adicional<input id="vpayAdminGenericQr" type="file" accept="image/*"></label>
+        <img id="vpayAdminGenericQrPreview" alt="Vista previa QR adicional">
         <label>Datos de transferencia<textarea id="vpayAdminTransfer" rows="4" maxlength="1000" placeholder="Banco, cuenta, CCI, titular..."></textarea></label>
         <div class="vpayMethodsNote">Disponibles al cobrar: Efectivo · Yape · Plin · Transferencia · Tarjeta · QR</div>
         <button id="vpayAdminSave" type="button">Guardar métodos de pago</button>
@@ -186,33 +197,49 @@
 
     const holder=card.querySelector('#vpayAdminHolder');
     const transfer=card.querySelector('#vpayAdminTransfer');
-    const file=card.querySelector('#vpayAdminQr');
-    const preview=card.querySelector('#vpayAdminQrPreview');
+    const yapeFile=card.querySelector('#vpayAdminYapeQr');
+    const plinFile=card.querySelector('#vpayAdminPlinQr');
+    const genericFile=card.querySelector('#vpayAdminGenericQr');
+    const yapePreview=card.querySelector('#vpayAdminYapeQrPreview');
+    const plinPreview=card.querySelector('#vpayAdminPlinQrPreview');
+    const genericPreview=card.querySelector('#vpayAdminGenericQrPreview');
     holder.value=String(settings?.payment_holder||'');
     transfer.value=String(settings?.transfer_details||'');
-    if(settings?.payment_qr_data){preview.src=settings.payment_qr_data;preview.classList.add('show')}
-
-    file.onchange=()=>{
-      const f=file.files?.[0];if(!f)return;
-      if(f.size>3*1024*1024){file.value='';return toast('El QR debe pesar menos de 3 MB.')}
-      const reader=new FileReader();
-      reader.onload=()=>{preview.src=String(reader.result||'');preview.classList.add('show')};
-      reader.readAsDataURL(f);
+    const showPreview=(el,src)=>{if(src){el.src=src;el.classList.add('show')}};
+    showPreview(yapePreview,settings?.yape_qr_data||settings?.payment_qr_data||'');
+    showPreview(plinPreview,settings?.plin_qr_data||settings?.payment_qr_data||'');
+    showPreview(genericPreview,settings?.generic_qr_data||'');
+    const bindFile=(file,preview)=>{
+      file.onchange=()=>{
+        const f=file.files?.[0];if(!f)return;
+        if(f.size>3*1024*1024){file.value='';return toast('El QR debe pesar menos de 3 MB.')}
+        const reader=new FileReader();
+        reader.onload=()=>{preview.src=String(reader.result||'');preview.classList.add('show')};
+        reader.readAsDataURL(f);
+      };
     };
+    bindFile(yapeFile,yapePreview);
+    bindFile(plinFile,plinPreview);
+    bindFile(genericFile,genericPreview);
 
     card.querySelector('#vpayAdminSave').onclick=async()=>{
       const btn=card.querySelector('#vpayAdminSave');btn.disabled=true;
       try{
-        const qr=preview.classList.contains('show')?preview.src:String(settings?.payment_qr_data||'');
+        const yapeQr=yapePreview.classList.contains('show')?yapePreview.src:String(settings?.yape_qr_data||settings?.payment_qr_data||'');
+        const plinQr=plinPreview.classList.contains('show')?plinPreview.src:String(settings?.plin_qr_data||settings?.payment_qr_data||'');
+        const genericQr=genericPreview.classList.contains('show')?genericPreview.src:String(settings?.generic_qr_data||'');
         const payload={
           business_id:businessId,
           payment_methods:METHODS,
-          payment_qr_data:qr||null,
+          payment_qr_data:yapeQr||plinQr||genericQr||null,
+          yape_qr_data:yapeQr||null,
+          plin_qr_data:plinQr||null,
+          generic_qr_data:genericQr||null,
           payment_holder:holder.value.trim()||null,
           transfer_details:transfer.value.trim()||null
         };
         const {data,error}=await sb.from('varelia_business_settings').upsert(payload,{onConflict:'business_id'})
-          .select('business_id,payment_methods,payment_qr_data,payment_holder,transfer_details').single();
+          .select('business_id,payment_methods,payment_qr_data,yape_qr_data,plin_qr_data,generic_qr_data,payment_holder,transfer_details').single();
         if(error)throw error;
         settings=data;
         ensurePaymentPanel();
