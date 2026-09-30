@@ -11,7 +11,7 @@
 #productGrid .price{
   font-family:Arial,system-ui,sans-serif!important;
   font-variant-numeric:tabular-nums!important;
-  font-size:34px!important;
+  font-size:28px!important;
   font-weight:900!important;
   letter-spacing:0!important;
   line-height:1!important;
@@ -20,7 +20,7 @@
 }
 @media(max-width:650px){
   #productGrid.view-list .price{
-    font-size:38px!important;
-    margin-top:10px!important;
+    font-size:26px!important;
+    margin-top:8px!important;
   }
 }
