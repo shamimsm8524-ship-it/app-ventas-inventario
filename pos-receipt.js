@@ -98,15 +98,153 @@
         w.document.close();
       }
       function loadJsPDF(){return new Promise((resolve,reject)=>{if(window.jspdf?.jsPDF)return resolve(window.jspdf.jsPDF);const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';s.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject(new Error('jsPDF no disponible'));s.onerror=reject;document.head.appendChild(s)})}
+      const pdfLogoData=data=>new Promise(resolve=>{
+        if(!data)return resolve('');
+        try{
+          const img=new Image();
+          img.onload=()=>{
+            try{
+              const canvas=document.createElement('canvas');
+              const max=500,scale=Math.min(1,max/Math.max(img.naturalWidth||1,img.naturalHeight||1));
+              canvas.width=Math.max(1,Math.round((img.naturalWidth||1)*scale));
+              canvas.height=Math.max(1,Math.round((img.naturalHeight||1)*scale));
+              canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+              resolve(canvas.toDataURL('image/jpeg',0.9));
+            }catch{resolve(data)}
+          };
+          img.onerror=()=>resolve(data);
+          img.src=data;
+        }catch{resolve(data)}
+      });
+
       async function savePDF(sale){
         try{
           const jsPDF=await loadJsPDF();
-          const itemCount=(sale.items||[]).length;const height=Math.max(120,78+itemCount*15);
+          const bs=businessSettings(),items=Array.isArray(sale.items)?sale.items:[],subtotal=Number(sale.subtotal??((Number(sale.total)||0)+(Number(sale.discount)||0)));
+          const extraLines=(bs.ruc?1:0)+(bs.phone?1:0)+(bs.address?1:0)+(sale.customerName?1:0)+(sale.sellerName?1:0)+(Number(sale.discount)>0?2:0)+(sale.paymentMethod==='Fiado'?1:0)+(sale.notes?1:0);
+          const height=Math.max(145,105+items.length*16+extraLines*5+(bs.logo?24:0));
           const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[80,height]});
-          let y=8;doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(businessName(),40,y,{align:'center',maxWidth:68});y+=7;doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text('COMPROBANTE INTERNO DE VENTA',40,y,{align:'center'});y+=7;doc.text('N. '+ticketNo(sale),5,y);y+=5;doc.text(dateText(sale),5,y);y+=5;doc.text('Pago: '+(sale.paymentMethod||'Efectivo'),5,y);y+=5;doc.line(5,y,75,y);y+=5;
-          for(const i of sale.items||[]){doc.setFont('helvetica','bold');doc.setFontSize(9);const name=doc.splitTextToSize(String(i.name||'Producto'),48);doc.text(name,5,y);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text(`${Number(i.qty||0)} x ${money(i.price)}`,5,y+5);doc.text(money(Number(i.qty||0)*Number(i.price||0)),75,y+5,{align:'right'});y+=Math.max(12,name.length*4+7)}
-          doc.line(5,y,75,y);y+=7;doc.setFont('helvetica','bold');doc.setFontSize(12);doc.text('TOTAL',5,y);doc.text(money(sale.total),75,y,{align:'right'});y+=9;doc.setFont('helvetica','normal');doc.setFontSize(7);doc.text('Gracias por su compra.',40,y,{align:'center'});y+=4;doc.text('Comprobante interno. No reemplaza boleta o factura SUNAT.',40,y,{align:'center',maxWidth:70});doc.save('comprobante-'+ticketNo(sale)+'.pdf');
-        }catch(e){console.error(e);alert('No se pudo generar el PDF. Puedes usar Imprimir y elegir Guardar como PDF.')}
+          let y=8;
+
+          if(bs.logo){
+            try{
+              const logo=await pdfLogoData(bs.logo);
+              if(logo){
+                doc.addImage(logo,'JPEG',27,y,26,18,undefined,'FAST');
+                y+=22;
+              }
+            }catch(e){console.warn('No se pudo agregar logo al PDF',e)}
+          }
+
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(13);
+          doc.text(businessName(),40,y,{align:'center',maxWidth:68});
+          y+=6;
+
+          doc.setFont('helvetica','normal');
+          doc.setFontSize(8);
+          doc.text('COMPROBANTE INTERNO DE VENTA',40,y,{align:'center'});
+          y+=4.5;
+          if(bs.ruc){doc.text('RUC/Doc: '+String(bs.ruc),40,y,{align:'center',maxWidth:70});y+=4}
+          if(bs.phone){doc.text('Tel: '+String(bs.phone),40,y,{align:'center',maxWidth:70});y+=4}
+          if(bs.address){
+            const ad=doc.splitTextToSize(String(bs.address),68);
+            doc.text(ad,40,y,{align:'center'});
+            y+=ad.length*3.6+1;
+          }
+
+          doc.setDrawColor(130);
+          doc.setLineDashPattern([1.5,1.5],0);
+          doc.line(5,y,75,y);
+          doc.setLineDashPattern([],0);
+          y+=6;
+
+          doc.setFontSize(8);
+          doc.text('N.º',5,y);
+          doc.setFont('helvetica','bold');
+          doc.text(ticketNo(sale),75,y,{align:'right'});
+          doc.setFont('helvetica','normal');
+          y+=5;
+          doc.text('Fecha',5,y);
+          doc.text(dateText(sale),75,y,{align:'right'});
+          y+=5;
+          doc.text('Pago',5,y);
+          doc.text(String(sale.paymentMethod||'Efectivo'),75,y,{align:'right'});
+          y+=5;
+          if(sale.customerName){doc.text('Cliente',5,y);doc.text(String(sale.customerName),75,y,{align:'right',maxWidth:45});y+=5}
+          if(sale.sellerName){doc.text('Vendedor',5,y);doc.text(String(sale.sellerName),75,y,{align:'right',maxWidth:45});y+=5}
+
+          doc.setLineDashPattern([1.5,1.5],0);
+          doc.line(5,y,75,y);
+          doc.setLineDashPattern([],0);
+          y+=6;
+
+          for(const i of items){
+            doc.setFont('helvetica','bold');
+            doc.setFontSize(9);
+            const name=doc.splitTextToSize(String(i.name||'Producto'),48);
+            doc.text(name,5,y);
+            const lineY=y+Math.max(5,name.length*4);
+            doc.setFont('helvetica','normal');
+            doc.setFontSize(8);
+            doc.text(`${Number(i.qty||0)} × ${money(i.price)}`,5,lineY);
+            doc.setFont('helvetica','bold');
+            doc.text(money(Number(i.qty||0)*Number(i.price||0)),75,lineY,{align:'right'});
+            y=lineY+6;
+          }
+
+          if(Number(sale.discount)>0){
+            doc.setLineDashPattern([1.5,1.5],0);
+            doc.line(5,y,75,y);
+            doc.setLineDashPattern([],0);
+            y+=5;
+            doc.setFont('helvetica','normal');
+            doc.setFontSize(8);
+            doc.text('Subtotal',5,y);
+            doc.text(money(subtotal),75,y,{align:'right'});
+            y+=5;
+            doc.text('Descuento',5,y);
+            doc.text('-'+money(sale.discount),75,y,{align:'right'});
+            y+=5;
+          }
+
+          doc.setLineDashPattern([1.5,1.5],0);
+          doc.line(5,y,75,y);
+          doc.setLineDashPattern([],0);
+          y+=7;
+          doc.setFont('helvetica','bold');
+          doc.setFontSize(13);
+          doc.text('TOTAL',5,y);
+          doc.text(money(sale.total),75,y,{align:'right'});
+          y+=9;
+
+          if(sale.paymentMethod==='Fiado'){
+            doc.setFont('helvetica','bold');
+            doc.setFontSize(8);
+            doc.text('Saldo pendiente: '+money(Math.max(0,(Number(sale.total)||0)-(Number(sale.paidAmount)||0))),40,y,{align:'center',maxWidth:70});
+            y+=5;
+          }
+          if(sale.notes){
+            doc.setFont('helvetica','normal');
+            doc.setFontSize(7);
+            const notes=doc.splitTextToSize('Nota: '+String(sale.notes),68);
+            doc.text(notes,40,y,{align:'center'});
+            y+=notes.length*3.5+2;
+          }
+
+          doc.setFont('helvetica','normal');
+          doc.setFontSize(7);
+          const thanks=doc.splitTextToSize(String(bs.ticketMessage||'Gracias por su compra.'),68);
+          doc.text(thanks,40,y,{align:'center'});
+          y+=thanks.length*3.5+2;
+          const disclaimer=doc.splitTextToSize('Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.',68);
+          doc.text(disclaimer,40,y,{align:'center'});
+
+          doc.save('comprobante-'+ticketNo(sale)+'.pdf');
+        }catch(e){
+          console.error(e);
+          alert('No se pudo generar el PDF. Puedes usar Imprimir y elegir Guardar como PDF.');
+        }
       }
       async function shareReceipt(sale){
         const text=receiptText(sale);
