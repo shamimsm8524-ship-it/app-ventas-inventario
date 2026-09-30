@@ -635,7 +635,7 @@ render();
   checkUrlOrder();
 })();
 </script>
-<script src="product-view.js?v=20260929-25"></script>
+<script src="product-view.js?v=20260929-26"></script>
 <script src="public-catalog.js?v=20260819-2"></script>
 <script src="merchandise-reminders.js?v=20260819-1"></script>
 <script src="admin-guard.js?v=20260902-1"></script>
@@ -726,6 +726,103 @@ if ('serviceWorker' in navigator) {
   },true);
   setInterval(enforce,250);
   addEventListener('pageshow',resetReader);
+})();
+</script>
+<style id="vareliaAdminBottomPatchCss">
+@media(max-width:980px){
+  #vmobileNav{grid-template-columns:repeat(6,minmax(0,1fr))!important}
+  #vmobileNav [data-mobile-tab="mobileAdminHub"]{display:grid!important}
+}
+</style>
+<script id="vareliaAdminBottomPatch">
+(()=>{
+  if(window.__vareliaAdminBottomPatch)return;
+  window.__vareliaAdminBottomPatch=true;
+
+  const show=id=>{
+    const target=document.getElementById(id);
+    if(!target)return false;
+    document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v===target));
+    document.querySelectorAll('#vmobileNav [data-mobile-tab]').forEach(b=>b.classList.toggle('active',b.dataset.mobileTab===id));
+    try{scrollTo({top:0,behavior:'smooth'})}catch{}
+    return true;
+  };
+
+  const openExisting=kind=>{
+    if(kind==='sellers'){
+      const el=document.getElementById('sellers');
+      if(el)return show('sellers');
+      document.querySelector('.premiumSellersItem')?.click();
+      return;
+    }
+    if(kind==='help'){
+      const el=document.getElementById('help');
+      if(el)return show('help');
+      document.querySelector('.premiumHelpItem')?.click();
+      return;
+    }
+    const b=document.querySelector('#sidebar .nav [data-view="'+kind+'"]');
+    if(b){b.click();return}
+    if(document.getElementById(kind))show(kind);
+  };
+
+  const buildAdmin=()=>{
+    const main=document.querySelector('main.content');
+    if(!main)return null;
+    let sec=document.getElementById('mobileAdminHub');
+    if(sec)return sec;
+    sec=document.createElement('section');
+    sec.id='mobileAdminHub';
+    sec.className='view vmobileHub';
+    sec.innerHTML='<div class="vmobileHubHead"><h2>Administración</h2><p>Gestiona las herramientas de tu negocio.</p></div><div class="vmobileHubGrid">'+
+      '<button class="vmobileHubCard" type="button" data-admin-open="sellers"><span class="vmobileHubIcon">♙</span><div><b>Vendedores</b><small>Cuentas y permisos</small></div></button>'+
+      '<button class="vmobileHubCard" type="button" data-admin-open="categories"><span class="vmobileHubIcon">◇</span><div><b>Categorías</b><small>Organizar catálogo</small></div></button>'+
+      '<button class="vmobileHubCard" type="button" data-admin-open="purchases"><span class="vmobileHubIcon">▣</span><div><b>Compras</b><small>Ingreso de mercadería</small></div></button>'+
+      '<button class="vmobileHubCard" type="button" data-admin-open="suppliers"><span class="vmobileHubIcon">▱</span><div><b>Proveedores</b><small>Directorio</small></div></button>'+
+      '<button class="vmobileHubCard" type="button" data-admin-open="appearance"><span class="vmobileHubIcon">◉</span><div><b>Apariencia</b><small>Colores y tema</small></div></button>'+
+      '<button class="vmobileHubCard" type="button" data-admin-open="help"><span class="vmobileHubIcon">?</span><div><b>Ayuda</b><small>Guía rápida</small></div></button>'+
+      '</div>';
+    main.appendChild(sec);
+    sec.addEventListener('click',e=>{
+      const b=e.target.closest('[data-admin-open]');
+      if(!b)return;
+      e.preventDefault();
+      openExisting(b.dataset.adminOpen);
+    });
+    return sec;
+  };
+
+  const fix=()=>{
+    const nav=document.getElementById('vmobileNav');
+    if(!nav)return false;
+    buildAdmin();
+    let btn=nav.querySelector('[data-mobile-tab="mobileAdminHub"]');
+    if(!btn){
+      btn=document.createElement('button');
+      btn.type='button';
+      btn.dataset.mobileTab='mobileAdminHub';
+      btn.innerHTML='<span>▦</span>Administración';
+      const settings=nav.querySelector('[data-mobile-tab="mobileSettingsHub"]');
+      if(settings)nav.insertBefore(btn,settings);else nav.appendChild(btn);
+    }
+    if(!btn.dataset.adminBound){
+      btn.dataset.adminBound='1';
+      const go=e=>{e.preventDefault();e.stopPropagation();buildAdmin();show('mobileAdminHub')};
+      btn.addEventListener('click',go,true);
+      btn.addEventListener('pointerdown',e=>{if(e.pointerType!=='mouse')go(e)},{passive:false,capture:true});
+    }
+
+    // Oculta el bloque duplicado de Administración dentro de Ajustes si una versión vieja lo vuelve a crear.
+    document.querySelectorAll('#mobileSettingsHub .vsettingsSection').forEach(card=>{
+      if(card.querySelector('h3')?.textContent?.trim()==='Administración')card.style.display='none';
+    });
+    return true;
+  };
+
+  let tries=0;
+  const timer=setInterval(()=>{tries++;if(fix()&&tries>12)clearInterval(timer);if(tries>80)clearInterval(timer)},150);
+  new MutationObserver(()=>fix()).observe(document.documentElement,{childList:true,subtree:true});
+  addEventListener('pageshow',()=>setTimeout(fix,50));
 })();
 </script>
 </body></html>
