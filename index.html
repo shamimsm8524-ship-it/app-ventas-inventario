@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20260930-10';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20260930-11';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <meta id="themeMeta" name="theme-color" content="#be185d">
 <title>VareliaStore</title>
@@ -50,7 +50,7 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 .pb h3{font-weight:800}
 .badge{letter-spacing:.02em}
 </style>
-<link rel="stylesheet" href="product-view.css?v=20260930-10">
+<link rel="stylesheet" href="product-view.css?v=20260930-11">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,650;9..144,800&display=swap" rel="stylesheet">
@@ -318,7 +318,7 @@ function activeSales(){return sales.filter(s=>new Date(s.date)>=new Date(cashSta
 function needsReorder(p){return (+p.stock||0)<=Math.max(0,+p.reorderLevel||0)}
 function addMovement(p,type,qty,before,after,source){movements.push({id:uid(),date:new Date().toISOString(),productId:p.id,name:p.name,category:p.category||'',unit:p.unit||'Unidad',type,qty:+qty,before:+before,after:+after,source})}
 function render(){renderProducts();renderInventory();renderCategories();renderSuppliers();renderPurchases();renderSales();renderCash();fillCats();fillPurchaseSelectors();renderInvSelected()}
-function card(p){return `<article class="product"><div class="photo">${p.image?`<img src="${p.image}">`:'Sin imagen'}</div><div class="pb"><h3>${esc(p.name)}</h3><div class="meta">${esc(p.category)}</div>${p.barcode?`<div style="margin-top:5px;font-size:14px;font-weight:900;color:var(--ink);letter-spacing:.02em;line-height:1.3;word-break:break-all"><span style="color:var(--muted);font-weight:800">Código:</span> ${esc(p.barcode)}</div>`:''}<div class="price"><span class="catalogSalePriceText">${money(p.sellPrice)}</span></div><div class="actions"><button class="btn secondary" data-edit="${p.id}">Editar</button><button class="btn primary" data-add="${p.id}">Vender</button><button class="btn danger" data-delete="${p.id}">Eliminar</button></div></div></article>`}
+function card(p){return `<article class="product"><div class="photo">${p.image?`<img src="${p.image}">`:'Sin imagen'}</div><div class="pb"><h3>${esc(p.name)}</h3><div class="meta">${esc(p.category)}</div>${p.barcode?`<div style="margin-top:5px;font-size:14px;font-weight:900;color:var(--ink);letter-spacing:.02em;line-height:1.3;word-break:break-all"><span style="color:var(--muted);font-weight:800">Código:</span> ${esc(p.barcode)}</div>`:''}<div class="price" style="font-family:Arial,system-ui,sans-serif!important;font-size:22px!important;font-weight:850!important;line-height:1.05!important;letter-spacing:-.02em!important;color:var(--p)!important;white-space:nowrap!important"><span class="catalogSalePriceText" style="font:inherit!important;color:inherit!important;letter-spacing:inherit!important;white-space:nowrap!important">S/&nbsp;${Number(p.sellPrice||0).toFixed(2)}</span></div><div class="actions"><button class="btn secondary" data-edit="${p.id}">Editar</button><button class="btn primary" data-add="${p.id}">Vender</button><button class="btn danger" data-delete="${p.id}">Eliminar</button></div></div></article>`}
 function renderProducts(){let q=search.value.trim().toLowerCase(),a=products.filter(p=>(activeCategory==='Todos'||p.category===activeCategory)&&(!q||[p.name,p.barcode,p.category].some(v=>String(v||'').toLowerCase().includes(q))));productGrid.innerHTML=a.length?a.map(card).join(''):'<div class="empty">No hay productos.</div>';categoryChips.innerHTML=['Todos',...categories].map(c=>`<button class="chip ${activeCategory===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
 function renderInventory(){let low=products.filter(needsReorder).sort((a,b)=>(+a.stock)-(+b.stock));reorderList.innerHTML=low.length?low.map(p=>`<div class="alertrow"><div><strong>⚠️ ${esc(p.name)}</strong><div class="meta">${esc(p.category||'Sin sección')} · Stock actual: <b>${p.stock} ${esc(p.unit)}</b></div></div><div style="text-align:right"><label style="font-size:11px">Alertar en</label><input data-reorder="${p.id}" type="number" min="0" value="${Math.max(0,+p.reorderLevel||0)}"></div></div>`).join(''):'<div class="empty">✅ No hay productos por reponer.</div>';inventoryProductList.innerHTML=products.length?[...products].sort((a,b)=>(a.category||'').localeCompare(b.category||'')||(a.name||'').localeCompare(b.name||'')).map(p=>`<div class="row" data-invrow="${p.id}"><div><strong>${esc(p.name)}${needsReorder(p)?'<span class="warnbadge">⚠️ Reponer</span>':''}</strong><div><span class="badge">${esc(p.category||'Sin sección')}</span></div><div class="meta">Alerta configurada: ${Math.max(0,+p.reorderLevel||0)} ${esc(p.unit)}</div></div><div style="text-align:right"><strong>${p.stock} ${esc(p.unit)}</strong><div style="display:flex;gap:5px;justify-content:flex-end;margin-top:7px"><button class="btn secondary" data-alertcfg="${p.id}" style="padding:6px 9px">⚙️</button><button class="btn danger" data-deleteinv="${p.id}" style="padding:6px 9px">🗑️</button></div></div></div>`).join(''):'<div class="empty">Sin productos.</div>';let list=[...movements].reverse().slice(0,100);inventoryMovementList.innerHTML=list.length?list.map(m=>`<div class="row"><div><strong>${esc(m.name)}</strong><div class="meta">${new Date(m.date).toLocaleString('es-PE')} · ${esc(m.source||'')}</div><div class="meta">Stock ${m.before} → ${m.after}</div></div><div><strong>${m.qty}</strong></div></div>`).join(''):'<div class="empty">Sin movimientos.</div>'}
 
@@ -639,7 +639,7 @@ render();
   checkUrlOrder();
 })();
 </script>
-<script src="product-view.js?v=20260930-10"></script>
+<script src="product-view.js?v=20260930-11"></script>
 <script src="public-catalog.js?v=20260930-8"></script>
 <script src="merchandise-reminders.js?v=20260819-1"></script>
 <script src="admin-guard.js?v=20260902-1"></script>
@@ -679,7 +679,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js?v=20260930-10');
+  navigator.serviceWorker.register('/sw.js?v=20260930-11');
 }
 </script>
 <script id="vareliaReaderTruthGuardV1">
