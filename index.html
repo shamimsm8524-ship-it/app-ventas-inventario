@@ -635,7 +635,7 @@ render();
   checkUrlOrder();
 })();
 </script>
-<script src="product-view.js?v=20260929-27"></script>
+<script src="product-view.js?v=20260929-28"></script>
 <script src="public-catalog.js?v=20260819-2"></script>
 <script src="merchandise-reminders.js?v=20260819-1"></script>
 <script src="admin-guard.js?v=20260902-1"></script>
@@ -730,8 +730,11 @@ if ('serviceWorker' in navigator) {
 </script>
 <style id="vareliaAdminBottomPatchCss">
 @media(max-width:980px){
-  #vmobileNav{grid-template-columns:repeat(6,minmax(0,1fr))!important}
+  #vmobileNav{grid-template-columns:repeat(6,minmax(0,1fr))!important;height:92px!important;padding-top:8px!important;padding-bottom:calc(8px + env(safe-area-inset-bottom))!important}
+  #vmobileNav button{font-size:10px!important;gap:5px!important;padding:7px 1px!important}
+  #vmobileNav button span{font-size:33px!important;line-height:1!important}
   #vmobileNav [data-mobile-tab="mobileAdminHub"]{display:grid!important}
+  @media(max-width:360px){#vmobileNav button{font-size:9px!important}#vmobileNav button span{font-size:29px!important}}
 }
 </style>
 <script id="vareliaAdminBottomPatch">
@@ -801,7 +804,7 @@ if ('serviceWorker' in navigator) {
       btn=document.createElement('button');
       btn.type='button';
       btn.dataset.mobileTab='mobileAdminHub';
-      btn.innerHTML='<span>▦</span>Administración';
+      btn.innerHTML='<span>▦</span>Admin';
       const settings=nav.querySelector('[data-mobile-tab="mobileSettingsHub"]');
       if(settings)nav.insertBefore(btn,settings);else nav.appendChild(btn);
     }
