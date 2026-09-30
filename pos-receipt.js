@@ -81,12 +81,12 @@
 
       function receiptHTML(sale){
         const items=Array.isArray(sale.items)?sale.items:[];
-        return `<div class="vreceiptPaper"><h3>${esc(businessName())}</h3><div class="center muted">COMPROBANTE INTERNO DE VENTA</div><div class="vreceiptSep"></div><div class="vreceiptLine"><span>N.º</span><b>${esc(ticketNo(sale))}</b></div><div class="vreceiptLine"><span>Fecha</span><span>${esc(dateText(sale))}</span></div><div class="vreceiptLine"><span>Pago</span><span>${esc(sale.paymentMethod||'Efectivo')}</span></div><div class="vreceiptSep"></div>${items.map(i=>`<div class="vreceiptLine"><div><div class="vreceiptItemName">${esc(i.name||'Producto')}</div><div class="vreceiptItemMeta">${Number(i.qty||0)} × ${money(i.price)}</div></div><b>${money(Number(i.qty||0)*Number(i.price||0))}</b></div>`).join('')}<div class="vreceiptSep"></div><div class="vreceiptTotal"><span>TOTAL</span><span>${money(sale.total)}</span></div><div class="vreceiptDisclaimer">Gracias por su compra.<br>Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.</div></div>`;
+        return `<div class="vreceiptPaper"><h3>${esc(businessName())}</h3><div class="center muted">COMPROBANTE INTERNO DE VENTA</div><div class="vreceiptSep"></div><div class="vreceiptLine"><span>N.º</span><b>${esc(ticketNo(sale))}</b></div><div class="vreceiptLine"><span>Fecha</span><span>${esc(dateText(sale))}</span></div><div class="vreceiptLine"><span>Pago</span><span>${esc(sale.paymentMethod||'Efectivo')}</span></div>${sale.sellerName?`<div class="vreceiptLine"><span>Vendedor</span><span>${esc(sale.sellerName)}</span></div>`:''}<div class="vreceiptSep"></div>${items.map(i=>`<div class="vreceiptLine"><div><div class="vreceiptItemName">${esc(i.name||'Producto')}</div><div class="vreceiptItemMeta">${Number(i.qty||0)} × ${money(i.price)}</div></div><b>${money(Number(i.qty||0)*Number(i.price||0))}</b></div>`).join('')}<div class="vreceiptSep"></div><div class="vreceiptTotal"><span>TOTAL</span><span>${money(sale.total)}</span></div><div class="vreceiptDisclaimer">Gracias por su compra.<br>Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.</div></div>`;
       }
       function showReceipt(sale){currentReceipt=sale;preview.innerHTML=receiptHTML(sale);overlay.classList.add('show')}
       function receiptText(sale){
         const items=(sale.items||[]).map(i=>`${i.qty} x ${i.name} — ${money(Number(i.qty||0)*Number(i.price||0))}`).join('\n');
-        return `${businessName()}\nCOMPROBANTE DE VENTA\nN.º ${ticketNo(sale)}\n${dateText(sale)}\nPago: ${sale.paymentMethod||'Efectivo'}\n\n${items}\n\nTOTAL: ${money(sale.total)}\n\nGracias por su compra.`;
+        return `${businessName()}\nCOMPROBANTE DE VENTA\nN.º ${ticketNo(sale)}\n${dateText(sale)}\nPago: ${sale.paymentMethod||'Efectivo'}${sale.sellerName?'\nVendedor: '+sale.sellerName:''}\n\n${items}\n\nTOTAL: ${money(sale.total)}\n\nGracias por su compra.`;
       }
       function printReceipt(sale){
         const w=window.open('','_blank','width=420,height=720');
@@ -128,7 +128,7 @@
             if(!Array.isArray(sales)||sales.length<=pending.before){pending=null;return}
             const sale=sales[sales.length-1];
             if(!sale.receiptNumber)sale.receiptNumber='V-'+new Date(sale.date||Date.now()).toISOString().slice(0,10).replace(/-/g,'')+'-'+String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-6).toUpperCase();
-            sale.paymentMethod=pending.paymentMethod;sale.receiptIssuedAt=new Date().toISOString();
+            sale.paymentMethod=pending.paymentMethod;const vp=window.vareliaCurrentUserProfile||{};sale.sellerId=vp.id||window.vareliaSellerId||'';sale.sellerName=vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';sale.sellerRole=vp.role||window.vareliaSellerRole||'';sale.receiptIssuedAt=new Date().toISOString();
             try{if(typeof save==='function')save()}catch{}
             showReceipt(sale);window.vareliaSound?.('sale');
           }finally{pending=null}
