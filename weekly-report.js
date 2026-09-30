@@ -5,7 +5,7 @@
   ready(()=>{
     if(typeof sales==='undefined'||typeof closures==='undefined'||typeof K==='undefined')return;
     const cash=document.getElementById('cash'),nav=document.querySelector('.nav'),main=document.querySelector('main.content');if(!cash||!nav||!main)return;
-    const style=document.createElement('style');style.textContent=`.weeklyBox{margin:14px 0;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:var(--shadow)}.weeklyBox h3{margin:0 0 5px}.weeklyEmail{font-weight:900;color:var(--p);word-break:break-all}.weeklyBtns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.weeklyBtns button{min-height:48px}.weeklyHint{font-size:12px;color:var(--muted);margin-top:8px}.weeklyDanger{background:#fff1f2!important;color:#be123c!important;border:1px solid #fecdd3!important}.cashSubGroup{display:grid;gap:5px}.cashSubGroup .cashParent{display:flex!important;justify-content:space-between;align-items:center}.cashSubGroup .cashArrow{transition:.2s}.cashSubGroup.open .cashArrow{transform:rotate(180deg)}.cashSubmenu{display:none;gap:5px;padding-left:14px}.cashSubGroup.open .cashSubmenu{display:grid}.cashSubmenu button{font-size:13px;padding:10px 12px;color:#cbd5e1;border-left:2px solid #334155;border-radius:0 12px 12px 0}.cashSubmenu button.active{border-left-color:#fff;background:color-mix(in srgb,var(--p) 72%,#0f172a)}@media(max-width:600px){.weeklyBtns{grid-template-columns:1fr}}`;document.head.appendChild(style);
+    const style=document.createElement('style');style.textContent=`.weeklyBox{margin:14px 0;padding:16px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:var(--shadow)}.weeklyBox h3{margin:0 0 5px}.weeklyEmail{font-weight:900;color:var(--p);word-break:break-all}.weeklyBtns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px}.weeklyBtns button{min-height:48px}.weeklyHint{font-size:12px;color:var(--muted);margin-top:8px}.weeklyDanger{background:#fff1f2!important;color:#be123c!important;border:1px solid #fecdd3!important}.weeklyReportNavItem,.reportCashItem{display:flex!important;align-items:center!important;gap:11px!important}@media(max-width:600px){.weeklyBtns{grid-template-columns:1fr}}`;document.head.appendChild(style);
 
     const reportSection=document.createElement('section');reportSection.id='weeklyReport';reportSection.className='view';reportSection.innerHTML=`<div class="head"><div><h2>📧 Respaldo semanal</h2><p class="notice">Guarda el historial de Ventas + Caja y, si deseas, cierra la semana desde aquí.</p></div></div>`;main.appendChild(reportSection);
     const box=document.createElement('div');box.className='weeklyBox';box.innerHTML=`<h3>Copia de seguridad semanal</h3><div class="notice">Primero puedes guardar o enviar tu historial. El cierre semanal es una opción dentro de este respaldo.</div><div style="margin-top:8px">Correo afiliado: <span class="weeklyEmail" id="weeklyEmail">Detectando…</span></div><div class="weeklyBtns"><button class="btn secondary" id="weeklySend">📧 Enviar historial al Gmail</button><button class="btn weeklyDanger" id="weeklyReset">📅 Cerrar semana después del respaldo</button></div><div class="weeklyHint">Cerrar la semana es opcional. Varelia no pondrá nada en 0 hasta que tú confirmes que el respaldo fue enviado.</div>`;reportSection.appendChild(box);
@@ -14,22 +14,61 @@
     document.getElementById('profits')?.remove();
 
     const oldCashBtn=nav.querySelector('[data-view="cash"]');
-    let cashBtn=oldCashBtn,weeklyBtn=null,group=null;
-    if(oldCashBtn&&!document.getElementById('cashSubGroup')){
-      group=document.createElement('div');group.id='cashSubGroup';group.className='cashSubGroup';
-      const parent=document.createElement('button');parent.type='button';parent.className='cashParent';parent.innerHTML='<span>💵 Caja</span><span class="cashArrow">⌄</span>';
-      const sub=document.createElement('div');sub.className='cashSubmenu';
-      cashBtn=document.createElement('button');cashBtn.type='button';cashBtn.dataset.view='cash';cashBtn.textContent='📊 Resumen y cierres';
-      weeklyBtn=document.createElement('button');weeklyBtn.type='button';weeklyBtn.dataset.view='weeklyReport';weeklyBtn.textContent='📧 Respaldo semanal';
-      sub.append(cashBtn,weeklyBtn);group.append(parent,sub);oldCashBtn.replaceWith(group);
-      parent.onclick=()=>group.classList.toggle('open');
-    } else {
-      group=document.getElementById('cashSubGroup');weeklyBtn=group?.querySelector('[data-view="weeklyReport"]');cashBtn=group?.querySelector('[data-view="cash"]')||oldCashBtn;group?.querySelectorAll('[data-view="profits"]').forEach(el=>el.remove());
+    let cashBtn=oldCashBtn,weeklyBtn=nav.querySelector('[data-view="weeklyReport"]');
+    const placeReportItems=()=>{
+      const appearanceBtn=nav.querySelector('[data-view="appearance"]');
+      const gainBtn=nav.querySelector('.premiumGainItem');
+      if(!appearanceBtn){setTimeout(placeReportItems,250);return}
+
+      const oldGroup=document.getElementById('cashSubGroup');
+      if(oldGroup){
+        const existingCash=oldGroup.querySelector('[data-view="cash"]');
+        if(existingCash)cashBtn=existingCash;
+        oldGroup.remove();
+      }
+
+      if(!cashBtn){
+        cashBtn=document.createElement('button');
+        cashBtn.type='button';
+        cashBtn.dataset.view='cash';
+      }
+      cashBtn.classList.add('reportCashItem');
+      cashBtn.innerHTML='<span class="premiumNavIcon">▣</span><span>Cierre de caja</span>';
+
+      if(!weeklyBtn){
+        weeklyBtn=document.createElement('button');
+        weeklyBtn.type='button';
+        weeklyBtn.dataset.view='weeklyReport';
+        weeklyBtn.className='weeklyReportNavItem';
+      }
+      weeklyBtn.innerHTML='<span class="premiumNavIcon">📧</span><span>Respaldo semanal</span>';
+
+      if(gainBtn){
+        gainBtn.insertAdjacentElement('afterend',weeklyBtn);
+        weeklyBtn.insertAdjacentElement('afterend',cashBtn);
+      }else{
+        nav.insertBefore(weeklyBtn,appearanceBtn);
+        nav.insertBefore(cashBtn,appearanceBtn);
+      }
+
+      cashBtn.onclick=e=>{e.preventDefault();e.stopPropagation();openView('cash',cashBtn)};
+      weeklyBtn.onclick=e=>{e.preventDefault();e.stopPropagation();openView('weeklyReport',weeklyBtn)};
+    };
+
+    function openView(id,btn){
+      document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));
+      document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b===btn));
+      if(innerWidth<=980){
+        document.getElementById('sidebar')?.classList.remove('open','show');
+        document.getElementById('overlay')?.classList.remove('show');
+      }
+      try{history.replaceState(null,'',location.pathname+location.search+(id==='weeklyReport'?'#respaldo-semanal':id==='cash'?'#caja':''))}catch{}
+      scrollTo({top:0,behavior:'smooth'});
     }
-    function openView(id,btn){document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===id));document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b===btn));group?.classList.add('open');if(innerWidth<=980){document.getElementById('sidebar')?.classList.remove('open');document.getElementById('overlay')?.classList.remove('show')}try{history.replaceState(null,'',location.pathname+location.search+(id==='weeklyReport'?'#respaldo-semanal':'#caja'))}catch{}scrollTo({top:0,behavior:'smooth'})}
-    cashBtn?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openView('cash',cashBtn)},true);
-    weeklyBtn?.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();openView('weeklyReport',weeklyBtn)},true);
-    if(location.hash==='#respaldo-semanal')setTimeout(()=>openView('weeklyReport',weeklyBtn),120);
+
+    placeReportItems();
+    if(location.hash==='#respaldo-semanal')setTimeout(()=>openView('weeklyReport',weeklyBtn),500);
+    if(location.hash==='#caja')setTimeout(()=>openView('cash',cashBtn),500);
 
     function money(n){return 'S/ '+Number(n||0).toFixed(2)}
     const emailEl=document.getElementById('weeklyEmail');
