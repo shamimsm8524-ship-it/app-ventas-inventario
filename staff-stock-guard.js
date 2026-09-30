@@ -41,8 +41,8 @@
     body.varelia-staff-readonly .vforceQtyBtn{pointer-events:auto!important;opacity:1!important}
     body.varelia-staff-readonly #mobileSettingsHub input,
     body.varelia-staff-readonly #mobileSettingsHub textarea,
-    body.varelia-staff-readonly #mobileSettingsHub select,
-    body.varelia-staff-readonly #mobileSettingsHub button{pointer-events:none!important;opacity:.68!important}
+    body.varelia-staff-readonly #mobileSettingsHub select{pointer-events:none!important;opacity:.68!important}
+    body.varelia-staff-readonly #mobileSettingsHub button{pointer-events:auto!important;opacity:1!important}
     body.varelia-staff-readonly #vareliaEditBusinessName{display:none!important}
     .vstaffReadOnlyNote{display:none;margin:0 0 14px;padding:12px 14px;border:1px solid #dbeafe;border-radius:14px;background:#eff6ff;color:#1e3a8a;font-size:12px;font-weight:800}
     body.varelia-staff-readonly .vstaffReadOnlyNote{display:block}
@@ -89,16 +89,47 @@
     }
   }
 
+  function setSettingsReadOnly(staff){
+    document.querySelectorAll('#mobileSettingsHub input,#mobileSettingsHub textarea,#mobileSettingsHub select').forEach(el=>{
+      if(staff){
+        if(!el.dataset.vstaffLocked){
+          el.dataset.vstaffLocked='1';
+          el.dataset.vstaffWasDisabled=el.disabled?'1':'0';
+          el.dataset.vstaffWasReadonly=el.readOnly?'1':'0';
+        }
+        if(el.tagName==='INPUT'&&['text','tel','email','number','url','date','time','password'].includes(String(el.type||'text').toLowerCase()))el.readOnly=true;
+        else el.disabled=true;
+      }else if(el.dataset.vstaffLocked){
+        el.disabled=el.dataset.vstaffWasDisabled==='1';
+        el.readOnly=el.dataset.vstaffWasReadonly==='1';
+        delete el.dataset.vstaffLocked;
+        delete el.dataset.vstaffWasDisabled;
+        delete el.dataset.vstaffWasReadonly;
+      }
+    });
+  }
+
+  function enableOperationalControls(){
+    document.querySelectorAll(
+      '#vmobileNav button,#vposNew,#vposInput,#vposScan,#vposCheckout,.vposSuggestion,.vposQtyInput,.vforceQtyInput,.vposQtyBtn,.vforceQtyBtn,'+
+      '#inventoryName,#inventoryCode,#findInventory,#scanForInventory,#inventoryMode,#inventoryQty,#applyInventory,'+
+      '[data-cart-plus],[data-cart-minus],[data-cart-qty],.vreturnBtn,#vreturnItem,#vreturnQty,.vreturnSave'
+    ).forEach(el=>{
+      if(el && !el.closest('#mobileSettingsHub'))el.disabled=false;
+    });
+  }
+
   function applyMode(){
     const staff=isStaff();
     document.body.classList.toggle('varelia-staff-readonly',staff);
     ensureReadOnlyNote();
     configureInventoryControls(staff);
+    setSettingsReadOnly(staff);
+    enableOperationalControls();
+
     if(!staff)return;
 
     document.querySelectorAll('#reorderList input[data-reorder]').forEach(el=>el.disabled=true);
-    document.querySelectorAll('#mobileSettingsHub input,#mobileSettingsHub textarea,#mobileSettingsHub select,#mobileSettingsHub button').forEach(el=>el.disabled=true);
-    document.querySelectorAll('.vposQtyInput,.vforceQtyInput,.vposQtyBtn,.vforceQtyBtn').forEach(el=>el.disabled=false);
 
     const active=document.querySelector('.view.active')?.id;
     if(['categories','suppliers','purchases','appearance','mobileAdminHub'].includes(active)){
@@ -113,7 +144,7 @@
     '[data-edit]','[data-delete]','[data-deleteinv]','[data-alertcfg]','[data-delcat]','[data-editsupplier]','[data-delsupplier]',
     '.nav [data-view="categories"]','.nav [data-view="suppliers"]','.nav [data-view="purchases"]',
     '[data-admin-open="categories"]','[data-admin-open="suppliers"]','[data-admin-open="purchases"]',
-    '#mobileSettingsHub button','#mobileSettingsHub input[type="file"]'
+    '#mobileSettingsHub input[type="file"]'
   ].join(',');
 
   document.addEventListener('click',e=>{
