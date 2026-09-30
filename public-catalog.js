@@ -113,10 +113,18 @@
       });
       return out.slice(0,12);
     };
+    const publicBusinessInfo=()=>{
+      const s=settings();
+      const methods=String(s.publicPaymentMethods||'Efectivo,Yape,Plin,Transferencia').split(',').map(x=>x.trim()).filter(Boolean).slice(0,12);
+      let mapUrl=String(s.publicMapUrl||'').trim();
+      if(mapUrl&&!/^https?:\/\//i.test(mapUrl))mapUrl='https://'+mapUrl.replace(/^\/+/, '');
+      try{if(mapUrl){const u=new URL(mapUrl);mapUrl=['http:','https:'].includes(u.protocol)?u.href:''}}catch{mapUrl=''}
+      return {phone:String(s.phone||'').trim().slice(0,40),whatsapp:normalizeSocialUrl(s.socialWhatsApp||s.phone||'','whatsapp'),address:String(s.address||'').trim().slice(0,240),hours:String(s.businessHours||'').trim().slice(0,300),map_url:mapUrl,allow_delivery:s.publicAllowDelivery!==false,allow_pickup:s.publicAllowPickup!==false,payment_methods:methods.length?methods:['Efectivo']};
+    };
     const imageCache=new Map();
     const specFor=p=>String(specs[String(p.id)]??p.specifications??'');
 
-    function signature(){return JSON.stringify({c:color(),n:catalogBusinessName(),s:socialLinks(),p:products.map(p=>[p.id,p.name,p.category,+p.sellPrice||0,+p.stock||0,p.unit,p.description||'',specFor(p),p.image?.length||0,p.image?.slice(-32)||''])})}
+    function signature(){return JSON.stringify({c:color(),n:catalogBusinessName(),s:socialLinks(),i:publicBusinessInfo(),p:products.map(p=>[p.id,p.name,p.category,+p.sellPrice||0,+p.stock||0,p.unit,p.description||'',specFor(p),p.image?.length||0,p.image?.slice(-32)||''])})}
     function compressImage(src){
       if(!src||!String(src).startsWith('data:image/'))return Promise.resolve('');
       const key=src.length+'|'+src.slice(-48);if(imageCache.has(key))return Promise.resolve(imageCache.get(key));
@@ -136,7 +144,7 @@
         const {data:sess}=await sb.auth.getSession();if(!sess?.session?.user)throw new Error('Inicia sesión para publicar el catálogo');
         $('catalogSyncState').textContent='Actualizando productos disponibles…';
         const rows=await payload();
-        const {data,error}=await sb.rpc('varelia_sync_public_catalog_v3',{p_products:rows,p_theme_color:color(),p_social_links:socialLinks(),p_business_name:catalogBusinessName()});
+        const {data,error}=await sb.rpc('varelia_sync_public_catalog_v4',{p_products:rows,p_theme_color:color(),p_social_links:socialLinks(),p_business_name:catalogBusinessName(),p_business_info:publicBusinessInfo()});
         if(error)throw error;
         publicId=String(data||'');
         const {data:publicCatalog,error:slugError}=await sb.from('public_catalogs').select('public_slug').eq('public_id',publicId).eq('enabled',true).maybeSingle();
