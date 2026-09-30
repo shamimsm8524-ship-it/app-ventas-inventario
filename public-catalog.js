@@ -66,10 +66,40 @@
     const $=id=>document.getElementById(id);let lastSignature='',publicId='',publicSlug='',syncing=null;
     const toast=t=>window.vareliaToast?window.vareliaToast(t):alert(t);
     const color=()=>getComputedStyle(document.documentElement).getPropertyValue('--p').trim()||'#be185d';
+    const settings=()=>{try{return JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')||{}}catch{return{}}};
+    const normalizeSocialUrl=(value,type='other')=>{
+      let v=String(value||'').trim();if(!v)return '';
+      if(type==='whatsapp'){
+        const digits=v.replace(/\D/g,'');
+        if(/^\+?[0-9\s()-]{7,}$/.test(v)&&digits)return 'https://wa.me/'+digits;
+      }
+      if(v.startsWith('@')){
+        const h=v.slice(1);
+        if(type==='tiktok')return 'https://www.tiktok.com/@'+h;
+        if(type==='instagram')return 'https://www.instagram.com/'+h;
+        if(type==='youtube')return 'https://www.youtube.com/@'+h;
+      }
+      if(!/^https?:\/\//i.test(v))v='https://'+v.replace(/^\/+/, '');
+      try{const u=new URL(v);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}
+    };
+    const socialLinks=()=>{
+      const s=settings(),out=[];
+      const add=(type,label,value)=>{const url=normalizeSocialUrl(value,type);if(url)out.push({type,label,url})};
+      add('tiktok','TikTok',s.socialTikTok);
+      add('facebook','Facebook',s.socialFacebook);
+      add('instagram','Instagram',s.socialInstagram);
+      add('whatsapp','WhatsApp',s.socialWhatsApp);
+      add('youtube','YouTube',s.socialYouTube);
+      String(s.socialOther||'').split(/\r?\n/).forEach(line=>{
+        const parts=line.split('|'),label=String(parts.shift()||'').trim(),raw=parts.join('|').trim();
+        if(label&&raw)add('other',label,raw);
+      });
+      return out.slice(0,12);
+    };
     const imageCache=new Map();
     const specFor=p=>String(specs[String(p.id)]??p.specifications??'');
 
-    function signature(){return JSON.stringify({c:color(),p:products.map(p=>[p.id,p.name,p.category,+p.sellPrice||0,+p.stock||0,p.unit,p.description||'',specFor(p),p.image?.length||0,p.image?.slice(-32)||''])})}
+    function signature(){return JSON.stringify({c:color(),s:socialLinks(),p:products.map(p=>[p.id,p.name,p.category,+p.sellPrice||0,+p.stock||0,p.unit,p.description||'',specFor(p),p.image?.length||0,p.image?.slice(-32)||''])})}
     function compressImage(src){
       if(!src||!String(src).startsWith('data:image/'))return Promise.resolve('');
       const key=src.length+'|'+src.slice(-48);if(imageCache.has(key))return Promise.resolve(imageCache.get(key));
@@ -89,7 +119,7 @@
         const {data:sess}=await sb.auth.getSession();if(!sess?.session?.user)throw new Error('Inicia sesión para publicar el catálogo');
         $('catalogSyncState').textContent='Actualizando productos disponibles…';
         const rows=await payload();
-        const {data,error}=await sb.rpc('varelia_sync_public_catalog',{p_products:rows,p_theme_color:color()});
+        const {data,error}=await sb.rpc('varelia_sync_public_catalog_v2',{p_products:rows,p_theme_color:color(),p_social_links:socialLinks()});
         if(error)throw error;
         publicId=String(data||'');
         const {data:publicCatalog,error:slugError}=await sb.from('public_catalogs').select('public_slug').eq('public_id',publicId).eq('enabled',true).maybeSingle();
@@ -110,6 +140,7 @@
     $('catalogShare').onclick=async()=>{try{const url=await catalogUrl(false);if(navigator.share)await navigator.share({title:'Catálogo de productos',text:'Mira nuestros productos disponibles',url});else{await navigator.clipboard.writeText(url);toast('Link del catálogo copiado.')}}catch{}};
 
     window.addEventListener('varelia:catalog-product-changed',()=>setTimeout(()=>syncNow(true).catch(()=>{}),120));
+    window.addEventListener('varelia:catalog-settings-changed',()=>setTimeout(()=>syncNow(true).catch(()=>{}),120));
     setTimeout(()=>syncNow(false).catch(()=>{}),2200);
     setInterval(()=>{if(document.visibilityState==='visible')syncNow(false).catch(()=>{})},7000);
     window.addEventListener('focus',()=>syncNow(false).catch(()=>{}));
