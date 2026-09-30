@@ -43,7 +43,7 @@
       root.innerHTML=`
         <div class="vposHero">
           <div><span class="vposStatus">● Caja lista</span><h3>Caja rápida</h3><p>Funciona como una caja de supermercado: cada lectura agrega el producto y actualiza el total.</p></div>
-          <button type="button" class="btn primary vposNew" id="vposNew">+ Nueva venta</button>
+          
         </div>
         <div class="vposBox">
           <div class="vposSearch"><input id="vposInput" autocomplete="off" inputmode="search" placeholder="Escanea código o busca un producto"><button type="button" class="btn secondary vposScan" id="vposScan">📷 Escanear</button></div>
@@ -143,7 +143,7 @@
         try{if(typeof openSale==='function')openSale()}catch(e){console.warn(e)}
         try{if(saleDialog.open)saleDialog.close()}catch{}document.body.classList.remove('vposReset');input.value='';hideSuggestions();sync();input.focus();window.vareliaToast?.('Nueva venta lista','ok')
       }
-      root.querySelector('#vposNew').onclick=startNew;
+      const posNew=root.querySelector('#vposNew');if(posNew)posNew.onclick=startNew;
       checkoutBtn.onclick=()=>{const s=sync();if(!s.rows.length)return;try{legacyCheckout.click();setTimeout(()=>{sync();try{if(typeof renderSales==='function')renderSales()}catch{}window.vareliaToast?.('Venta registrada','ok')},160)}catch(e){console.error(e);window.vareliaSound?.('error')}};
 
       function goSales(){const nav=document.querySelector('.nav [data-view="sales"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew();root.scrollIntoView({behavior:'smooth',block:'start'})},80)}
