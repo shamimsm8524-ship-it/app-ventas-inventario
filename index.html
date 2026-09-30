@@ -634,7 +634,7 @@ if ('serviceWorker' in navigator) {
     sec=document.createElement('section');
     sec.id='mobileAdminHub';
     sec.className='view vmobileHub';
-    sec.innerHTML='<div class="vmobileHubHead"><h2>Administración</h2><p>Gestiona las herramientas de tu negocio.</p></div><div class="vmobileHubGrid">'+
+    sec.innerHTML='<div class="vmobileHubHead"><h2>Administración</h2><p>Gestiona las herramientas de tu negocio.</p></div><div id="adminSessionCard" style="margin:12px 0 18px;padding:14px;border:1px solid var(--line);border-radius:16px;background:var(--card)"><b style="display:block">👤 Cuenta conectada</b><small id="adminSessionEmail" style="display:block;margin:5px 0;color:var(--muted)">Cargando cuenta…</small><span id="adminSessionRole" style="display:inline-block;font-size:12px;font-weight:900;color:var(--p);margin-bottom:10px"></span><button id="adminSessionLogout" type="button" class="btn secondary" style="width:100%">Cerrar sesión</button></div><div class="vmobileHubGrid">'+
       '<button class="vmobileHubCard" type="button" data-admin-open="sellers"><span class="vmobileHubIcon">♙</span><div><b>Vendedores</b><small>Cuentas y permisos</small></div></button>'+
       '<button class="vmobileHubCard" type="button" data-admin-open="categories"><span class="vmobileHubIcon">◇</span><div><b>Categorías</b><small>Organizar catálogo</small></div></button>'+
       '<button class="vmobileHubCard" type="button" data-admin-open="purchases"><span class="vmobileHubIcon">▣</span><div><b>Compras</b><small>Ingreso de mercadería</small></div></button>'+
@@ -643,6 +643,9 @@ if ('serviceWorker' in navigator) {
       '<button class="vmobileHubCard" type="button" data-admin-open="help"><span class="vmobileHubIcon">?</span><div><b>Ayuda</b><small>Guía rápida</small></div></button>'+
       '</div>';
     main.appendChild(sec);
+    const refreshAdminSession=async()=>{try{const sb=window.vareliaSupabase;if(!sb)return;const {data:s}=await sb.auth.getSession();const u=s?.session?.user;if(!u)return;document.getElementById('adminSessionEmail').textContent=u.email||'Cuenta activa';let role='Usuario';try{const {data:p}=await sb.from('profiles').select('role').eq('id',u.id).maybeSingle();role=String(p?.role||'').toLowerCase()==='owner'?'Administrador':String(p?.role||'').toLowerCase()==='staff'?'Personal':(p?.role||'Usuario')}catch{}document.getElementById('adminSessionRole').textContent=role}catch(e){console.warn('Cuenta Admin',e)}};
+    const logout=document.getElementById('adminSessionLogout');if(logout)logout.onclick=async()=>{logout.disabled=true;logout.textContent='Cerrando sesión…';try{await window.vareliaSupabase?.auth.signOut()}catch{}location.replace('/login.html')};
+    refreshAdminSession();setTimeout(refreshAdminSession,500);setTimeout(refreshAdminSession,1500);
     sec.addEventListener('click',e=>{
       const b=e.target.closest('[data-admin-open]');
       if(!b)return;
