@@ -53,9 +53,7 @@ html,body{width:100%;height:100%;margin:0;background:#f7f8fc;font-family:system-
   const canonicalUrl='https://vareliastore.tech/catalogo/'+encodeURIComponent(slug)+'/';
   document.getElementById('catalogCanonical')?.setAttribute('href',canonicalUrl);
   document.getElementById('catalogOgUrl')?.setAttribute('content',canonicalUrl);
-  const frame=document.getElementById('catalogFrame');
-  frame.onload=()=>{document.getElementById('loading').style.display='none';frame.style.display='block'};
-  frame.src='/catalogo-publico-20260930-16.html?c='+encodeURIComponent(data.public_id)+'&_v=20260930-16';
+  location.replace('/catalogo-publico-20260930-16.html?c='+encodeURIComponent(data.public_id)+'&_v=20260930-16');
 })();
 </script>
 </body>
