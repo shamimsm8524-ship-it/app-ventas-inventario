@@ -90,8 +90,8 @@
         const subtotal=Number(sale.subtotal??((Number(sale.total)||0)+(Number(sale.discount)||0)));
         return `${businessName()}\nCOMPROBANTE DE VENTA\nN.º ${ticketNo(sale)}\n${dateText(sale)}\nPago: ${sale.paymentMethod||'Efectivo'}${sale.customerName?'\nCliente: '+sale.customerName:''}${sale.sellerName?'\nVendedor: '+sale.sellerName:''}\n\n${items}${Number(sale.discount)>0?'\n\nSubtotal: '+money(subtotal)+'\nDescuento: -'+money(sale.discount):''}\n\nTOTAL: ${money(sale.total)}${sale.paymentMethod==='Fiado'?'\nSaldo pendiente: '+money(Math.max(0,(Number(sale.total)||0)-(Number(sale.paidAmount)||0))):''}${sale.notes?'\nNota: '+sale.notes:''}\n\n${bs.ticketMessage||'Gracias por su compra.'}`;
       }
-      function printReceipt(sale){
-        const w=window.open('','_blank','width=420,height=720');
+      function printReceipt(sale,preparedWindow=null){
+        const w=(preparedWindow&&!preparedWindow.closed)?preparedWindow:window.open('','_blank','width=420,height=720');
         if(!w)return alert('Permite ventanas emergentes para imprimir el comprobante.');
         const bs=businessSettings(),width=String(bs.thermalWidth||'80')==='58'?58:80,paper=width===58?52:72;
         const logoMaxW=width===58?24:30,logoMaxH=width===58?18:22;
@@ -272,7 +272,12 @@
           e.preventDefault();e.stopImmediatePropagation();alert('Escribe el nombre del cliente para registrar el fiado.');return;
         }
         let before=0;try{before=Array.isArray(sales)?sales.length:0}catch{}
-        pending={before,paymentMethod:paymentMethod.value,total,extras:{...extras}};
+        let printWindow=null;
+        try{
+          printWindow=window.open('','_blank','width=420,height=720');
+          if(printWindow)printWindow.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Preparando ticket</title></head><body style="font-family:system-ui;padding:20px">Preparando ticket...</body></html>');
+        }catch{}
+        pending={before,paymentMethod:paymentMethod.value,total,extras:{...extras},printWindow};
         setTimeout(()=>{
           if(!pending)return;
           try{
@@ -282,6 +287,7 @@
             sale.paymentMethod=pending.paymentMethod;const ex=pending.extras||{};const originalTotal=Number(sale.total)||0;sale.subtotal=originalTotal;sale.discount=Math.max(0,Math.min(originalTotal,Number(ex.discount)||0));sale.total=Math.max(0,originalTotal-sale.discount);sale.notes=String(ex.notes||'').trim();sale.customerName=String(ex.customerName||'').trim();if(sale.paymentMethod==='Fiado'&&!Number.isFinite(Number(sale.paidAmount)))sale.paidAmount=0;const vp=window.vareliaCurrentUserProfile||{};sale.sellerId=vp.id||window.vareliaSellerId||'';sale.sellerName=vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';sale.sellerRole=vp.role||window.vareliaSellerRole||'';sale.receiptIssuedAt=new Date().toISOString();
             try{if(typeof save==='function')save()}catch{}
             showReceipt(sale);window.vareliaSound?.('sale');
+            try{printReceipt(sale,pending.printWindow)}catch(err){console.error('Impresión automática',err)}
           }finally{pending=null}
         },120);
       },true);
