@@ -27,12 +27,12 @@
         body.varelia-simple-mobile #menuBtn{display:none!important}
         body.varelia-simple-mobile #newSaleFab{display:none!important}
         body.varelia-simple-mobile .content{padding-bottom:92px!important}
-        .vmobileNav{position:fixed;left:0;right:0;bottom:0;z-index:9990;height:76px;padding:6px max(7px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(6,1fr);background:color-mix(in srgb,var(--card) 97%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--line);box-shadow:0 -8px 28px rgba(15,23,42,.1)}
-        .vmobileNav button{border:0;background:transparent;color:var(--muted);border-radius:13px;display:grid;place-items:center;align-content:center;gap:3px;padding:5px 1px;font-size:9px;font-weight:850;min-width:0;pointer-events:auto!important;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
-        .vmobileNav button span{font-size:25px;line-height:1}.vmobileNav button.active{color:var(--p);background:color-mix(in srgb,var(--p) 7%,var(--card))}
+        .vmobileNav{position:fixed;left:0;right:0;bottom:0;z-index:9990;height:92px;padding:8px max(6px,env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(6,1fr);background:color-mix(in srgb,var(--card) 97%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--line);box-shadow:0 -8px 28px rgba(15,23,42,.1)}
+        .vmobileNav button{border:0;background:transparent;color:var(--muted);border-radius:13px;display:grid;place-items:center;align-content:center;gap:5px;padding:7px 1px;font-size:10px;font-weight:850;min-width:0;pointer-events:auto!important;touch-action:manipulation;user-select:none;-webkit-tap-highlight-color:transparent}
+        .vmobileNav button span{font-size:33px;line-height:1}.vmobileNav button.active{color:var(--p);background:color-mix(in srgb,var(--p) 7%,var(--card))}
         .vmobileNav button.active span{transform:translateY(-1px)}
       }
-      @media(max-width:360px){.vmobileNav button{font-size:8px}.vmobileNav button span{font-size:22px}.vmobileHubGrid{gap:8px}.vmobileHubCard{padding:12px}}
+      @media(max-width:360px){.vmobileNav button{font-size:9px}.vmobileNav button span{font-size:29px}.vmobileHubGrid{gap:8px}.vmobileHubCard{padding:12px}}
     `;
     document.head.appendChild(style);
 
@@ -82,7 +82,7 @@
       <button type="button" data-mobile-tab="products"><span>◇</span>Catálogo</button>
       <button type="button" data-mobile-tab="inventory"><span>▥</span>Inventario</button>
       <button type="button" data-mobile-tab="mobileHistoryHub"><span>◷</span>Historial</button>
-      <button type="button" data-mobile-tab="mobileAdminHub"><span>▦</span>Administración</button>
+      <button type="button" data-mobile-tab="mobileAdminHub"><span>▦</span>Admin</button>
       <button type="button" data-mobile-tab="mobileSettingsHub"><span>⚙</span>Ajustes</button>`;
     document.body.appendChild(nav);
 
