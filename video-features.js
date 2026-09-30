@@ -71,7 +71,7 @@
     }
 
     function setupHistory(){
-      const sec=document.getElementById('mobileHistoryHub');if(!sec)return false;
+      const sec=document.getElementById('mobileHistoryHub');if(!sec)return false;if(sec.__vHistoryReady){window.VareliaVideoHistory?.render?.();return true}sec.__vHistoryReady=true;
       let period='today',mode='tickets';
       const render=()=>{
         const ss=periodSales(period),total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
@@ -135,7 +135,7 @@
     });
 
     function setupSettings(){
-      const sec=document.getElementById('mobileSettingsHub');if(!sec)return false;
+      const sec=document.getElementById('mobileSettingsHub');if(!sec)return false;if(sec.__vSettingsReady)return true;sec.__vSettingsReady=true;
       const render=()=>{
         cfg=loadSettings();
         sec.innerHTML=`
