@@ -157,7 +157,7 @@
     syncReturnLimit(d);d.showModal();
   }
 
-  function submitReturn(e){
+  async function submitReturn(e){
     e.preventDefault();
     if(!canSales())return;
     const d=ensureReturnDialog(),sale=findSale(activeReturnSaleId);if(!sale)return;
@@ -170,7 +170,23 @@
     if(!p)return toast('El producto ya no existe en el inventario.','warn');
 
     const before=Number(p.stock)||0;
-    p.stock=before+qty;
+    let centralData=null;
+    if(typeof window.vareliaCentralReturn==='function'&&sale.cloudSaleId&&item.cloudSaleItemId){
+      try{
+        centralData=await window.vareliaCentralReturn({
+          saleId:sale.cloudSaleId,
+          saleItemId:item.cloudSaleItemId,
+          qty
+        });
+      }catch(err){
+        console.error(err);
+        return toast(err?.message||'No se pudo registrar la devolución en el inventario central.','warn');
+      }
+    }else if(isStaff()){
+      return toast('Esta venta es anterior a la sincronización central. La devolución debe registrarla el administrador.','warn');
+    }
+
+    p.stock=centralData?.stock_after!=null?Number(centralData.stock_after):before+qty;
     item.returnedQty=already+qty;
     sale.returns=Array.isArray(sale.returns)?sale.returns:[];
     sale.returns.push({
@@ -179,7 +195,14 @@
       by:window.vareliaSellerId||'',byName:window.vareliaSellerName||''
     });
     try{if(typeof addMovement==='function')addMovement(p,'return',qty,before,p.stock,'Devolución de venta')}catch{}
-    try{if(typeof save==='function')save();else throw new Error('save no disponible')}catch(err){p.stock=before;item.returnedQty=already;console.error(err);return toast('No se pudo guardar la devolución.','warn')}
+    try{
+      if(!centralData&&typeof syncProductToCloud==='function')await Promise.resolve(syncProductToCloud(p));
+      if(typeof save==='function')save();else throw new Error('save no disponible');
+    }catch(err){
+      if(!centralData){p.stock=before;item.returnedQty=already}
+      console.error(err);
+      return toast('No se pudo guardar la devolución.','warn');
+    }
     d.close();
     toast('Devolución registrada. Se repusieron '+qty+' unidad(es) al stock.','ok');
     setTimeout(refreshSalesButtons,50);
