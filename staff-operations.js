@@ -121,6 +121,7 @@
     d.innerHTML=`<div class="vstaffStockCard">
       <div class="vstaffStockHead"><div><h3 id="vstaffStockTitle">Movimiento de mercadería</h3><div style="font-size:11px;color:var(--muted);margin-top:4px">Selecciona producto y cantidad.</div></div><button type="button" class="vstaffStockClose">×</button></div>
       <form class="vstaffStockForm" id="vstaffStockForm">
+        <label>Código de barras<div style="display:grid;grid-template-columns:1fr auto;gap:8px"><input id="vstaffStockBarcode" inputmode="numeric" placeholder="Escanea o escribe el código"><button type="button" class="btn secondary" id="vstaffStockScan">📷 Escanear</button></div></label>
         <label>Producto<select id="vstaffStockProduct"></select></label>
         <label>Cantidad<input id="vstaffStockQty" type="number" inputmode="numeric" min="1" step="1" value="1" required></label>
         <input id="vstaffStockEvent" type="hidden" value="restock">
@@ -130,6 +131,10 @@
     document.body.appendChild(d);
     d.querySelector('.vstaffStockClose').onclick=()=>d.close();
     d.querySelector('#vstaffStockForm').onsubmit=submitStock;
+    const bc=d.querySelector('#vstaffStockBarcode'),sel=d.querySelector('#vstaffStockProduct');
+    const recognize=()=>{const code=String(bc.value||'').trim();if(!code)return;const p=getProducts().find(x=>String(x.barcode||'').trim()===code);if(!p)return toast('Código no registrado.');sel.value=String(p.id);toast('Producto reconocido: '+p.name,'ok')};
+    bc.addEventListener('change',recognize);bc.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();recognize()}});
+    d.querySelector('#vstaffStockScan').onclick=()=>{d.close();window.__vareliaReturnScanTarget=true;document.getElementById('scanForInventory')?.click()};
     return d;
   }
 
@@ -145,6 +150,7 @@
     if(!d.querySelector('#vstaffStockProduct').options.length)return toast('No hay productos disponibles.');
     d.querySelector('#vstaffStockEvent').value=event;
     d.querySelector('#vstaffStockQty').value='1';
+    d.querySelector('#vstaffStockBarcode').value='';
     d.querySelector('#vstaffStockTitle').textContent=event==='return'?'↩ Devolver mercadería':'📦 Reponer mercadería';
     d.querySelector('.vstaffStockSave').textContent=event==='return'?'Registrar devolución':'Registrar reposición';
     d.showModal();
@@ -170,6 +176,8 @@
       console.error(err);toast(err?.message||'No se pudo registrar el movimiento.');
     }finally{saveBtn.disabled=false}
   }
+
+  document.addEventListener('input',e=>{if(!window.__vareliaReturnScanTarget||e.target?.id!=='inventoryCode')return;const code=String(e.target.value||'').trim();if(!code)return;const p=getProducts().find(x=>String(x.barcode||'').trim()===code);if(!p)return;window.__vareliaReturnScanTarget=false;setTimeout(()=>{const d=ensureDialog();fillProducts(d);d.querySelector('#vstaffStockEvent').value='return';d.querySelector('#vstaffStockTitle').textContent='↩ Devolver mercadería';d.querySelector('.vstaffStockSave').textContent='Registrar devolución';d.querySelector('#vstaffStockBarcode').value=code;d.querySelector('#vstaffStockProduct').value=String(p.id);d.showModal();toast('Producto reconocido: '+p.name,'ok')},180)},true);
 
   function ensureOps(){
     // Inventario ya tiene su formulario completo: no duplicar Reponer/Devolver arriba.
