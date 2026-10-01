@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261001-CATEGORY-CLOUD-1';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261001-VENTA-KG-GLOBAL-13';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <meta id="themeMeta" name="theme-color" content="#be185d">
 <title>VareliaStore</title>
@@ -317,13 +317,25 @@ savePurchase.onclick=()=>{let s=suppliers.find(x=>String(x.id).trim()===String(p
 
 function openSale(){cart=[];renderCart();saleDialog.showModal()}
 function addToCart(p, qtyToAdd=1){
-  if(!p||p.stock<=0)return alert('Este producto no tiene stock disponible.');
+  if(!p)return;
+  const live=products.find(x=>String(x.id).trim()===String(p.id).trim())
+    ||products.find(x=>String(p.barcode||'').trim()&&String(x.barcode||'').trim()===String(p.barcode||'').trim())
+    ||products.find(x=>String(x.name||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase())
+    ||p;
+  p=live;
+  if(p.stock<=0)return alert('Este producto no tiene stock disponible.');
+  const kg=String(p.unit||'').trim().toLowerCase()==='kg';
+  if(kg&&!window.__vareliaAddingWeight){
+    if(window.VareliaWeightSale){window.VareliaWeightSale.open(p);return}
+    return alert('Selecciona el peso antes de agregar '+p.name);
+  }
+  qtyToAdd=kg?Math.max(.001,Number(qtyToAdd)||.001):Math.max(1,Math.floor(Number(qtyToAdd)||1));
   let i=cart.find(x=>String(x.id).trim()===String(p.id).trim());
   if(i){
     if(i.qty + qtyToAdd > p.stock) return alert('No hay más stock disponible para '+p.name);
-    i.qty += qtyToAdd;
+    i.qty += qtyToAdd;i.unit=p.unit||i.unit;
   } else {
-    cart.push({id:p.id,name:p.name,price:+p.sellPrice,qty:Math.min(qtyToAdd, p.stock)});
+    cart.push({id:p.id,name:p.name,barcode:p.barcode||'',price:+p.sellPrice,qty:Math.min(qtyToAdd,p.stock),unit:p.unit||'Unidad'});
   }
   renderCart();
 }
@@ -533,7 +545,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js?v=20261001-2',{updateViaCache:'none'});
+  navigator.serviceWorker.register('/sw.js?v=20261001-kg-global-13',{updateViaCache:'none'});
 }
 </script>
 <script id="vareliaReaderTruthGuardV1">
