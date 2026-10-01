@@ -721,6 +721,30 @@ if ('serviceWorker' in navigator) {
  addEventListener('pageshow',clean);
 })();
 
+
+// Sonidos de interacción para botones y controles de cantidad
+(()=>{
+  let ctx=null;
+  function beep(kind='click'){
+    try{
+      ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
+      if(ctx.state==='suspended')ctx.resume();
+      const o=ctx.createOscillator(),g=ctx.createGain(),now=ctx.currentTime;
+      const freq=kind==='plus'?720:kind==='minus'?420:560;
+      o.type='sine';o.frequency.setValueAtTime(freq,now);
+      g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.055,now+.008);g.gain.exponentialRampToValueAtTime(.0001,now+.075);
+      o.connect(g);g.connect(ctx.destination);o.start(now);o.stop(now+.08);
+    }catch{}
+  }
+  window.vareliaButtonSound=beep;
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('button,[role="button"]');if(!b||b.disabled)return;
+    if(b.matches('[data-cart-plus],#scannerIncrease'))beep('plus');
+    else if(b.matches('[data-cart-minus]'))beep('minus');
+    else beep('click');
+  },true);
+})();
+
 // Orden móvil Varelia inspirado en el flujo POS de referencia
 if(window.reportsMenu&&window.reportsGroup) reportsMenu.onclick=()=>reportsGroup.classList.toggle('open');
 if(window.settingsMenu&&window.settingsGroup) settingsMenu.onclick=()=>settingsGroup.classList.toggle('open');
