@@ -112,7 +112,8 @@
     const pos=document.getElementById('vareliaPosSales');
     const box=pos?.querySelector('.vposBox');
     const bottom=pos?.querySelector('.vposBottom');
-    if(!pos||!box||!bottom)return false;
+    const legacyCheckout=document.getElementById('checkout');
+    if(!bottom&&!legacyCheckout)return false;
 
     document.querySelectorAll('.vposPaymentBar').forEach(x=>x.remove());
     let existing=document.getElementById('vareliaPaymentPanel');
@@ -120,7 +121,7 @@
       existing=document.createElement('div');
       existing.id='vareliaPaymentPanel';
       existing.innerHTML='<div class="vpayHead"><b>💳 Cobro</b><span style="font-size:11px;color:var(--muted)">Pago único o combinado</span></div><select id="vposPaymentMethod"></select><label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;font-weight:900"><input id="vpayMixedToggle" type="checkbox" style="width:18px;height:18px"> Pago mixto (combinar métodos)</label><div id="vareliaPaymentDetail"></div>';
-      bottom.insertAdjacentElement('beforebegin',existing);
+      if(bottom)bottom.insertAdjacentElement('beforebegin',existing);else legacyCheckout.insertAdjacentElement('beforebegin',existing);
     }
 
     const sel=document.getElementById('vposPaymentMethod');
@@ -150,7 +151,7 @@
     const method=sel.value;
     const mixed=document.getElementById('vpayMixedToggle')?.checked;
     if(mixed){
-      const total=Number(String(document.getElementById('vposTotal')?.textContent||'').replace(/[^0-9.]/g,''))||0;
+      const total=Number(String((document.getElementById('vposTotal')?.textContent||document.getElementById('saleTotal')?.textContent||'')).replace(/[^0-9.]/g,''))||0;
       detail.innerHTML='<div class="vpayCash"><small style="color:var(--muted)">Ingresa cuánto paga con cada método. Puedes usar dos o más.</small>'+METHODS.map(m=>'<label>'+esc(m)+' (S/)<input class="vpayPart" data-method="'+esc(m)+'" type="number" inputmode="decimal" min="0" step="0.10" placeholder="0.00"></label>').join('')+'<div class="vpayChange"><span id="vpayMixedLabel">Falta</span><strong id="vpayMixedResult">S/ '+total.toFixed(2)+'</strong></div><small id="vpayMixedTotal" style="color:var(--muted)">Recibido: S/ 0.00 · Total: S/ '+total.toFixed(2)+'</small></div>';
       const calc=()=>{const vals=[...detail.querySelectorAll('.vpayPart')].map(x=>Number(x.value)||0),received=vals.reduce((a,b)=>a+b,0),diff=received-total,label=document.getElementById('vpayMixedLabel'),out=document.getElementById('vpayMixedResult');label.textContent=diff>=0?'Vuelto':'Falta';out.textContent='S/ '+Math.abs(diff).toFixed(2);out.style.color=diff>=0?'var(--p)':'#b91c1c';document.getElementById('vpayMixedTotal').textContent='Recibido: S/ '+received.toFixed(2)+' · Total: S/ '+total.toFixed(2)};
       detail.querySelectorAll('.vpayPart').forEach(x=>x.oninput=calc);calc();return;
@@ -165,7 +166,7 @@
     const transfer=String(local.transferDetails||settings?.transfer_details||'').trim();
 
     if(method==='Efectivo'){
-      const total=Number(String(document.getElementById('vposTotal')?.textContent||'').replace(/[^0-9.]/g,''))||0;
+      const total=Number(String((document.getElementById('vposTotal')?.textContent||document.getElementById('saleTotal')?.textContent||'')).replace(/[^0-9.]/g,''))||0;
       detail.innerHTML='<div class="vpayCash"><label>Monto recibido (S/)</label><input id="vpayReceived" type="number" inputmode="decimal" min="0" step="0.10" placeholder="0.00"><div class="vpayChange"><span>Vuelto</span><strong id="vpayChange">S/ 0.00</strong></div><small id="vpayCashMsg" style="color:var(--muted)"></small></div>';
       const inp=document.getElementById('vpayReceived'),out=document.getElementById('vpayChange'),msg=document.getElementById('vpayCashMsg');
       const calc=()=>{const received=Number(inp.value)||0,change=received-total;out.textContent='S/ '+Math.max(0,change).toFixed(2);msg.textContent=received>0&&received<total?'Faltan S/ '+(total-received).toFixed(2):'';out.style.color=received>=total?'var(--p)':'#b91c1c'};
@@ -275,7 +276,7 @@
   }
 
   function paymentSnapshot(){
-    const total=Number(String(document.getElementById('vposTotal')?.textContent||'').replace(/[^0-9.]/g,''))||0;
+    const total=Number(String((document.getElementById('vposTotal')?.textContent||document.getElementById('saleTotal')?.textContent||'')).replace(/[^0-9.]/g,''))||0;
     const mixed=!!document.getElementById('vpayMixedToggle')?.checked;
     let breakdown={},received=0;
     if(mixed){
