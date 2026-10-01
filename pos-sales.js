@@ -221,7 +221,7 @@
       }
       function hideSuggestions(){suggestions.classList.remove('show');suggestions.innerHTML=''}
       function showSuggestions(q){const list=matches(q);if(!list.length){hideSuggestions();return}suggestions.innerHTML=list.map(p=>`<button type="button" class="vposSuggestion" data-pos-id="${esc(p.id)}"><span><b>${esc(p.name)}</b><small>${esc(p.barcode||'Sin código')}</small></span><strong>S/ ${Number(p.sellPrice||0).toFixed(2)}</strong></button>`).join('');suggestions.classList.add('show')}
-      suggestions.addEventListener('click',e=>{const b=e.target.closest('[data-pos-id]');if(!b)return;const p=allProducts().find(x=>String(x.id)===String(b.dataset.posId));if(addProduct(p)){input.value='';hideSuggestions();input.focus()}});
+      suggestions.addEventListener('click',e=>{const b=e.target.closest('[data-pos-id]');if(!b)return;e.preventDefault();e.stopPropagation();const p=allProducts().find(x=>String(x.id)===String(b.dataset.posId));if(!p)return;if(String(p.unit||'').trim().toLowerCase()==='kg'&&window.VareliaWeightSale){hideSuggestions();input.value='';window.VareliaWeightSale.open(p);return}if(addProduct(p)){input.value='';hideSuggestions();input.focus()}});
       input.addEventListener('input',()=>showSuggestions(input.value));
       input.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const q=input.value.trim(),p=exactProduct(q)||matches(q)[0];if(!p)return; e.preventDefault();if(addProduct(p)){input.value='';hideSuggestions();input.focus()}});
 
