@@ -102,7 +102,7 @@
     if(!sb||!businessId)return false;
     const [catsRes,prodRes]=await Promise.all([
       sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
-      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,buy_price,sell_price,stock,unit,reorder_level,image_data').eq('business_id',businessId).order('created_at')
+      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,buy_price,sell_price,stock,unit,reorder_level,image_data').eq('business_id',businessId).order('created_at')
     ]);
     if(catsRes.error)throw catsRes.error;
     if(prodRes.error)throw prodRes.error;
