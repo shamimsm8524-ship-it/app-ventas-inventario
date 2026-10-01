@@ -2,7 +2,7 @@
   if(window.__vareliaPaymentOptionsV2)return;
   window.__vareliaPaymentOptionsV2=true;
 
-  const METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta','QR'];
+  const METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta'];
   const toast=(m,t='warn')=>window.vareliaToast?window.vareliaToast(m,t):alert(m);
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   let sb=null,profile=null,businessId='',settings=null,pendingSale=null;
@@ -104,7 +104,7 @@
   function methodList(){
     const list=Array.isArray(settings?.payment_methods)?settings.payment_methods:[];
     const merged=[];
-    for(const m of [...list,...METHODS])if(m&&!merged.includes(m))merged.push(m);
+    for(const m of [...list,...METHODS])if(m&&m!=='QR'&&!merged.includes(m))merged.push(m);
     return merged;
   }
 
@@ -153,7 +153,7 @@
       : method==='Plin'
         ? String(local.plinQr||settings?.plin_qr_data||settings?.payment_qr_data||'')
         : String(settings?.generic_qr_data||settings?.payment_qr_data||'');
-    const transfer=String(settings?.transfer_details||'').trim();
+    const transfer=String(local.transferDetails||settings?.transfer_details||'').trim();
 
     if(['Yape','Plin','QR'].includes(method)){
       detail.innerHTML=qr
