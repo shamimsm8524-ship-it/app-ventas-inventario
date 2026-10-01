@@ -331,17 +331,18 @@ function setCartQty(id,value){
   const item=cart.find(x=>String(x.id).trim()===String(id).trim());
   const p=products.find(x=>String(x.id).trim()===String(id).trim());
   if(!item||!p)return;
-  const max=Math.max(1,Math.floor(Number(p.stock)||1));
-  let q=Math.floor(Number(value)||1);
-  q=Math.max(1,Math.min(q,max));
-  if(Number(value)>max)alert('Stock disponible: '+max);
+  const kg=String(p.unit||'').trim().toLowerCase()==='kg';
+  const max=kg?Math.max(.001,Number(p.stock)||.001):Math.max(1,Math.floor(Number(p.stock)||1));
+  let q=kg?Math.round((Number(value)||.001)*1000)/1000:Math.floor(Number(value)||1);
+  q=Math.max(kg?.001:1,Math.min(q,max));
+  if(Number(value)>max)alert('Stock disponible: '+max+(kg?' kg':''));
   item.qty=q;
   renderCart();
 }
 function renderCart(){
   const box=$('cart');
   if(!box)return;
-  box.innerHTML=cart.length?cart.map(i=>`<div class="cartitem" data-cart-row="${esc(i.id)}"><span>${esc(i.name)}</span><div style="display:flex;align-items:center;gap:6px"><button type="button" class="btn secondary" data-cart-minus="${esc(i.id)}" style="padding:6px 10px">−</button><input type="number" inputmode="numeric" min="1" max="${Math.max(1,Number(products.find(p=>String(p.id)===String(i.id))?.stock)||1)}" value="${i.qty}" data-cart-qty="${esc(i.id)}" style="width:64px;text-align:center;padding:7px"><button type="button" class="btn secondary" data-cart-plus="${esc(i.id)}" style="padding:6px 10px">+</button></div></div>`).join(''):'';
+  box.innerHTML=cart.length?cart.map(i=>`<div class="cartitem" data-cart-row="${esc(i.id)}"><span>${esc(i.name)}</span><div style="display:flex;align-items:center;gap:6px"><button type="button" class="btn secondary" data-cart-minus="${esc(i.id)}" style="padding:6px 10px">−</button><input type="number" inputmode="decimal" min="${String(products.find(p=>String(p.id)===String(i.id))?.unit||'').toLowerCase()==='kg'?'0.001':'1'}" step="${String(products.find(p=>String(p.id)===String(i.id))?.unit||'').toLowerCase()==='kg'?'0.001':'1'}" max="${Number(products.find(p=>String(p.id)===String(i.id))?.stock)||1}" value="${i.qty}" data-cart-qty="${esc(i.id)}" style="width:64px;text-align:center;padding:7px"><button type="button" class="btn secondary" data-cart-plus="${esc(i.id)}" style="padding:6px 10px">+</button></div></div>`).join(''):'';
   saleTotal.textContent=money(cart.reduce((a,i)=>a+i.price*i.qty,0));
   if(!box.dataset.qtyBound){
     box.dataset.qtyBound='1';
@@ -701,7 +702,7 @@ if ('serviceWorker' in navigator) {
 <script src="sale-sound.js?v=20260930-2"></script>
 <script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261001-weight-decimal-v1"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
-<script src="weight-sales.js?v=20261001-weight-prices-v2"></script>\n<script src="pos-sales.js?v=20261001-kg-decimal-v7"></script>
+<script src="weight-sales.js?v=20261001-weight-legacy-fix-v3"></script>\n<script src="pos-sales.js?v=20261001-kg-decimal-v8"></script>
 <script src="payment-options.js?v=20261001-visible-modal-v4"></script>
 <script src="auto-ticket-print.js?v=20261001-mixed-payments-v2"></script>
 <script id="vareliaForceOldQtyRemoval">
