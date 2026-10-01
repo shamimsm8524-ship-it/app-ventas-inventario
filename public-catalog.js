@@ -119,7 +119,7 @@
       let mapUrl=String(s.publicMapUrl||'').trim();
       if(mapUrl&&!/^https?:\/\//i.test(mapUrl))mapUrl='https://'+mapUrl.replace(/^\/+/, '');
       try{if(mapUrl){const u=new URL(mapUrl);mapUrl=['http:','https:'].includes(u.protocol)?u.href:''}}catch{mapUrl=''}
-      return {slogan:String(s.businessSlogan||'').trim().slice(0,120),phone:String(s.phone||'').trim().slice(0,40),whatsapp:normalizeSocialUrl(s.socialWhatsApp||s.phone||'','whatsapp'),address:String(s.address||'').trim().slice(0,240),hours:String(s.businessHours||'').trim().slice(0,300),map_url:mapUrl,allow_delivery:s.publicAllowDelivery!==false,allow_pickup:s.publicAllowPickup!==false,payment_methods:methods.length?methods:['Efectivo']};
+      return {slogan:String(s.businessSlogan||'').trim().slice(0,120),delivery:{indrive:{enabled:s.deliveryInDriveEnabled!==false,cost:Math.max(0,Number(s.deliveryInDriveCost)||0)},olva:{enabled:s.deliveryOlvaEnabled!==false,cost:Math.max(0,Number(s.deliveryOlvaCost)||0)},shalom:{enabled:s.deliveryShalomEnabled!==false,cost:Math.max(0,Number(s.deliveryShalomCost)||0),pay_at_agency:s.deliveryShalomPayAgency!==false},pickup:s.publicAllowPickup!==false},phone:String(s.phone||'').trim().slice(0,40),whatsapp:normalizeSocialUrl(s.socialWhatsApp||s.phone||'','whatsapp'),address:String(s.address||'').trim().slice(0,240),hours:String(s.businessHours||'').trim().slice(0,300),map_url:mapUrl,allow_delivery:s.publicAllowDelivery!==false,allow_pickup:s.publicAllowPickup!==false,payment_methods:methods.length?methods:['Efectivo']};
     };
     const imageCache=new Map();
     const specFor=p=>String(specs[String(p.id)]??p.specifications??'');
