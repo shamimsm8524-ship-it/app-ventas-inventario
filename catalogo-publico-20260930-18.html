@@ -35,7 +35,7 @@
     <nav class="socialLinks" id="socialLinks" aria-label="Redes sociales del negocio"></nav>
   </section>
   <section class="businessPublicCard" id="businessPublicCard">
-    <div class="businessPublicFacts" id="businessPublicFacts"></div>
+    <div id="businessSlogan" style="display:none;font-size:16px;font-weight:800;margin:0 0 12px"></div><div class="businessPublicFacts" id="businessPublicFacts"></div>
     <div class="businessPublicActions">
       <a id="businessWhatsAppBtn" class="primaryContact" target="_blank" rel="noopener" hidden>WhatsApp</a>
       <a id="businessMapBtn" target="_blank" rel="noopener" hidden>📍 Ver ubicación</a>
@@ -191,7 +191,7 @@
     if(!/^[0-9a-f-]{36}$/i.test(catalogId)){$('grid').innerHTML='<div class="empty error">Este enlace de catálogo no es válido.</div>';return}
     const {data:catalog,error:ce}=await sb.from('public_catalogs').select('business_id,business_name,theme_color,social_links,business_info,updated_at').eq('public_id',catalogId).eq('enabled',true).maybeSingle();
     if(ce||!catalog){$('grid').innerHTML='<div class="empty error">Este catálogo no está disponible.</div>';return}
-    applyTheme(catalog.theme_color);businessName=catalog.business_name||'Catálogo';socialLinks=Array.isArray(catalog.social_links)?catalog.social_links:[];businessInfo=catalog.business_info&&typeof catalog.business_info==='object'?catalog.business_info:{};$('businessName').textContent=businessName;document.title=businessName+' · Varelia Store';renderSocialLinks();renderBusinessInfo();setupOrderForm();
+    applyTheme(catalog.theme_color);businessName=catalog.business_name||'Catálogo';socialLinks=Array.isArray(catalog.social_links)?catalog.social_links:[];businessInfo=catalog.business_info&&typeof catalog.business_info==='object'?catalog.business_info:{};$('businessName').textContent=businessName;const slogan=String(businessInfo.slogan||'').trim();$('businessSlogan').textContent=slogan;$('businessSlogan').style.display=slogan?'block':'none';document.title=businessName+' · Varelia Store';renderSocialLinks();renderBusinessInfo();setupOrderForm();
     const {data,error}=await sb.from('public_catalog_products').select('product_id,name,category,sell_price,stock,unit,description,specifications,image_data').eq('business_id',catalog.business_id).gt('stock',0).order('category').order('name');
     if(error){$('grid').innerHTML='<div class="empty error">No se pudo cargar el catálogo. Intenta nuevamente.</div>';return}
     products=data||[];cleanCart();render();updateOrderSummary();
