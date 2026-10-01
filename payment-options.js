@@ -171,6 +171,8 @@
   }
 
   function ensureAdminCard(){
+    document.getElementById('vareliaPaymentAdmin')?.remove();
+    return true;
     const hub=document.getElementById('mobileSettingsHub');
     if(!hub||!isOwner())return false;
     if(document.getElementById('vareliaPaymentAdmin'))return true;
