@@ -325,9 +325,14 @@
 
   async function init(){
     try{
+      // El cobro debe mostrarse siempre, incluso si Supabase/perfil tarda o falla.
+      ensurePaymentPanel();
+      let quickTries=0;
+      const quickTimer=setInterval(()=>{quickTries++;ensurePaymentPanel();if(quickTries>80)clearInterval(quickTimer)},150);
       if(!await waitSupabase())return;
       if(!await loadProfile()||!businessId)return;
       await loadSettings();
+      ensurePaymentPanel();
       let tries=0;
       const timer=setInterval(()=>{
         tries++;
