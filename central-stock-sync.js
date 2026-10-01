@@ -245,7 +245,7 @@
         if(!p)throw new Error('Producto no encontrado: '+String(item.name||''));
         const cloudId=await ensureCloudProductId(p);
         if(!cloudId)throw new Error('Este producto aún no está sincronizado. Actualiza la página e inténtalo nuevamente.');
-        payload.push({product_id:cloudId,qty:Math.max(1,Math.floor(Number(item.qty)||1))});
+        payload.push({product_id:cloudId,qty:Math.max(0.001,Number(item.qty)||0)});
       }
 
       const {data,error}=await sb.rpc('varelia_commit_sale',{p_items:payload,p_source:'Venta'});
