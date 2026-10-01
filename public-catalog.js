@@ -66,7 +66,7 @@
     const $=id=>document.getElementById(id);let lastSignature='',publicId='',publicSlug='',syncing=null;
     const toast=t=>window.vareliaToast?window.vareliaToast(t):alert(t);
     const color=()=>getComputedStyle(document.documentElement).getPropertyValue('--p').trim()||'#be185d';
-    const settings=()=>{try{return JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')||{}}catch{return{}}};
+    const settings=()=>{try{return {...(JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')||{}),...(window.vareliaVideoSettings||{})}}catch{return window.vareliaVideoSettings||{}}};
     const catalogBusinessName=()=>{
       const s=settings();
       const candidates=[
