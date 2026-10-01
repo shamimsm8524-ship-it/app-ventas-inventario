@@ -8,7 +8,7 @@
     const DEFAULTS={businessName:'',businessSlogan:'',logo:'',ruc:'',phone:'',address:'',businessHours:'',publicMapUrl:'',publicAllowDelivery:true,publicAllowPickup:true,publicPaymentMethods:'Efectivo,Yape,Plin,Transferencia',deliveryInDriveEnabled:true,deliveryInDriveCost:12,deliveryOlvaEnabled:true,deliveryOlvaCost:15,deliveryShalomEnabled:true,deliveryShalomCost:0,deliveryShalomPayAgency:true,ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',transferDetails:'',thermalWidth:'80',autoBarcode:true,enableVariants:false,socialTikTok:'',socialFacebook:'',socialInstagram:'',socialWhatsApp:'',socialYouTube:'',socialOther:''};
     const loadSettings=()=>{try{return {...DEFAULTS,...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{return {...DEFAULTS}}};
     let cfg=loadSettings();
-    const saveCfg=()=>{try{localStorage.setItem(STORE,JSON.stringify(cfg))}catch{}};
+    const saveCfg=()=>{try{localStorage.setItem(STORE,JSON.stringify(cfg));window.vareliaVideoSettings={...cfg}}catch{}};window.vareliaVideoSettings={...cfg};
     const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const money=n=>(cfg.currency||'S/')+' '+Number(n||0).toFixed(2);
     const arr=name=>{try{return typeof window[name]!=='undefined'&&Array.isArray(window[name])?window[name]:(eval('typeof '+name+"!=='undefined'?"+name+':[]'))}catch{return[]}};
