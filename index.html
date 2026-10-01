@@ -183,6 +183,7 @@ function renderSales(){
       <div>
         <strong>${new Date(s.date).toLocaleString('es-PE')}</strong>
         <div class="meta">${(s.items||[]).map(i=>`${esc(i.name)} (${i.qty})`).join(', ') || 'Venta registrada'}</div>
+        <div class="meta" style="margin-top:5px;font-weight:800">${s.paymentBreakdown&&Object.keys(s.paymentBreakdown).length?Object.entries(s.paymentBreakdown).filter(([,v])=>+v>0).map(([m,v])=>`${esc(m)}: ${money(v)}`).join(' · '):`Pago: ${esc(s.paymentMethod||'Efectivo')}`}${+s.amountReceived>0?` · Recibido: ${money(s.amountReceived)}`:''}${+s.changeGiven>0?` · Vuelto: ${money(s.changeGiven)}`:''}</div>
       </div>
       <strong style="color:var(--p)">${money(s.total)}</strong>
     </div>
@@ -700,8 +701,8 @@ if ('serviceWorker' in navigator) {
 <script src="sale-sound.js?v=20260930-2"></script>
 <script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261001-weight-decimal-v1"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
-<script src="weight-sales.js?v=20261001-weight-prices-v2"></script>\n<script src="payment-options.js?v=20261001-cash-change-v1"></script>
-<script src="auto-ticket-print.js?v=20260930-1"></script>
+<script src="weight-sales.js?v=20261001-weight-prices-v2"></script>\n<script src="payment-options.js?v=20261001-mixed-payments-v2"></script>
+<script src="auto-ticket-print.js?v=20261001-mixed-payments-v2"></script>
 <script id="vareliaForceOldQtyRemoval">
 (()=>{
  const clean=()=>{
