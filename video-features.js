@@ -268,7 +268,7 @@
       }
       cfg=loadSettings();root.querySelector('#vVariantWrap').style.display=cfg.enableVariants?'grid':'none';
       const dlg=document.getElementById('productDialog');
-      if(dlg&&!dlg.__vVariantBound){dlg.__vVariantBound=true;dlg.addEventListener('click',()=>setTimeout(()=>{const id=document.getElementById('productId')?.value,p=productsList().find(x=>String(x.id)===String(id));const ta=document.getElementById('vProductVariants');if(ta)ta.value=p?.variants||''},0),true)}
+      if(dlg&&!dlg.__vVariantBound){dlg.__vVariantBound=true;dlg.addEventListener('click',(e)=>{if(e.target?.closest?.('#vProductVariants'))return;const ta=document.getElementById('vProductVariants');if(!ta||ta===document.activeElement||ta.dataset.userEditing==='1')return;setTimeout(()=>{if(ta===document.activeElement||ta.dataset.userEditing==='1')return;const id=document.getElementById('productId')?.value,p=productsList().find(x=>String(x.id)===String(id));ta.value=p?.variants||''},0)},true);const ta=dlg.querySelector('#vProductVariants');if(ta){ta.addEventListener('input',()=>{ta.dataset.userEditing='1'});ta.addEventListener('blur',()=>{setTimeout(()=>{ta.dataset.userEditing='0'},150)})}}
       return true;
     }
 
