@@ -168,6 +168,8 @@
         const minus=e.target.closest('[data-pos-minus]'),plus=e.target.closest('[data-pos-plus]');
         if(!minus&&!plus)return;
         const id=(minus||plus).dataset[minus?'posMinus':'posPlus'];
+        const clickedProduct=allProducts().find(x=>String(x.id)===String(id));
+        if(plus&&String(clickedProduct?.unit||'').trim().toLowerCase()==='kg'&&window.VareliaWeightSale){e.preventDefault();window.VareliaWeightSale.open(clickedProduct);return}
         let item=null;try{item=Array.isArray(cart)?cart.find(x=>String(x.id)===String(id)):null}catch{}
         if(!item)return;
         const p=allProducts().find(x=>String(x.id)===String(id));const step=String(p?.unit||'').trim().toLowerCase()==='kg'?.25:1;setProductQty(id,(Number(item.qty)||step)+(plus?step:-step));
@@ -191,7 +193,10 @@
         if(!p)return false;
         const live=allProducts().find(x=>String(x.id)===String(p.id))||allProducts().find(x=>String(x.barcode||'').trim()===String(p.barcode||'').trim()&&String(p.barcode||'').trim())||byName(p.name)||p;
         p=live;
-        if(String(p.unit||'').trim().toLowerCase()==='kg'&&!window.__vareliaAddingWeight&&window.VareliaWeightSale){window.VareliaWeightSale.open(p);return true}qty=String(p.unit||'').trim().toLowerCase()==='kg'?Math.max(.001,Number(qty)||.001):Math.max(1,Math.floor(Number(qty)||1));
+        if(String(p.unit||'').trim().toLowerCase()==='kg'&&!window.__vareliaAddingWeight){
+          if(window.VareliaWeightSale){window.VareliaWeightSale.open(p);return true}
+          window.vareliaToast?.('Selecciona el peso antes de agregar '+p.name,'warn');return false
+        }qty=String(p.unit||'').trim().toLowerCase()==='kg'?Math.max(.001,Number(qty)||.001):Math.max(1,Math.floor(Number(qty)||1));
         if(Number(p.stock||0)<=0){window.vareliaSound?.('error');window.vareliaToast?.('Sin stock: '+p.name,'warn');return false}
         try{addToCart(p,qty);window.vareliaSound?.('add');window.vareliaToast?.(`${p.name} · S/ ${Number(p.sellPrice||0).toFixed(2)} agregado`,'ok');setTimeout(sync,0);return true}catch(e){console.error(e);window.vareliaSound?.('error');return false}
       }
