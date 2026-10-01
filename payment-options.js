@@ -32,7 +32,7 @@
     #vpayAdminYapeQrPreview,#vpayAdminPlinQrPreview,#vpayAdminGenericQrPreview{display:none;width:min(240px,75vw);max-height:240px;object-fit:contain;border-radius:12px;background:#fff;padding:8px;border:1px solid var(--line)}
     #vpayAdminYapeQrPreview.show,#vpayAdminPlinQrPreview.show,#vpayAdminGenericQrPreview.show{display:block}
     #vpayAdminSave{border:0;border-radius:12px;padding:12px 14px;background:var(--p);color:#fff;font-weight:900}
-    .vpayMethodsNote{font-size:11px;color:var(--muted);line-height:1.45}
+    .vpayMethodsNote{font-size:11px;color:var(--muted);line-height:1.45}.vpayCash{display:grid;gap:9px}.vpayCash label{font-size:12px;font-weight:850}.vpayCash input{width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font-size:17px;font-weight:850}.vpayChange{display:flex;justify-content:space-between;align-items:center;padding:12px;border-radius:12px;background:var(--card);border:1px solid var(--line)}.vpayChange strong{font-size:23px;color:var(--p)}
   `;
   document.head.appendChild(style);
 
@@ -155,6 +155,14 @@
         : String(settings?.generic_qr_data||settings?.payment_qr_data||'');
     const transfer=String(local.transferDetails||settings?.transfer_details||'').trim();
 
+    if(method==='Efectivo'){
+      const total=Number(String(document.getElementById('vposTotal')?.textContent||'').replace(/[^0-9.]/g,''))||0;
+      detail.innerHTML='<div class="vpayCash"><label>Monto recibido (S/)</label><input id="vpayReceived" type="number" inputmode="decimal" min="0" step="0.10" placeholder="0.00"><div class="vpayChange"><span>Vuelto</span><strong id="vpayChange">S/ 0.00</strong></div><small id="vpayCashMsg" style="color:var(--muted)"></small></div>';
+      const inp=document.getElementById('vpayReceived'),out=document.getElementById('vpayChange'),msg=document.getElementById('vpayCashMsg');
+      const calc=()=>{const received=Number(inp.value)||0,change=received-total;out.textContent='S/ '+Math.max(0,change).toFixed(2);msg.textContent=received>0&&received<total?'Faltan S/ '+(total-received).toFixed(2):'';out.style.color=received>=total?'var(--p)':'#b91c1c'};
+      inp.oninput=calc;calc();return;
+    }
+
     if(['Yape','Plin','QR'].includes(method)){
       detail.innerHTML=qr
         ? '<div class="vpayQrBox"><img src="'+qr+'" alt="Código QR de pago"><strong>Escanea para pagar'+(method==='QR'?'':' con '+esc(method))+'</strong>'+(holder?'<small>Titular: '+esc(holder)+'</small>':'')+'</div>'
@@ -260,7 +268,10 @@
   function capturePayment(){
     const sel=document.getElementById('vposPaymentMethod');
     let before=0;try{before=Array.isArray(sales)?sales.length:0}catch{}
-    pendingSale={method:sel?.value||'Efectivo',before,at:Date.now()};
+    const received=Number(document.getElementById('vpayReceived')?.value)||0;
+    const total=Number(String(document.getElementById('vposTotal')?.textContent||'').replace(/[^0-9.]/g,''))||0;
+    if((sel?.value||'Efectivo')==='Efectivo'&&received>0&&received<total){toast('El monto recibido es menor al total.');return}
+    pendingSale={method:sel?.value||'Efectivo',before,at:Date.now(),received:received||null,change:received?Math.max(0,received-total):null};
     try{localStorage.setItem('varelia_last_payment_method',pendingSale.method)}catch{}
     setTimeout(applyPaymentToSale,180);
     setTimeout(applyPaymentToSale,450);
@@ -273,6 +284,7 @@
       if(!Array.isArray(sales)||sales.length<=pendingSale.before)return;
       const sale=sales[sales.length-1];
       sale.paymentMethod=pendingSale.method;
+      if(pendingSale.received!=null){sale.amountReceived=pendingSale.received;sale.changeGiven=pendingSale.change}
       if(typeof save==='function')save();
       pendingSale=null;
     }catch{}
