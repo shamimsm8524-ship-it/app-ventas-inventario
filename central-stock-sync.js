@@ -170,7 +170,7 @@
   }
 
   function installProductBridge(){
-    const fn=p=>syncProduct(p).catch(e=>{console.error(e);toast('No se pudo sincronizar el producto.','warn')});
+    const fn=p=>syncProduct(p).catch(e=>{console.error(e);toast('No se pudo sincronizar el producto.','warn');throw e});
     try{syncProductToCloud=fn}catch{}
     window.syncProductToCloud=fn;
 
