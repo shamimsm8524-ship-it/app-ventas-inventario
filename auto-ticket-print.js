@@ -37,6 +37,9 @@
     const logoMaxW=width===58?24:30,logoMaxH=width===58?18:22;
     const items=Array.isArray(sale.items)?sale.items:[];
     const pay=sale.paymentMethod||paymentMethod();
+    const bd=sale.paymentBreakdown||{};
+    const payLines=Object.entries(bd).filter(([,v])=>Number(v)>0).map(([k,v])=>'<div class="line"><span>'+esc(k)+'</span><b>'+money(v)+'</b></div>').join('');
+    const received=Number(sale.amountReceived||0),change=Number(sale.changeGiven||0);
     const logo=s.logo?'<div class="c logo"><img src="'+esc(s.logo)+'" alt="Logo"></div>':'';
     const seller=sale.sellerName||sellerName();
     return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(ticketNo(sale))}</title><style>
@@ -61,6 +64,9 @@
       ${items.map(i=>'<div class="item"><b>'+esc(i.name||'Producto')+'</b><div class="line small"><span>'+Number(i.qty||0)+' × '+money(i.price)+'</span><b>'+money(Number(i.qty||0)*Number(i.price||0))+'</b></div></div>').join('')}
       <div class="sep"></div>
       <div class="line total"><span>TOTAL</span><span>${money(sale.total)}</span></div>
+      ${payLines?'<div class="sep"></div><b>DETALLE DE PAGO</b>'+payLines:''}
+      ${received?'<div class="line"><span>Total recibido</span><b>'+money(received)+'</b></div>':''}
+      ${change?'<div class="line"><span>Vuelto</span><b>'+money(change)+'</b></div>':''}
       <p class="c small footer">${esc(s.ticketMessage||'Gracias por su compra.')}<br>Comprobante interno. No reemplaza boleta o factura SUNAT.</p>
     </div></body></html>`;
   }
@@ -68,7 +74,13 @@
   function finish(sale){
     if(!pending)return;
     const p=pending;pending=null;
-    sale.paymentMethod=sale.paymentMethod||p.method;
+    const snap=window.VareliaPaymentSnapshot;
+    if(snap&&Date.now()-Number(snap.at||0)<10000){
+      sale.paymentMethod=snap.method||sale.paymentMethod||p.method;
+      sale.paymentBreakdown=snap.breakdown||sale.paymentBreakdown||{};
+      sale.amountReceived=snap.received;
+      sale.changeGiven=snap.change;
+    }else sale.paymentMethod=sale.paymentMethod||p.method;
     sale.sellerName=sale.sellerName||sellerName();
     sale.receiptNumber=sale.receiptNumber||ticketNo(sale);
     try{if(typeof save==='function')save()}catch{}
