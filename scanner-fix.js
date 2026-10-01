@@ -9,6 +9,18 @@
 
     const posStyle=document.createElement('style');
     posStyle.textContent=`
+      #scannerDialog .modal{width:min(94vw,520px);max-height:92vh;overflow:auto}
+      #scannerDialog #scannerVideo{display:none!important}
+      #scannerDialog #vareliaReader{width:100%!important;min-height:0!important;background:#000;border-radius:18px;overflow:hidden}
+      #scannerDialog #vareliaReader video{display:block!important;width:100%!important;height:auto!important;max-height:52vh!important;object-fit:cover!important}
+      #scannerDialog #vareliaReader canvas{display:none!important}
+      #scannerDialog #vareliaReader__scan_region{min-height:0!important}
+      #scannerDialog #vareliaReader__scan_region>img{display:none!important}
+      #scannerDialog #vareliaReader__dashboard{display:none!important}
+      #scannerDialog .scannerInfo{margin:10px 0;color:var(--muted);font-size:13px}
+      #scannerDialog .scannerManual{display:flex;gap:8px;margin-top:12px}
+      #scannerDialog .scannerManual input{min-width:0;flex:1}
+
       #saleDialog .cartitem.posCartRow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:12px 0}
       .posCartName{min-width:0}.posCartName b{display:block;font-size:14px}.posCartName small{display:block;color:var(--muted);margin-top:3px}
       .posCartQty{min-width:52px;text-align:center;font-weight:900;padding:7px 9px;border-radius:10px;background:var(--bg)}
