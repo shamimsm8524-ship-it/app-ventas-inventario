@@ -56,7 +56,7 @@
       barcode:String(p.barcode||'').trim()||null,
       name:String(p.name||'Producto').trim()||'Producto',
       description:String(p.description||''),
-      specifications:String(p.specifications||''),
+      specifications:String(p.variants||p.specifications||''),
       buy_price:Math.max(0,Number(p.buyPrice)||0),
       sell_price:Math.max(0,Number(p.sellPrice)||0),
       stock:Math.max(0,Number(p.stock)||0),
@@ -122,6 +122,7 @@
       reorderLevel:Number(p.reorder_level)||0,
       description:String(p.description||''),
       specifications:String(p.specifications||''),
+      variants:String(p.specifications||''),
       image:String(p.image_data||'')
     }));
 
