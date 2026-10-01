@@ -146,12 +146,13 @@
     const sel=document.getElementById('vposPaymentMethod');
     if(!detail||!sel)return;
     const method=sel.value;
-    const holder=String(settings?.payment_holder||'').trim();
+    let local={};try{local=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}
+    const holder=String(method==='Yape'?(local.yapeHolder||settings?.payment_holder||''):method==='Plin'?(local.plinHolder||settings?.payment_holder||''):(settings?.payment_holder||'')).trim();
     const qr=method==='Yape'
-      ? String(settings?.yape_qr_data||settings?.payment_qr_data||'')
+      ? String(local.yapeQr||settings?.yape_qr_data||settings?.payment_qr_data||'')
       : method==='Plin'
-        ? String(settings?.plin_qr_data||settings?.payment_qr_data||'')
-        : String(settings?.generic_qr_data||settings?.yape_qr_data||settings?.plin_qr_data||settings?.payment_qr_data||'');
+        ? String(local.plinQr||settings?.plin_qr_data||settings?.payment_qr_data||'')
+        : String(settings?.generic_qr_data||settings?.payment_qr_data||'');
     const transfer=String(settings?.transfer_details||'').trim();
 
     if(['Yape','Plin','QR'].includes(method)){
