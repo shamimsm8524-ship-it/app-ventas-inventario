@@ -69,7 +69,7 @@
           if(Array.isArray(cart)){
             return cart.map(i=>{
               const p=allProducts().find(x=>String(x.id)===String(i.id))||byName(i.name)||{id:i.id,name:i.name,barcode:'',stock:0,sellPrice:i.price};
-              const name=String(i.name||p.name||'Producto'),qty=Math.max(1,Number(i.qty)||1),price=Number(i.price??p.sellPrice??0);
+              const name=String(i.name||p.name||'Producto'),qty=String(p.unit||'').toLowerCase()==='kg'?Math.max(.001,Number(i.qty)||.001):Math.max(1,Number(i.qty)||1),price=Number(i.price??p.sellPrice??0);
               return {p,name,qty,price,subtotal:price*qty};
             });
           }
@@ -131,7 +131,7 @@
       });
 
       function addProduct(p,qty=1){
-        if(!p)return false;qty=Math.max(1,Math.floor(Number(qty)||1));
+        if(!p)return false;if(String(p.unit||'').trim().toLowerCase()==='kg'&&!window.__vareliaAddingWeight&&window.VareliaWeightSale){window.VareliaWeightSale.open(p);return true}qty=String(p.unit||'').trim().toLowerCase()==='kg'?Math.max(.001,Number(qty)||.001):Math.max(1,Math.floor(Number(qty)||1));
         if(Number(p.stock||0)<=0){window.vareliaSound?.('error');window.vareliaToast?.('Sin stock: '+p.name,'warn');return false}
         try{addToCart(p,qty);window.vareliaSound?.('add');window.vareliaToast?.(`${p.name} · S/ ${Number(p.sellPrice||0).toFixed(2)} agregado`,'ok');setTimeout(sync,0);return true}catch(e){console.error(e);window.vareliaSound?.('error');return false}
       }
