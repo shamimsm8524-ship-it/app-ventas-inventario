@@ -80,7 +80,7 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 <body>
 <header class="top"><div class="brand"><div class="left"><button class="menu" id="menuBtn">☰</button><div class="logo">MN</div><div><h1>Mi Negocio</h1><p class="meta">Ventas e inventario <span id="cloudStatus" style="font-size:11px;color:var(--p);font-weight:800;margin-left:6px;cursor:pointer">☁️ Conectando...</span></p></div></div><button class="btn primary" id="newSaleTop">+ Nueva venta</button></div></header>
 <div class="overlay" id="overlay"></div>
-<div class="shell"><aside class="side" id="sidebar"><small>Menú principal</small><nav class="nav"><button class="active" data-view="products">📦 Productos</button><button data-view="inventory">📊 Inventario</button><button data-view="categories">🗂️ Categorías</button><div class="navgroup" id="supplierGroup"><button type="button" class="navparent" id="supplierMenu"><span>🚚 Proveedores</span><span class="arrow">⌄</span></button><div class="submenu"><button data-view="suppliers">👥 Directorio de proveedores</button><button data-view="purchases">📥 Ingreso de mercadería</button></div></div><button data-view="sales">🧾 Ventas</button><button data-view="cash">💵 Caja</button><button data-view="appearance">🎨 Apariencia</button></nav></aside>
+<div class="shell"><aside class="side" id="sidebar"><small>Menú principal</small><nav class="nav"><button class="active" data-view="products">📦 Productos</button><button data-view="sales">🧾 Ventas</button><div class="navgroup" id="reportsGroup"><button type="button" class="navparent" id="reportsMenu"><span>📈 Informes</span><span class="arrow">⌄</span></button><div class="submenu"><button data-view="cash">💵 Caja</button><button data-view="inventory">📊 Inventario</button></div></div><button data-view="categories">👥 Clientes</button><div class="navgroup" id="settingsGroup"><button type="button" class="navparent" id="settingsMenu"><span>⚙️ Configuración</span><span class="arrow">⌄</span></button><div class="submenu"><button data-view="appearance">🎨 Apariencia</button><button data-view="suppliers">🚚 Proveedores</button><button data-view="purchases">📥 Ingreso de mercadería</button><button data-view="categories">🗂️ Categorías</button></div></div></nav></aside>
 <main class="content">
 <section id="products" class="view active"><div class="head"><div><h2>Productos</h2><p class="notice">Catálogo general. El stock se administra desde Inventario.</p></div><button class="btn primary" id="newProduct">+ Producto</button></div><div class="toolbar"><input id="search" placeholder="Buscar nombre, código o categoría"></div><div class="chips" id="categoryChips"></div><div class="grid" id="productGrid"></div></section>
 <section id="inventory" class="view"><div class="head"><div><h2>Inventario</h2><p class="notice">Control de existencias, entradas, salidas y alertas.</p></div><button class="btn primary" id="inventoryNewProduct">+ Producto</button></div><div class="alertbox"><h3>⚠️ Productos por reponer</h3><p class="notice">Cada producto puede tener su propia cantidad mínima de alerta.</p><div id="reorderList"></div></div><div class="card"><input id="inventoryName" placeholder="Buscar producto por nombre"><div class="results" id="inventoryNameResults"></div><div class="two"><input id="inventoryCode" placeholder="Código de barras"><button class="btn secondary" id="scanForInventory">📷 Escanear</button></div><button class="btn secondary" id="findInventory">Buscar por código</button><div id="inventorySelected" class="selected" hidden></div><div class="two"><label>Movimiento<select id="inventoryMode"><option value="add">➕ Entrada</option><option value="subtract">➖ Salida</option></select></label><label>Cantidad<input id="inventoryQty" type="number" min="1" value="1"></label></div><button class="btn primary" id="applyInventory">Registrar movimiento</button></div><h3>Productos del inventario</h3><div class="list" id="inventoryProductList"></div><h3>Historial de movimientos</h3><div class="list" id="inventoryMovementList"></div></section>
@@ -202,7 +202,7 @@ function switchView(n){
   scrollTo({top:0,behavior:'smooth'});
 }
 document.querySelectorAll('.nav [data-view]').forEach(b=>b.onclick=()=>switchView(b.dataset.view));
-supplierMenu.onclick=()=>supplierGroup.classList.toggle('open');
+if(window.supplierMenu&&window.supplierGroup) supplierMenu.onclick=()=>supplierGroup.classList.toggle('open');
 menuBtn.onclick=()=>{sidebar.classList.toggle('open');overlay.classList.toggle('show')};
 overlay.onclick=()=>{sidebar.classList.remove('open');overlay.classList.remove('show')};
 
@@ -720,4 +720,8 @@ if ('serviceWorker' in navigator) {
  new MutationObserver(clean).observe(document.documentElement,{childList:true,subtree:true});
  addEventListener('pageshow',clean);
 })();
+
+// Orden móvil Varelia inspirado en el flujo POS de referencia
+if(window.reportsMenu&&window.reportsGroup) reportsMenu.onclick=()=>reportsGroup.classList.toggle('open');
+if(window.settingsMenu&&window.settingsGroup) settingsMenu.onclick=()=>settingsGroup.classList.toggle('open');
 </script></body></html>
