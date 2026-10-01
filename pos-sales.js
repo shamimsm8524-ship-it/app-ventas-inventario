@@ -123,8 +123,8 @@
         try{
           if(Array.isArray(cart)){
             return cart.map(i=>{
-              const p=allProducts().find(x=>String(x.id)===String(i.id))||byName(i.name)||{id:i.id,name:i.name,barcode:'',stock:0,sellPrice:i.price};
-              const name=String(i.name||p.name||'Producto'),qty=String(p.unit||'').toLowerCase()==='kg'?Math.max(.001,Number(i.qty)||.001):Math.max(1,Number(i.qty)||1),price=Number(i.price??p.sellPrice??0);
+              const p=allProducts().find(x=>String(x.id)===String(i.id))||allProducts().find(x=>String(x.barcode||'').trim()===String(i.barcode||'').trim()&&String(i.barcode||'').trim())||byName(i.name)||{id:i.id,name:i.name,barcode:'',stock:0,sellPrice:i.price};
+              const name=String(i.name||p.name||'Producto'),qty=String(p.unit||'').trim().toLowerCase()==='kg'?Math.max(.001,Number(i.qty)||.001):Math.max(1,Number(i.qty)||1),price=Number(i.price??p.sellPrice??0);
               return {p,name,qty,price,subtotal:price*qty};
             });
           }
@@ -140,7 +140,8 @@
         if(!rows.length)itemsEl.innerHTML='<div class="vposEmpty"><strong>Escanea el primer producto</strong>Los productos aparecerán aquí con su precio, cantidad y subtotal.</div>';
         else itemsEl.innerHTML=rows.map(x=>`<div class="vposRow" data-pos-row-id="${esc(x.p.id)}"><div class="vposName"><b>${esc(x.name)}</b><small>${esc(x.p.barcode||'Sin código')} · Stock ${Number(x.p.stock||0)}</small></div><div class="vposPrice">S/ ${x.price.toFixed(2)}</div><div class="vposQty"><button type="button" class="vposQtyBtn" data-pos-minus="${esc(x.p.id)}" aria-label="Restar cantidad">−</button><input class="vposQtyInput" data-pos-qty="${esc(x.p.id)}" type="number" inputmode="decimal" min="${String(x.p.unit||'').toLowerCase()==='kg'?'0.001':'1'}" step="${String(x.p.unit||'').toLowerCase()==='kg'?'0.001':'1'}" max="${Number(x.p.stock)||1}" value="${x.qty}" aria-label="Cantidad de ${esc(x.name)}"><button type="button" class="vposQtyBtn" data-pos-plus="${esc(x.p.id)}" aria-label="Aumentar cantidad">+</button></div><div class="vposSubtotal">S/ ${x.subtotal.toFixed(2)}</div></div>`).join('');
         const units=rows.reduce((a,x)=>a+x.qty,0),total=rows.reduce((a,x)=>a+x.subtotal,0);
-        countEl.innerHTML=`<b>${units}</b> ${units===1?'unidad':'unidades'} · ${rows.length} ${rows.length===1?'producto':'productos'}`;
+        const hasKg=rows.some(x=>String(x.p.unit||'').trim().toLowerCase()==='kg');
+        countEl.innerHTML=hasKg?`<b>${units.toFixed(3)}</b> kg · ${rows.length} ${rows.length===1?'producto':'productos'}`:`<b>${units}</b> ${units===1?'unidad':'unidades'} · ${rows.length} ${rows.length===1?'producto':'productos'}`;
         totalEl.textContent='S/ '+total.toFixed(2);checkoutBtn.textContent=total>0?'💳 Cobrar S/ '+total.toFixed(2):'💳 Cobrar venta';checkoutBtn.disabled=!rows.length;updatePay();
         return {rows,units,total};
       }
@@ -187,7 +188,10 @@
       });
 
       function addProduct(p,qty=1){
-        if(!p)return false;if(String(p.unit||'').trim().toLowerCase()==='kg'&&!window.__vareliaAddingWeight&&window.VareliaWeightSale){window.VareliaWeightSale.open(p);return true}qty=String(p.unit||'').trim().toLowerCase()==='kg'?Math.max(.001,Number(qty)||.001):Math.max(1,Math.floor(Number(qty)||1));
+        if(!p)return false;
+        const live=allProducts().find(x=>String(x.id)===String(p.id))||allProducts().find(x=>String(x.barcode||'').trim()===String(p.barcode||'').trim()&&String(p.barcode||'').trim())||byName(p.name)||p;
+        p=live;
+        if(String(p.unit||'').trim().toLowerCase()==='kg'&&!window.__vareliaAddingWeight&&window.VareliaWeightSale){window.VareliaWeightSale.open(p);return true}qty=String(p.unit||'').trim().toLowerCase()==='kg'?Math.max(.001,Number(qty)||.001):Math.max(1,Math.floor(Number(qty)||1));
         if(Number(p.stock||0)<=0){window.vareliaSound?.('error');window.vareliaToast?.('Sin stock: '+p.name,'warn');return false}
         try{addToCart(p,qty);window.vareliaSound?.('add');window.vareliaToast?.(`${p.name} · S/ ${Number(p.sellPrice||0).toFixed(2)} agregado`,'ok');setTimeout(sync,0);return true}catch(e){console.error(e);window.vareliaSound?.('error');return false}
       }
