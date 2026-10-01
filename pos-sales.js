@@ -138,7 +138,7 @@
       function sync(){
         const rows=legacyRows();
         if(!rows.length)itemsEl.innerHTML='<div class="vposEmpty"><strong>Escanea el primer producto</strong>Los productos aparecerán aquí con su precio, cantidad y subtotal.</div>';
-        else itemsEl.innerHTML=rows.map(x=>`<div class="vposRow" data-pos-row-id="${esc(x.p.id)}"><div class="vposName"><b>${esc(x.name)}</b><small>${esc(x.p.barcode||'Sin código')} · Stock ${Number(x.p.stock||0)}</small></div><div class="vposPrice">S/ ${x.price.toFixed(2)}</div><div class="vposQty"><button type="button" class="vposQtyBtn" data-pos-minus="${esc(x.p.id)}" aria-label="Restar cantidad">−</button><input class="vposQtyInput" data-pos-qty="${esc(x.p.id)}" type="number" inputmode="numeric" min="1" max="${Math.max(1,Math.floor(Number(x.p.stock)||1))}" value="${x.qty}" aria-label="Cantidad de ${esc(x.name)}"><button type="button" class="vposQtyBtn" data-pos-plus="${esc(x.p.id)}" aria-label="Aumentar cantidad">+</button></div><div class="vposSubtotal">S/ ${x.subtotal.toFixed(2)}</div></div>`).join('');
+        else itemsEl.innerHTML=rows.map(x=>`<div class="vposRow" data-pos-row-id="${esc(x.p.id)}"><div class="vposName"><b>${esc(x.name)}</b><small>${esc(x.p.barcode||'Sin código')} · Stock ${Number(x.p.stock||0)}</small></div><div class="vposPrice">S/ ${x.price.toFixed(2)}</div><div class="vposQty"><button type="button" class="vposQtyBtn" data-pos-minus="${esc(x.p.id)}" aria-label="Restar cantidad">−</button><input class="vposQtyInput" data-pos-qty="${esc(x.p.id)}" type="number" inputmode="decimal" min="${String(x.p.unit||'').toLowerCase()==='kg'?'0.001':'1'}" step="${String(x.p.unit||'').toLowerCase()==='kg'?'0.001':'1'}" max="${Number(x.p.stock)||1}" value="${x.qty}" aria-label="Cantidad de ${esc(x.name)}"><button type="button" class="vposQtyBtn" data-pos-plus="${esc(x.p.id)}" aria-label="Aumentar cantidad">+</button></div><div class="vposSubtotal">S/ ${x.subtotal.toFixed(2)}</div></div>`).join('');
         const units=rows.reduce((a,x)=>a+x.qty,0),total=rows.reduce((a,x)=>a+x.subtotal,0);
         countEl.innerHTML=`<b>${units}</b> ${units===1?'unidad':'unidades'} · ${rows.length} ${rows.length===1?'producto':'productos'}`;
         totalEl.textContent='S/ '+total.toFixed(2);checkoutBtn.textContent=total>0?'💳 Cobrar S/ '+total.toFixed(2):'💳 Cobrar venta';checkoutBtn.disabled=!rows.length;updatePay();
@@ -152,9 +152,10 @@
           const item=cart.find(x=>String(x.id)===String(id));
           const p=allProducts().find(x=>String(x.id)===String(id));
           if(!item||!p)return false;
-          const max=Math.max(1,Math.floor(Number(p.stock)||1));
-          let q=Math.floor(Number(value)||1);
-          q=Math.max(1,Math.min(q,max));
+          const kg=String(p.unit||'').trim().toLowerCase()==='kg';
+          const max=kg?Math.max(.001,Number(p.stock)||.001):Math.max(1,Math.floor(Number(p.stock)||1));
+          let q=kg?Math.round((Number(value)||.001)*1000)/1000:Math.floor(Number(value)||1);
+          q=Math.max(kg?.001:1,Math.min(q,max));
           if(Number(value)>max)window.vareliaToast?.('Stock disponible: '+max,'warn');
           item.qty=q;
           try{if(typeof renderCart==='function')renderCart()}catch{}
@@ -168,13 +169,13 @@
         const id=(minus||plus).dataset[minus?'posMinus':'posPlus'];
         let item=null;try{item=Array.isArray(cart)?cart.find(x=>String(x.id)===String(id)):null}catch{}
         if(!item)return;
-        setProductQty(id,(Number(item.qty)||1)+(plus?1:-1));
+        const p=allProducts().find(x=>String(x.id)===String(id));const step=String(p?.unit||'').trim().toLowerCase()==='kg'?.25:1;setProductQty(id,(Number(item.qty)||step)+(plus?step:-step));
       });
       itemsEl.addEventListener('input',e=>{
         const input=e.target.closest('[data-pos-qty]');if(!input)return;
         const raw=String(input.value||'').trim();
-        if(raw===''||!/^\\d+$/.test(raw))return;
-        setProductQty(input.dataset.posQty,raw);
+        if(raw===''||!/^\\d*([.,]\\d*)?$/.test(raw))return;
+        setProductQty(input.dataset.posQty,raw.replace(',','.'));
       });
       itemsEl.addEventListener('change',e=>{
         const input=e.target.closest('[data-pos-qty]');if(!input)return;
