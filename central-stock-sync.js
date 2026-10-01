@@ -289,6 +289,28 @@
     }
   }
 
+  function installCategoryBridge(){
+    const btn=document.getElementById('addCategory');
+    const input=document.getElementById('newCategoryName');
+    if(!btn||!input||btn.dataset.centralCategories==='1')return;
+    btn.dataset.centralCategories='1';
+    btn.onclick=async()=>{
+      const name=String(input.value||'').trim();
+      if(!name)return toast('Escribe el nombre de la categoría.','warn');
+      if(!isOwner())return toast('Solo el administrador puede crear categorías.','warn');
+      btn.disabled=true;
+      try{
+        await ensureCategory(name);
+        input.value='';
+        await refreshCloud();
+        toast('Categoría guardada.','ok');
+      }catch(e){
+        console.error(e);
+        toast('No se pudo guardar la categoría.','warn');
+      }finally{btn.disabled=false}
+    };
+  }
+
   function installCheckoutBridge(){
     const btn=document.getElementById('checkout');
     if(!btn)return;
@@ -340,6 +362,7 @@
       await seedIfNeeded();
       await refreshCloud();
       installProductBridge();
+      installCategoryBridge();
       installCheckoutBridge();
       subscribe();
 
@@ -347,6 +370,7 @@
       const timer=setInterval(()=>{
         tries++;
         installProductBridge();
+        installCategoryBridge();
         installCheckoutBridge();
         if(tries>60)clearInterval(timer);
       },500);
