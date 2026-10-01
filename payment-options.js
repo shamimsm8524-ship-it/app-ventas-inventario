@@ -127,6 +127,9 @@
     if(!sel)return false;
     const previous=sel.value||localStorage.getItem('varelia_last_payment_method')||'Efectivo';
     const methods=methodList();
+    const signature=methods.join('|');
+    if(sel.dataset.vareliaMethods===signature&&sel.options.length===methods.length)return true;
+    sel.dataset.vareliaMethods=signature;
     sel.innerHTML=methods.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join('');
     sel.value=methods.includes(previous)?previous:methods[0]||'Efectivo';
     sel.disabled=false;
