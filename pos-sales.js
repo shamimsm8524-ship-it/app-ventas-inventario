@@ -135,7 +135,26 @@
           const p=byName(name),price=Number(p?.sellPrice||0);return p?{p,name,qty,price,subtotal:price*qty}:null;
         }).filter(Boolean);
       }
+      let kgPrompted={};
+      function normalizeKgCart(){
+        try{
+          if(!Array.isArray(cart))return;
+          cart.forEach(i=>{
+            const p=allProducts().find(x=>String(x.id)===String(i.id))||allProducts().find(x=>String(x.barcode||'').trim()===String(i.barcode||'').trim()&&String(i.barcode||'').trim())||byName(i.name);
+            if(!p||String(p.unit||'').trim().toLowerCase()!=='kg')return;
+            i.unit='Kg';
+            // Una cantidad entera recién agregada por el flujo antiguo representa una entrada sin peso elegido.
+            if(Number(i.qty)===1&&!window.__vareliaAddingWeight&&!kgPrompted[String(p.id)]&&window.VareliaWeightSale){
+              kgPrompted[String(p.id)]=true;
+              cart=cart.filter(x=>x!==i);
+              try{if(typeof renderCart==='function')renderCart()}catch{}
+              setTimeout(()=>window.VareliaWeightSale.open(p),0);
+            }
+          });
+        }catch(e){console.warn('normalize kg cart',e)}
+      }
       function sync(){
+        normalizeKgCart();
         const rows=legacyRows();
         if(!rows.length)itemsEl.innerHTML='<div class="vposEmpty"><strong>Escanea el primer producto</strong>Los productos aparecerán aquí con su precio, cantidad y subtotal.</div>';
         else itemsEl.innerHTML=rows.map(x=>`<div class="vposRow" data-pos-row-id="${esc(x.p.id)}"><div class="vposName"><b>${esc(x.name)}</b><small>${esc(x.p.barcode||'Sin código')} · Stock ${Number(x.p.stock||0)}</small></div><div class="vposPrice">S/ ${x.price.toFixed(2)}</div><div class="vposQty"><button type="button" class="vposQtyBtn" data-pos-minus="${esc(x.p.id)}" aria-label="Restar cantidad">−</button><input class="vposQtyInput" data-pos-qty="${esc(x.p.id)}" type="number" inputmode="decimal" min="${String(x.p.unit||'').toLowerCase()==='kg'?'0.001':'1'}" step="${String(x.p.unit||'').toLowerCase()==='kg'?'0.001':'1'}" max="${Number(x.p.stock)||1}" value="${x.qty}" aria-label="Cantidad de ${esc(x.name)}"><button type="button" class="vposQtyBtn" data-pos-plus="${esc(x.p.id)}" aria-label="Aumentar cantidad">+</button></div><div class="vposSubtotal">S/ ${x.subtotal.toFixed(2)}</div></div>`).join('');
