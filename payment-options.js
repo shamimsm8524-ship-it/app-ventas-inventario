@@ -119,7 +119,7 @@
     if(!existing){
       existing=document.createElement('div');
       existing.id='vareliaPaymentPanel';
-      existing.innerHTML='<div class="vpayHead"><b>💳 Método de pago</b><span style="font-size:11px;color:var(--muted)">El personal puede elegir cómo pagó el cliente</span></div><select id="vposPaymentMethod"></select><div id="vareliaPaymentDetail"></div>';
+      existing.innerHTML='<div class="vpayHead"><b>💳 Cobro</b><span style="font-size:11px;color:var(--muted)">Pago único o combinado</span></div><select id="vposPaymentMethod"></select><label style="display:flex;gap:8px;align-items:center;margin-top:10px;font-size:13px;font-weight:900"><input id="vpayMixedToggle" type="checkbox" style="width:18px;height:18px"> Pago mixto (combinar métodos)</label><div id="vareliaPaymentDetail"></div>';
       bottom.insertAdjacentElement('beforebegin',existing);
     }
 
@@ -137,6 +137,8 @@
       try{localStorage.setItem('varelia_last_payment_method',sel.value)}catch{}
       renderPaymentDetail();
     };
+    const mt=document.getElementById('vpayMixedToggle');
+    if(mt&&!mt.dataset.bound){mt.dataset.bound='1';mt.onchange=renderPaymentDetail;}
     renderPaymentDetail();
     return true;
   }
@@ -146,6 +148,13 @@
     const sel=document.getElementById('vposPaymentMethod');
     if(!detail||!sel)return;
     const method=sel.value;
+    const mixed=document.getElementById('vpayMixedToggle')?.checked;
+    if(mixed){
+      const total=Number(String(document.getElementById('vposTotal')?.textContent||'').replace(/[^0-9.]/g,''))||0;
+      detail.innerHTML='<div class="vpayCash"><small style="color:var(--muted)">Ingresa cuánto paga con cada método. Puedes usar dos o más.</small>'+METHODS.map(m=>'<label>'+esc(m)+' (S/)<input class="vpayPart" data-method="'+esc(m)+'" type="number" inputmode="decimal" min="0" step="0.10" placeholder="0.00"></label>').join('')+'<div class="vpayChange"><span id="vpayMixedLabel">Falta</span><strong id="vpayMixedResult">S/ '+total.toFixed(2)+'</strong></div><small id="vpayMixedTotal" style="color:var(--muted)">Recibido: S/ 0.00 · Total: S/ '+total.toFixed(2)+'</small></div>';
+      const calc=()=>{const vals=[...detail.querySelectorAll('.vpayPart')].map(x=>Number(x.value)||0),received=vals.reduce((a,b)=>a+b,0),diff=received-total,label=document.getElementById('vpayMixedLabel'),out=document.getElementById('vpayMixedResult');label.textContent=diff>=0?'Vuelto':'Falta';out.textContent='S/ '+Math.abs(diff).toFixed(2);out.style.color=diff>=0?'var(--p)':'#b91c1c';document.getElementById('vpayMixedTotal').textContent='Recibido: S/ '+received.toFixed(2)+' · Total: S/ '+total.toFixed(2)};
+      detail.querySelectorAll('.vpayPart').forEach(x=>x.oninput=calc);calc();return;
+    }
     let local={};try{local=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}
     const holder=String(method==='Yape'?(local.yapeHolder||settings?.payment_holder||''):method==='Plin'?(local.plinHolder||settings?.payment_holder||''):(settings?.payment_holder||'')).trim();
     const qr=method==='Yape'
@@ -265,17 +274,32 @@
     return true;
   }
 
-  function capturePayment(){
-    const sel=document.getElementById('vposPaymentMethod');
-    let before=0;try{before=Array.isArray(sales)?sales.length:0}catch{}
-    const received=Number(document.getElementById('vpayReceived')?.value)||0;
+  function paymentSnapshot(){
     const total=Number(String(document.getElementById('vposTotal')?.textContent||'').replace(/[^0-9.]/g,''))||0;
-    if((sel?.value||'Efectivo')==='Efectivo'&&received>0&&received<total){toast('El monto recibido es menor al total.');return}
-    pendingSale={method:sel?.value||'Efectivo',before,at:Date.now(),received:received||null,change:received?Math.max(0,received-total):null};
+    const mixed=!!document.getElementById('vpayMixedToggle')?.checked;
+    let breakdown={},received=0;
+    if(mixed){
+      document.querySelectorAll('.vpayPart').forEach(x=>{const n=Math.max(0,Number(x.value)||0);if(n){breakdown[x.dataset.method]=n;received+=n}});
+    }else{
+      const method=document.getElementById('vposPaymentMethod')?.value||'Efectivo';
+      received=method==='Efectivo'?(Number(document.getElementById('vpayReceived')?.value)||0):total;
+      if(received>0)breakdown[method]=received;
+    }
+    const missing=Math.max(0,total-received),change=Math.max(0,received-total);
+    if(change&&breakdown.Efectivo)breakdown.Efectivo=Math.max(0,breakdown.Efectivo-change);
+    const used=Object.entries(breakdown).filter(([,v])=>v>0);
+    return {total,mixed,breakdown:Object.fromEntries(used),received,missing,change,method:used.length>1?'Pago mixto':(used[0]?.[0]||document.getElementById('vposPaymentMethod')?.value||'Efectivo')};
+  }
+
+  function capturePayment(){
+    let before=0;try{before=Array.isArray(sales)?sales.length:0}catch{}
+    const snap=paymentSnapshot();
+    if(snap.missing>.005){toast('Faltan S/ '+snap.missing.toFixed(2)+' para completar el pago.');return false}
+    pendingSale={...snap,before,at:Date.now()};
+    window.VareliaPaymentSnapshot={...snap,at:Date.now()};
     try{localStorage.setItem('varelia_last_payment_method',pendingSale.method)}catch{}
-    setTimeout(applyPaymentToSale,180);
-    setTimeout(applyPaymentToSale,450);
-    setTimeout(applyPaymentToSale,900);
+    setTimeout(applyPaymentToSale,80);setTimeout(applyPaymentToSale,220);setTimeout(applyPaymentToSale,500);setTimeout(applyPaymentToSale,1000);
+    return true;
   }
 
   function applyPaymentToSale(){
@@ -284,14 +308,18 @@
       if(!Array.isArray(sales)||sales.length<=pendingSale.before)return;
       const sale=sales[sales.length-1];
       sale.paymentMethod=pendingSale.method;
-      if(pendingSale.received!=null){sale.amountReceived=pendingSale.received;sale.changeGiven=pendingSale.change}
+      sale.paymentBreakdown=pendingSale.breakdown;
+      sale.amountReceived=pendingSale.received;
+      sale.changeGiven=pendingSale.change;
+      sale.paymentTotal=pendingSale.total;
       if(typeof save==='function')save();
       pendingSale=null;
     }catch{}
   }
 
   document.addEventListener('click',e=>{
-    if(e.target.closest?.('#vposCheckout,#checkout'))capturePayment();
+    if(!e.target.closest?.('#vposCheckout,#checkout'))return;
+    if(!capturePayment()){e.preventDefault();e.stopImmediatePropagation()}
   },true);
 
   async function init(){
