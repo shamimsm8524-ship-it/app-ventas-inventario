@@ -283,8 +283,10 @@ productForm.onsubmit=async e=>{
     extra.variantCombinations=[...editor.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(i.value)||0)}));
   }else extra={characteristics:old?.characteristics||[],variantCombinations:old?.variantCombinations||[]};
   const comboStock=(extra.variantCombinations||[]).reduce((a,c)=>a+(Number(c.stock)||0),0);
-  let obj={id:String(id),barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:(document.getElementById('vMedicineToggle')?.checked?Math.max(0,Math.floor(Number(document.getElementById('vMedicineStockBoxes')?.value||0)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineBlistersPerBox')?.value||1)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineUnitsPerBlister')?.value||1))):(extra.variantCombinations?.length?comboStock:(old?+old.stock||0:0))),unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src,
-  medicine:document.getElementById('vMedicineToggle')?.checked||false,
+  const medicineCategory=/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(productCategory.value||'').trim());
+  const isMedicineProduct=!!document.getElementById('vMedicineToggle')?.checked||medicineCategory;
+  let obj={id:String(id),barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:(isMedicineProduct?Math.max(0,Math.floor(Number(document.getElementById('vMedicineStockBoxes')?.value||0)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineBlistersPerBox')?.value||1)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineUnitsPerBlister')?.value||1))):(extra.variantCombinations?.length?comboStock:(old?+old.stock||0:0))),unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src,
+  medicine:isMedicineProduct,
   laboratory:String(document.getElementById('vMedicineLaboratory')?.value||old?.laboratory||'').trim(),
   medicinePresentation:String(document.getElementById('vMedicinePresentation')?.value||old?.medicinePresentation||'').trim(),
   batch:String(document.getElementById('vMedicineBatch')?.value||old?.batch||'').trim(),
