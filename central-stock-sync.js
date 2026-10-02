@@ -178,6 +178,8 @@
     const fn=p=>syncProduct(p).catch(e=>{console.error(e);toast('No se pudo sincronizar el producto.','warn');throw e});
     try{syncProductToCloud=fn}catch{}
     window.syncProductToCloud=fn;
+    window.vareliaCentralStockSyncProduct=fn;
+    window.vareliaCentralStockReady=true;
 
     window.deleteProduct=async function(id){
       if(!isOwner())return toast('Solo el administrador puede eliminar productos.','warn');
