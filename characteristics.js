@@ -29,6 +29,22 @@ ready(()=>{
  function comboKey(vals){return vals.join('||')}
  function generateCombos(){const cs=currentChars(),old=new Map(loadedCombos.map(c=>[comboKey(c.values||[]),c]));comboGrid.querySelectorAll('[data-combo]').forEach(i=>{const k=String(i.dataset.combo||'');if(k)old.set(k,{values:k.split('||'),stock:Math.max(0,Number(i.value)||0)})});if(!cs.length){comboGrid.innerHTML='';return}let sets=[[]];cs.forEach(c=>{sets=sets.flatMap(a=>c.values.map(v=>a.concat(v.label)))});comboGrid.innerHTML=sets.map(vals=>{const o=old.get(comboKey(vals));return '<label class="vcomboLine"><span>'+esc(vals.join(' · '))+'</span><input type="number" min="0" step="0.001" data-combo="'+esc(comboKey(vals))+'" value="'+Number(o?.stock||0)+'" placeholder="Stock"></label>'}).join('');loadedCombos=[...comboGrid.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(i.value)||0)}))}
  box.querySelector('#vcharGenerate').onclick=generateCombos;
+ let persistTimer=null;
+ const persistEditor=()=>{
+   const id=String(pid?.value||'').trim();if(!id)return;
+   let list=[];try{list=window.products||products||[]}catch{return}
+   const p=list.find(x=>String(x.id||'').trim()===id);if(!p)return;
+   const characteristics=currentChars();
+   const variantCombinations=[...comboGrid.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(i.value)||0)}));
+   p.characteristics=characteristics;p.variantCombinations=variantCombinations;
+   if(variantCombinations.length)p.stock=variantCombinations.reduce((a,c)=>a+Number(c.stock||0),0);
+   try{if(typeof save==='function')save()}catch{}
+   Promise.resolve(window.syncProductToCloud?.(p)).then(()=>window.vareliaPublicCatalogSync?.()).catch(console.error);
+ };
+ const schedulePersist=()=>{clearTimeout(persistTimer);persistTimer=setTimeout(persistEditor,450)};
+ box.addEventListener('input',schedulePersist);
+ box.addEventListener('change',schedulePersist);
+ box.addEventListener('click',()=>setTimeout(schedulePersist,40));
  window.VareliaCharacteristics.readEditor=()=>{generateCombos();const characteristics=currentChars();const variantCombinations=[...comboGrid.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(i.value)||0)}));loadedCombos=variantCombinations;return{characteristics,variantCombinations}};
  function addRow(data={name:'Talla',values:[]}){
    if(rows.children.length>=8)return window.vareliaToast?.('Puedes usar hasta 8 características.','warn');
