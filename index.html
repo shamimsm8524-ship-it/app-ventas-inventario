@@ -336,7 +336,7 @@ function productActions(e){
     if(!p)return;
     const med=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
     if(med){addToCart(p);return}
-    openSale();
+    openSale(cart.length===0);
     addToCart(p);
     return;
   }
@@ -360,7 +360,7 @@ function renderPurchaseCart(){purchaseItems.innerHTML=purchaseCart.map(i=>`<div>
 addPurchaseItem.onclick=()=>{let p=products.find(x=>String(x.id).trim()===String(purchaseProduct.value).trim()),q=Math.floor(+purchaseQty.value),c=+purchaseCost.value;if(p&&q>0){purchaseCart.push({id:p.id,name:p.name,qty:q,cost:c,unit:p.unit});renderPurchaseCart()}};
 savePurchase.onclick=()=>{let s=suppliers.find(x=>String(x.id).trim()===String(purchaseSupplier.value).trim());if(!s||!purchaseCart.length)return;for(const i of purchaseCart){let p=products.find(x=>String(x.id).trim()===String(i.id).trim());if(p){p.stock=(+p.stock||0)+i.qty;syncProductToCloud(p);}}purchases.push({id:uid(),date:new Date().toISOString(),supplierName:s.name,items:purchaseCart,total:purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0)});purchaseDialog.close();save()};
 
-function openSale(){cart=[];renderCart();saleDialog.showModal()}
+function openSale(resetCart=true){if(resetCart){cart=[];renderCart()}saleDialog.showModal()}
 function addToCart(p, qtyToAdd=1){
   if(!p)return;
   const live=products.find(x=>String(x.id).trim()===String(p.id).trim())
@@ -388,7 +388,7 @@ function addToCart(p, qtyToAdd=1){
     document.body.appendChild(box);
     box.querySelector('[data-medclose]').onclick=()=>box.remove();
     const opts=box.querySelector('[data-medopts]');
-    options.forEach(o=>{const b=document.createElement('button');b.type='button';b.className='btn secondary';b.style.cssText='width:100%;margin:6px 0;padding:14px;display:flex;justify-content:space-between';b.innerHTML='<b>'+o.label+'</b><b>S/ '+o.price.toFixed(2)+'</b>';b.onclick=()=>{const q=Math.max(1,Math.floor(Number(box.querySelector('[data-medqty]').value)||1)),base=q*o.mult;if(base>Number(p.stock||0))return alert('No hay stock suficiente.');box.remove();addToCart({...p,__medicineSelected:true,sellPrice:o.price,selectionLabel:o.label,medicineMultiplier:o.mult,medicineSaleUnit:o.label},q);setTimeout(()=>{try{if(!saleDialog.open)saleDialog.showModal()}catch{}},0)};opts.appendChild(b)});
+    options.forEach(o=>{const b=document.createElement('button');b.type='button';b.className='btn secondary';b.style.cssText='width:100%;margin:6px 0;padding:14px;display:flex;justify-content:space-between';b.innerHTML='<b>'+o.label+'</b><b>S/ '+o.price.toFixed(2)+'</b>';b.onclick=()=>{const q=Math.max(1,Math.floor(Number(box.querySelector('[data-medqty]').value)||1)),base=q*o.mult;if(base>Number(p.stock||0))return alert('No hay stock suficiente.');box.remove();addToCart({...p,__medicineSelected:true,sellPrice:o.price,selectionLabel:o.label,medicineMultiplier:o.mult,medicineSaleUnit:o.label},q);setTimeout(()=>{try{if(!saleDialog.open)openSale(false)}catch{}},0)};opts.appendChild(b)});
     return;
   }
   const kg=String(p.unit||'').trim().toLowerCase()==='kg';
