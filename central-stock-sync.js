@@ -65,7 +65,18 @@
       stock:Math.max(0,Number(p.stock)||0),
       unit:String(p.unit||'Unidad'),
       reorder_level:Math.max(0,Number(p.reorderLevel)||0),
-      image_data:String(p.image||'')
+      image_data:String(p.image||''),
+      medicine:!!p.medicine,
+      laboratory:String(p.laboratory||'').trim()||null,
+      medicine_presentation:String(p.medicinePresentation||'').trim()||null,
+      batch:String(p.batch||'').trim()||null,
+      expiry_date:String(p.expiryDate||'').trim()||null,
+      blisters_per_box:Math.max(1,Math.floor(Number(p.blistersPerBox)||1)),
+      units_per_blister:Math.max(1,Math.floor(Number(p.unitsPerBlister)||1)),
+      box_price:Math.max(0,Number(p.boxPrice)||0),
+      blister_price:Math.max(0,Number(p.blisterPrice)||0),
+      unit_medicine_price:Math.max(0,Number(p.unitMedicinePrice)||0),
+      medicine_stock_boxes:Math.max(0,Math.floor(Number(p.medicineStockBoxes)||0))
     };
   }
 
@@ -104,7 +115,7 @@
     if(!sb||!businessId)return false;
     const [catsRes,prodRes]=await Promise.all([
       sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
-      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data').eq('business_id',businessId).order('created_at')
+      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes').eq('business_id',businessId).order('created_at')
     ]);
     if(catsRes.error)throw catsRes.error;
     if(prodRes.error)throw prodRes.error;
@@ -128,7 +139,18 @@
       variants:String(p.variants||''),
       characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
       variantCombinations:Array.isArray(p.variant_combinations)?p.variant_combinations:[],
-      image:String(p.image_data||'')
+      image:String(p.image_data||''),
+      medicine:!!p.medicine,
+      laboratory:String(p.laboratory||''),
+      medicinePresentation:String(p.medicine_presentation||''),
+      batch:String(p.batch||''),
+      expiryDate:String(p.expiry_date||''),
+      blistersPerBox:Number(p.blisters_per_box)||1,
+      unitsPerBlister:Number(p.units_per_blister)||1,
+      boxPrice:Number(p.box_price)||0,
+      blisterPrice:Number(p.blister_price)||0,
+      unitMedicinePrice:Number(p.unit_medicine_price)||0,
+      medicineStockBoxes:Number(p.medicine_stock_boxes)||0
     }));
 
     try{
