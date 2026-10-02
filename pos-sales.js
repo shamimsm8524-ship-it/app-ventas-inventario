@@ -125,7 +125,7 @@
             return cart.map(i=>{
               const p=allProducts().find(x=>String(x.id)===String(i.id))||allProducts().find(x=>String(x.barcode||'').trim()===String(i.barcode||'').trim()&&String(i.barcode||'').trim())||byName(i.name)||{id:i.id,name:i.name,barcode:'',stock:0,sellPrice:i.price};
               const name=String(i.name||p.name||'Producto'),qty=String(p.unit||'').trim().toLowerCase()==='kg'?Math.max(.001,Number(i.qty)||.001):Math.max(1,Number(i.qty)||1),price=Number(i.price??p.sellPrice??0);
-              return {p,name,qty,price,subtotal:price*qty};
+              return {p,name,qty,price,subtotal:price*qty,item:i,key:String(i.cartKey||i.id),medicineSaleUnit:i.medicineSaleUnit||'',medicineMultiplier:Number(i.medicineMultiplier||1)};
             });
           }
         }catch(e){console.warn('POS cart',e)}
@@ -157,23 +157,36 @@
         normalizeKgCart();
         const rows=legacyRows();
         if(!rows.length)itemsEl.innerHTML='<div class="vposEmpty"><strong>Escanea el primer producto</strong>Los productos aparecerán aquí con su precio, cantidad y subtotal.</div>';
-        else itemsEl.innerHTML=rows.map(x=>{const kg=String(x.p.unit||'').trim().toLowerCase()==='kg';const qty=kg?`<div class="vposQty" style="display:flex!important;justify-content:center"><button type="button" class="btn secondary" data-pos-weight="${esc(x.p.id)}" style="width:auto;min-width:116px;padding:9px 10px">⚖️ ${(x.qty*1000).toFixed(0)} g</button></div>`:`<div class="vposQty"><button type="button" class="vposQtyBtn" data-pos-minus="${esc(x.p.id)}" aria-label="Restar cantidad">−</button><input class="vposQtyInput" data-pos-qty="${esc(x.p.id)}" type="number" inputmode="numeric" min="1" step="1" max="${Math.max(1,Math.floor(Number(x.p.stock)||1))}" value="${x.qty}" aria-label="Cantidad de ${esc(x.name)}"><button type="button" class="vposQtyBtn" data-pos-plus="${esc(x.p.id)}" aria-label="Aumentar cantidad">+</button></div>`;return `<div class="vposRow" data-pos-row-id="${esc(x.p.id)}"><div class="vposName"><b>${esc(x.name)}</b><small>${esc(x.p.barcode||'Sin código')} · Stock ${Number(x.p.stock||0)}${kg?' kg':''}</small></div><div class="vposPrice">S/ ${x.price.toFixed(2)}${kg?' / kg':''}</div>${qty}<div class="vposSubtotal">S/ ${x.subtotal.toFixed(2)}</div></div>`}).join('');
+        else itemsEl.innerHTML=rows.map(x=>{
+          const kg=String(x.p.unit||'').trim().toLowerCase()==='kg';
+          const med=!!x.medicineSaleUnit;
+          const detail=kg
+            ? 'Precio: S/ '+x.price.toFixed(2)+' por kg · Cantidad: '+(x.qty<1?Math.round(x.qty*1000)+' g':x.qty.toFixed(3)+' kg')
+            : med
+              ? 'Presentación: '+x.medicineSaleUnit+' · Precio: S/ '+x.price.toFixed(2)+' · Cantidad: '+x.qty
+              : 'Precio unitario: S/ '+x.price.toFixed(2)+' · Cantidad: '+x.qty;
+          const qty=kg
+            ? `<div class="vposQty" style="display:flex!important;justify-content:center"><button type="button" class="btn secondary" data-pos-weight="${esc(x.p.id)}" style="width:auto;min-width:116px;padding:9px 10px">⚖️ ${x.qty<1?Math.round(x.qty*1000)+' g':x.qty.toFixed(3)+' kg'}</button></div>`
+            : `<div class="vposQty"><button type="button" class="vposQtyBtn" data-pos-minus="${esc(x.key)}" aria-label="Restar cantidad">−</button><input class="vposQtyInput" data-pos-qty="${esc(x.key)}" type="number" inputmode="numeric" min="1" step="1" value="${x.qty}" aria-label="Cantidad de ${esc(x.name)}"><button type="button" class="vposQtyBtn" data-pos-plus="${esc(x.key)}" aria-label="Aumentar cantidad">+</button></div>`;
+          return `<div class="vposRow" data-pos-row-id="${esc(x.key)}"><div class="vposName"><b>${esc(x.name)}</b><small>${esc(detail)}</small></div><div class="vposPrice">S/ ${x.price.toFixed(2)}${kg?' / kg':''}</div>${qty}<div class="vposSubtotal">S/ ${x.subtotal.toFixed(2)}</div></div>`
+        }).join('');
         const units=rows.reduce((a,x)=>a+x.qty,0),total=rows.reduce((a,x)=>a+x.subtotal,0);
-        const hasKg=rows.some(x=>String(x.p.unit||'').trim().toLowerCase()==='kg');
-        countEl.innerHTML=hasKg?`<b>${units.toFixed(3)}</b> kg · ${rows.length} ${rows.length===1?'producto':'productos'}`:`<b>${units}</b> ${units===1?'unidad':'unidades'} · ${rows.length} ${rows.length===1?'producto':'productos'}`;
+        countEl.innerHTML=`<b>${rows.length}</b> ${rows.length===1?'producto':'productos'} en el carrito`;
         totalEl.textContent='S/ '+total.toFixed(2);checkoutBtn.textContent=total>0?'💳 Cobrar S/ '+total.toFixed(2):'💳 Cobrar venta';checkoutBtn.disabled=!rows.length;updatePay();
         return {rows,units,total};
       }
       new MutationObserver(()=>requestAnimationFrame(sync)).observe(legacyCart,{childList:true,subtree:true,characterData:true});
 
-      function setProductQty(id,value){
+      function setProductQty(key,value){
         try{
           if(!Array.isArray(cart))return false;
-          const item=cart.find(x=>String(x.id)===String(id));
-          const p=allProducts().find(x=>String(x.id)===String(id));
-          if(!item||!p)return false;
+          const item=cart.find(x=>String(x.cartKey||x.id)===String(key));
+          if(!item)return false;
+          const p=allProducts().find(x=>String(x.id)===String(item.id));
+          if(!p)return false;
+          const mult=Math.max(1,Number(item.medicineMultiplier||1));
           const kg=String(p.unit||'').trim().toLowerCase()==='kg';
-          const max=kg?Math.max(.001,Number(p.stock)||.001):Math.max(1,Math.floor(Number(p.stock)||1));
+          const max=kg?Math.max(.001,Number(p.stock)||.001):Math.max(1,Math.floor((Number(p.stock)||1)/mult));
           let q=kg?Math.round((Number(value)||.001)*1000)/1000:Math.floor(Number(value)||1);
           q=Math.max(kg?.001:1,Math.min(q,max));
           if(Number(value)>max)window.vareliaToast?.('Stock disponible: '+max,'warn');
@@ -186,12 +199,14 @@
       itemsEl.addEventListener('click',e=>{
         const minus=e.target.closest('[data-pos-minus]'),plus=e.target.closest('[data-pos-plus]');
         if(!minus&&!plus)return;
-        const id=(minus||plus).dataset[minus?'posMinus':'posPlus'];
+        const key=(minus||plus).dataset[minus?'posMinus':'posPlus'];
+        const selectedItem=Array.isArray(cart)?cart.find(x=>String(x.cartKey||x.id)===String(key)):null;
+        const id=selectedItem?.id||key;
         const clickedProduct=allProducts().find(x=>String(x.id)===String(id));
         if(plus&&String(clickedProduct?.unit||'').trim().toLowerCase()==='kg'&&window.VareliaWeightSale){e.preventDefault();window.VareliaWeightSale.open(clickedProduct);return}
-        let item=null;try{item=Array.isArray(cart)?cart.find(x=>String(x.id)===String(id)):null}catch{}
+        let item=null;try{item=Array.isArray(cart)?cart.find(x=>String(x.cartKey||x.id)===String(key)):null}catch{}
         if(!item)return;
-        const p=allProducts().find(x=>String(x.id)===String(id));const step=String(p?.unit||'').trim().toLowerCase()==='kg'?.25:1;setProductQty(id,(Number(item.qty)||step)+(plus?step:-step));
+        const p=allProducts().find(x=>String(x.id)===String(id));const step=String(p?.unit||'').trim().toLowerCase()==='kg'?.25:1;setProductQty(key,(Number(item.qty)||step)+(plus?step:-step));
       });
       itemsEl.addEventListener('input',e=>{
         const input=e.target.closest('[data-pos-qty]');if(!input)return;
