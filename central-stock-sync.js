@@ -58,6 +58,7 @@
       description:String(p.description||''),
       specifications:String(p.specifications||''),
       variants:String(p.variants||''),
+      characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
       buy_price:Math.max(0,Number(p.buyPrice)||0),
       sell_price:Math.max(0,Number(p.sellPrice)||0),
       stock:Math.max(0,Number(p.stock)||0),
@@ -102,7 +103,7 @@
     if(!sb||!businessId)return false;
     const [catsRes,prodRes]=await Promise.all([
       sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
-      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,buy_price,sell_price,stock,unit,reorder_level,image_data').eq('business_id',businessId).order('created_at')
+      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,buy_price,sell_price,stock,unit,reorder_level,image_data').eq('business_id',businessId).order('created_at')
     ]);
     if(catsRes.error)throw catsRes.error;
     if(prodRes.error)throw prodRes.error;
@@ -124,6 +125,7 @@
       description:String(p.description||''),
       specifications:String(p.specifications||''),
       variants:String(p.variants||''),
+      characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
       image:String(p.image_data||'')
     }));
 
