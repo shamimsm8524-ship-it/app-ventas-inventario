@@ -89,7 +89,7 @@
       let mapUrl=String(s.publicMapUrl||'').trim();
       if(mapUrl&&!/^https?:\/\//i.test(mapUrl))mapUrl='https://'+mapUrl.replace(/^\/+/, '');
       try{if(mapUrl){const u=new URL(mapUrl);mapUrl=['http:','https:'].includes(u.protocol)?u.href:''}}catch{mapUrl=''}
-      const slogan=String(s.businessSlogan||'').trim().slice(0,120)||'Calidad y Buenos precios';return {slogan,delivery:{indrive:{enabled:s.deliveryInDriveEnabled!==false,cost:Math.max(0,Number(s.deliveryInDriveCost)||0)},olva:{enabled:s.deliveryOlvaEnabled!==false,cost:Math.max(0,Number(s.deliveryOlvaCost)||0)},shalom:{enabled:s.deliveryShalomEnabled!==false,cost:Math.max(0,Number(s.deliveryShalomCost)||0),pay_at_agency:s.deliveryShalomPayAgency!==false},pickup:s.publicAllowPickup!==false},phone:String(s.phone||'').trim().slice(0,40),whatsapp:normalizeSocialUrl(s.socialWhatsApp||s.phone||'','whatsapp'),address:String(s.address||'').trim().slice(0,240),hours:String(s.businessHours||'').trim().slice(0,300),map_url:mapUrl,allow_delivery:s.publicAllowDelivery!==false,allow_pickup:s.publicAllowPickup!==false,payment_methods:methods.length?methods:['Efectivo']};
+      const slogan=String(s.businessSlogan||'').trim().slice(0,120);return {slogan,delivery:{indrive:{enabled:s.deliveryInDriveEnabled!==false,cost:Math.max(0,Number(s.deliveryInDriveCost)||0)},olva:{enabled:s.deliveryOlvaEnabled!==false,cost:Math.max(0,Number(s.deliveryOlvaCost)||0)},shalom:{enabled:s.deliveryShalomEnabled!==false,cost:Math.max(0,Number(s.deliveryShalomCost)||0),pay_at_agency:s.deliveryShalomPayAgency!==false},pickup:s.publicAllowPickup!==false},phone:String(s.phone||'').trim().slice(0,40),whatsapp:normalizeSocialUrl(s.socialWhatsApp||s.phone||'','whatsapp'),address:String(s.address||'').trim().slice(0,240),hours:String(s.businessHours||'').trim().slice(0,300),map_url:mapUrl,allow_delivery:s.publicAllowDelivery!==false,allow_pickup:s.publicAllowPickup!==false,payment_methods:methods.length?methods:['Efectivo']};
     };
     const imageCache=new Map();
     const specFor=p=>String(specs[String(p.id)]??p.specifications??'');
@@ -102,7 +102,7 @@
       return new Promise(resolve=>{const img=new Image();img.onload=()=>{try{const max=820,scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale)),canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);const out=canvas.toDataURL('image/jpeg',.72);imageCache.set(key,out);resolve(out)}catch{resolve('')}};img.onerror=()=>resolve('');img.src=src})
     }
     async function payload(){
-      const available=products.filter(p=>(+p.stock||0)>0);
+      const available=products;
       return Promise.all(available.map(async p=>({id:String(p.id||''),name:String(p.name||''),category:String(p.category||''),sellPrice:+p.sellPrice||0,stock:+p.stock||0,unit:String(p.unit||'Unidad'),description:String(p.description||''),specifications:specFor(p),characteristics:Array.isArray(p.characteristics)?p.characteristics:[],image:await compressImage(p.image||'')})));
     }
     async function waitSb(){for(let i=0;i<60&&!window.vareliaSupabase;i++)await new Promise(r=>setTimeout(r,120));return window.vareliaSupabase}
