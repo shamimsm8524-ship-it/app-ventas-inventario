@@ -125,6 +125,7 @@
         const isMedicine=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
         const isWeight=/^(kg|kilo|kilos|kilogramo|kilogramos|g|gr|gramo|gramos)$/i.test(String(p.unit||'').trim());
         addToCart(p,1);enhanceCart();
+        setTimeout(()=>{try{if(Array.isArray(cart)&&cart.length&&!saleDialog?.open&&typeof openSale==='function')openSale(false)}catch{}},0);
         if(!isMedicine&&!isWeight){window.vareliaSound?.('add');window.vareliaToast?.(`${p.name||'Producto'} · S/ ${Number(p.sellPrice||0).toFixed(2)} agregado`,'ok');}
         if(saleSearch)saleSearch.value='';
       }catch(e){console.error(e);window.vareliaSound?.('error');}
