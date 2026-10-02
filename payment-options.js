@@ -333,7 +333,18 @@
   }
 
   document.addEventListener('click',e=>{
-    if(!e.target.closest?.('#vposCheckout,#checkout'))return;
+    const target=e.target.closest?.('#vposCheckout,#checkout');
+    if(!target)return;
+    // El POS principal ya valida el importe y guarda VareliaPaymentSnapshot.
+    // Al disparar el botón legado, no volver a validar contra un segundo formulario.
+    if(target.id==='checkout'&&window.VareliaPaymentSnapshot&&Date.now()-Number(window.VareliaPaymentSnapshot.at||0)<5000){
+      const snap=window.VareliaPaymentSnapshot;
+      let before=0;try{before=Array.isArray(sales)?sales.length:0}catch{}
+      pendingSale={...snap,before,at:Date.now()};
+      setTimeout(applyPaymentToSale,80);setTimeout(applyPaymentToSale,220);setTimeout(applyPaymentToSale,500);setTimeout(applyPaymentToSale,1000);
+      return;
+    }
+    if(target.id==='vposCheckout')return;
     if(!capturePayment()){e.preventDefault();e.stopImmediatePropagation()}
   },true);
 
