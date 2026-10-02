@@ -121,7 +121,6 @@
     }
     async function addSaleScan(p){
       try{
-        if(!saleDialog?.open&&typeof openSale==='function')openSale();
         if(typeof addToCart!=='function')throw new Error('CART_UNAVAILABLE');
         const isMedicine=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
         const isWeight=/^(kg|kilo|kilos|kilogramo|kilogramos|g|gr|gramo|gramos)$/i.test(String(p.unit||'').trim());
