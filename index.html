@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261001-COBRO-UNICO-20';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261001-CARACTERISTICAS-21';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <meta id="themeMeta" name="theme-color" content="#be185d">
 <title>VareliaStore</title>
@@ -323,6 +323,9 @@ function addToCart(p, qtyToAdd=1){
     ||products.find(x=>String(x.name||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase())
     ||p;
   p={...live,...p};
+  if(Array.isArray(p.characteristics)&&p.characteristics.length&&!p.__characteristicsSelected&&window.VareliaCharacteristics){
+    window.VareliaCharacteristics.select(p,chosen=>addToCart(chosen,qtyToAdd));return
+  }
   if(p.stock<=0)return alert('Este producto no tiene stock disponible.');
   const kg=String(p.unit||'').trim().toLowerCase()==='kg';
   if(kg&&!window.__vareliaAddingWeight){
@@ -728,9 +731,10 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 <script src="sale-sound.js?v=20260930-2"></script>
-<script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261001-weight-decimal-v1"></script>
+<script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261001-characteristics-v2"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
-<script src="weight-sales.js?v=20261001-native-weight-v9"></script>\n<script src="pos-sales.js?v=20261001-kg-result-click-v15"></script>
+<script src="weight-sales.js?v=20261001-native-weight-v9"></script>\n<script src="characteristics.js?v=20261001-characteristics-v1"></script>
+<script src="pos-sales.js?v=20261001-kg-result-click-v15"></script>
 <script src="payment-options.js?v=20261001-single-checkout-v6"></script>
 <script src="auto-ticket-print.js?v=20261001-mixed-payments-v2"></script>
 <script id="vareliaForceOldQtyRemoval">
