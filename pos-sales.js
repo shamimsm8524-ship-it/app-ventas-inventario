@@ -85,7 +85,7 @@
       const allProducts=()=>{try{return Array.isArray(products)?products:[]}catch{return []}};
       const byName=name=>allProducts().find(p=>norm(p.name)===norm(name))||null;
       const exactProduct=q=>{q=norm(q);if(!q)return null;return allProducts().find(p=>norm(p.barcode)===q)||allProducts().find(p=>norm(p.name)===q)||null};
-      const matches=q=>{q=norm(q);if(!q)return[];return allProducts().filter(p=>norm(p.barcode).includes(q)||norm(p.name).includes(q)).slice(0,7)};
+      const matches=q=>{q=norm(q);const list=allProducts();if(!q)return list.slice(0,12);return list.filter(p=>norm(p.barcode).includes(q)||norm(p.name).includes(q)||norm(p.category).includes(q)).slice(0,12)};
 
       const PAY_METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta'];
       const currentTotal=()=>legacyRows().reduce((a,x)=>a+x.subtotal,0);
@@ -251,9 +251,9 @@
         try{addToCart(p,qty);window.vareliaSound?.('add');window.vareliaToast?.(`${p.name} · S/ ${Number(p.sellPrice||0).toFixed(2)} agregado`,'ok');setTimeout(sync,0);return true}catch(e){console.error(e);window.vareliaSound?.('error');return false}
       }
       function hideSuggestions(){suggestions.classList.remove('show');suggestions.innerHTML=''}
-      function showSuggestions(q){const list=matches(q);if(!list.length){hideSuggestions();return}suggestions.innerHTML=list.map(p=>`<button type="button" class="vposSuggestion" data-pos-id="${esc(p.id)}"><span><b>${esc(p.name)}</b><small>${esc(p.barcode||'Sin código')}</small></span><strong>S/ ${Number(p.sellPrice||0).toFixed(2)}</strong></button>`).join('');suggestions.classList.add('show')}
+      function showSuggestions(q){const list=matches(q);if(!list.length){hideSuggestions();return}suggestions.innerHTML=list.map(p=>{const inCart=Array.isArray(cart)&&cart.some(x=>String(x.id)===String(p.id));return `<button type="button" class="vposSuggestion" data-pos-id="${esc(p.id)}"><span><b>${esc(p.name)}</b><small>${esc(p.category||p.barcode||'Producto')}${inCart?' · Ya está en el carrito':''}</small></span><strong>${inCart?'Agregar más':'S/ '+Number(p.sellPrice||0).toFixed(2)}</strong></button>`}).join('');suggestions.classList.add('show')}
       suggestions.addEventListener('click',e=>{const b=e.target.closest('[data-pos-id]');if(!b)return;e.preventDefault();e.stopPropagation();const p=allProducts().find(x=>String(x.id)===String(b.dataset.posId));if(!p)return;if(addProduct(p)){input.value='';hideSuggestions();input.focus()}});
-      input.addEventListener('input',()=>showSuggestions(input.value));
+      input.addEventListener('focus',()=>showSuggestions(input.value));input.addEventListener('click',()=>showSuggestions(input.value));input.addEventListener('input',()=>showSuggestions(input.value));
       input.addEventListener('keydown',e=>{if(e.key!=='Enter')return;const q=input.value.trim(),p=exactProduct(q)||matches(q)[0];if(!p)return; e.preventDefault();if(addProduct(p)){input.value='';hideSuggestions();input.focus()}});
 
       function bridgeScanner(){saleDialog.classList.add('vposBridge');try{if(!saleDialog.open)saleDialog.show()}catch{}scanForSale.click()}
