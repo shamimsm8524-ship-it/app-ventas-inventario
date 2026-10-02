@@ -236,12 +236,12 @@
       function bridgeScanner(){saleDialog.classList.add('vposBridge');try{if(!saleDialog.open)saleDialog.show()}catch{}scanForSale.click()}
       root.querySelector('#vposScan').onclick=bridgeScanner;
 
-      function startNew(){
+      function startNew(forceReset=false){
         try{if(saleDialog.open)saleDialog.close()}catch{}saleDialog.classList.remove('vposBridge');document.body.classList.add('vposReset');
-        try{if(typeof openSale==='function')openSale()}catch(e){console.warn(e)}
-        try{if(saleDialog.open)saleDialog.close()}catch{}document.body.classList.remove('vposReset');input.value='';hideSuggestions();sync();input.focus();window.vareliaToast?.('Nueva venta lista','ok')
+        try{if(typeof openSale==='function')openSale(forceReset||!Array.isArray(cart)||cart.length===0)}catch(e){console.warn(e)}
+        try{if(saleDialog.open)saleDialog.close()}catch{}document.body.classList.remove('vposReset');input.value='';hideSuggestions();sync();input.focus();window.vareliaToast?.(forceReset?'Nueva venta lista':'Carrito conservado','ok')
       }
-      const posNew=root.querySelector('#vposNew');if(posNew)posNew.onclick=startNew;
+      const posNew=root.querySelector('#vposNew');if(posNew)posNew.onclick=()=>startNew(true);
       checkoutBtn.onclick=()=>{const state=sync();if(!state.rows.length)return;const p=paySnapshot();if(p.missing>.005){window.vareliaToast?.('Faltan S/ '+p.missing.toFixed(2)+' para completar el pago','warn');return}window.VareliaPaymentSnapshot={...p,at:Date.now()};try{legacyCheckout.click();setTimeout(()=>{sync();renderPay();try{if(typeof renderSales==='function')renderSales()}catch{}window.vareliaToast?.('Venta registrada','ok')},160)}catch(e){console.error(e);window.vareliaSound?.('error')}};
 
       function goSales(){const nav=document.querySelector('.nav [data-view="sales"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew();root.scrollIntoView({behavior:'smooth',block:'start'})},80)}
