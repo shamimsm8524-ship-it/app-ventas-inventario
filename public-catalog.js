@@ -16,39 +16,9 @@
     try{specs=JSON.parse(localStorage.getItem(SPECS_KEY)||'{}')||{}}catch{specs={}}
     const saveSpecs=()=>{try{localStorage.setItem(SPECS_KEY,JSON.stringify(specs))}catch{}};
 
-    if(productForm&&!document.getElementById('productSpecifications')){
-      const description=document.getElementById('description');
-      const label=document.createElement('label');
-      label.innerHTML='<span>Especificaciones para el catálogo</span><textarea id="productSpecifications" rows="4" maxlength="2000" placeholder="Ej.: Marca, tamaño, material, color, contenido, modelo, presentación..."></textarea><small class="notice">Estas especificaciones sí podrán verlas tus clientes en el catálogo público.</small>';
-      const descriptionLabel=description?.closest('label');
-      if(descriptionLabel)descriptionLabel.parentNode.insertBefore(label,descriptionLabel);else productForm.appendChild(label);
-
-      const field=document.getElementById('productSpecifications');
-      const fillSpecs=()=>{
-        const id=productId?.value||'';
-        const p=id?products.find(x=>String(x.id)===String(id)):null;
-        field.value=id?String(specs[id]??p?.specifications??''):'';
-      };
-      document.addEventListener('click',e=>{
-        const t=e.target.closest('#newProduct,#inventoryNewProduct,[data-edit]');
-        if(t)setTimeout(fillSpecs,0);
-        const del=e.target.closest('[data-delete]');
-        if(del){const id=String(del.dataset.delete||'');setTimeout(()=>{if(id&&!products.some(p=>String(p.id)===id)){delete specs[id];saveSpecs()}},0)}
-      },true);
-      productForm.addEventListener('submit',()=>{
-        const existing=String(productId?.value||'');
-        const before=new Set(products.map(p=>String(p.id)));
-        const value=field.value.trim();
-        setTimeout(()=>{
-          let id=existing;
-          if(!id){const created=products.find(p=>!before.has(String(p.id)));id=created?String(created.id):''}
-          if(!id)return;
-          specs[id]=value;
-          saveSpecs();
-          window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
-        },0);
-      },true);
-    }
+    // Las opciones visibles/seleccionables del producto se administran ahora
+    // desde "Características del producto" (characteristics.js). Se conserva
+    // specifications solo para productos antiguos ya guardados.
 
     const actions=document.createElement('div');
     actions.className='catalogHeadActions';
