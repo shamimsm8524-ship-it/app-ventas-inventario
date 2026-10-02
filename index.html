@@ -105,7 +105,7 @@ let db=null;
 const K={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};
 const $=id=>document.getElementById(id),money=n=>'S/ '+Number(n||0).toFixed(2),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),esc=s=>String(s??'');
 function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}
-let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.sales,[]),closures=load(K.closures,[]),cashStart=load(K.cashStart,new Date().toISOString()),theme=load(K.theme,{color:'#be185d',dark:false,updatedAt:0}),movements=load(K.movements,[]),suppliers=load(K.suppliers,[]),purchases=load(K.purchases,[]),activeCategory='Todos',cart=[],purchaseCart=[],inventoryProductId=null;
+let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.sales,[]),closures=load(K.closures,[]),cashStart=load(K.cashStart,new Date().toISOString()),theme=load(K.theme,{color:'#be185d',dark:false,updatedAt:0}),movements=load(K.movements,[]),suppliers=load(K.suppliers,[]),purchases=load(K.purchases,[]),activeCategory='Todos',cart=load('varelia_active_sale_cart_v1',[]),purchaseCart=[],inventoryProductId=null;
 products.forEach(p=>{if(!p.id)p.id=uid();p.id=String(p.id);if(p.reorderLevel==null)p.reorderLevel=5});window.products=products;
 let isRemoteSync=false;
 function setCloudStatus(txt,isError=false){const el=$('cloudStatus');if(!el)return;el.textContent=txt;el.style.color=isError?'#b91c1c':'var(--p)'}
@@ -336,7 +336,7 @@ function productActions(e){
     if(!p)return;
     const med=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
     if(med){addToCart(p);return}
-    openSale(cart.length===0);
+    openSale(false);
     addToCart(p);
     return;
   }
@@ -360,7 +360,9 @@ function renderPurchaseCart(){purchaseItems.innerHTML=purchaseCart.map(i=>`<div>
 addPurchaseItem.onclick=()=>{let p=products.find(x=>String(x.id).trim()===String(purchaseProduct.value).trim()),q=Math.floor(+purchaseQty.value),c=+purchaseCost.value;if(p&&q>0){purchaseCart.push({id:p.id,name:p.name,qty:q,cost:c,unit:p.unit});renderPurchaseCart()}};
 savePurchase.onclick=()=>{let s=suppliers.find(x=>String(x.id).trim()===String(purchaseSupplier.value).trim());if(!s||!purchaseCart.length)return;for(const i of purchaseCart){let p=products.find(x=>String(x.id).trim()===String(i.id).trim());if(p){p.stock=(+p.stock||0)+i.qty;syncProductToCloud(p);}}purchases.push({id:uid(),date:new Date().toISOString(),supplierName:s.name,items:purchaseCart,total:purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0)});purchaseDialog.close();save()};
 
-function openSale(resetCart=true){if(resetCart){cart=[];renderCart()}saleDialog.showModal()}
+function persistSaleCart(){try{localStorage.setItem('varelia_active_sale_cart_v1',JSON.stringify(cart||[]))}catch{}}
+function clearSaleCart(){cart=[];persistSaleCart();renderCart()}
+function openSale(resetCart=false){if(resetCart)clearSaleCart();renderCart();saleDialog.showModal()}
 function addToCart(p, qtyToAdd=1){
   if(!p)return;
   const live=products.find(x=>String(x.id).trim()===String(p.id).trim())
@@ -438,6 +440,7 @@ function renderCart(){
   const box=$('cart');
   if(!box)return;
   box.innerHTML=cart.length?cart.map(i=>`<div class="cartitem" data-cart-row="${esc(i.id)}"><span>${esc(i.name)}</span><div style="display:flex;align-items:center;gap:6px"><button type="button" class="btn secondary" data-cart-minus="${esc(i.id)}" style="padding:6px 10px">−</button><input type="number" inputmode="decimal" min="${String(products.find(p=>String(p.id)===String(i.id))?.unit||'').toLowerCase()==='kg'?'0.001':'1'}" step="${String(products.find(p=>String(p.id)===String(i.id))?.unit||'').toLowerCase()==='kg'?'0.001':'1'}" max="${Number(products.find(p=>String(p.id)===String(i.id))?.stock)||1}" value="${i.qty}" data-cart-qty="${esc(i.id)}" style="width:64px;text-align:center;padding:7px"><button type="button" class="btn secondary" data-cart-plus="${esc(i.id)}" style="padding:6px 10px">+</button></div></div>`).join(''):'';
+  persistSaleCart();
   saleTotal.textContent=money(cart.reduce((a,i)=>a+i.price*i.qty,0));
   if(!box.dataset.qtyBound){
     box.dataset.qtyBound='1';
@@ -528,6 +531,7 @@ checkout.onclick=()=>{
   });
 
   cart = [];
+  persistSaleCart();
   saleDialog.close();
   save();
 };
@@ -553,7 +557,7 @@ function checkUrlOrder(){
   }
 }
 
-[newSaleTop,newSaleFab].forEach(b=>b.onclick=openSale);
+[newSaleTop,newSaleFab].forEach(b=>b.onclick=()=>openSale(false));
 closeCash.onclick=()=>{let a=activeSales(),t=a.reduce((x,s)=>x+s.total,0);closures.push({id:uid(),closedAt:new Date().toISOString(),total:t});cashStart=new Date().toISOString();save()};
 themeGrid.onclick=e=>{let b=e.target.closest('[data-color]');if(b){setThemeColor(b.dataset.color);syncWheelFromHex(b.dataset.color)}};
 lightModeBtn.onclick=()=>{theme.dark=false;theme.updatedAt=Date.now();localStorage.setItem(K.theme,JSON.stringify(theme));save();applyTheme()};
