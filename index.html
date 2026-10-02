@@ -368,6 +368,25 @@ function addToCart(p, qtyToAdd=1){
     window.VareliaCharacteristics.select(p,chosen=>addToCart(chosen,qtyToAdd));return
   }
   if(p.stock<=0)return alert('Este producto no tiene stock disponible.');
+  const medicineCategory=/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
+  const isMedicine=!!p.medicine||medicineCategory;
+  if(isMedicine&&!p.__medicineSelected){
+    const bpb=Math.max(1,Number(p.blistersPerBox||1)),upb=Math.max(1,Number(p.unitsPerBlister||1));
+    const options=[
+      {label:'Caja',price:Number(p.boxPrice||0),mult:bpb*upb},
+      {label:'Blíster',price:Number(p.blisterPrice||0),mult:upb},
+      {label:'Pastilla',price:Number(p.unitMedicinePrice||p.sellPrice||0),mult:1}
+    ].filter(o=>o.price>0);
+    if(!options.length)return alert('Configura los precios de Caja, Blíster o Pastilla antes de vender.');
+    const box=document.createElement('div');
+    box.style.cssText='position:fixed;inset:0;z-index:99999;background:#0008;display:grid;place-items:center;padding:18px';
+    box.innerHTML='<div style="background:var(--card);color:var(--ink);width:min(440px,100%);border-radius:24px;padding:22px"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">'+esc(p.name)+'</h2><button type="button" data-medclose style="border:0;background:#eee;border-radius:50%;width:42px;height:42px;font-size:24px">×</button></div><p class="notice">Elige cómo deseas venderlo</p><label><b>Cantidad</b><input data-medqty type="number" min="1" step="1" value="1" style="width:100%;margin:7px 0 14px;padding:13px;border:1px solid var(--line);border-radius:12px"></label><div data-medopts></div></div>';
+    document.body.appendChild(box);
+    box.querySelector('[data-medclose]').onclick=()=>box.remove();
+    const opts=box.querySelector('[data-medopts]');
+    options.forEach(o=>{const b=document.createElement('button');b.type='button';b.className='btn secondary';b.style.cssText='width:100%;margin:6px 0;padding:14px;display:flex;justify-content:space-between';b.innerHTML='<b>'+o.label+'</b><b>S/ '+o.price.toFixed(2)+'</b>';b.onclick=()=>{const q=Math.max(1,Math.floor(Number(box.querySelector('[data-medqty]').value)||1)),base=q*o.mult;if(base>Number(p.stock||0))return alert('No hay stock suficiente.');box.remove();addToCart({...p,__medicineSelected:true,sellPrice:o.price,selectionLabel:o.label,medicineMultiplier:o.mult,medicineSaleUnit:o.label},q)};opts.appendChild(b)});
+    return;
+  }
   const kg=String(p.unit||'').trim().toLowerCase()==='kg';
   if(kg&&!window.__vareliaAddingWeight){
     if(window.VareliaWeightSale){window.VareliaWeightSale.open(p);return}
@@ -381,7 +400,7 @@ function addToCart(p, qtyToAdd=1){
     if(i.qty + qtyToAdd > p.stock) return alert('No hay más stock disponible para '+p.name);
     i.qty += qtyToAdd;i.unit=p.unit||i.unit;
   } else {
-    cart.push({id:p.id,cartKey,name:p.name+(selectionLabel?' · '+selectionLabel:''),baseName:p.name,selectionLabel,selectedCharacteristics:p.selectedCharacteristics||[],barcode:p.barcode||'',price:+p.sellPrice,qty:Math.min(qtyToAdd,p.stock),unit:p.unit||'Unidad'});
+    cart.push({id:p.id,cartKey,name:p.name+(selectionLabel?' · '+selectionLabel:''),baseName:p.name,selectionLabel,selectedCharacteristics:p.selectedCharacteristics||[],barcode:p.barcode||'',price:+p.sellPrice,qty:Math.min(qtyToAdd,p.stock),unit:p.unit||'Unidad',medicineMultiplier:Number(p.medicineMultiplier||1),medicineSaleUnit:p.medicineSaleUnit||''});
   }
   renderCart();
 }
