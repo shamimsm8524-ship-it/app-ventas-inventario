@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261002-PEDIDOS-MOVIL-V58';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261002-PEDIDOS-UNIFICADOS-V59';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <meta id="themeMeta" name="theme-color" content="#be185d">
 <title>VareliaStore</title>
@@ -665,7 +665,7 @@ if ('serviceWorker' in navigator) {
    b.innerHTML='<span class="vmobileHubIcon">▤</span><div><b>Pedidos</b><small>Confirmar pagos del catálogo</small></div>';
    const first=grid.querySelector('.vmobileHubCard');if(first?.nextSibling)grid.insertBefore(b,first.nextSibling);else grid.appendChild(b);
   }
-  if(!b.dataset.ordersBound){b.dataset.ordersBound='1';b.addEventListener('click',e=>{e.preventDefault();const side=document.querySelector('#sidebar .nav [data-view="orders"]');if(side)side.click();else{document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='orders'));}setTimeout(()=>window.vareliaLoadOrders?.(),80)},true)}
+  if(!b.dataset.ordersBound){b.dataset.ordersBound='1';b.addEventListener('click',e=>{e.preventDefault();const side=document.querySelector('#sidebar .nav [data-view="catalogOrders"]');if(side)side.click();else{document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='catalogOrders'));}setTimeout(()=>document.getElementById('vordersRefresh')?.click(),80)},true)}
   return true;
  };
  let n=0,t=setInterval(()=>{n++;ensure();if(n>80)clearInterval(t)},150);
@@ -715,7 +715,7 @@ if ('serviceWorker' in navigator) {
     sec.className='view vmobileHub';
     sec.innerHTML='<div class="vmobileHubHead"><h2>Administración</h2><p>Gestiona las herramientas de tu negocio.</p></div><div class="vmobileHubGrid">'+
       '<button class="vmobileHubCard" type="button" data-admin-open="sellers"><span class="vmobileHubIcon">♙</span><div><b>Vendedores</b><small>Cuentas y permisos</small></div></button>'+
-      '<button class="vmobileHubCard" type="button" data-admin-open="orders"><span class="vmobileHubIcon">🛍️</span><div><b>Pedidos</b><small>Confirmar pagos del catálogo</small></div></button>'+ 
+      '<button class="vmobileHubCard" type="button" data-admin-open="catalogOrders"><span class="vmobileHubIcon">🛍️</span><div><b>Pedidos</b><small>Confirmar pagos del catálogo</small></div></button>'+ 
       '<button class="vmobileHubCard" type="button" data-admin-open="categories"><span class="vmobileHubIcon">◇</span><div><b>Categorías</b><small>Organizar catálogo</small></div></button>'+
       '<button class="vmobileHubCard" type="button" data-admin-open="purchases"><span class="vmobileHubIcon">▣</span><div><b>Compras</b><small>Ingreso de mercadería</small></div></button>'+
       '<button class="vmobileHubCard" type="button" data-admin-open="suppliers"><span class="vmobileHubIcon">▱</span><div><b>Proveedores</b><small>Directorio</small></div></button>'+
@@ -785,7 +785,7 @@ if ('serviceWorker' in navigator) {
 <script src="pos-sales.js?v=20261001-characteristics-v16"></script>
 <script src="payment-options.js?v=20261001-single-checkout-v6"></script>
 <script src="auto-ticket-print.js?v=20261001-mixed-payments-v2"></script>
-<script src="catalog-orders.js?v=20261002-confirmar-pago-v1"></script>
+<script src="catalog-orders.js?v=20261002-pedidos-unificados-v59"></script>
 <script id="vareliaForceOldQtyRemoval">
 (()=>{
  const clean=()=>{
