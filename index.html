@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261002-PRODUCTOS-NUEVOS-52';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261002-STOCK-VARIANTES-53';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <meta id="themeMeta" name="theme-color" content="#be185d">
 <title>VareliaStore</title>
@@ -268,7 +268,11 @@ productForm.onsubmit=async e=>{
   let id=productId.value||uid(),old=products.find(p=>String(p.id).trim()===String(id).trim());
   const editor=document.getElementById('vcharEditor');
   let extra={characteristics:[],variantCombinations:[]};
-  if(editor){
+  // Leer el editor oficial antes de guardar. Esto genera/conserva las combinaciones
+  // y evita que un producto nuevo se guarde vacío aunque tenga talla/color con stock.
+  if(editor&&window.VareliaCharacteristics?.readEditor){
+    extra=window.VareliaCharacteristics.readEditor();
+  }else if(editor){
     extra.characteristics=[...editor.querySelectorAll('.vcharRow')].map(r=>{
       const sel=r.querySelector('[data-char-name]');
       const name=sel?.value==='Otra'?String(r.querySelector('[data-char-custom]')?.value||'').trim():String(sel?.value||'').trim();
@@ -756,7 +760,7 @@ if ('serviceWorker' in navigator) {
 <script src="sale-sound.js?v=20260930-2"></script>
 <script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261002-productos-nuevos-v52"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
-<script src="weight-sales.js?v=20261001-native-weight-v9"></script>\n<script src="characteristics.js?v=20261002-guardado-colores-v51"></script>
+<script src="weight-sales.js?v=20261001-native-weight-v9"></script>\n<script src="characteristics.js?v=20261002-stock-variantes-v53"></script>
 <script src="pos-sales.js?v=20261001-characteristics-v16"></script>
 <script src="payment-options.js?v=20261001-single-checkout-v6"></script>
 <script src="auto-ticket-print.js?v=20261001-mixed-payments-v2"></script>
