@@ -148,29 +148,24 @@
     refreshTimer=setTimeout(()=>refreshCloud().catch(e=>console.error('Sync stock',e)),120);
   }
 
+  const productSyncLocks=new Map();
   async function syncProduct(p){
     if(!isOwner()||!p)return;
-    const categoryId=await ensureCategory(p.category);
-    const payload=productPayload(p,categoryId);
-
-    if(p._cloudId){
-      const up=await sb.from('varelia_products').update(payload).eq('id',p._cloudId).eq('business_id',businessId).select('id').maybeSingle();
-      if(up.error)throw up.error;
-    }else{
+    const key=String(p.id||'');
+    if(productSyncLocks.has(key))return productSyncLocks.get(key);
+    const task=(async()=>{
+      const categoryId=await ensureCategory(p.category);
+      const payload=productPayload(p,categoryId);
       const legacy=String(p.id||'');
-      const ex=await sb.from('varelia_products').select('id').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
-      if(ex.error)throw ex.error;
-      if(ex.data?.id){
-        p._cloudId=ex.data.id;
-        const up=await sb.from('varelia_products').update(payload).eq('id',p._cloudId).eq('business_id',businessId);
-        if(up.error)throw up.error;
-      }else{
-        const ins=await sb.from('varelia_products').insert(payload).select('id').single();
-        if(ins.error)throw ins.error;
-        p._cloudId=ins.data.id;
-      }
-    }
-    window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
+      // Upsert atómico por negocio + id local: evita dos INSERT simultáneos
+      // cuando el formulario y las características se guardan en el mismo instante.
+      const up=await sb.from('varelia_products').upsert(payload,{onConflict:'business_id,legacy_id'}).select('id').single();
+      if(up.error)throw up.error;
+      p._cloudId=up.data.id;
+      window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
+    })().finally(()=>productSyncLocks.delete(key));
+    productSyncLocks.set(key,task);
+    return task;
   }
 
   function installProductBridge(){
