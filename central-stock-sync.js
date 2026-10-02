@@ -175,6 +175,7 @@
       if(up.error)throw up.error;
       p._cloudId=up.data.id;
       suppressRefreshUntil=Date.now()+1200;
+      await refreshPublicStock();
       window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
     })().finally(()=>productSyncLocks.delete(key));
     productSyncLocks.set(key,task);
