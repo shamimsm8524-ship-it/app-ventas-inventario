@@ -164,7 +164,14 @@
       const legacy=String(p.id||'');
       // Upsert atómico por negocio + id local: evita dos INSERT simultáneos
       // cuando el formulario y las características se guardan en el mismo instante.
-      const up=await sb.from('varelia_products').upsert(payload,{onConflict:'business_id,legacy_id'}).select('id').single();
+      let up=await sb.from('varelia_products').upsert(payload,{onConflict:'business_id,legacy_id'}).select('id').single();
+      // Respaldo seguro: si el upsert no puede resolver el conflicto, buscar y actualizar/insertar sin perder el producto nuevo.
+      if(up.error){
+        const found=await sb.from('varelia_products').select('id').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
+        if(found.error)throw up.error;
+        if(found.data?.id)up=await sb.from('varelia_products').update(payload).eq('id',found.data.id).select('id').single();
+        else up=await sb.from('varelia_products').insert(payload).select('id').single();
+      }
       if(up.error)throw up.error;
       p._cloudId=up.data.id;
       suppressRefreshUntil=Date.now()+1200;
