@@ -13,6 +13,11 @@ const presentation=i=>{
  return '';
 };
 const qtyLabel=i=>{const p=presentation(i);return p?('Presentación: '+p):('Cantidad: '+esc(i.qty));};
+const receiptLine=i=>{
+ const p=presentation(i);
+ if(p)return '<span><b>Precio:</b> '+money(i.unit_price)+' por kg · <b>Cantidad:</b> '+esc(p)+'</span>';
+ return '<span><b>Cantidad:</b> '+esc(i.qty)+' × '+money(i.unit_price)+'</span>';
+};
 let sb=null,businessId='',userId='',role='',orders=[];
 const style=document.createElement('style');style.textContent='.vorderCard{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:15px;box-shadow:var(--shadow)}.vorderTop{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.vorderStatus{display:inline-block;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:900}.vorderPending{background:#fef3c7;color:#92400e}.vorderPaid{background:#d1fae5;color:#047857}.vorderMeta{font-size:13px;color:var(--muted);line-height:1.55;margin-top:8px}.vorderItems{margin:11px 0;padding-top:9px;border-top:1px solid var(--line);font-size:13px;line-height:1.55}.vorderActions{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}.vorderActions button{flex:1;min-width:150px}';document.head.appendChild(style);
 function section(){return document.getElementById('catalogOrders')}
@@ -28,7 +33,7 @@ function render(){const box=document.getElementById('vordersList');if(!box)retur
 async function load(){if(!await scope())return;const {data,error}=await sb.from('public_catalog_orders').select('*').eq('business_id',businessId).order('created_at',{ascending:false}).limit(100);if(error){console.error(error);return}orders=data||[];render()}
 function ticket(o){
  const paid=o.payment_status==='paid';
- const items=(Array.isArray(o.items)?o.items:[]).map(i=>'<div class="item"><div><b>'+esc(i.name)+'</b></div>'+(i.characteristics?.length?'<div class="muted">'+i.characteristics.map(esc).join(' · ')+'</div>':'')+'<div class="itemqty"><span>'+qtyLabel(i)+' × '+money(i.unit_price)+'</span><b>'+money(i.subtotal)+'</b></div></div>').join('');
+ const items=(Array.isArray(o.items)?o.items:[]).map(i=>'<div class="item"><div><b>'+esc(i.name)+'</b></div>'+(i.characteristics?.length?'<div class="muted">'+i.characteristics.map(esc).join(' · ')+'</div>':'')+'<div class="itemqty">'+receiptLine(i)+'<b>'+money(i.subtotal)+'</b></div></div>').join('');
  let sec=document.getElementById('catalogOrderReceipt');
  if(!sec){sec=document.createElement('section');sec.id='catalogOrderReceipt';sec.className='view';document.querySelector('main.content')?.appendChild(sec)}
  sec.innerHTML='<div style="max-width:620px;margin:0 auto;padding:8px 0 28px"><button class="btn secondary" id="vreceiptBack" type="button">← Volver a Pedidos</button><div class="vreceipt"><h1>Varelia</h1><h2>COMPROBANTE DE PEDIDO</h2><div class="code">'+esc(o.order_code)+'</div><div class="status">'+(paid?'✓ PAGO CONFIRMADO':'PAGO PENDIENTE DE CONFIRMACIÓN')+'</div><div class="data"><div><b>Pedido:</b> '+new Date(o.created_at).toLocaleString('es-PE')+'</div>'+(paid?'<div><b>Pago confirmado:</b> '+new Date(o.paid_at).toLocaleString('es-PE')+'</div>':'')+'<div><b>Cliente:</b> '+esc(o.customer_name)+'</div><div><b>Celular:</b> '+esc(o.customer_phone)+'</div><div><b>Distrito/Ciudad:</b> '+esc(o.customer_city)+'</div><div><b>Entrega:</b> '+esc(o.delivery_label)+'</div>'+(o.customer_address?'<div><b>Dirección:</b> '+esc(o.customer_address)+'</div>':'')+'<div><b>Método de pago:</b> '+esc(o.payment_method)+'</div></div><h3>PRODUCTOS</h3>'+items+'<div class="sum"><div><span>Productos</span><b>'+money(o.subtotal)+'</b></div><div><span>Envío</span><b>'+(o.delivery_type==='shalom'?'Pago en agencia':money(o.shipping))+'</b></div><div class="grand"><span>TOTAL</span><b>'+money(o.total)+'</b></div></div><div class="note">'+(paid?'Pago verificado por el negocio.':'Este documento confirma el pedido y no acredita el pago hasta su verificación.')+'</div><div class="actions"><button class="btn secondary" id="vreceiptPrint" type="button">Imprimir / Guardar PDF</button>'+(paid?'':'')+'</div></div></div>';
