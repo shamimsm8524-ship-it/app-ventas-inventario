@@ -681,7 +681,7 @@ if ('serviceWorker' in navigator) {
       return;
     }
     const b=document.querySelector('#sidebar .nav [data-view="'+kind+'"]');
-    if(b){b.click();return}
+    if(b){b.click();if(kind==='orders')setTimeout(()=>window.vareliaLoadOrders?.(),80);return}
     if(document.getElementById(kind))show(kind);
   };
 
@@ -695,6 +695,7 @@ if ('serviceWorker' in navigator) {
     sec.className='view vmobileHub';
     sec.innerHTML='<div class="vmobileHubHead"><h2>Administración</h2><p>Gestiona las herramientas de tu negocio.</p></div><div class="vmobileHubGrid">'+
       '<button class="vmobileHubCard" type="button" data-admin-open="sellers"><span class="vmobileHubIcon">♙</span><div><b>Vendedores</b><small>Cuentas y permisos</small></div></button>'+
+      '<button class="vmobileHubCard" type="button" data-admin-open="orders"><span class="vmobileHubIcon">🛍️</span><div><b>Pedidos</b><small>Confirmar pagos del catálogo</small></div></button>'+ 
       '<button class="vmobileHubCard" type="button" data-admin-open="categories"><span class="vmobileHubIcon">◇</span><div><b>Categorías</b><small>Organizar catálogo</small></div></button>'+
       '<button class="vmobileHubCard" type="button" data-admin-open="purchases"><span class="vmobileHubIcon">▣</span><div><b>Compras</b><small>Ingreso de mercadería</small></div></button>'+
       '<button class="vmobileHubCard" type="button" data-admin-open="suppliers"><span class="vmobileHubIcon">▱</span><div><b>Proveedores</b><small>Directorio</small></div></button>'+
