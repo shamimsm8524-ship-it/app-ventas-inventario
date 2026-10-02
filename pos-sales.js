@@ -215,6 +215,11 @@
         if(Array.isArray(p.characteristics)&&p.characteristics.length&&!p.__characteristicsSelected&&window.VareliaCharacteristics){
           window.VareliaCharacteristics.select(p,chosen=>addProduct(chosen,qty));return true
         }
+        const medicineCategory=/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
+        const isMedicine=!!p.medicine||medicineCategory;
+        if(isMedicine&&!p.__medicineSelected){
+          try{addToCart(p,qty);return true}catch(e){console.error(e);window.vareliaSound?.('error');return false}
+        }
         if(String(p.unit||'').trim().toLowerCase()==='kg'&&!window.__vareliaAddingWeight){
           if(window.VareliaWeightSale){window.VareliaWeightSale.open(p);return true}
           window.vareliaToast?.('Selecciona el peso antes de agregar '+p.name,'warn');return false
