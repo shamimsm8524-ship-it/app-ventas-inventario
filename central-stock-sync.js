@@ -56,7 +56,6 @@
       barcode:String(p.barcode||'').trim()||null,
       name:String(p.name||'Producto').trim()||'Producto',
       description:String(p.description||''),
-      medicine_meta:{medicine:!!p.medicine,laboratory:String(p.laboratory||''),presentation:String(p.medicinePresentation||''),batch:String(p.batch||''),expiry_date:String(p.expiryDate||'')},
       specifications:String(p.specifications||''),
       variants:String(p.variants||''),
       characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
@@ -105,7 +104,7 @@
     if(!sb||!businessId)return false;
     const [catsRes,prodRes]=await Promise.all([
       sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
-      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,medicine_meta,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data').eq('business_id',businessId).order('created_at')
+      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data').eq('business_id',businessId).order('created_at')
     ]);
     if(catsRes.error)throw catsRes.error;
     if(prodRes.error)throw prodRes.error;
@@ -125,11 +124,6 @@
       unit:String(p.unit||'Unidad'),
       reorderLevel:Number(p.reorder_level)||0,
       description:String(p.description||''),
-      medicine:!!p.medicine_meta?.medicine,
-      laboratory:String(p.medicine_meta?.laboratory||''),
-      medicinePresentation:String(p.medicine_meta?.presentation||''),
-      batch:String(p.medicine_meta?.batch||''),
-      expiryDate:String(p.medicine_meta?.expiry_date||''),
       specifications:String(p.specifications||''),
       variants:String(p.variants||''),
       characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
