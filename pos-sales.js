@@ -124,8 +124,8 @@
           if(Array.isArray(cart)){
             return cart.map(i=>{
               const p=allProducts().find(x=>String(x.id)===String(i.id))||allProducts().find(x=>String(x.barcode||'').trim()===String(i.barcode||'').trim()&&String(i.barcode||'').trim())||byName(i.name)||{id:i.id,name:i.name,barcode:'',stock:0,sellPrice:i.price};
-              const name=String(i.name||p.name||'Producto'),isWeight=String(i.unit||p.unit||'').trim().toLowerCase()==='kg',qty=isWeight?Math.max(.001,Number(i.qty)||.001):Math.max(1,Number(i.qty)||1),price=Number(i.price??p.sellPrice??0);
-              return {p,name,qty,price,subtotal:price*qty,item:i,key:String(i.cartKey||i.id),medicineSaleUnit:i.medicineSaleUnit||'',medicineMultiplier:Number(i.medicineMultiplier||1)};
+              const name=String(i.name||p.name||'Producto'),isWeight=String(i.unit||p.unit||'').trim().toLowerCase()==='kg',qty=isWeight?Math.max(.001,Number(i.qty)||.001):Math.max(1,Number(i.qty)||1),price=Number(i.price??p.sellPrice??0),displayQty=isWeight?(qty<1?Math.round(qty*1000)+' g':qty.toFixed(3)+' kg'):String(qty);
+              return {p,name,qty,displayQty,price,subtotal:price*qty,item:i,key:String(i.cartKey||i.id),medicineSaleUnit:i.medicineSaleUnit||'',medicineMultiplier:Number(i.medicineMultiplier||1)};
             });
           }
         }catch(e){console.warn('POS cart',e)}
@@ -163,12 +163,12 @@
           const variantDetail=String(x.name||'').includes(' · ')?String(x.name).split(' · ').slice(1).join(' · '):'';
           const baseName=String(x.name||'Producto').split(' · ')[0];
           const detail=kg
-            ? 'Precio por kg: S/ '+x.price.toFixed(2)+' · Peso: '+(x.qty<1?Math.round(x.qty*1000)+' g':x.qty.toFixed(3)+' kg')
+            ? 'Precio por kg: S/ '+x.price.toFixed(2)+' · Cantidad: '+x.displayQty
             : med
               ? 'Presentación: '+x.medicineSaleUnit+' · Precio por '+String(x.medicineSaleUnit).toLowerCase()+': S/ '+x.price.toFixed(2)+' · Cantidad: '+x.qty
               : (variantDetail?variantDetail+' · ':'')+'Precio unitario: S/ '+x.price.toFixed(2)+' · Cantidad: '+x.qty;
           const qty=kg
-            ? `<div class="vposQty" style="display:flex!important;justify-content:center"><button type="button" class="btn secondary" data-pos-weight="${esc(x.p.id)}" style="width:auto;min-width:116px;padding:9px 10px">⚖️ ${x.qty<1?Math.round(x.qty*1000)+' g':x.qty.toFixed(3)+' kg'}</button></div>`
+            ? `<div class="vposQty" style="display:flex!important;justify-content:center"><button type="button" class="btn secondary" data-pos-weight="${esc(x.p.id)}" style="width:auto;min-width:116px;padding:9px 10px">⚖️ ${x.displayQty}</button></div>`
             : `<div class="vposQty"><button type="button" class="vposQtyBtn" data-pos-minus="${esc(x.key)}" aria-label="Restar cantidad">−</button><input class="vposQtyInput" data-pos-qty="${esc(x.key)}" type="number" inputmode="numeric" min="1" step="1" value="${x.qty}" aria-label="Cantidad de ${esc(x.name)}"><button type="button" class="vposQtyBtn" data-pos-plus="${esc(x.key)}" aria-label="Aumentar cantidad">+</button></div>`;
           return `<div class="vposRow" data-pos-row-id="${esc(x.key)}"><div class="vposName"><b>${esc(baseName)}</b><small>${esc(detail)}</small></div><div class="vposPrice">S/ ${x.price.toFixed(2)}${kg?' / kg':''}</div>${qty}<div class="vposSubtotal">S/ ${x.subtotal.toFixed(2)}</div><button type="button" class="vposDelete" data-pos-delete="${esc(x.key)}" aria-label="Eliminar ${esc(baseName)}">✕</button></div>`
         }).join('');
