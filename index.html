@@ -410,17 +410,16 @@ function addToCart(p, qtyToAdd=1){
   }
   renderCart();
 }
-function setCartQty(id,value){
-  const item=cart.find(x=>String(x.id).trim()===String(id).trim());
-  const p=products.find(x=>String(x.id).trim()===String(id).trim());
+function setCartQty(key,value){
+  const item=cart.find(x=>String(x.cartKey||x.id)===String(key));
+  const p=item&&products.find(x=>String(x.id).trim()===String(item.id).trim());
   if(!item||!p)return;
-  const kg=String(p.unit||'').trim().toLowerCase()==='kg';
-  const max=kg?Math.max(.001,Number(p.stock)||.001):Math.max(1,Math.floor(Number(p.stock)||1));
+  const kg=String(item.unit||p.unit||'').trim().toLowerCase()==='kg';
+  const mult=Math.max(1,Number(item.medicineMultiplier||1));
+  const max=kg?Math.max(.001,Number(p.stock)||.001):Math.max(1,Math.floor((Number(p.stock)||1)/mult));
   let q=kg?Math.round((Number(value)||.001)*1000)/1000:Math.floor(Number(value)||1);
   q=Math.max(kg?.001:1,Math.min(q,max));
-  if(Number(value)>max)alert('Stock disponible: '+max+(kg?' kg':''));
-  item.qty=q;
-  renderCart();
+  item.qty=q;renderCart();
 }
 window.VareliaCartAddWeight=function(product,qty){
   const p=products.find(x=>String(x.id).trim()===String(product?.id).trim())||products.find(x=>String(x.barcode||'').trim()===String(product?.barcode||'').trim())||product;
@@ -439,17 +438,30 @@ window.VareliaCartAddWeight=function(product,qty){
 function renderCart(){
   const box=$('cart');
   if(!box)return;
-  box.innerHTML=cart.length?cart.map(i=>`<div class="cartitem" data-cart-row="${esc(i.id)}"><span>${esc(i.name)}</span><div style="display:flex;align-items:center;gap:6px"><button type="button" class="btn secondary" data-cart-minus="${esc(i.id)}" style="padding:6px 10px">−</button><input type="number" inputmode="decimal" min="${String(products.find(p=>String(p.id)===String(i.id))?.unit||'').toLowerCase()==='kg'?'0.001':'1'}" step="${String(products.find(p=>String(p.id)===String(i.id))?.unit||'').toLowerCase()==='kg'?'0.001':'1'}" max="${Number(products.find(p=>String(p.id)===String(i.id))?.stock)||1}" value="${i.qty}" data-cart-qty="${esc(i.id)}" style="width:64px;text-align:center;padding:7px"><button type="button" class="btn secondary" data-cart-plus="${esc(i.id)}" style="padding:6px 10px">+</button></div></div>`).join(''):'';
+  box.innerHTML=cart.length?cart.map(i=>{
+    const p=products.find(p=>String(p.id)===String(i.id))||{};
+    const key=String(i.cartKey||i.id);
+    const kg=String(i.unit||p.unit||'').trim().toLowerCase()==='kg';
+    const med=!!i.medicineSaleUnit;
+    const qty=Number(i.qty)||0, subtotal=Number(i.price||0)*qty;
+    const shownQty=kg?(qty<1?Math.round(qty*1000)+' g':qty.toFixed(3)+' kg'):String(qty);
+    const detail=kg?'Precio por kg: '+money(i.price)+' · Peso: '+shownQty:med?'Presentación: '+i.medicineSaleUnit+' · Precio: '+money(i.price)+' · Cantidad: '+qty:'Precio unitario: '+money(i.price)+' · Cantidad: '+qty;
+    const controls=kg?`<button type="button" class="btn secondary" data-cart-weight="${esc(key)}">⚖️ Cambiar peso</button>`:`<button type="button" class="btn secondary" data-cart-minus="${esc(key)}">−</button><input type="number" inputmode="numeric" min="1" step="1" value="${qty}" data-cart-qty="${esc(key)}" style="width:64px;text-align:center;padding:7px"><button type="button" class="btn secondary" data-cart-plus="${esc(key)}">+</button>`;
+    return `<div class="cartitem" data-cart-row="${esc(key)}" style="display:grid;grid-template-columns:1fr auto;gap:8px 12px;padding:12px 0;border-bottom:1px solid var(--line)"><div><b>${esc(String(i.name||p.name||'Producto').split(' · ')[0])}</b><small style="display:block;color:var(--muted);margin-top:4px">${esc(detail)}</small></div><button type="button" data-cart-delete="${esc(key)}" style="border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;border-radius:10px;width:38px;height:38px;font-weight:900">✕</button><div style="display:flex;align-items:center;gap:6px">${controls}</div><div style="text-align:right"><small style="display:block;color:var(--muted)">Subtotal</small><b style="color:var(--p)">${money(subtotal)}</b></div></div>`;
+  }).join(''):'';
   persistSaleCart();
-  saleTotal.textContent=money(cart.reduce((a,i)=>a+i.price*i.qty,0));
+  saleTotal.textContent=money(cart.reduce((a,i)=>a+Number(i.price||0)*Number(i.qty||0),0));
   if(!box.dataset.qtyBound){
     box.dataset.qtyBound='1';
     box.addEventListener('click',e=>{
+      const del=e.target.closest('[data-cart-delete]');if(del){cart=cart.filter(x=>String(x.cartKey||x.id)!==String(del.dataset.cartDelete));renderCart();return}
+      const weight=e.target.closest('[data-cart-weight]');if(weight){const item=cart.find(x=>String(x.cartKey||x.id)===String(weight.dataset.cartWeight)),p=item&&products.find(x=>String(x.id)===String(item.id));if(p&&window.VareliaWeightSale)window.VareliaWeightSale.open(p);return}
       const plus=e.target.closest('[data-cart-plus]'),minus=e.target.closest('[data-cart-minus]');
       const b=plus||minus;if(!b)return;
-      const item=cart.find(x=>String(x.id)===String(b.dataset[plus?'cartPlus':'cartMinus']));
+      const key=b.dataset[plus?'cartPlus':'cartMinus'];
+      const item=cart.find(x=>String(x.cartKey||x.id)===String(key));
       if(!item)return;
-      setCartQty(item.id,(Number(item.qty)||1)+(plus?1:-1));
+      setCartQty(key,(Number(item.qty)||1)+(plus?1:-1));
     });
     box.addEventListener('change',e=>{
       const inp=e.target.closest('[data-cart-qty]');if(!inp)return;
