@@ -120,23 +120,25 @@
         const {data:publicCatalog,error:slugError}=await sb.from('public_catalogs').select('public_slug').eq('public_id',publicId).eq('enabled',true).maybeSingle();
         if(slugError||!publicCatalog?.public_slug)throw slugError||new Error('No se pudo crear el enlace del catálogo');
         publicSlug=String(publicCatalog.public_slug);lastSignature=sig;
-        const url=location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261002-carrito-variantes-v46';
+        const url=location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261002-CATALOGO-SEGURO-50';
         $('catalogPublicLink').value=url;$('catalogSyncState').textContent='Catálogo actualizado · '+rows.length+' producto(s) disponible(s)';
         return publicId;
       })().finally(()=>{syncing=null});
       return syncing;
     }
     window.vareliaPublicCatalogSync=()=>syncNow(true);
-    async function catalogUrl(force=false){await syncNow(force);return location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261002-carrito-variantes-v46'}
+    async function catalogUrl(force=false){await syncNow(force);return location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261002-CATALOGO-SEGURO-50'}
     btn.addEventListener('click',async()=>{btn.disabled=true;try{dialog.showModal();$('catalogSyncState').textContent='Preparando catálogo…';await catalogUrl(true)}catch(e){console.error(e);dialog.close();alert('No se pudo preparar el catálogo público. Inténtalo otra vez.')}finally{btn.disabled=false}});
     $('catalogClose').onclick=()=>dialog.close();
     $('catalogOpen').onclick=async()=>{try{const url=await catalogUrl(false);window.open(url,'_blank','noopener')}catch(e){alert('No se pudo abrir el catálogo.')}};
     $('catalogCopy').onclick=async()=>{try{const url=await catalogUrl(false);await navigator.clipboard.writeText(url);toast('Link del catálogo copiado.')}catch{const i=$('catalogPublicLink');i.select();document.execCommand('copy');toast('Link del catálogo copiado.')}};
     $('catalogShare').onclick=async()=>{try{const url=await catalogUrl(false);if(navigator.share)await navigator.share({title:'Catálogo de productos',text:'Mira nuestros productos disponibles',url});else{await navigator.clipboard.writeText(url);toast('Link del catálogo copiado.')}}catch{}};
 
-    window.addEventListener('varelia:catalog-product-changed',()=>setTimeout(()=>syncNow(true).catch(()=>{}),120));
-    window.addEventListener('varelia:catalog-settings-changed',()=>setTimeout(()=>syncNow(true).catch(()=>{}),120));
-    setTimeout(()=>syncNow(false).catch(()=>{}),2200);
+    window.addEventListener('varelia:catalog-product-changed',()=>setTimeout(()=>syncNow(true).catch(()=>{}),350));
+    window.addEventListener('varelia:catalog-settings-changed',()=>setTimeout(()=>syncNow(true).catch(()=>{}),350));
+    // Fuente segura: publicar solo después de que el inventario central haya terminado de cargar.
+    // Evita que datos locales viejos reemplacen el catálogo al abrir/actualizar la página.
+    window.addEventListener('varelia:central-stock-updated',()=>setTimeout(()=>syncNow(true).catch(()=>{}),250));
 
   });
 })();
