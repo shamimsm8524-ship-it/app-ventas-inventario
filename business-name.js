@@ -80,8 +80,20 @@
         const sb=window.vareliaSupabase;
         const {data,error}=await sb.from('businesses').update({name:next}).eq('id',businessId).select('name').single();
         if(error)throw error;
-        applyName(data?.name||next);
-        toast('Nombre del negocio actualizado.');
+        const savedName=data?.name||next;
+        applyName(savedName);
+        try{
+          const {error:catalogError}=await sb.from('public_catalogs').update({business_name:savedName}).eq('business_id',businessId);
+          if(catalogError)console.warn('No se pudo sincronizar el nombre del catálogo',catalogError);
+        }catch(syncErr){console.warn('No se pudo sincronizar el nombre público',syncErr)}
+        try{
+          const local=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}');
+          local.businessName=savedName;
+          localStorage.setItem('varelia_video_settings_v1',JSON.stringify(local));
+          window.vareliaVideoSettings={...(window.vareliaVideoSettings||{}),businessName:savedName};
+        }catch{}
+        window.dispatchEvent(new CustomEvent('varelia:business-name-changed',{detail:{businessId,name:savedName}}));
+        toast('Nombre del negocio actualizado en todo Varelia.');
       }catch(err){
         console.error(err);
         alert('No se pudo guardar el nombre del negocio. Inténtalo otra vez.');
