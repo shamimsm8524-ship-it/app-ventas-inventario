@@ -294,7 +294,21 @@
 
   function capturePayment(){
     let before=0;try{before=Array.isArray(sales)?sales.length:0}catch{}
-    const snap=paymentSnapshot();
+    let snap=paymentSnapshot();
+    const native=window.VareliaPaymentSnapshot;
+    const nativeCash=document.getElementById('vCash');
+    const nativePay=document.getElementById('vposPay');
+    if(nativePay&&native&&Number(native.total)>=0&&Math.abs(Number(native.total)-Number(snap.total))<.01){
+      snap={...native};
+    }else if(nativePay&&nativeCash){
+      const total=Number(String((document.getElementById('vposTotal')?.textContent||'')).replace(/[^0-9.]/g,''))||0;
+      const received=Math.max(0,Number(nativeCash.value)||0);
+      const method=document.getElementById('vposPayMethod')?.value||'Efectivo';
+      if(method==='Efectivo'){
+        const change=Math.max(0,received-total),missing=Math.max(0,total-received);
+        snap={total,received,missing,change,breakdown:received?{Efectivo:Math.min(received,total)}:{},method:'Efectivo'};
+      }
+    }
     if(snap.missing>.005){toast('Faltan S/ '+snap.missing.toFixed(2)+' para completar el pago.');return false}
     pendingSale={...snap,before,at:Date.now()};
     window.VareliaPaymentSnapshot={...snap,at:Date.now()};
