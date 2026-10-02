@@ -332,8 +332,10 @@ function productActions(e){
   if(add){
     e.stopPropagation();
     e.preventDefault();
-    openSale();
-    addToCart(products.find(p=>String(p.id).trim()===String(add.dataset.add).trim()));
+    const p=products.find(p=>String(p.id).trim()===String(add.dataset.add).trim());
+    if(!p)return;
+    if(!saleDialog.open)saleDialog.showModal();
+    addToCart(p);
     return;
   }
 }
