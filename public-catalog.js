@@ -137,7 +137,6 @@
     window.addEventListener('varelia:catalog-product-changed',()=>setTimeout(()=>syncNow(true).catch(()=>{}),120));
     window.addEventListener('varelia:catalog-settings-changed',()=>setTimeout(()=>syncNow(true).catch(()=>{}),120));
     setTimeout(()=>syncNow(false).catch(()=>{}),2200);
-    setInterval(()=>{if(document.visibilityState==='visible')syncNow(false).catch(()=>{})},7000);
-    window.addEventListener('focus',()=>syncNow(false).catch(()=>{}));
+
   });
 })();
