@@ -427,10 +427,14 @@ window.VareliaCartAddWeight=function(product,qty){
   if(!p||q<=0||String(p.unit||'').trim().toLowerCase()!=='kg')return false;
   if(q>Number(p.stock||0))return false;
   const selectionLabel=String(product?.selectionLabel||'');
-  const cartKey=String(p.id)+'::'+selectionLabel;
-  let item=cart.find(x=>String(x.cartKey||x.id)===cartKey);
-  if(item){item.qty=q;item.price=Number(p.sellPrice||item.price||0);item.unit='Kg';item.barcode=p.barcode||item.barcode||'';item.selectionLabel=selectionLabel;item.selectedCharacteristics=product?.selectedCharacteristics||item.selectedCharacteristics||[]}
-  else cart.push({id:p.id,cartKey,name:p.name+(selectionLabel?' · '+selectionLabel:''),baseName:p.name,selectionLabel,selectedCharacteristics:product?.selectedCharacteristics||[],barcode:p.barcode||'',price:Number(p.sellPrice||0),qty:q,unit:'Kg'});
+  const editingKey=String(product?.__editCartKey||'');
+  if(editingKey){
+    const item=cart.find(x=>String(x.cartKey||x.id)===editingKey);
+    if(item){item.qty=q;item.price=Number(p.sellPrice||item.price||0);item.unit='Kg';item.barcode=p.barcode||item.barcode||'';item.selectionLabel=selectionLabel;item.selectedCharacteristics=product?.selectedCharacteristics||item.selectedCharacteristics||[]}
+  }else{
+    const cartKey=String(p.id)+'::weight::'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    cart.push({id:p.id,cartKey,name:p.name+(selectionLabel?' · '+selectionLabel:''),baseName:p.name,selectionLabel,selectedCharacteristics:product?.selectedCharacteristics||[],barcode:p.barcode||'',price:Number(p.sellPrice||0),qty:q,unit:'Kg'});
+  }
   renderCart();
   setTimeout(()=>window.VareliaPOS?.sync?.(),0);
   return true;
@@ -455,7 +459,7 @@ function renderCart(){
     box.dataset.qtyBound='1';
     box.addEventListener('click',e=>{
       const del=e.target.closest('[data-cart-delete]');if(del){cart=cart.filter(x=>String(x.cartKey||x.id)!==String(del.dataset.cartDelete));renderCart();return}
-      const weight=e.target.closest('[data-cart-weight]');if(weight){const item=cart.find(x=>String(x.cartKey||x.id)===String(weight.dataset.cartWeight)),p=item&&products.find(x=>String(x.id)===String(item.id));if(p&&window.VareliaWeightSale)window.VareliaWeightSale.open(p);return}
+      const weight=e.target.closest('[data-cart-weight]');if(weight){const item=cart.find(x=>String(x.cartKey||x.id)===String(weight.dataset.cartWeight)),p=item&&products.find(x=>String(x.id)===String(item.id));if(p&&window.VareliaWeightSale)window.VareliaWeightSale.open({...p,__editCartKey:String(item.cartKey||item.id)});return}
       const plus=e.target.closest('[data-cart-plus]'),minus=e.target.closest('[data-cart-minus]');
       const b=plus||minus;if(!b)return;
       const key=b.dataset[plus?'cartPlus':'cartMinus'];
