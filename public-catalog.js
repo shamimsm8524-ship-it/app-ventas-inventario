@@ -124,7 +124,7 @@
     const imageCache=new Map();
     const specFor=p=>String(specs[String(p.id)]??p.specifications??'');
 
-    function signature(){return JSON.stringify({c:color(),n:catalogBusinessName(),s:socialLinks(),i:publicBusinessInfo(),p:products.map(p=>[p.id,p.name,p.category,+p.sellPrice||0,+p.stock||0,p.unit,p.description||'',specFor(p),p.image?.length||0,p.image?.slice(-32)||''])})}
+    function signature(){return JSON.stringify({c:color(),n:catalogBusinessName(),s:socialLinks(),i:publicBusinessInfo(),p:products.map(p=>[p.id,p.name,p.category,+p.sellPrice||0,+p.stock||0,p.unit,p.description||'',specFor(p),p.characteristics||[],p.image?.length||0,p.image?.slice(-32)||''])})}
     function compressImage(src){
       if(!src||!String(src).startsWith('data:image/'))return Promise.resolve('');
       const key=src.length+'|'+src.slice(-48);if(imageCache.has(key))return Promise.resolve(imageCache.get(key));
@@ -133,7 +133,7 @@
     }
     async function payload(){
       const available=products.filter(p=>(+p.stock||0)>0);
-      return Promise.all(available.map(async p=>({id:String(p.id||''),name:String(p.name||''),category:String(p.category||''),sellPrice:+p.sellPrice||0,stock:+p.stock||0,unit:String(p.unit||'Unidad'),description:String(p.description||''),specifications:specFor(p),image:await compressImage(p.image||'')})));
+      return Promise.all(available.map(async p=>({id:String(p.id||''),name:String(p.name||''),category:String(p.category||''),sellPrice:+p.sellPrice||0,stock:+p.stock||0,unit:String(p.unit||'Unidad'),description:String(p.description||''),specifications:specFor(p),characteristics:Array.isArray(p.characteristics)?p.characteristics:[],image:await compressImage(p.image||'')})));
     }
     async function waitSb(){for(let i=0;i<60&&!window.vareliaSupabase;i++)await new Promise(r=>setTimeout(r,120));return window.vareliaSupabase}
     async function syncNow(force=false){
