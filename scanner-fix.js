@@ -38,20 +38,13 @@
     }
 
     function productByName(name){try{return products.find(p=>String(p.name||'').trim().toLowerCase()===String(name||'').trim().toLowerCase())||null}catch{return null}}
+    // El carrito de Nueva venta ya se renderiza correctamente desde index.html.
+    // No sobrescribir sus filas: aquí antes se perdían peso, cantidades y controles.
     function enhanceCart(){
-      if(!cartEl)return;
-      cartEl.querySelectorAll('.cartitem').forEach(row=>{
-        if(row.classList.contains('posCartRow'))return;
-        const name=(row.querySelector('span')?.textContent||'').trim();
-        const qty=Math.max(1,parseInt(row.querySelector('strong')?.textContent||'1')||1);
-        const p=productByName(name);if(!p)return;
-        const price=Number(p.sellPrice||0),sub=price*qty;
-        row.classList.add('posCartRow');
-        row.innerHTML=`<div class="posCartName"><b>${esc(name)}</b><small>Precio unitario: S/ ${price.toFixed(2)}</small></div><div class="posCartQty">x${qty}</div><div class="posCartMoney"><small>Subtotal</small><b>S/ ${sub.toFixed(2)}</b></div>`;
-      });
-      const checkout=document.getElementById('checkout');if(checkout&&!checkout.dataset.posNamed){checkout.dataset.posNamed='1';checkout.textContent='💳 Cobrar venta'}
+      const checkout=document.getElementById('checkout');
+      if(checkout&&!checkout.dataset.posNamed){checkout.dataset.posNamed='1';checkout.textContent='💳 Cobrar venta'}
     }
-    if(cartEl){new MutationObserver(()=>requestAnimationFrame(enhanceCart)).observe(cartEl,{childList:true,subtree:true});setTimeout(enhanceCart,300)}
+    setTimeout(enhanceCart,300);
 
     const modal=dialog.querySelector('.modal');
     if(modal&&!document.getElementById('vareliaReader')){
