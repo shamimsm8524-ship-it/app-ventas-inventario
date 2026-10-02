@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261002-MEDICINA-PERSISTENTE-V77';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261002-MEDICINA-GUARDADO-V78';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <meta id="themeMeta" name="theme-color" content="#be185d">
 <title>VareliaStore</title>
@@ -283,7 +283,19 @@ productForm.onsubmit=async e=>{
     extra.variantCombinations=[...editor.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(i.value)||0)}));
   }else extra={characteristics:old?.characteristics||[],variantCombinations:old?.variantCombinations||[]};
   const comboStock=(extra.variantCombinations||[]).reduce((a,c)=>a+(Number(c.stock)||0),0);
-  let obj={id:String(id),barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:(document.getElementById('vMedicineToggle')?.checked?Math.max(0,Math.floor(Number(document.getElementById('vMedicineStockBoxes')?.value||0)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineBlistersPerBox')?.value||1)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineUnitsPerBlister')?.value||1))):(extra.variantCombinations?.length?comboStock:(old?+old.stock||0:0))),unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src,characteristics:extra.characteristics||[],variantCombinations:extra.variantCombinations||[]};
+  let obj={id:String(id),barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:(document.getElementById('vMedicineToggle')?.checked?Math.max(0,Math.floor(Number(document.getElementById('vMedicineStockBoxes')?.value||0)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineBlistersPerBox')?.value||1)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineUnitsPerBlister')?.value||1))):(extra.variantCombinations?.length?comboStock:(old?+old.stock||0:0))),unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src,
+  medicine:document.getElementById('vMedicineToggle')?.checked||false,
+  laboratory:String(document.getElementById('vMedicineLaboratory')?.value||old?.laboratory||'').trim(),
+  medicinePresentation:String(document.getElementById('vMedicinePresentation')?.value||old?.medicinePresentation||'').trim(),
+  batch:String(document.getElementById('vMedicineBatch')?.value||old?.batch||'').trim(),
+  expiryDate:String(document.getElementById('vMedicineExpiry')?.value||old?.expiryDate||'').trim(),
+  blistersPerBox:Math.max(1,Math.floor(Number(document.getElementById('vMedicineBlistersPerBox')?.value||old?.blistersPerBox||1))),
+  unitsPerBlister:Math.max(1,Math.floor(Number(document.getElementById('vMedicineUnitsPerBlister')?.value||old?.unitsPerBlister||1))),
+  boxPrice:Math.max(0,Number(document.getElementById('vMedicineBoxPrice')?.value||old?.boxPrice||0)),
+  blisterPrice:Math.max(0,Number(document.getElementById('vMedicineBlisterPrice')?.value||old?.blisterPrice||0)),
+  unitMedicinePrice:Math.max(0,Number(document.getElementById('vMedicineUnitPrice')?.value||old?.unitMedicinePrice||0)),
+  medicineStockBoxes:Math.max(0,Math.floor(Number(document.getElementById('vMedicineStockBoxes')?.value||old?.medicineStockBoxes||0))),
+  characteristics:extra.characteristics||[],variantCombinations:extra.variantCombinations||[]};
   old?Object.assign(old,obj):products.push(obj);
   const saved=old||obj;
   save();
@@ -551,7 +563,7 @@ render();
   checkUrlOrder();
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n<script src="product-view-20260930-17.js?v=20261002-medicina-persistente-v77"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>\n<script src="product-view-20260930-17.js?v=20261002-medicina-guardado-v78"></script>
 <script src="public-catalog.js?v=20261002-anti-duplicado-v68"></script>\n<script src="catalog-orders-admin.js?v=20261002-pedidos-v56"></script>
 <script src="merchandise-reminders.js?v=20260819-1"></script>
 <script src="admin-guard.js?v=20260902-1"></script>
@@ -779,7 +791,7 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 <script src="sale-sound.js?v=20260930-2"></script>
-<script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261002-medicina-persistente-v77"></script>
+<script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261002-medicina-guardado-v78"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
 <script src="weight-sales.js?v=20261001-native-weight-v9"></script>\n<script src="characteristics.js?v=20261002-stock-combos-v54"></script>
 <script src="pos-sales.js?v=20261001-characteristics-v16"></script>
