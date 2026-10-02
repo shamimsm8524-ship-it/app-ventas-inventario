@@ -21,8 +21,30 @@ async function load(){
  }catch(e){console.error(e);el.innerHTML='<div class="empty">No se pudieron cargar los pedidos. Pulsa Actualizar.</div>'}
 }
 async function pay(id){
- if(!confirm('¿Confirmas que ya recibiste el pago de este pedido?'))return;
- try{await req('public_catalog_orders?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({payment_status:'paid'})});await load()}catch(e){console.error(e);alert('No se pudo confirmar el pago. Inténtalo nuevamente.')}
+ if(!confirm('¿Confirmas que ya recibiste el pago? Al confirmar se descontará el stock de este pedido.'))return;
+ try{
+  const rows=await req('public_catalog_orders?select=*&id=eq.'+encodeURIComponent(id)+'&business_id=eq.'+BID+'&limit=1');
+  const o=rows&&rows[0];if(!o)throw Error('Pedido no encontrado');
+  if(String(o.payment_status||'').toLowerCase()==='paid'){await load();return}
+  const its=Array.isArray(o.items)?o.items:[];
+  for(const it of its){
+   const name=String(it.name||'').trim();if(!name)continue;
+   const ps=await req('varelia_products?select=id,stock,characteristics,variant_combinations&business_id=eq.'+BID+'&name=eq.'+encodeURIComponent(name)+'&limit=1');
+   const p=ps&&ps[0];if(!p)continue;
+   const qty=Math.max(0,Number(it.qty)||0);
+   let combos=Array.isArray(p.variant_combinations)?p.variant_combinations:[];
+   const picked=Array.isArray(it.characteristics)?it.characteristics.map(v=>String(v).replace(/^[^:]+:\\s*/,'').trim()):[];
+   if(combos.length&&picked.length){
+    const idx=combos.findIndex(c=>JSON.stringify(c.values||[])===JSON.stringify(picked));
+    if(idx>=0)combos[idx]={...combos[idx],stock:Math.max(0,Number(combos[idx].stock||0)-qty)};
+   }
+   const totalStock=combos.length?combos.reduce((a,c)=>a+Math.max(0,Number(c.stock)||0),0):Math.max(0,Number(p.stock||0)-qty);
+   await req('varelia_products?id=eq.'+encodeURIComponent(p.id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({stock:totalStock,variant_combinations:combos})});
+  }
+  await req('public_catalog_orders?id=eq.'+encodeURIComponent(id),{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({payment_status:'paid'})});
+  window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
+  await load();
+ }catch(e){console.error(e);alert('No se pudo confirmar el pago ni modificar el stock. Inténtalo nuevamente.')}
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pay]');if(b)pay(b.dataset.pay);if(e.target.closest('#refreshOrders'))load();if(e.target.closest('[data-view="orders"]'))setTimeout(load,50)});
 addEventListener('varelia:business-scope-ready',()=>setTimeout(load,300));
