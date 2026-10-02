@@ -123,8 +123,9 @@
       try{
         if(!saleDialog?.open&&typeof openSale==='function')openSale();
         if(typeof addToCart!=='function')throw new Error('CART_UNAVAILABLE');
+        const isMedicine=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
         addToCart(p,1);enhanceCart();
-        window.vareliaSound?.('add');window.vareliaToast?.(`${p.name||'Producto'} · S/ ${Number(p.sellPrice||0).toFixed(2)} agregado`,'ok');
+        if(!isMedicine){window.vareliaSound?.('add');window.vareliaToast?.(`${p.name||'Producto'} · S/ ${Number(p.sellPrice||0).toFixed(2)} agregado`,'ok');}
         if(saleSearch)saleSearch.value='';
       }catch(e){console.error(e);window.vareliaSound?.('error');}
     }
@@ -134,8 +135,9 @@
       if(target==='sale'){
         if(p){
           await addSaleScan(p);
-          const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent='✓ '+(p.name||'Producto')+' agregado. Sigue escaneando…'}
-          finishing=false;await sleep(180);try{await startCamera()}catch(e){console.warn(e)}return;
+          const med=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
+          const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent=med?'✓ '+(p.name||'Medicamento')+' leído. Elige Caja, Blíster o Pastilla para continuar.':'✓ '+(p.name||'Producto')+' agregado. Sigue escaneando…'}
+          finishing=false;if(!med){await sleep(180);try{await startCamera()}catch(e){console.warn(e)}}return;
         }
         window.vareliaSound?.('error');
         const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent='Código '+code+' no vinculado. Puedes seguir escaneando o escribir otro código.'}
