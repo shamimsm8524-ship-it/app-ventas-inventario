@@ -124,7 +124,7 @@
           if(Array.isArray(cart)){
             return cart.map(i=>{
               const p=allProducts().find(x=>String(x.id)===String(i.id))||allProducts().find(x=>String(x.barcode||'').trim()===String(i.barcode||'').trim()&&String(i.barcode||'').trim())||byName(i.name)||{id:i.id,name:i.name,barcode:'',stock:0,sellPrice:i.price};
-              const name=String(i.name||p.name||'Producto'),qty=String(p.unit||'').trim().toLowerCase()==='kg'?Math.max(.001,Number(i.qty)||.001):Math.max(1,Number(i.qty)||1),price=Number(i.price??p.sellPrice??0);
+              const name=String(i.name||p.name||'Producto'),isWeight=String(i.unit||p.unit||'').trim().toLowerCase()==='kg',qty=isWeight?Math.max(.001,Number(i.qty)||.001):Math.max(1,Number(i.qty)||1),price=Number(i.price??p.sellPrice??0);
               return {p,name,qty,price,subtotal:price*qty,item:i,key:String(i.cartKey||i.id),medicineSaleUnit:i.medicineSaleUnit||'',medicineMultiplier:Number(i.medicineMultiplier||1)};
             });
           }
@@ -158,7 +158,7 @@
         const rows=legacyRows();
         if(!rows.length)itemsEl.innerHTML='<div class="vposEmpty"><strong>Escanea el primer producto</strong>Los productos aparecerán aquí con su precio, cantidad y subtotal.</div>';
         else itemsEl.innerHTML=rows.map(x=>{
-          const kg=String(x.p.unit||'').trim().toLowerCase()==='kg';
+          const kg=String(x.item?.unit||x.p.unit||'').trim().toLowerCase()==='kg';
           const med=!!x.medicineSaleUnit;
           const variantDetail=String(x.name||'').includes(' · ')?String(x.name).split(' · ').slice(1).join(' · '):'';
           const baseName=String(x.name||'Producto').split(' · ')[0];
