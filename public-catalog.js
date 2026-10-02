@@ -94,7 +94,7 @@
     const imageCache=new Map();
     const specFor=p=>String(specs[String(p.id)]??p.specifications??'');
 
-    function signature(){return JSON.stringify({c:color(),n:catalogBusinessName(),s:socialLinks(),i:publicBusinessInfo(),p:products.map(p=>[p.id,p.name,p.category,+p.sellPrice||0,+p.stock||0,p.unit,p.description||'',specFor(p),p.characteristics||[],p.variantCombinations||[],p.image?.length||0,p.image?.slice(-32)||''])})}
+    function signature(){return JSON.stringify({c:color(),n:catalogBusinessName(),s:socialLinks(),i:publicBusinessInfo(),p:products.map(p=>[p.id,p.name,p.category,+p.sellPrice||0,+p.stock||0,p.unit,p.description||'',specFor(p),p.characteristics||[],p.variantCombinations||[],!!p.medicine,p.blistersPerBox||0,p.unitsPerBlister||0,p.boxPrice||0,p.blisterPrice||0,p.unitMedicinePrice||0,p.image?.length||0,p.image?.slice(-32)||''])})}
     function compressImage(src){
       if(!src||!String(src).startsWith('data:image/'))return Promise.resolve('');
       const key=src.length+'|'+src.slice(-48);if(imageCache.has(key))return Promise.resolve(imageCache.get(key));
@@ -103,7 +103,7 @@
     }
     async function payload(){
       const available=products;
-      return Promise.all(available.map(async p=>({id:String(p.id||''),name:String(p.name||''),category:String(p.category||''),sellPrice:+p.sellPrice||0,stock:+p.stock||0,unit:String(p.unit||'Unidad'),description:String(p.description||''),specifications:specFor(p),characteristics:Array.isArray(p.characteristics)?p.characteristics:[],variantCombinations:Array.isArray(p.variantCombinations)?p.variantCombinations:[],image:await compressImage(p.image||'')})));
+      return Promise.all(available.map(async p=>({id:String(p.id||''),name:String(p.name||''),category:String(p.category||''),sellPrice:+p.sellPrice||0,stock:+p.stock||0,unit:String(p.unit||'Unidad'),description:String(p.description||''),specifications:specFor(p),characteristics:Array.isArray(p.characteristics)?p.characteristics:[],variantCombinations:Array.isArray(p.variantCombinations)?p.variantCombinations:[],medicine:!!p.medicine,blistersPerBox:+p.blistersPerBox||0,unitsPerBlister:+p.unitsPerBlister||0,boxPrice:+p.boxPrice||0,blisterPrice:+p.blisterPrice||0,unitMedicinePrice:+p.unitMedicinePrice||0,image:await compressImage(p.image||'')})));
     }
     async function waitSb(){for(let i=0;i<60&&!window.vareliaSupabase;i++)await new Promise(r=>setTimeout(r,120));return window.vareliaSupabase}
     async function syncNow(force=false){
@@ -120,14 +120,14 @@
         const {data:publicCatalog,error:slugError}=await sb.from('public_catalogs').select('public_slug').eq('public_id',publicId).eq('enabled',true).maybeSingle();
         if(slugError||!publicCatalog?.public_slug)throw slugError||new Error('No se pudo crear el enlace del catálogo');
         publicSlug=String(publicCatalog.public_slug);lastSignature=sig;
-        const url=location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261002-ANTI-DUPLICADO-68';
+        const url=location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261002-MEDICINA-SELECTOR-V80';
         $('catalogPublicLink').value=url;$('catalogSyncState').textContent='Catálogo actualizado · '+rows.length+' producto(s) disponible(s)';
         return publicId;
       })().finally(()=>{syncing=null});
       return syncing;
     }
     window.vareliaPublicCatalogSync=()=>syncNow(true);
-    async function catalogUrl(force=false){await syncNow(force);return location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261002-ANTI-DUPLICADO-68'}
+    async function catalogUrl(force=false){await syncNow(force);return location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261002-MEDICINA-SELECTOR-V80'}
     btn.addEventListener('click',async()=>{btn.disabled=true;try{dialog.showModal();$('catalogSyncState').textContent='Preparando catálogo…';await catalogUrl(true)}catch(e){console.error(e);dialog.close();alert('No se pudo preparar el catálogo público. Inténtalo otra vez.')}finally{btn.disabled=false}});
     $('catalogClose').onclick=()=>dialog.close();
     $('catalogOpen').onclick=async()=>{try{const url=await catalogUrl(false);window.open(url,'_blank','noopener')}catch(e){alert('No se pudo abrir el catálogo.')}};
