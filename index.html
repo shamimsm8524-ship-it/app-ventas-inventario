@@ -334,7 +334,6 @@ function productActions(e){
     e.preventDefault();
     const p=products.find(p=>String(p.id).trim()===String(add.dataset.add).trim());
     if(!p)return;
-    if(!saleDialog.open)saleDialog.showModal();
     addToCart(p);
     return;
   }
