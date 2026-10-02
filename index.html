@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261002-STOCK-TEXTO-37';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261002-GUARDADO-CENTRAL-38';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <meta id="themeMeta" name="theme-color" content="#be185d">
 <title>VareliaStore</title>
@@ -284,10 +284,13 @@ productForm.onsubmit=async e=>{
   const saved=old||obj;
   save();
   try{
-    const syncFn=window.syncProductToCloud;
-    if(typeof syncFn==='function')await syncFn(saved);
+    for(let i=0;i<50&&typeof window.vareliaCentralStockSyncProduct!=='function';i++)await new Promise(r=>setTimeout(r,100));
+    const syncFn=window.vareliaCentralStockSyncProduct||window.syncProductToCloud;
+    if(typeof syncFn!=='function')throw new Error('Sincronización central no disponible');
+    await syncFn(saved);
     if(typeof window.vareliaPublicCatalogSync==='function')await window.vareliaPublicCatalogSync();
-  }catch(err){console.error('Sincronización de características',err);window.vareliaToast?.('Producto guardado; reintentando sincronización.','warn')}
+    window.vareliaToast?.('Producto y stock guardados.','ok');
+  }catch(err){console.error('Sincronización de características',err);window.vareliaToast?.('No se pudo guardar en la nube. Inténtalo nuevamente.','warn')}
   window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
   productDialog.close();
 };
@@ -751,7 +754,7 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 <script src="sale-sound.js?v=20260930-2"></script>
-<script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261002-save-lock-v6"></script>
+<script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261002-direct-save-v7"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
 <script src="weight-sales.js?v=20261001-native-weight-v9"></script>\n<script src="characteristics.js?v=20261002-autosave-v8"></script>
 <script src="pos-sales.js?v=20261001-characteristics-v16"></script>
