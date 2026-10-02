@@ -323,6 +323,36 @@
     };
   }
 
+  function installCategoryDeleteBridge(){
+    const list=document.getElementById('categoryList');
+    if(!list||list.dataset.centralDelete==='1')return;
+    list.dataset.centralDelete='1';
+    list.addEventListener('click',async e=>{
+      const btn=e.target.closest('[data-delcat]');
+      if(!btn)return;
+      e.preventDefault();e.stopPropagation();
+      const name=String(btn.dataset.delcat||'').trim();
+      if(!name)return;
+      if(!isOwner())return toast('Solo el administrador puede eliminar categorías.','warn');
+      const used=localProducts().filter(p=>String(p.category||'')===name).length;
+      if(used>0)return toast('No se puede eliminar "'+name+'" porque tiene '+used+' producto(s). Mueve primero esos productos a otra categoría.','warn');
+      if(!confirm('¿Eliminar la categoría "'+name+'"?'))return;
+      btn.disabled=true;
+      try{
+        const del=await sb.from('varelia_categories').delete().eq('business_id',businessId).eq('name',name);
+        if(del.error)throw del.error;
+        categories=categories.filter(c=>String(c)!==name);window.categories=categories;
+        try{localStorage.setItem(K.categories,JSON.stringify(categories));renderCategories()}catch{}
+        await refreshCloud();
+        toast('Categoría eliminada.','ok');
+      }catch(err){
+        console.error(err);
+        toast('No se pudo eliminar la categoría.','warn');
+        btn.disabled=false;
+      }
+    },true);
+  }
+
   function installCheckoutBridge(){
     const btn=document.getElementById('checkout');
     if(!btn)return;
@@ -375,6 +405,7 @@
       await refreshCloud();
       installProductBridge();
       installCategoryBridge();
+      installCategoryDeleteBridge();
       installCheckoutBridge();
       subscribe();
 
@@ -383,6 +414,7 @@
         tries++;
         installProductBridge();
         installCategoryBridge();
+        installCategoryDeleteBridge();
         installCheckoutBridge();
         if(tries>60)clearInterval(timer);
       },500);
