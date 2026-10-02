@@ -145,9 +145,11 @@
     }catch(e){console.error('No se pudo aplicar inventario central',e);return false}
   }
 
+  let suppressRefreshUntil=0;
   function scheduleRefresh(){
     clearTimeout(refreshTimer);
-    refreshTimer=setTimeout(()=>refreshCloud().catch(e=>console.error('Sync stock',e)),120);
+    const wait=Math.max(120,suppressRefreshUntil-Date.now()+150);
+    refreshTimer=setTimeout(()=>refreshCloud().catch(e=>console.error('Sync stock',e)),wait);
   }
 
   const productSyncLocks=new Map();
@@ -155,6 +157,7 @@
     if(!isOwner()||!p)return;
     const key=String(p.id||'');
     if(productSyncLocks.has(key))return productSyncLocks.get(key);
+    suppressRefreshUntil=Date.now()+2500;
     const task=(async()=>{
       const categoryId=await ensureCategory(p.category);
       const payload=productPayload(p,categoryId);
@@ -164,6 +167,7 @@
       const up=await sb.from('varelia_products').upsert(payload,{onConflict:'business_id,legacy_id'}).select('id').single();
       if(up.error)throw up.error;
       p._cloudId=up.data.id;
+      suppressRefreshUntil=Date.now()+1200;
       window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
     })().finally(()=>productSyncLocks.delete(key));
     productSyncLocks.set(key,task);
