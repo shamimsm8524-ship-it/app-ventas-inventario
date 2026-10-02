@@ -322,7 +322,7 @@ function addToCart(p, qtyToAdd=1){
     ||products.find(x=>String(p.barcode||'').trim()&&String(x.barcode||'').trim()===String(p.barcode||'').trim())
     ||products.find(x=>String(x.name||'').trim().toLowerCase()===String(p.name||'').trim().toLowerCase())
     ||p;
-  p=live;
+  p={...live,...p};
   if(p.stock<=0)return alert('Este producto no tiene stock disponible.');
   const kg=String(p.unit||'').trim().toLowerCase()==='kg';
   if(kg&&!window.__vareliaAddingWeight){
@@ -330,12 +330,14 @@ function addToCart(p, qtyToAdd=1){
     return alert('Selecciona el peso antes de agregar '+p.name);
   }
   qtyToAdd=kg?Math.max(.001,Number(qtyToAdd)||.001):Math.max(1,Math.floor(Number(qtyToAdd)||1));
-  let i=cart.find(x=>String(x.id).trim()===String(p.id).trim());
+  const selectionLabel=String(p.selectionLabel||'');
+  const cartKey=String(p.id)+'::'+selectionLabel;
+  let i=cart.find(x=>String(x.cartKey||x.id)===cartKey);
   if(i){
     if(i.qty + qtyToAdd > p.stock) return alert('No hay más stock disponible para '+p.name);
     i.qty += qtyToAdd;i.unit=p.unit||i.unit;
   } else {
-    cart.push({id:p.id,name:p.name,barcode:p.barcode||'',price:+p.sellPrice,qty:Math.min(qtyToAdd,p.stock),unit:p.unit||'Unidad'});
+    cart.push({id:p.id,cartKey,name:p.name+(selectionLabel?' · '+selectionLabel:''),baseName:p.name,selectionLabel,selectedCharacteristics:p.selectedCharacteristics||[],barcode:p.barcode||'',price:+p.sellPrice,qty:Math.min(qtyToAdd,p.stock),unit:p.unit||'Unidad'});
   }
   renderCart();
 }
@@ -356,9 +358,11 @@ window.VareliaCartAddWeight=function(product,qty){
   const q=Math.round((Number(qty)||0)*1000)/1000;
   if(!p||q<=0||String(p.unit||'').trim().toLowerCase()!=='kg')return false;
   if(q>Number(p.stock||0))return false;
-  let item=cart.find(x=>String(x.id).trim()===String(p.id).trim());
-  if(item){item.qty=q;item.price=Number(p.sellPrice||item.price||0);item.unit='Kg';item.barcode=p.barcode||item.barcode||''}
-  else cart.push({id:p.id,name:p.name,barcode:p.barcode||'',price:Number(p.sellPrice||0),qty:q,unit:'Kg'});
+  const selectionLabel=String(product?.selectionLabel||'');
+  const cartKey=String(p.id)+'::'+selectionLabel;
+  let item=cart.find(x=>String(x.cartKey||x.id)===cartKey);
+  if(item){item.qty=q;item.price=Number(p.sellPrice||item.price||0);item.unit='Kg';item.barcode=p.barcode||item.barcode||'';item.selectionLabel=selectionLabel;item.selectedCharacteristics=product?.selectedCharacteristics||item.selectedCharacteristics||[]}
+  else cart.push({id:p.id,cartKey,name:p.name+(selectionLabel?' · '+selectionLabel:''),baseName:p.name,selectionLabel,selectedCharacteristics:product?.selectedCharacteristics||[],barcode:p.barcode||'',price:Number(p.sellPrice||0),qty:q,unit:'Kg'});
   renderCart();
   setTimeout(()=>window.VareliaPOS?.sync?.(),0);
   return true;
