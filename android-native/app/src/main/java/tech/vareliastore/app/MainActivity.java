@@ -163,6 +163,22 @@ public class MainActivity extends AppCompatActivity {
         String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
         String path = uri.getPath() == null ? "" : uri.getPath();
 
+        if ("varelia".equals(scheme) && "auth".equals(host)) {
+            String accessToken = uri.getQueryParameter("access_token");
+            String refreshToken = uri.getQueryParameter("refresh_token");
+            if (accessToken != null && !accessToken.isEmpty()
+                    && refreshToken != null && !refreshToken.isEmpty()) {
+                String url = HOME
+                        + "?native_access_token=" + Uri.encode(accessToken)
+                        + "&native_refresh_token=" + Uri.encode(refreshToken);
+                webView.loadUrl(url);
+            } else {
+                webView.loadUrl(HOME);
+                Toast.makeText(this, "No se pudo recuperar la sesión de Google.", Toast.LENGTH_LONG).show();
+            }
+            return true;
+        }
+
         if (("http".equals(scheme) || "https".equals(scheme))
                 && "vareliastore.tech".equals(host)
                 && "/auth-callback.html".equals(path)) {
