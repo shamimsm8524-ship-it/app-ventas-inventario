@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "tech.vareliastore.app",
+      "sha256_cert_fingerprints": [
+        "C5:D0:8C:8C:2B:FB:9B:06:1F:EC:6C:27:62:FB:E9:55:62:1D:BE:D4:31:B9:DA:65:D9:E7:33:A4:65:32:0D:8D"
+      ]
+    }
+  }
+]
