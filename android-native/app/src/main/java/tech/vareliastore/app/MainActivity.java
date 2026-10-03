@@ -154,11 +154,37 @@ public class MainActivity extends AppCompatActivity {
         });
 
         Uri launch = getIntent() != null ? getIntent().getData() : null;
-        webView.loadUrl(launch != null ? launch.toString() : HOME);
+        if (!handleIncomingUri(launch)) webView.loadUrl(HOME);
+    }
+
+    private boolean handleIncomingUri(Uri uri) {
+        if (uri == null) return false;
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+        String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+        String path = uri.getPath() == null ? "" : uri.getPath();
+
+        if (("http".equals(scheme) || "https".equals(scheme))
+                && "vareliastore.tech".equals(host)
+                && "/auth-callback.html".equals(path)) {
+            String code = uri.getQueryParameter("code");
+            if (code != null && !code.isEmpty()) {
+                webView.loadUrl(HOME + "?code=" + Uri.encode(code));
+            } else {
+                String error = uri.getQueryParameter("error_description");
+                webView.loadUrl(HOME);
+                if (error != null && !error.isEmpty()) {
+                    Toast.makeText(this, "Google no pudo completar el acceso: " + error, Toast.LENGTH_LONG).show();
+                }
+            }
+            return true;
+        }
+
+        return false;
     }
 
     private boolean handleNavigation(Uri uri) {
         if (uri == null) return false;
+        if (handleIncomingUri(uri)) return true;
         String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
         String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
 
@@ -305,7 +331,9 @@ public class MainActivity extends AppCompatActivity {
         super.onNewIntent(intent);
         setIntent(intent);
         Uri uri = intent.getData();
-        if (uri != null && webView != null) webView.loadUrl(uri.toString());
+        if (uri != null && webView != null && !handleIncomingUri(uri)) {
+            webView.loadUrl(uri.toString());
+        }
     }
 
     @Override
