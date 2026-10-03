@@ -46,6 +46,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class NativeScannerActivity extends AppCompatActivity {
+    private static NativeScannerActivity currentScanner;
     private PreviewView previewView;
     private Camera camera;
     private BarcodeScanner scanner;
@@ -57,10 +58,14 @@ public class NativeScannerActivity extends AppCompatActivity {
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private String target = "sale";
     private String cartSummary = "";
+    private TextView cartHistory;
+    private String lastCode = "";
+    private long lastScanAt = 0L;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        currentScanner = this;
         target = getIntent().getStringExtra("target");
         if (target == null || target.isEmpty()) target = "sale";
         cartSummary = getIntent().getStringExtra("cartSummary");
@@ -95,13 +100,17 @@ public class NativeScannerActivity extends AppCompatActivity {
         bottom.setPadding(14, 12, 14, 14);
         bottom.setBackgroundColor(0xAA000000);
 
-        if ("sale".equals(target) && !cartSummary.trim().isEmpty()) {
-            TextView cart = new TextView(this);
-            cart.setText(cartSummary);
-            cart.setTextColor(Color.WHITE);
-            cart.setTextSize(14);
-            cart.setPadding(8, 4, 8, 10);
-            bottom.addView(cart, new LinearLayout.LayoutParams(
+        if ("sale".equals(target)) {
+            cartHistory = new TextView(this);
+            cartHistory.setText(cartSummary.trim().isEmpty()
+                    ? "🛒 Carrito de compras\nAún no hay productos."
+                    : cartSummary);
+            cartHistory.setTextColor(Color.WHITE);
+            cartHistory.setTextSize(13);
+            cartHistory.setPadding(8, 4, 8, 10);
+            cartHistory.setMaxLines(9);
+            cartHistory.setVerticalScrollBarEnabled(true);
+            bottom.addView(cartHistory, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
@@ -214,14 +223,40 @@ public class NativeScannerActivity extends AppCompatActivity {
         for (Barcode barcode : barcodes) {
             String value = barcode.getRawValue();
             if (value == null || value.trim().isEmpty()) continue;
+            value = value.trim();
+
+            long now = System.currentTimeMillis();
+            if (value.equals(lastCode) && now - lastScanAt < 1200L) return;
+            lastCode = value;
+            lastScanAt = now;
+
+            if ("sale".equals(target)) {
+                if (!returning.compareAndSet(false, true)) return;
+                MainActivity.handleLiveSaleScan(value);
+                mainHandler.postDelayed(() -> returning.set(false), 650);
+                return;
+            }
+
             if (!returning.compareAndSet(false, true)) return;
             Intent result = new Intent();
-            result.putExtra("code", value.trim());
+            result.putExtra("code", value);
             result.putExtra("target", target);
             setResult(RESULT_OK, result);
             finish();
             return;
         }
+    }
+
+    public static void updateCartSummary(String summary) {
+        NativeScannerActivity a = currentScanner;
+        if (a == null || a.isFinishing()) return;
+        a.runOnUiThread(() -> {
+            if (a.cartHistory == null) return;
+            String text = summary == null ? "" : summary.trim();
+            a.cartHistory.setText(text.isEmpty()
+                    ? "🛒 Carrito de compras\nAún no hay productos."
+                    : text);
+        });
     }
 
     private void toggleTorch() {
@@ -360,6 +395,7 @@ public class NativeScannerActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (currentScanner == this) currentScanner = null;
         try {
             if (torchOn) {
                 if (camera != null) camera.getCameraControl().enableTorch(false);
