@@ -143,14 +143,23 @@
           }catch(e){
             console.warn('Linterna no expuesta por este navegador',e);
             torchOn=false;
-            b.textContent='🔦 Linterna no permitida por el navegador';
-            window.vareliaToast?.('Este navegador no permite controlar el flash de la cámara.','warn');
+            b.textContent='🔦 Abrir en Chrome para usar linterna';
+            b.dataset.chromeFallback='1';
+            window.vareliaToast?.('Este navegador no permite controlar el flash. Ábrelo en Chrome.','warn');
+            b.onclick=()=>{
+              try{
+                const clean=location.href.replace(/^https?:\/\//,'');
+                location.href='intent://'+clean+'#Intent;scheme=https;package=com.android.chrome;end';
+              }catch{
+                window.open(location.href,'_blank');
+              }
+            };
           }finally{
             setTimeout(()=>{b.disabled=false;if(!torchOn)b.textContent='🔦 Intentar encender luz'},700);
           }
         };
       }
-      b.disabled=false;b.textContent=torchOn?'🔦 Apagar luz':'🔦 Encender luz';
+      if(!b.dataset.chromeFallback){b.disabled=false;b.textContent=torchOn?'🔦 Apagar luz':'🔦 Encender luz';}
     }
     function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))}
     function norm(v){return String(v??'').trim().replace(/[^0-9A-Za-z]/g,'').toUpperCase()}
