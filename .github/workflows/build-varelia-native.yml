@@ -30,3 +30,14 @@ jobs:
           name: varelia-native-unsigned
           path: android-native/app/build/outputs/apk/release/app-release-unsigned.apk
           if-no-files-found: error
+      - name: Collect official Android signing tools
+        run: |
+          BT="$(find "$ANDROID_HOME/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -1)"
+          mkdir -p /tmp/varelia-apk-tools
+          cp "$BT/lib/apksigner.jar" /tmp/varelia-apk-tools/apksigner.jar
+          cp "$BT/zipalign" /tmp/varelia-apk-tools/zipalign
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk-tools
+          path: /tmp/varelia-apk-tools
+          if-no-files-found: error
