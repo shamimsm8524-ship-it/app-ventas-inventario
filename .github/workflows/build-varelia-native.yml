@@ -1,4 +1,5 @@
 name: Build Varelia Native APK
+# build-trigger: 1.0.16
 on:
   workflow_dispatch:
   push:
