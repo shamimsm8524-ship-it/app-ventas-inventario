@@ -250,11 +250,34 @@
         if(typeof addToCart!=='function')throw new Error('CART_UNAVAILABLE');
         const isMedicine=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
         const isWeight=/^(kg|kilo|kilos|kilogramo|kilogramos|g|gr|gramo|gramos)$/i.test(String(p.unit||'').trim());
-        addToCart(p,1);enhanceCart();renderScannerCart();
-        setTimeout(renderScannerCart,80);
-        if(!isMedicine&&!isWeight){window.vareliaSound?.('add');window.vareliaToast?.(`${p.name||'Producto'} · S/ ${Number(p.sellPrice||0).toFixed(2)} agregado`,'ok');}
+
+        // El escaneo para venta siempre debe crear y mostrar el carrito real.
+        try{
+          if(typeof openSale==='function' && (!saleDialog || !saleDialog.open)) openSale(false);
+        }catch(e){console.warn('No se pudo abrir el carrito antes de agregar',e)}
+
+        addToCart(p,1);
+        try{enhanceCart()}catch{}
+        try{renderCart()}catch{}
+        try{window.VareliaPOS?.sync?.()}catch{}
+        try{renderScannerCart()}catch{}
+        setTimeout(()=>{
+          try{renderCart()}catch{}
+          try{window.VareliaPOS?.sync?.()}catch{}
+        },80);
+
+        if(!isMedicine&&!isWeight){
+          window.vareliaSound?.('add');
+          window.vareliaToast?.((p.name||'Producto')+' · S/ '+Number(p.sellPrice||0).toFixed(2)+' agregado al carrito','ok');
+        }
         if(saleSearch)saleSearch.value='';
-      }catch(e){console.error(e);window.vareliaSound?.('error');}
+        return true;
+      }catch(e){
+        console.error(e);
+        window.vareliaSound?.('error');
+        window.vareliaToast?.('No se pudo agregar el producto al carrito.','warn');
+        return false;
+      }
     }
     window.VareliaNativeScanResult=(which,raw)=>{
       target=which||target;
@@ -272,11 +295,22 @@
       if(target==='inventory'){const el=document.getElementById('inventoryCode');if(el)el.value=code;if(!p){const selected=selectedInventoryProduct();if(selected){selected.barcode=code;persistProducts();try{await Promise.resolve(window.syncProductToCloud?.(selected));window.vareliaToast?.('Código guardado en el producto.','ok')}catch(e){console.error(e);window.vareliaToast?.('No se pudo guardar el código en la nube.','warn')}p=selected}}}
       if(target==='sale'){
         if(p){
-          await addSaleScan(p);
+          const added=await addSaleScan(p);
           const med=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
           const weight=/^(kg|kilo|kilos|kilogramo|kilogramos|g|gr|gramo|gramos)$/i.test(String(p.unit||'').trim());
-          const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent=med?'✓ '+(p.name||'Medicamento')+' leído. Elige Caja, Blíster o Pastilla para continuar.':weight?'✓ '+(p.name||'Producto')+' leído. Elige el peso en kilos o gramos para continuar.':'✓ '+(p.name||'Producto')+' agregado. Sigue escaneando…'}
-          finishing=false;if(!med&&!weight){await sleep(180);try{if(!openNativeScanner(target))await startCamera()}catch(e){console.warn(e)}}return;
+          const info=document.getElementById('scannerInfo');
+          if(info){
+            info.style.display='block';
+            info.textContent=med?'✓ '+(p.name||'Medicamento')+' leído. Elige Caja, Blíster o Pastilla para continuar.':weight?'✓ '+(p.name||'Producto')+' leído. Elige el peso en kilos o gramos para continuar.':'✓ '+(p.name||'Producto')+' agregado al carrito.';
+          }
+          finishing=false;
+
+          // Deja visible el carrito para revisar cantidad, total y cobrar.
+          if(added&&!med&&!weight){
+            try{if(dialog?.open)dialog.close()}catch{}
+            try{if(typeof openSale==='function' && (!saleDialog || !saleDialog.open))openSale(false)}catch(e){console.warn(e)}
+          }
+          return;
         }
         window.vareliaSound?.('error');
         const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent='Código '+code+' no vinculado. Puedes seguir escaneando o escribir otro código.'}
