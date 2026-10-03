@@ -1,28 +1,52 @@
 (()=>{if(document.getElementById('vareliaProductsPolish'))return;const s=document.createElement('style');s.id='vareliaProductsPolish';s.textContent=`
-#products .head{gap:10px;margin-bottom:8px}
-#products .head h2{margin-bottom:2px}
-#products .head .notice{font-size:11px;line-height:1.3;margin-top:2px}
-#products .toolbar{margin:8px 0}
-#products .toolbar input{min-height:42px;padding:10px 12px;border-radius:12px}
-#productViewBar{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;margin:7px 0 11px;padding:0;background:transparent;border:0;box-shadow:none}
-#productViewBar .productViewLabel{font-size:11px;color:var(--muted);font-weight:850;white-space:nowrap}
-#productViewBar .productViewButtons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
-#productViewBar .productViewBtn{min-height:34px;padding:7px 5px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--ink);font-size:10px;font-weight:850;box-shadow:none}
-#productViewBar .productViewBtn.active{background:color-mix(in srgb,var(--p) 10%,var(--card));color:var(--p);border-color:color-mix(in srgb,var(--p) 45%,var(--line))}
-#products .chips{gap:6px;margin:7px 0 10px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}
-#products .chip{padding:7px 11px;font-size:11px;border-radius:999px;white-space:nowrap}
-@media(max-width:560px){
- #products .head{align-items:flex-start}
- #products .head>div:first-child{min-width:0}
- #products .catalogHeadActions{margin-top:2px}
- #products .flowRole{margin-bottom:8px}
- #products .toolbar{margin:7px 0}
- #productViewBar{grid-template-columns:1fr;margin-top:6px}
- #productViewBar .productViewLabel{display:none}
- #productViewBar .productViewButtons{gap:4px}
- #productViewBar .productViewBtn{min-height:32px;font-size:10px;padding:6px 4px}
+@media(max-width:980px){
+  .top{padding:6px 9px!important}
+  .brand{min-height:40px!important;gap:7px!important}
+  .left{gap:7px!important}
+  .menu,.logo{width:36px!important;height:36px!important;border-radius:11px!important}
+  .menu{font-size:19px!important}
+  .brand h1{font-size:16px!important;line-height:1.05!important}
+  .brand .meta{font-size:9px!important;line-height:1.15!important;margin-top:2px!important}
+  #cloudStatus{font-size:9px!important;margin-left:3px!important}
+  #newSaleTop{min-height:36px!important;padding:7px 11px!important;border-radius:11px!important;font-size:11px!important}
+  .content{padding:13px 10px 78px!important}
+  #products .head{display:flex!important;flex-direction:row!important;align-items:flex-start!important;gap:8px!important;margin-bottom:7px!important}
+  #products .head>div:first-child{min-width:0!important;flex:1!important}
+  #products .head h2{font-size:20px!important;line-height:1.05!important;margin:0 0 2px!important}
+  #products .head .notice{font-size:10px!important;line-height:1.25!important;margin:0!important}
+  #products>.flowRole{display:none!important}
+  #products .catalogHeadActions{display:flex!important;width:auto!important;gap:5px!important;margin:0!important}
+  #products .catalogHeadActions .btn,#publicCatalogBtn,#newProduct{min-height:34px!important;height:34px!important;padding:6px 9px!important;border-radius:10px!important;font-size:10px!important;line-height:1!important}
+  #products .toolbar{margin:6px 0!important}
+  #products .toolbar input{min-height:38px!important;height:38px!important;padding:8px 11px!important;border-radius:11px!important;font-size:12px!important}
+  #bcToolbar{display:flex!important;gap:5px!important;margin:5px 0 7px!important;align-items:center!important;flex-wrap:wrap!important}
+  #bcToolbar button{min-height:34px!important;height:34px!important;padding:6px 10px!important;border-radius:10px!important;font-size:10px!important}
+  #btPrinterBtn{min-height:34px!important;height:34px!important;padding:6px 9px!important;border-radius:10px!important;font-size:10px!important}
+  .bt-print-status{margin:2px 0 6px!important;padding:3px 5px!important;font-size:9px!important}
+  #productViewBar{display:grid!important;grid-template-columns:1fr!important;gap:0!important;margin:4px 0 7px!important;padding:0!important;background:transparent!important;border:0!important;box-shadow:none!important}
+  #productViewBar .productViewLabel{display:none!important}
+  #productViewBar .productViewButtons{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:4px!important;width:100%!important;margin:0!important}
+  #productViewBar .productViewBtn{min-height:30px!important;height:30px!important;padding:4px 4px!important;border-radius:9px!important;font-size:9px!important;justify-content:center!important}
+  #products .chips{gap:5px!important;margin:5px 0 8px!important;padding:0 0 1px!important;overflow-x:auto!important;flex-wrap:nowrap!important}
+  #products .chip{padding:6px 10px!important;min-height:30px!important;border-radius:999px!important;font-size:10px!important;white-space:nowrap!important}
+  #productGrid{gap:8px!important}
+  #productGrid .pb{padding:9px!important}
+  #productGrid .pb h3{font-size:13px!important}
+  #productGrid .meta{font-size:9px!important}
+  #productGrid .price,#productGrid .price *{font-size:19px!important}
+  #productGrid .actions{gap:4px!important;margin-top:7px!important}
+  #productGrid .actions .btn{min-height:32px!important;padding:5px 6px!important;font-size:9px!important;border-radius:9px!important}
+  #vmobileNav{height:68px!important;padding-top:4px!important;padding-bottom:calc(4px + env(safe-area-inset-bottom))!important}
+  #vmobileNav button{font-size:8px!important;gap:2px!important;padding:4px 1px!important}
+  #vmobileNav button span{font-size:23px!important;line-height:1!important}
 }
-`;document.head.appendChild(s)})();
+@media(max-width:380px){
+  .brand h1{font-size:15px!important}
+  #newSaleTop{padding-inline:8px!important;font-size:10px!important}
+  #products .head h2{font-size:19px!important}
+  #products .catalogHeadActions .btn,#publicCatalogBtn,#newProduct{padding-inline:7px!important;font-size:9px!important}
+}
+`;document.head.appendChild(s)})();();
 
 (()=>{const section=document.getElementById('products');const grid=document.getElementById('productGrid');if(section&&grid&&!document.getElementById('productViewBar')){const toolbar=section.querySelector('.toolbar');const bar=document.createElement('div');bar.id='productViewBar';bar.className='productViewBar';bar.innerHTML='<span class="productViewLabel">Ver productos como</span><div class="productViewButtons"><button type="button" class="productViewBtn" data-product-view="list">☰ Lista</button><button type="button" class="productViewBtn" data-product-view="grid">▦ Cuadrícula</button><button type="button" class="productViewBtn" data-product-view="compact">▥ Compacta</button></div>';toolbar.insertAdjacentElement('afterend',bar);const key='miNegocio_productView_v1';const valid=['list','grid','compact'];function apply(mode){if(!valid.includes(mode))mode='grid';grid.classList.remove('view-list','view-grid','view-compact');grid.classList.add('view-'+mode);bar.querySelectorAll('[data-product-view]').forEach(b=>b.classList.toggle('active',b.dataset.productView===mode));try{localStorage.setItem(key,mode)}catch{}}bar.addEventListener('click',e=>{const b=e.target.closest('[data-product-view]');if(b)apply(b.dataset.productView)});let saved='grid';try{saved=localStorage.getItem(key)||'grid'}catch{}apply(saved)}})();
 
