@@ -286,6 +286,7 @@
         addToCart(p,1);
         try{enhanceCart()}catch{}
         try{renderCart()}catch{}
+        try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
         try{renderScannerCart()}catch{}
         try{window.VareliaPOS?.sync?.()}catch{}
         return nativeScannerSummary();
@@ -302,33 +303,38 @@
     };
     window.VareliaNativeScannerAction=(action)=>{
       if(action==='checkout'){
+        try{if(typeof renderCart==='function')renderCart()}catch{}
+        try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
+
+        // Cierra el diálogo puente oculto, pero NO borra el carrito.
         try{
-          // Asegura que el carrito escaneado quede guardado antes de mostrarlo.
-          try{renderCart()}catch{}
-          try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
-
           const scannerDialog=document.getElementById('scannerDialog');
-          try{if(scannerDialog?.open)scannerDialog.close()}catch{}
+          if(scannerDialog?.open)scannerDialog.close();
+        }catch{}
+        try{
+          if(saleDialog?.open)saleDialog.close();
+          saleDialog?.classList.remove('vposBridge');
+          document.body.classList.remove('vposReset');
+        }catch{}
 
-          const showCart=()=>{
-            try{
-              // Si el diálogo ya estaba abierto detrás del escáner nativo,
-              // lo reabrimos para traerlo al frente.
-              if(saleDialog?.open) saleDialog.close();
-            }catch{}
-            try{
-              if(typeof renderCart==='function')renderCart();
-              if(typeof openSale==='function')openSale(false);
-              else if(saleDialog&&!saleDialog.open)saleDialog.showModal();
-              setTimeout(()=>{
-                try{
-                  document.getElementById('cart')?.scrollIntoView({block:'start',behavior:'smooth'});
-                }catch{}
-              },80);
-            }catch(e){console.error('No se pudo mostrar el carrito',e)}
-          };
-          setTimeout(showCart,120);
+        // Mostrar el Punto de venta real con el carrito escaneado y los métodos de pago.
+        try{
+          if(typeof switchView==='function')switchView('sales');
+          else document.querySelector('.nav [data-view="sales"]')?.click();
         }catch(e){console.error(e)}
+
+        const showPos=()=>{
+          try{if(typeof renderCart==='function')renderCart()}catch{}
+          try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
+          try{window.VareliaPOS?.sync?.()}catch{}
+          const pos=document.getElementById('vareliaPosSales');
+          if(pos){
+            pos.style.display='';
+            try{pos.scrollIntoView({behavior:'smooth',block:'start'})}catch{}
+          }
+        };
+        setTimeout(showPos,80);
+        setTimeout(showPos,260);
       }
     };
     async function finish(raw){if(finishing)return;finishing=true;const code=norm(raw);if(!code){finishing=false;return}window.vareliaSound?.('scan');await stopCamera();let p=findProduct(code);
