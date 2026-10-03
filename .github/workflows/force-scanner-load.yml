@@ -10,24 +10,114 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch index
+      - name: Improve scanner torch support
         run: |
           python - <<'PY'
           from pathlib import Path
           import re
-          p=Path('index.html')
+
+          p=Path('scanner-fix.js')
           s=p.read_text()
-          s=s.replace('barcode-tools.js?v=20260819-2','barcode-tools.js?v=20260819-5')
-          scanner='<script src="scanner-fix.js?v=20260902-2"></script>'
-          s=re.sub(r'<script src="scanner-fix\.js(?:\?[^\"]*)?\"></script>',scanner,s)
-          if scanner not in s:
-              s=s.replace('</body>',scanner+'\n</body>')
+
+          start=s.index('    const sleep=ms=>new Promise(r=>setTimeout(r,ms));')
+          end=s.index('    function esc(v)', start)
+          block=r'''    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+    let torchOn=false;
+    function torchTrack(){
+      try{
+        const v=document.querySelector('#vareliaReader video');
+        return v?.srcObject?.getVideoTracks?.()[0]||null;
+      }catch{return null}
+    }
+    function torchCapabilities(){
+      let caps={};
+      try{caps=scanner?.getRunningTrackCapabilities?.()||{}}catch{}
+      if(!caps||typeof caps!=='object')caps={};
+      if(!('torch' in caps)){
+        try{caps={...caps,...(torchTrack()?.getCapabilities?.()||{})}}catch{}
+      }
+      return caps;
+    }
+    async function setTorch(on){
+      const wanted=!!on;
+      let lastError=null;
+      if(scanner?.applyVideoConstraints){
+        try{
+          await scanner.applyVideoConstraints({advanced:[{torch:wanted}]});
+          torchOn=wanted;
+        }catch(e){lastError=e}
+      }
+      if(torchOn!==wanted){
+        const track=torchTrack();
+        if(!track)throw lastError||new Error('NO_TRACK');
+        try{
+          await track.applyConstraints({advanced:[{torch:wanted}]});
+          torchOn=wanted;
+        }catch(e){lastError=e}
+      }
+      if(torchOn!==wanted){
+        const track=torchTrack();
+        try{
+          await track?.applyConstraints?.({torch:wanted});
+          torchOn=wanted;
+        }catch(e){lastError=e}
+      }
+      if(torchOn!==wanted)throw lastError||new Error('NO_TORCH');
+      const b=document.getElementById('scannerTorch');
+      if(b){
+        b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
+        b.setAttribute('aria-pressed',torchOn?'true':'false');
+      }
+    }
+    function ensureTorchButton(){
+      let b=document.getElementById('scannerTorch');
+      if(!b){
+        b=document.createElement('button');
+        b.type='button';
+        b.id='scannerTorch';
+        b.className='btn secondary';
+        b.style.cssText='width:100%;margin-top:10px;font-weight:900';
+        const r=document.getElementById('vareliaReader');
+        r?.after(b);
+      }
+      b.disabled=false;
+      b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
+      b.setAttribute('aria-pressed',torchOn?'true':'false');
+      b.onclick=async()=>{
+        if(b.disabled)return;
+        b.disabled=true;
+        b.textContent=torchOn?'Apagando…':'Encendiendo…';
+        try{
+          await setTorch(!torchOn);
+          window.vareliaToast?.(torchOn?'Linterna encendida.':'Linterna apagada.','ok');
+        }catch(e){
+          console.warn('Linterna no disponible en este motor/cámara',e,{caps:torchCapabilities()});
+          torchOn=false;
+          b.textContent='🔦 Linterna no disponible';
+          b.setAttribute('aria-pressed','false');
+          window.vareliaToast?.('Este celular o el motor de la app no expone el flash de la cámara.','warn');
+          await sleep(900);
+        }finally{
+          b.disabled=false;
+          if(b.textContent==='Encendiendo…'||b.textContent==='Apagando…'||b.textContent==='🔦 Linterna no disponible'){
+            b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
+          }
+        }
+      };
+    }
+'''
+          s=s[:start]+block+s[end:]
           p.write_text(s)
+
+          i=Path('index.html')
+          x=i.read_text()
+          x=re.sub(r'scanner-fix\.js\?v=[^"]+','scanner-fix.js?v=20261003-torch-native-v46',x)
+          i.write_text(x)
           PY
       - name: Commit patch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add index.html
-          git diff --cached --quiet || git commit -m "Load supermarket POS scanner"
+          git add scanner-fix.js index.html
+          git diff --cached --quiet || git commit -m "Improve Android scanner flashlight support"
           git push
