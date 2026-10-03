@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261003-VARELIA-BRAND-V86';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261003-MOBILE-READABLE-V87';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <meta id="themeMeta" name="theme-color" content="#be185d">
 <title>VareliaStore</title>
@@ -79,31 +79,31 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 </style>
 <style id="vareliaMobileCompactProducts">
 @media(max-width:650px){
-  .top{padding:9px 11px!important}
-  .brand{gap:9px!important}
-  .left{gap:9px!important}
-  .logo,.menu{width:42px!important;height:42px!important;border-radius:13px!important}
-  .brand h1{font-size:19px!important;line-height:1.05!important}
-  .meta{font-size:11px!important;line-height:1.2!important;margin:2px 0!important}
-  #cloudStatus{font-size:10px!important}
-  #newSaleTop{padding:9px 13px!important;border-radius:12px!important;font-size:12px!important;min-height:42px!important}
+  .top{padding:10px 12px!important}
+  .brand{gap:10px!important}
+  .left{gap:10px!important}
+  .logo,.menu{width:48px!important;height:48px!important;border-radius:14px!important}
+  .brand h1,#vareliaAppName{font-size:22px!important;line-height:1.05!important}
+  .meta{font-size:12px!important;line-height:1.25!important;margin:3px 0!important}
+  #cloudStatus{font-size:11px!important}
+  #newSaleTop{padding:10px 14px!important;border-radius:13px!important;font-size:13px!important;min-height:46px!important}
 
-  .content{padding:14px 11px 98px!important}
-  #products .head{margin-bottom:11px!important;gap:9px!important}
-  #products .head h2{font-size:24px!important}
-  #products .head .notice{font-size:11px!important;line-height:1.3!important}
-  #products .toolbar{margin-bottom:9px!important}
-  #products .toolbar input{padding:10px 12px!important;border-radius:12px!important;min-height:42px!important;font-size:13px!important}
-  #products .flowRole{padding:11px!important;margin-bottom:10px!important;border-radius:15px!important}
-  #products .chips{gap:6px!important;margin-bottom:9px!important}
-  #products .chip{padding:8px 12px!important;font-size:11px!important}
-  #products .btn{padding:9px 11px!important;border-radius:12px!important;font-size:12px!important}
+  .content{padding:15px 12px 112px!important}
+  #products .head{margin-bottom:12px!important;gap:10px!important}
+  #products .head h2{font-size:25px!important}
+  #products .head .notice{font-size:12px!important;line-height:1.35!important}
+  #products .toolbar{margin-bottom:10px!important}
+  #products .toolbar input{padding:11px 13px!important;border-radius:13px!important;min-height:44px!important;font-size:14px!important}
+  #products .flowRole{padding:12px!important;margin-bottom:11px!important;border-radius:16px!important}
+  #products .chips{gap:7px!important;margin-bottom:10px!important}
+  #products .chip{padding:8px 13px!important;font-size:12px!important}
+  #products .btn{padding:10px 12px!important;border-radius:12px!important;font-size:13px!important}
   #products .catalogHeadActions{gap:7px!important}
-  #productViewBar{margin:7px 0 9px!important}
-  #productViewBar .productViewButtons{gap:5px!important}
-  #productViewBar .productViewBtn{min-height:36px!important;padding:7px 5px!important;font-size:11px!important}
-  .bt-print-status{margin:4px 0 7px!important;font-size:10px!important}
-  #bcToolbar{gap:7px!important;margin:7px 0!important}
+  #productViewBar{margin:8px 0 10px!important}
+  #productViewBar .productViewButtons{gap:6px!important}
+  #productViewBar .productViewBtn{min-height:38px!important;padding:8px 6px!important;font-size:12px!important}
+  .bt-print-status{margin:4px 0 8px!important;font-size:11px!important}
+  #bcToolbar{gap:7px!important;margin:8px 0!important}
 }
 </style>
 </head>
@@ -756,32 +756,32 @@ if ('serviceWorker' in navigator) {
 @media(max-width:980px){
   #vmobileNav{
     grid-template-columns:repeat(6,minmax(0,1fr))!important;
-    height:84px!important;
-    min-height:84px!important;
-    padding:5px 3px calc(9px + env(safe-area-inset-bottom))!important;
+    height:92px!important;
+    min-height:92px!important;
+    padding:6px 3px 12px!important;
     align-items:start!important;
     overflow:visible!important;
   }
   #vmobileNav button{
     min-width:0!important;
-    height:68px!important;
-    min-height:68px!important;
-    padding:4px 1px 7px!important;
-    gap:3px!important;
-    font-size:10px!important;
+    height:74px!important;
+    min-height:74px!important;
+    padding:5px 1px 8px!important;
+    gap:4px!important;
+    font-size:11px!important;
     font-weight:850!important;
     line-height:1.05!important;
     overflow:visible!important;
   }
   #vmobileNav button span{
-    font-size:28px!important;
+    font-size:31px!important;
     line-height:1!important;
     margin:0!important;
   }
   #vmobileNav [data-mobile-tab="mobileAdminHub"]{display:grid!important}
   @media(max-width:360px){
-    #vmobileNav button{font-size:9px!important}
-    #vmobileNav button span{font-size:25px!important}
+    #vmobileNav button{font-size:10px!important}
+    #vmobileNav button span{font-size:28px!important}
   }
 }
 </style>
