@@ -88,6 +88,16 @@ sb.auth.onAuthStateChange((_event,session)=>{if(session)enterWithSession(session
 (async()=>{
   showAuth();
   const params=new URLSearchParams(location.search);
+  const nativeAccess=params.get('native_access_token');
+  const nativeRefresh=params.get('native_refresh_token');
+  if(nativeAccess&&nativeRefresh){
+    msg('Completando inicio con Google en la app...');
+    const {data,error}=await sb.auth.setSession({access_token:nativeAccess,refresh_token:nativeRefresh});
+    history.replaceState({},document.title,location.origin+location.pathname);
+    if(error){msg('No se pudo completar Google en la app: '+error.message,'error');return}
+    await enterWithSession(data.session);
+    return;
+  }
   const code=params.get('code');
   if(code){
     msg('Completando inicio con Google...');
