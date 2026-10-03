@@ -18,13 +18,13 @@
 (async()=>{
 const SUPABASE_URL='https://onvdcaohnftrjunwdvjp.supabase.co';
 const SUPABASE_KEY=atob('c2JfcHVibGlzaGFibGVfYnoyejV1Z2xmX0VBTEplenF2NHJDd19TNzNHTU5yaA==');
-const CALLBACK='https://vareliastore.tech/auth-callback.html';
+const RETURN_TO_APP=new URLSearchParams(location.search).get('app')==='1';
+const CALLBACK='https://vareliastore.tech/auth-callback.html'+(RETURN_TO_APP?'?app=1':'');
 const HOME='https://vareliastore.tech/';
 const msg=document.getElementById('msg');
 
 function goHome(session){
-  const android=/Android/i.test(navigator.userAgent||'');
-  if(android&&session?.access_token&&session?.refresh_token){
+  if(RETURN_TO_APP&&session?.access_token&&session?.refresh_token){
     const q=new URLSearchParams({
       access_token:session.access_token,
       refresh_token:session.refresh_token
