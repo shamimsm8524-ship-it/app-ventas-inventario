@@ -31,6 +31,9 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -59,6 +62,16 @@ public class MainActivity extends AppCompatActivity {
         webView.setBackgroundColor(Color.WHITE);
         setContentView(webView);
 
+        // Android 15/16 dibuja la app detrás de las barras del sistema.
+        // Reservamos el espacio real de la barra de estado y navegación para
+        // que la cabecera y el menú inferior nunca queden tapados.
+        ViewCompat.setOnApplyWindowInsetsListener(webView, (view, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            view.setPadding(0, bars.top, 0, bars.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(webView);
+
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -71,7 +84,9 @@ public class MainActivity extends AppCompatActivity {
         // se encogiera como si fuera una página de escritorio dentro del WebView.
         s.setUseWideViewPort(false);
         s.setLoadWithOverviewMode(false);
-        s.setTextZoom(100);
+        s.setTextZoom(105);
+        s.setDefaultFontSize(16);
+        s.setMinimumFontSize(10);
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
         webView.setInitialScale(100);
