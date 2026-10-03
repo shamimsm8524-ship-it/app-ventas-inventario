@@ -302,7 +302,33 @@
     };
     window.VareliaNativeScannerAction=(action)=>{
       if(action==='checkout'){
-        try{if(typeof openSale==='function')openSale(false)}catch(e){console.error(e)}
+        try{
+          // Asegura que el carrito escaneado quede guardado antes de mostrarlo.
+          try{renderCart()}catch{}
+          try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
+
+          const scannerDialog=document.getElementById('scannerDialog');
+          try{if(scannerDialog?.open)scannerDialog.close()}catch{}
+
+          const showCart=()=>{
+            try{
+              // Si el diálogo ya estaba abierto detrás del escáner nativo,
+              // lo reabrimos para traerlo al frente.
+              if(saleDialog?.open) saleDialog.close();
+            }catch{}
+            try{
+              if(typeof renderCart==='function')renderCart();
+              if(typeof openSale==='function')openSale(false);
+              else if(saleDialog&&!saleDialog.open)saleDialog.showModal();
+              setTimeout(()=>{
+                try{
+                  document.getElementById('cart')?.scrollIntoView({block:'start',behavior:'smooth'});
+                }catch{}
+              },80);
+            }catch(e){console.error('No se pudo mostrar el carrito',e)}
+          };
+          setTimeout(showCart,120);
+        }catch(e){console.error(e)}
       }
     };
     async function finish(raw){if(finishing)return;finishing=true;const code=norm(raw);if(!code){finishing=false;return}window.vareliaSound?.('scan');await stopCamera();let p=findProduct(code);
