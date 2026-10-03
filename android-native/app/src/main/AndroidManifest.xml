@@ -10,7 +10,8 @@
         android:hardwareAccelerated="true"
         android:icon="@drawable/varelia_icon"
         android:label="Varelia"
-        android:supportsRtl="true"\n        android:theme="@style/Theme.Varelia"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Varelia"
         android:usesCleartextTraffic="false">
         <activity
             android:name=".NativeScannerActivity"
