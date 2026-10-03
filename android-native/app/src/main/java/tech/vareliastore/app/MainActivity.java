@@ -32,12 +32,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.OutputStream;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
+    private static MainActivity currentInstance;
     private static final int REQ_CAMERA = 201;
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
@@ -51,6 +53,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        currentInstance = this;
 
         webView = new WebView(this);
         webView.setBackgroundColor(Color.WHITE);
@@ -331,6 +334,25 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    public static void handleLiveSaleScan(String code) {
+        MainActivity a = currentInstance;
+        if (a == null || a.webView == null || code == null || code.trim().isEmpty()) return;
+        a.runOnUiThread(() -> {
+            String js = "(function(){try{return window.VareliaNativeAddSaleAndSummary?"
+                    + "window.VareliaNativeAddSaleAndSummary(" + JSONObject.quote(code.trim()) + "):'';"
+                    + "}catch(e){return '⚠ Error al agregar producto';}})()";
+            a.webView.evaluateJavascript(js, value -> {
+                String summary = "";
+                try {
+                    if (value != null && !"null".equals(value)) {
+                        summary = new JSONArray("[" + value + "]").getString(0);
+                    }
+                } catch (Exception ignored) {}
+                NativeScannerActivity.updateCartSummary(summary);
+            });
+        });
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -380,6 +402,12 @@ public class MainActivity extends AppCompatActivity {
         if (uri != null && webView != null && !handleIncomingUri(uri)) {
             webView.loadUrl(uri.toString());
         }
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (currentInstance == this) currentInstance = null;
+        super.onDestroy();
     }
 
     @Override
