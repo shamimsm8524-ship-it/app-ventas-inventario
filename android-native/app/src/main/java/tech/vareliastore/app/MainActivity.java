@@ -214,13 +214,43 @@ public class MainActivity extends AppCompatActivity {
                 || "sms".equals(scheme) || "whatsapp".equals(scheme)
                 || "intent".equals(scheme)) {
             try {
-                startActivity(new Intent(Intent.ACTION_VIEW, uri));
+                Uri outgoing = forceNativeOAuthReturn(uri);
+                startActivity(new Intent(Intent.ACTION_VIEW, outgoing));
                 return true;
             } catch (Exception ignored) {
                 return false;
             }
         }
         return false;
+    }
+
+    private Uri forceNativeOAuthReturn(Uri uri) {
+        if (uri == null) return null;
+        try {
+            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+            String path = uri.getPath() == null ? "" : uri.getPath();
+
+            // Cuando el OAuth nace dentro de la APK, obliga a que Supabase vuelva
+            // al callback marcado como flujo nativo. Así Chrome no se queda con Varelia.
+            if (host.endsWith(".supabase.co") && path.contains("/auth/v1/authorize")) {
+                String redirect = uri.getQueryParameter("redirect_to");
+                if (redirect != null && redirect.startsWith("https://vareliastore.tech/auth-callback.html")) {
+                    String nativeRedirect = "https://vareliastore.tech/auth-callback.html?app=1";
+                    Uri.Builder b = uri.buildUpon().clearQuery();
+                    for (String name : uri.getQueryParameterNames()) {
+                        if ("redirect_to".equals(name)) {
+                            b.appendQueryParameter(name, nativeRedirect);
+                        } else {
+                            for (String value : uri.getQueryParameters(name)) {
+                                b.appendQueryParameter(name, value);
+                            }
+                        }
+                    }
+                    return b.build();
+                }
+            }
+        } catch (Exception ignored) {}
+        return uri;
     }
 
     private void startNativeScanner(String target) {
