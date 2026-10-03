@@ -45,25 +45,24 @@
     const toast=text=>window.vareliaToast?window.vareliaToast(text):alert(text);
 
     async function loadBusiness(){
-      for(let i=0;i<50&&!window.vareliaSupabase;i++)await new Promise(r=>setTimeout(r,120));
-      const sb=window.vareliaSupabase;
-      if(!sb){applyName('Mi Negocio');edit.hidden=true;return}
+      for(let i=0;i<50&&!window.vareliaSupabase&&!window.supabaseClient;i++)await new Promise(r=>setTimeout(r,120));
+      const sb=window.vareliaSupabase||window.supabaseClient;
+      if(!sb){console.warn('Cliente Supabase no disponible para business-name');return}
       try{
         const {data:sessionData}=await sb.auth.getSession();
         const user=sessionData?.session?.user;
-        if(!user){applyName('Mi Negocio');edit.hidden=true;return}
+        if(!user){edit.hidden=true;return}
         const {data:profile,error:profileError}=await sb.from('profiles').select('business_id,role').eq('id',user.id).maybeSingle();
         if(profileError)throw profileError;
         businessId=profile?.business_id||'';
         role=profile?.role||'';
-        if(!businessId){applyName('Mi Negocio');edit.hidden=true;return}
+        if(!businessId){edit.hidden=true;return}
         const {data:business,error:businessError}=await sb.from('businesses').select('id,name').eq('id',businessId).maybeSingle();
         if(businessError)throw businessError;
         applyName(business?.name||'Mi Negocio');
         edit.hidden=role!=='owner';
       }catch(err){
         console.warn('No se pudo cargar el nombre del negocio',err);
-        applyName('Mi Negocio');
         edit.hidden=true;
       }
     }
@@ -77,7 +76,7 @@
       if(next.length>60)return alert('El nombre puede tener hasta 60 caracteres.');
       edit.disabled=true;
       try{
-        const sb=window.vareliaSupabase;
+        const sb=window.vareliaSupabase||window.supabaseClient;
         const {data,error}=await sb.from('businesses').update({name:next}).eq('id',businessId).select('name').single();
         if(error)throw error;
         const savedName=data?.name||next;
@@ -102,9 +101,10 @@
 
     loadBusiness();
     const waitAuth=setInterval(()=>{
-      if(!window.vareliaSupabase)return;
+      const sb=window.vareliaSupabase||window.supabaseClient;
+      if(!sb)return;
       clearInterval(waitAuth);
-      window.vareliaSupabase.auth.onAuthStateChange(()=>setTimeout(loadBusiness,80));
+      sb.auth.onAuthStateChange(()=>setTimeout(loadBusiness,80));
     },150);
     setTimeout(()=>clearInterval(waitAuth),12000);
   });
