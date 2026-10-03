@@ -389,7 +389,7 @@ function addToCart(p, qtyToAdd=1){
     box.innerHTML='<div style="background:var(--card);color:var(--ink);width:min(440px,100%);border-radius:24px;padding:22px"><div style="display:flex;justify-content:space-between;align-items:center"><h2 style="margin:0">'+esc(p.name)+'</h2><button type="button" data-medclose style="border:0;background:#eee;border-radius:50%;width:42px;height:42px;font-size:24px">×</button></div><p class="notice">Elige cómo deseas venderlo</p><label><b>Cantidad</b><input data-medqty type="number" min="1" step="1" value="1" style="width:100%;margin:7px 0 14px;padding:13px;border:1px solid var(--line);border-radius:12px"></label><div data-medopts></div></div>';
     // Si Nueva venta está abierta como <dialog>, el selector debe vivir dentro
     // del mismo diálogo; un div agregado al body queda detrás de la capa modal.
-    (saleDialog&&saleDialog.open?saleDialog:document.body).appendChild(box);
+    ((document.getElementById('scannerDialog')?.open&&document.getElementById('scannerDialog'))||(saleDialog&&saleDialog.open?saleDialog:document.body)).appendChild(box);
     box.querySelector('[data-medclose]').onclick=()=>box.remove();
     const opts=box.querySelector('[data-medopts]');
     options.forEach(o=>{const b=document.createElement('button');b.type='button';b.className='btn secondary';b.style.cssText='width:100%;margin:6px 0;padding:14px;display:flex;justify-content:space-between';b.innerHTML='<b>'+o.label+'</b><b>S/ '+o.price.toFixed(2)+'</b>';b.onclick=()=>{const q=Math.max(1,Math.floor(Number(box.querySelector('[data-medqty]').value)||1)),base=q*o.mult;if(base>Number(p.stock||0))return alert('No hay stock suficiente.');box.remove();addToCart({...p,__medicineSelected:true,sellPrice:o.price,selectionLabel:o.label,medicineMultiplier:o.mult,medicineSaleUnit:o.label},q);setTimeout(()=>{try{if(!saleDialog.open)openSale(false)}catch{}},0)};opts.appendChild(b)});
@@ -457,6 +457,7 @@ function renderCart(){
   }).join(''):'';
   persistSaleCart();
   saleTotal.textContent=money(cart.reduce((a,i)=>a+Number(i.price||0)*Number(i.qty||0),0));
+  try{window.dispatchEvent(new CustomEvent('varelia:cart-changed'))}catch{}
   if(!box.dataset.qtyBound){
     box.dataset.qtyBound='1';
     box.addEventListener('click',e=>{
@@ -635,7 +636,7 @@ render();
 <script src="dashboard-premium-summary.js?v=20260902-1"></script>
 <script src="reminder-alarm.js?v=20260819-1"></script>
 <script src="barcode-tools.js?v=20260819-5"></script>
-<script src="scanner-fix.js?v=20261002-cart-detail-v25"></script>
+<script src="scanner-fix.js?v=20261002-scanner-cart-v39"></script>
 <script>
 document.querySelectorAll('[title]').forEach(el=>el.removeAttribute('title'));
 new MutationObserver(()=>document.querySelectorAll('[title]').forEach(el=>el.removeAttribute('title'))).observe(document.body,{attributes:true,subtree:true,attributeFilter:['title']});
