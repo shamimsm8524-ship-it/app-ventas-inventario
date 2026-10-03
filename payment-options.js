@@ -151,10 +151,14 @@
     const method=sel.value;
     const mixed=document.getElementById('vpayMixedToggle')?.checked;
     if(mixed){
-      const total=currentSaleTotal();
-      detail.innerHTML='<div class="vpayCash"><small style="color:var(--muted)">Ingresa cuánto paga con cada método. Puedes usar dos o más.</small>'+METHODS.map(m=>'<label>'+esc(m)+' (S/)<input class="vpayPart" data-method="'+esc(m)+'" type="number" inputmode="decimal" min="0" step="0.10" placeholder="0.00"></label>').join('')+'<div class="vpayChange"><span id="vpayMixedLabel">Falta</span><strong id="vpayMixedResult">S/ '+total.toFixed(2)+'</strong></div><small id="vpayMixedTotal" style="color:var(--muted)">Recibido: S/ 0.00 · Total: S/ '+total.toFixed(2)+'</small></div>';
-      const calc=()=>{const vals=[...detail.querySelectorAll('.vpayPart')].map(x=>Number(x.value)||0),received=vals.reduce((a,b)=>a+b,0),diff=received-total,label=document.getElementById('vpayMixedLabel'),out=document.getElementById('vpayMixedResult');label.textContent=diff>=0?'Vuelto':'Falta';out.textContent='S/ '+Math.abs(diff).toFixed(2);out.style.color=diff>=0?'var(--p)':'#b91c1c';document.getElementById('vpayMixedTotal').textContent='Recibido: S/ '+received.toFixed(2)+' · Total: S/ '+total.toFixed(2)};
-      detail.querySelectorAll('.vpayPart').forEach(x=>x.oninput=calc);calc();return;
+      const total=currentSaleTotal(),methods=methodList();
+      const options=methods.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join('');
+      detail.innerHTML='<div class="vpayCash"><small style="color:var(--muted)">Elige el método y escribe cuánto paga. Puedes combinar dos o más.</small><div id="vpayMixedRows"></div><button type="button" class="btn secondary" id="vpayAddMixed" style="width:100%;margin-top:2px">+ Agregar otro pago</button><div class="vpayChange"><span id="vpayMixedLabel">Falta</span><strong id="vpayMixedResult">S/ '+total.toFixed(2)+'</strong></div><small id="vpayMixedTotal" style="color:var(--muted)">Recibido: S/ 0.00 · Total: S/ '+total.toFixed(2)+'</small></div>';
+      const rows=document.getElementById('vpayMixedRows');
+      const calc=()=>{const liveTotal=currentSaleTotal(),parts=[...rows.querySelectorAll('.vpayMixedRow')],received=parts.reduce((s,r)=>s+(Number(r.querySelector('.vpayPart')?.value)||0),0),diff=received-liveTotal,label=document.getElementById('vpayMixedLabel'),out=document.getElementById('vpayMixedResult');label.textContent=diff>=0?'Vuelto':'Falta';out.textContent='S/ '+Math.abs(diff).toFixed(2);out.style.color=diff>=0?'var(--p)':'#b91c1c';document.getElementById('vpayMixedTotal').textContent='Recibido: S/ '+received.toFixed(2)+' · Total: S/ '+liveTotal.toFixed(2)};
+      const addRow=(preferred='')=>{const row=document.createElement('div');row.className='vpayMixedRow';row.style.cssText='display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 40px;gap:8px;align-items:end;margin:9px 0';row.innerHTML='<label style="margin:0">Método<select class="vpayMixedMethod" style="width:100%;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);font-weight:850">'+options+'</select></label><label style="margin:0">Monto (S/)<input class="vpayPart" type="number" inputmode="decimal" min="0" step="0.10" placeholder="0.00"></label><button type="button" class="vpayRemoveMixed" aria-label="Quitar pago" style="height:46px;border:1px solid #fecaca;background:#fff1f2;color:#b91c1c;border-radius:12px;font-size:20px">×</button>';rows.appendChild(row);const sel=row.querySelector('.vpayMixedMethod');if(preferred&&methods.includes(preferred))sel.value=preferred;row.querySelector('.vpayPart').oninput=calc;row.querySelector('.vpayRemoveMixed').onclick=()=>{if(rows.children.length<=2)return;row.remove();calc()};calc()};
+      addRow(methods.includes(method)?method:methods[0]);addRow(methods.find(m=>m!==method)||methods[0]);
+      document.getElementById('vpayAddMixed').onclick=()=>addRow(methods[0]);return;
     }
     let local={};try{local=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}
     const holder=String(method==='Yape'?(local.yapeHolder||settings?.payment_holder||''):method==='Plin'?(local.plinHolder||settings?.payment_holder||''):(settings?.payment_holder||'')).trim();
@@ -292,7 +296,7 @@
     const mixed=!!document.getElementById('vpayMixedToggle')?.checked;
     let breakdown={},received=0;
     if(mixed){
-      document.querySelectorAll('.vpayPart').forEach(x=>{const n=Math.max(0,Number(x.value)||0);if(n){breakdown[x.dataset.method]=n;received+=n}});
+      document.querySelectorAll('.vpayMixedRow').forEach(r=>{const x=r.querySelector('.vpayPart'),m=r.querySelector('.vpayMixedMethod')?.value,n=Math.max(0,Number(x?.value)||0);if(n&&m){breakdown[m]=(breakdown[m]||0)+n;received+=n}});
     }else{
       const method=document.getElementById('vposPaymentMethod')?.value||'Efectivo';
       received=method==='Efectivo'?(Number(document.getElementById('vpayReceived')?.value)||0):total;
