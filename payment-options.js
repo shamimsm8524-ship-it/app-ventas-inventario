@@ -364,6 +364,14 @@
     if(!capturePayment()){e.preventDefault();e.stopImmediatePropagation()}
   },true);
 
+  window.addEventListener('varelia:payment-settings-changed',async()=>{
+    try{
+      await loadSettings();
+      ensurePaymentPanel();
+      renderPaymentDetail();
+    }catch(err){console.warn('Varelia payment refresh',err)}
+  });
+
   async function init(){
     try{
       // El cobro debe mostrarse siempre, incluso si Supabase/perfil tarda o falla.
