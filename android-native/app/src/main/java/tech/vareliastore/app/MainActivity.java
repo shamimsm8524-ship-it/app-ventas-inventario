@@ -417,7 +417,13 @@ public class MainActivity extends AppCompatActivity {
         if (requestCode == REQ_SCAN && resultCode == RESULT_OK && data != null) {
             String action = data.getStringExtra("action");
             if ("checkout".equals(action)) {
-                webView.evaluateJavascript("window.VareliaNativeScannerAction&&window.VareliaNativeScannerAction('checkout')", null);
+                final String js = "window.VareliaNativeScannerAction&&window.VareliaNativeScannerAction('checkout')";
+                webView.postDelayed(() -> webView.evaluateJavascript(js, null), 140);
+                webView.postDelayed(() -> {
+                    String retry = "(function(){var d=document.getElementById('saleDialog');"
+                            + "if(!d||!d.open){window.VareliaNativeScannerAction&&window.VareliaNativeScannerAction('checkout');}})()";
+                    webView.evaluateJavascript(retry, null);
+                }, 520);
                 return;
             }
             String code = data.getStringExtra("code");
