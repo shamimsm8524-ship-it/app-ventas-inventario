@@ -182,7 +182,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void startNativeScanner(String target) {
+        startNativeScanner(target, pendingCartSummary);
+    }
+
+    private void startNativeScanner(String target, String cartSummary) {
         pendingScannerTarget = (target == null || target.isEmpty()) ? "sale" : target;
+        pendingCartSummary = cartSummary == null ? "" : cartSummary;
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, REQ_CAMERA);
@@ -190,6 +195,7 @@ public class MainActivity extends AppCompatActivity {
         }
         Intent i = new Intent(this, NativeScannerActivity.class);
         i.putExtra("target", pendingScannerTarget);
+        i.putExtra("cartSummary", pendingCartSummary);
         startActivityForResult(i, REQ_SCAN);
     }
 
