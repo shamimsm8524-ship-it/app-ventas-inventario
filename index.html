@@ -524,12 +524,21 @@ saleSearch.oninput=()=>{
   saleResults.innerHTML=list.map(p=>{
     const existing=cart.filter(i=>String(i.id)===String(p.id));
     const inQty=existing.reduce((a,i)=>a+Number(i.qty||0),0);
-    return `<button class="btn secondary" data-saleadd="${p.id}" style="width:100%;display:flex;justify-content:space-between;align-items:center;margin:6px 0"><span>${esc(p.name)}</span><b>${existing.length?'Agregar más · en carrito '+(inQty<1?Math.round(inQty*1000)+' g':inQty):'Agregar'}</b></button>`
+    return `<button type="button" class="btn secondary" data-saleadd="${p.id}" style="width:100%;display:flex;justify-content:space-between;align-items:center;margin:6px 0"><span>${esc(p.name)}</span><b>${existing.length?'Agregar más · en carrito '+(inQty<1?Math.round(inQty*1000)+' g':inQty):'Agregar'}</b></button>`
   }).join('');
 };
 saleSearch.addEventListener('focus',()=>{if(!saleSearch.value.trim())saleSearch.oninput()});
 saleSearch.addEventListener('click',()=>{if(!saleSearch.value.trim())saleSearch.oninput()});
-saleResults.onclick=e=>{const b=e.target.closest('[data-saleadd]');if(!b)return;const p=products.find(p=>String(p.id).trim()===String(b.dataset.saleadd).trim());if(!p)return;addToCart(p);setTimeout(()=>saleSearch.oninput(),30)};
+function addSaleResultProduct(button){
+  if(!button)return;
+  const id=String(button.dataset.saleadd||'').trim();
+  const p=products.find(x=>String(x.id).trim()===id);
+  if(!p)return;
+  addToCart(p);
+  setTimeout(()=>{try{saleSearch.oninput()}catch{}},30);
+}
+saleResults.onclick=e=>{const b=e.target.closest('[data-saleadd]');if(!b)return;e.preventDefault();e.stopPropagation();addSaleResultProduct(b)};
+saleResults.addEventListener('pointerup',e=>{const b=e.target.closest('[data-saleadd]');if(!b||e.pointerType==='mouse')return;e.preventDefault();e.stopPropagation();addSaleResultProduct(b)},{passive:false});
 
 checkout.onclick=()=>{
   if(!cart.length) return alert('El carrito está vacío.');
