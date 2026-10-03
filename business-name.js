@@ -8,39 +8,37 @@
     if(!title)return;
     const logo=document.querySelector('.logo');
     if(logo){logo.textContent='VS';logo.title='Varelia Store';logo.setAttribute('aria-label','Varelia Store')}
-    title.id='vareliaBusinessName';
+    title.textContent='Varelia';
+    title.id='vareliaAppName';
+    document.title='Varelia Store';
 
-    const row=document.createElement('div');
-    row.className='vareliaBusinessNameRow';
-    title.parentNode.insertBefore(row,title);
-    row.appendChild(title);
+    let hiddenName=document.getElementById('vareliaBusinessName');
+    if(!hiddenName){
+      hiddenName=document.createElement('span');
+      hiddenName.id='vareliaBusinessName';
+      hiddenName.hidden=true;
+      document.body.appendChild(hiddenName);
+    }
 
     const edit=document.createElement('button');
     edit.type='button';
     edit.id='vareliaEditBusinessName';
-    edit.className='vareliaBusinessNameEdit';
-    edit.textContent='✏️';
-    edit.title='Editar nombre del negocio';
-    edit.setAttribute('aria-label','Editar nombre del negocio');
     edit.hidden=true;
-    row.appendChild(edit);
 
     const style=document.createElement('style');
     style.textContent=`
       .brand .logo{font-size:23px!important;font-weight:950!important;letter-spacing:-.06em;line-height:1}
-      .vareliaBusinessNameRow{display:flex;align-items:center;gap:6px;min-width:0}
-      #vareliaBusinessName{max-width:min(52vw,420px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .vareliaBusinessNameEdit{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);font-size:13px;padding:0;cursor:pointer;flex:0 0 auto}
-      .vareliaBusinessNameEdit:active{transform:scale(.96)}
-      @media(max-width:560px){.brand .logo{font-size:22px!important}#vareliaBusinessName{max-width:42vw}.vareliaBusinessNameEdit{width:28px;height:28px}}
+      #vareliaAppName{max-width:min(52vw,420px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      @media(max-width:560px){.brand .logo{font-size:22px!important}#vareliaAppName{max-width:42vw}}
     `;
     document.head.appendChild(style);
 
     let businessId='',role='',currentName='Mi Negocio';
     const applyName=name=>{
       currentName=(name||'').trim()||'Mi Negocio';
-      title.textContent=currentName;
-      document.title=currentName+' · Varelia';
+      hiddenName.textContent=currentName;
+      title.textContent='Varelia';
+      document.title='Varelia Store';
     };
     const toast=text=>window.vareliaToast?window.vareliaToast(text):alert(text);
 
