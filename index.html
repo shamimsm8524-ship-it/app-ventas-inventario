@@ -523,6 +523,7 @@ saleSearch.oninput=()=>{
     }
   }
   let query = q.toLowerCase();
+  if(!query){saleResults.innerHTML='';return}
   const list=products.filter(p=>p.name.toLowerCase().includes(query)).slice(0,20);
   saleResults.innerHTML=list.map(p=>{
     const existing=cart.filter(i=>String(i.id)===String(p.id));
