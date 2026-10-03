@@ -46,7 +46,18 @@
         .vposPay{grid-column:1/-1;border:1px solid var(--line);border-radius:16px;padding:13px;background:var(--bg);display:grid;gap:10px}.vposPayHead{display:flex;justify-content:space-between;gap:10px;align-items:center}.vposPayHead b{font-size:14px}.vposPay select,.vposPay input{width:100%;padding:11px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--ink);font-size:15px}.vposMixedLabel{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:850}.vposMixedLabel input{width:18px;height:18px}.vposCashRow,.vposPart{display:grid;grid-template-columns:1fr 130px;gap:9px;align-items:center}.vposPayResult{display:flex;justify-content:space-between;font-weight:900;padding-top:7px;border-top:1px dashed var(--line)}.vposParts{display:grid;gap:7px}
         .vposHistory{overflow:hidden}.vposHistory summary{cursor:pointer;list-style:none;padding:15px 17px;font-weight:900;display:flex;justify-content:space-between;align-items:center}.vposHistory summary::-webkit-details-marker{display:none}.vposHistory summary:after{content:'⌄';color:var(--muted)}.vposHistory[open] summary:after{transform:rotate(180deg)}.vposHistoryBody{border-top:1px solid var(--line);padding:14px}
         #saleDialog.vposBridge{display:none!important}body.vposReset #saleDialog{display:none!important}
-        @media(max-width:650px){.vposHero{align-items:flex-start}.vposHero{display:grid}.vposNew{width:100%}.vposSearch{grid-template-columns:1fr}.vposScan{width:100%}.vposHead{display:none}.vposRow{grid-template-columns:minmax(0,1fr) auto}.vposPrice{font-size:12px;color:var(--muted)}.vposQty{grid-column:2;grid-row:1;grid-template-columns:36px 50px 36px}.vposQtyBtn{width:36px;height:36px}.vposQtyInput{width:50px!important;height:36px!important}.vposSubtotal{grid-column:1/-1;border-top:1px dashed var(--line);padding-top:8px;display:flex;justify-content:space-between}.vposSubtotal:before{content:'Subtotal';color:var(--muted);font-weight:700}.vposBottom{grid-template-columns:1fr}.vposTotal{text-align:left}.vposTotal strong{font-size:38px}}
+        @media(max-width:650px){
+          .vposHero{align-items:flex-start;display:grid}.vposNew{width:100%}.vposSearch{grid-template-columns:1fr}.vposScan{width:100%}.vposHead{display:none}
+          .vposHelp{display:block;line-height:1.35;margin:12px 2px 0}.vposHelp b{display:inline;margin-right:4px}
+          .vposRow{grid-template-columns:minmax(0,1fr) auto!important;grid-template-rows:auto auto!important;gap:12px 14px!important;padding:14px!important}
+          .vposName{grid-column:1!important;grid-row:1!important;min-width:0}.vposName b{font-size:17px}.vposName small{font-size:12px;line-height:1.35}
+          .vposDelete{grid-column:2!important;grid-row:1!important;align-self:start!important;width:40px;height:40px}
+          .vposPrice{display:none!important}
+          .vposQty{grid-column:1!important;grid-row:2!important;justify-self:start!important;justify-content:start!important;align-self:center!important}
+          .vposSubtotal{grid-column:2!important;grid-row:2!important;align-self:center!important;min-width:88px!important;border-top:0!important;padding-top:0!important;display:block!important;text-align:right!important}
+          .vposSubtotal:before{content:'Subtotal'!important;display:block!important;margin-bottom:2px;color:var(--muted)!important;font-size:11px!important;font-weight:700!important}
+          .vposBottom{grid-template-columns:1fr!important;gap:10px}.vposTotal{text-align:left}.vposTotal strong{font-size:38px}
+        }
       `;
       document.head.appendChild(style);
 
