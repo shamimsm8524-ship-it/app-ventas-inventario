@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.21&fresh=20261003";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.22&fresh=20261003-qr-autosave";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
