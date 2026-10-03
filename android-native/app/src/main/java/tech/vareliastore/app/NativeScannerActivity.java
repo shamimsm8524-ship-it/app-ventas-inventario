@@ -40,13 +40,15 @@ public class NativeScannerActivity extends AppCompatActivity {
     private ExecutorService cameraExecutor;
     private final AtomicBoolean returning = new AtomicBoolean(false);
     private boolean torchOn = false;
-    private String target = "sale";
+    private String target = "sale";\n    private String cartSummary = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         target = getIntent().getStringExtra("target");
         if (target == null || target.isEmpty()) target = "sale";
+        cartSummary = getIntent().getStringExtra("cartSummary");
+        if (cartSummary == null) cartSummary = "";
 
         cameraExecutor = Executors.newSingleThreadExecutor();
         scanner = BarcodeScanning.getClient();
@@ -72,13 +74,27 @@ public class NativeScannerActivity extends AppCompatActivity {
         hintLp.setMargins(24, 40, 24, 0);
         root.addView(hint, hintLp);
 
+        LinearLayout bottom = new LinearLayout(this);
+        bottom.setOrientation(LinearLayout.VERTICAL);
+        bottom.setPadding(14, 12, 14, 14);
+        bottom.setBackgroundColor(0xAA000000);
+
+        if ("sale".equals(target) && !cartSummary.trim().isEmpty()) {
+            TextView cart = new TextView(this);
+            cart.setText(cartSummary);
+            cart.setTextColor(Color.WHITE);
+            cart.setTextSize(14);
+            cart.setPadding(8, 4, 8, 10);
+            bottom.addView(cart, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
+
         LinearLayout controls = new LinearLayout(this);
         controls.setOrientation(LinearLayout.HORIZONTAL);
         controls.setGravity(Gravity.CENTER);
-        controls.setPadding(18, 12, 18, 24);
 
         Button close = new Button(this);
-        close.setText("Cerrar");
+        close.setText("Volver");
         close.setOnClickListener(v -> finish());
         controls.addView(close, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
@@ -86,14 +102,33 @@ public class NativeScannerActivity extends AppCompatActivity {
         torch.setText("🔦 Linterna");
         torch.setOnClickListener(v -> toggleTorch(torch));
         LinearLayout.LayoutParams torchLp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-        torchLp.setMargins(12, 0, 0, 0);
+        torchLp.setMargins(10, 0, 0, 0);
         controls.addView(torch, torchLp);
+        bottom.addView(controls, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        if ("sale".equals(target)) {
+            Button checkout = new Button(this);
+            checkout.setText("💳 Cobrar");
+            checkout.setTextSize(16);
+            checkout.setOnClickListener(v -> {
+                Intent result = new Intent();
+                result.putExtra("action", "checkout");
+                result.putExtra("target", target);
+                setResult(RESULT_OK, result);
+                finish();
+            });
+            LinearLayout.LayoutParams payLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            payLp.setMargins(0, 10, 0, 0);
+            bottom.addView(checkout, payLp);
+        }
 
         FrameLayout.LayoutParams controlsLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         controlsLp.gravity = Gravity.BOTTOM;
-        controlsLp.setMargins(18, 0, 18, 24);
-        root.addView(controls, controlsLp);
+        controlsLp.setMargins(18, 0, 18, 18);
+        root.addView(bottom, controlsLp);
 
         setContentView(root);
         startCamera();
