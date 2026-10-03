@@ -85,28 +85,16 @@
     sale.receiptNumber=sale.receiptNumber||ticketNo(sale);
     try{if(typeof save==='function')save()}catch{}
 
-    const w=p.win;
-    if(!w||w.closed){
-      window.vareliaToast?.('Permite ventanas emergentes para imprimir el ticket.','warn');
-      return;
-    }
+    // En la APK no abrir otra ventana: Android puede llevar esa ventana
+    // en primer plano y dejar al usuario atrapado en "Preparando ticket".
+    // Mostramos el comprobante dentro de Varelia y desde ahí se imprime/PDF.
     try{
-      w.document.open();
-      w.document.write(printHtml(sale));
-      w.document.close();
-      const doPrint=()=>{
-        try{w.focus();w.print()}catch(e){console.error(e)}
-      };
-      const img=w.document.querySelector('img');
-      if(img&&!img.complete){
-        let done=false;
-        const go=()=>{if(done)return;done=true;setTimeout(doPrint,120)};
-        img.onload=go;img.onerror=go;setTimeout(go,1600);
-      }else setTimeout(doPrint,160);
-    }catch(e){
-      console.error(e);
-      try{w.close()}catch{}
-    }
+      if(window.VareliaReceipt?.show){
+        window.VareliaReceipt.show(sale);
+        return;
+      }
+    }catch(e){console.error(e)}
+    window.vareliaToast?.('Venta registrada correctamente.','ok');
   }
 
   function waitForSale(){
@@ -124,7 +112,6 @@
       if(tries>50){
         clearInterval(timer);
         pending=null;
-        try{p.win?.close()}catch{}
       }
     },100);
   }
@@ -133,15 +120,8 @@
     const items=getCart();
     if(!items.length)return;
     if(pending)return;
-    let w=null;
-    try{
-      w=window.open('','_blank','width=420,height=720');
-      if(w){
-        w.document.write('<html><body style="font-family:sans-serif;padding:28px;text-align:center"><b>Preparando ticket...</b><p>Espera la confirmación de la venta.</p></body></html>');
-        w.document.close();
-      }
-    }catch{}
-    pending={before:getSales().length,method:paymentMethod(),win:w,at:Date.now()};
+    // No abrimos pestaña/ventana previa. Esperamos la venta dentro de Varelia.
+    pending={before:getSales().length,method:paymentMethod(),at:Date.now()};
     waitForSale();
   }
 
