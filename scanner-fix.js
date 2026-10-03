@@ -219,7 +219,7 @@
       let list=[];
       try{list=Array.isArray(cart)?cart:[]}catch{}
       const total=list.reduce((s,i)=>s+Number(i.price||0)*Number(i.qty||0),0);
-      const lines=list.slice(0,4).map(i=>{
+      const lines=list.map(i=>{
         const qty=Number(i.qty)||0;
         const med=String(i.medicineSaleUnit||'');
         const kg=String(i.unit||'').trim().toLowerCase()==='kg';
