@@ -82,14 +82,13 @@ public class MainActivity extends AppCompatActivity {
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         // Respetar el viewport móvil real. "Overview mode" hacía que toda la app
         // se encogiera como si fuera una página de escritorio dentro del WebView.
-        s.setUseWideViewPort(false);
-        s.setLoadWithOverviewMode(false);
-        s.setTextZoom(105);
+        s.setUseWideViewPort(true);
+        s.setLoadWithOverviewMode(true);
+        s.setTextZoom(100);
         s.setDefaultFontSize(16);
-        s.setMinimumFontSize(10);
+        s.setMinimumFontSize(8);
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
-        webView.setInitialScale(100);
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
@@ -105,6 +104,20 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, String url) {
                 return handleNavigation(Uri.parse(url));
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                super.onPageFinished(view, url);
+                String brandJs = "(function(){"
+                        + "var l=document.querySelector('.logo');if(l){l.textContent='VS';l.title='Varelia Store';}"
+                        + "var h=document.querySelector('.brand h1');if(h){h.textContent='Varelia';h.id='vareliaAppName';}"
+                        + "document.title='Varelia Store';"
+                        + "})();";
+                view.evaluateJavascript(brandJs, null);
+                view.postDelayed(() -> {
+                    if (!isFinishing()) view.evaluateJavascript(brandJs, null);
+                }, 700);
             }
         });
 
