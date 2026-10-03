@@ -96,7 +96,7 @@
       const allProducts=()=>{try{return Array.isArray(products)?products:[]}catch{return []}};
       const byName=name=>allProducts().find(p=>norm(p.name)===norm(name))||null;
       const exactProduct=q=>{q=norm(q);if(!q)return null;return allProducts().find(p=>norm(p.barcode)===q)||allProducts().find(p=>norm(p.name)===q)||null};
-      const matches=q=>{q=norm(q);const list=allProducts();if(!q)return list.slice(0,12);return list.filter(p=>norm(p.barcode).includes(q)||norm(p.name).includes(q)||norm(p.category).includes(q)).slice(0,12)};
+      const matches=q=>{q=norm(q);const list=allProducts();if(!q)return [];return list.filter(p=>norm(p.barcode).includes(q)||norm(p.name).includes(q)||norm(p.category).includes(q)).slice(0,12)};
 
       const PAY_METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta'];
       const currentTotal=()=>legacyRows().reduce((a,x)=>a+x.subtotal,0);
