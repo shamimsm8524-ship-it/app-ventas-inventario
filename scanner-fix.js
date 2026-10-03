@@ -215,6 +215,28 @@
     async function closeScanner(){await stopCamera();try{if(dialog.open)dialog.close()}catch{}opening=false;finishing=false;resetUI()}
     async function cameraConfig(){try{const cams=await Html5Qrcode.getCameras();if(cams?.length){const back=cams.find(c=>/back|rear|environment|trasera|posterior/i.test(c.label||''))||cams[cams.length-1];if(back?.id)return back.id}}catch(e){console.warn('No se pudo listar cámaras',e)}return {facingMode:'environment'}}
     async function startCamera(){const reader=document.getElementById('vareliaReader');reader.innerHTML='';reader.style.display='block';scanner=new Html5Qrcode('vareliaReader');const formats=[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.QR_CODE];const config={fps:18,qrbox:(vw,vh)=>({width:Math.max(220,Math.min(340,Math.floor(vw*.88))),height:Math.max(120,Math.min(190,Math.floor(vh*.42)))}),formatsToSupport:formats,disableFlip:false};const cam=await cameraConfig();try{const r=await scanner.start(cam,config,text=>finish(text),()=>{});ensureTorchButton();return r}catch(first){console.warn('Primer intento de cámara falló',first);await stopCamera();scanner=new Html5Qrcode('vareliaReader');const r=await scanner.start({facingMode:'environment'},config,text=>finish(text),()=>{});ensureTorchButton();return r}}
+    const SCANNER_CART_BACKUP_KEY='varelia_scanner_cart_backup_v1';
+    function saveScannerCartBackup(){
+      try{
+        if(Array.isArray(cart)&&cart.length){
+          localStorage.setItem(SCANNER_CART_BACKUP_KEY,JSON.stringify(cart));
+        }
+      }catch(e){console.warn('No se pudo respaldar carrito del escáner',e)}
+    }
+    function restoreScannerCartBackup(force=false){
+      try{
+        const saved=JSON.parse(localStorage.getItem(SCANNER_CART_BACKUP_KEY)||'[]');
+        if(!Array.isArray(saved)||!saved.length)return false;
+        if(force||!Array.isArray(cart)||!cart.length){
+          cart=saved.map(x=>({...x}));
+          try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
+          try{if(typeof renderCart==='function')renderCart()}catch{}
+          try{window.VareliaPOS?.sync?.()}catch{}
+          return true;
+        }
+      }catch(e){console.warn('No se pudo restaurar carrito del escáner',e)}
+      return false;
+    }
     function nativeScannerSummary(){
       let list=[];
       try{list=Array.isArray(cart)?cart:[]}catch{}
@@ -287,6 +309,7 @@
         try{enhanceCart()}catch{}
         try{renderCart()}catch{}
         try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
+        try{saveScannerCartBackup()}catch{}
         try{renderScannerCart()}catch{}
         try{window.VareliaPOS?.sync?.()}catch{}
         return nativeScannerSummary();
@@ -303,10 +326,11 @@
     };
     window.VareliaNativeScannerAction=(action)=>{
       if(action==='checkout'){
+        // El respaldo del escáner es la fuente principal al volver a Venta.
+        restoreScannerCartBackup(true);
         try{if(typeof renderCart==='function')renderCart()}catch{}
         try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
 
-        // Cierra el diálogo puente oculto, pero NO borra el carrito.
         try{
           const scannerDialog=document.getElementById('scannerDialog');
           if(scannerDialog?.open)scannerDialog.close();
@@ -317,13 +341,15 @@
           document.body.classList.remove('vposReset');
         }catch{}
 
-        // Mostrar el Punto de venta real con el carrito escaneado y los métodos de pago.
         try{
           if(typeof switchView==='function')switchView('sales');
           else document.querySelector('.nav [data-view="sales"]')?.click();
         }catch(e){console.error(e)}
 
         const showPos=()=>{
+          // Algunos manejadores móviles vuelven a inicializar Venta.
+          // Restauramos de nuevo después del cambio de pantalla para evitar carrito vacío.
+          restoreScannerCartBackup(true);
           try{if(typeof renderCart==='function')renderCart()}catch{}
           try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
           try{window.VareliaPOS?.sync?.()}catch{}
@@ -335,6 +361,7 @@
         };
         setTimeout(showPos,80);
         setTimeout(showPos,260);
+        setTimeout(showPos,650);
       }
     };
     async function finish(raw){if(finishing)return;finishing=true;const code=norm(raw);if(!code){finishing=false;return}window.vareliaSound?.('scan');await stopCamera();let p=findProduct(code);
