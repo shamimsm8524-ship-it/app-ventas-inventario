@@ -97,8 +97,6 @@
         const up=await sb.from('varelia_business_settings').upsert({
           business_id:businessId,
           payment_qr_data:legacy,
-          yape_qr_data:legacy,
-          plin_qr_data:legacy,
           generic_qr_data:legacy,
           payment_methods:METHODS
         },{onConflict:'business_id'}).select('business_id,payment_methods,payment_qr_data,yape_qr_data,plin_qr_data,generic_qr_data,payment_holder,transfer_details').single();
@@ -215,13 +213,14 @@
       document.getElementById('vpayAddMixed').onclick=()=>addRow(methods[0]);return;
     }
     let local={};try{local=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}
-    const holder=String(method==='Yape'?(settings?.payment_holder||local.yapeHolder||''):method==='Plin'?(settings?.payment_holder||local.plinHolder||''):(settings?.payment_holder||'')).trim();
+    const holder=String(method==='Yape'?(local.yapeHolder||settings?.payment_holder||''):method==='Plin'?(local.plinHolder||settings?.payment_holder||''):(settings?.payment_holder||'')).trim();
+    // Yape y Plin son independientes: jamás usar el QR genérico ni el del otro método.
     const qr=method==='Yape'
-      ? String(settings?.yape_qr_data||settings?.payment_qr_yape||settings?.payment_qr_data||local.yapeQr||'')
+      ? String(local.yapeQr||settings?.yape_qr_data||settings?.payment_qr_yape||'')
       : method==='Plin'
-        ? String(settings?.plin_qr_data||settings?.payment_qr_plin||settings?.payment_qr_data||local.plinQr||'')
+        ? String(local.plinQr||settings?.plin_qr_data||settings?.payment_qr_plin||'')
         : String(settings?.generic_qr_data||settings?.payment_qr_other||settings?.payment_qr_data||'');
-    const transfer=String(settings?.transfer_details||local.transferDetails||'').trim();
+    const transfer=String(local.transferDetails||settings?.transfer_details||'').trim();
 
     if(method==='Efectivo'){
       const total=currentSaleTotal();
@@ -288,8 +287,8 @@
     holder.value=String(settings?.payment_holder||'');
     transfer.value=String(settings?.transfer_details||'');
     const showPreview=(el,src)=>{if(src){el.src=src;el.classList.add('show')}};
-    showPreview(yapePreview,settings?.yape_qr_data||settings?.payment_qr_data||'');
-    showPreview(plinPreview,settings?.plin_qr_data||settings?.payment_qr_data||'');
+    showPreview(yapePreview,settings?.yape_qr_data||settings?.payment_qr_yape||'');
+    showPreview(plinPreview,settings?.plin_qr_data||settings?.payment_qr_plin||'');
     showPreview(genericPreview,settings?.generic_qr_data||'');
     const bindFile=(file,preview)=>{
       file.onchange=()=>{
@@ -307,8 +306,8 @@
     card.querySelector('#vpayAdminSave').onclick=async()=>{
       const btn=card.querySelector('#vpayAdminSave');btn.disabled=true;
       try{
-        const yapeQr=yapePreview.classList.contains('show')?yapePreview.src:String(settings?.yape_qr_data||settings?.payment_qr_data||'');
-        const plinQr=plinPreview.classList.contains('show')?plinPreview.src:String(settings?.plin_qr_data||settings?.payment_qr_data||'');
+        const yapeQr=yapePreview.classList.contains('show')?yapePreview.src:String(settings?.yape_qr_data||settings?.payment_qr_yape||'');
+        const plinQr=plinPreview.classList.contains('show')?plinPreview.src:String(settings?.plin_qr_data||settings?.payment_qr_plin||'');
         const genericQr=genericPreview.classList.contains('show')?genericPreview.src:String(settings?.generic_qr_data||'');
         const payload={
           business_id:businessId,
