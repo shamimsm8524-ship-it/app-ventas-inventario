@@ -25,6 +25,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -33,6 +34,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 import org.json.JSONArray;
@@ -58,19 +60,33 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         currentInstance = this;
 
+        // Mantener Varelia dentro del área segura del teléfono, igual que apps
+        // nativas como Facebook: nada debe quedar debajo de la hora ni de los
+        // botones de navegación de Android.
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+        getWindow().setStatusBarColor(Color.WHITE);
+        getWindow().setNavigationBarColor(Color.WHITE);
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+                .setAppearanceLightStatusBars(true);
+        WindowCompat.getInsetsController(getWindow(), getWindow().getDecorView())
+                .setAppearanceLightNavigationBars(true);
+
+        FrameLayout safeRoot = new FrameLayout(this);
+        safeRoot.setBackgroundColor(Color.WHITE);
+
         webView = new WebView(this);
         webView.setBackgroundColor(Color.WHITE);
-        setContentView(webView);
+        safeRoot.addView(webView, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT));
+        setContentView(safeRoot);
 
-        // Android 15/16 dibuja la app detrás de las barras del sistema.
-        // Reservamos el espacio real de la barra de estado y navegación para
-        // que la cabecera y el menú inferior nunca queden tapados.
-        ViewCompat.setOnApplyWindowInsetsListener(webView, (view, insets) -> {
+        ViewCompat.setOnApplyWindowInsetsListener(safeRoot, (view, insets) -> {
             Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             view.setPadding(0, bars.top, 0, bars.bottom);
             return insets;
         });
-        ViewCompat.requestApplyInsets(webView);
+        ViewCompat.requestApplyInsets(safeRoot);
 
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
