@@ -20,6 +20,18 @@
       #scannerDialog .scannerInfo{margin:10px 0;color:var(--muted);font-size:13px}
       #scannerDialog .scannerManual{display:flex;gap:8px;margin-top:12px}
       #scannerDialog .scannerManual input{min-width:0;flex:1}
+      #scannerDialog .scannerCartPanel{display:none;margin:10px 0 12px;padding:12px;border:1px solid var(--line);border-radius:16px;background:var(--card)}
+      #scannerDialog .scannerCartHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+      #scannerDialog .scannerCartHead b{font-size:15px}
+      #scannerDialog .scannerCartItems{display:grid;gap:7px;max-height:155px;overflow:auto}
+      #scannerDialog .scannerCartItem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+      #scannerDialog .scannerCartItem:last-child{border-bottom:0}
+      #scannerDialog .scannerCartItem span{min-width:0}
+      #scannerDialog .scannerCartItem small{display:block;color:var(--muted);margin-top:2px}
+      #scannerDialog .scannerCartItem strong{white-space:nowrap;color:var(--p)}
+      #scannerDialog .scannerCartFoot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+      #scannerDialog .scannerCartFoot strong{font-size:18px}
+      #scannerDialog #scannerCartCheckout{padding:10px 14px;border:0;border-radius:12px;background:var(--p);color:#fff;font-weight:900}
 
       #saleDialog .cartitem.posCartRow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:12px 0}
       .posCartName{min-width:0}.posCartName b{display:block;font-size:14px}.posCartName small{display:block;color:var(--muted);margin-top:3px}
@@ -46,15 +58,33 @@
     }
     setTimeout(enhanceCart,300);
 
+    function renderScannerCart(){
+      const panel=document.getElementById('scannerCartPanel'),items=document.getElementById('scannerCartItems'),totalEl=document.getElementById('scannerCartTotal'),countEl=document.getElementById('scannerCartCount');
+      if(!panel||!items||!totalEl||!countEl)return;
+      panel.style.display=target==='sale'?'block':'none';
+      let list=[];try{list=Array.isArray(cart)?cart:[]}catch{}
+      countEl.textContent=list.length+(list.length===1?' producto':' productos');
+      if(!list.length){items.innerHTML='<small style="color:var(--muted)">Aún no hay productos.</small>';totalEl.textContent='S/ 0.00';return}
+      items.innerHTML=list.map(i=>{
+        const qty=Number(i.qty)||0,kg=String(i.unit||'').trim().toLowerCase()==='kg',med=String(i.medicineSaleUnit||'');
+        const detail=kg?(qty<1?Math.round(qty*1000)+' g':qty.toFixed(3)+' kg'):med?(med+' · Cant. '+qty):('Cant. '+qty);
+        return '<div class="scannerCartItem"><span><b>'+esc(i.baseName||i.name||'Producto')+'</b><small>'+esc(detail)+'</small></span><strong>S/ '+(Number(i.price||0)*qty).toFixed(2)+'</strong></div>'
+      }).join('');
+      totalEl.textContent='S/ '+list.reduce((s,i)=>s+Number(i.price||0)*Number(i.qty||0),0).toFixed(2);
+    }
+    window.addEventListener('varelia:cart-changed',renderScannerCart);
+
     const modal=dialog.querySelector('.modal');
     if(modal&&!document.getElementById('vareliaReader')){
       const oldVideo=document.getElementById('scannerVideo');if(oldVideo)oldVideo.style.display='none';
       const info=document.createElement('div');info.id='scannerInfo';info.className='scannerInfo';info.textContent='Apunta la cámara al código de barras. La lectura será automática.';
       const reader=document.createElement('div');reader.id='vareliaReader';reader.className='vareliaReader';
       const manual=document.createElement('div');manual.className='scannerManual';manual.innerHTML='<input id="scannerManualCode" inputmode="numeric" placeholder="O escribe el código"><button type="button" class="btn primary" id="scannerUseManual">Usar</button>';
+      const cartPanel=document.createElement('div');cartPanel.id='scannerCartPanel';cartPanel.className='scannerCartPanel';cartPanel.innerHTML='<div class="scannerCartHead"><b>🛒 Carrito</b><span id="scannerCartCount">0 productos</span></div><div id="scannerCartItems" class="scannerCartItems"></div><div class="scannerCartFoot"><div><small style="display:block;color:var(--muted)">Total</small><strong id="scannerCartTotal">S/ 0.00</strong></div><button type="button" id="scannerCartCheckout">Cobrar</button></div>';
       const result=document.createElement('div');result.id='scannerProductResult';result.className='scannerProductResult';result.hidden=true;
-      modal.append(info,reader,manual,result);
+      modal.append(info,cartPanel,reader,manual,result);
       document.getElementById('scannerUseManual').onclick=()=>{const v=document.getElementById('scannerManualCode').value.trim();if(v)finish(v)};
+      document.getElementById('scannerCartCheckout').onclick=async()=>{await closeScanner();try{if(typeof openSale==='function')openSale(false)}catch(e){console.error(e)}};
     }
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     let torchOn=false;
@@ -106,7 +136,7 @@
     async function closeScanner(){await stopCamera();try{if(dialog.open)dialog.close()}catch{}opening=false;finishing=false;resetUI()}
     async function cameraConfig(){try{const cams=await Html5Qrcode.getCameras();if(cams?.length){const back=cams.find(c=>/back|rear|environment|trasera|posterior/i.test(c.label||''))||cams[cams.length-1];if(back?.id)return back.id}}catch(e){console.warn('No se pudo listar cámaras',e)}return {facingMode:'environment'}}
     async function startCamera(){const reader=document.getElementById('vareliaReader');reader.innerHTML='';reader.style.display='block';scanner=new Html5Qrcode('vareliaReader');const formats=[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.QR_CODE];const config={fps:18,qrbox:(vw,vh)=>({width:Math.max(220,Math.min(340,Math.floor(vw*.88))),height:Math.max(120,Math.min(190,Math.floor(vh*.42)))}),formatsToSupport:formats,disableFlip:false};const cam=await cameraConfig();try{const r=await scanner.start(cam,config,text=>finish(text),()=>{});ensureTorchButton();return r}catch(first){console.warn('Primer intento de cámara falló',first);await stopCamera();scanner=new Html5Qrcode('vareliaReader');const r=await scanner.start({facingMode:'environment'},config,text=>finish(text),()=>{});ensureTorchButton();return r}}
-    async function openScanner(which){if(opening)return;target=which;opening=true;finishing=false;resetUI();try{if(!window.isSecureContext)throw new Error('HTTPS_REQUIRED');if(!navigator.mediaDevices?.getUserMedia)throw new Error('CAMERA_UNSUPPORTED');await loadLib();await stopCamera();if(!dialog.open)dialog.showModal();await sleep(160);await startCamera()}catch(e){console.error('Scanner',e);await stopCamera();try{if(dialog.open)dialog.close()}catch{}const msg=String(e?.name||'')+' '+String(e?.message||e);window.vareliaSound?.('error');if(/NotAllowed|Permission|denied/i.test(msg))alert('Permite la cámara en Chrome para poder escanear.');else if(/NotFound|DevicesNotFound/i.test(msg))alert('No se encontró una cámara disponible en este equipo.');else if(/NotReadable|TrackStart|Could not start video source/i.test(msg))alert('La cámara está ocupada. Cierra otra app que use la cámara y vuelve a intentarlo.');else if(/HTTPS_REQUIRED/.test(msg))alert('Abre Varelia usando https:// para usar la cámara.');else alert('No se pudo iniciar la cámara. Vuelve a tocar Escanear.')}finally{opening=false}}
+    async function openScanner(which){if(opening)return;target=which;opening=true;finishing=false;resetUI();renderScannerCart();try{if(!window.isSecureContext)throw new Error('HTTPS_REQUIRED');if(!navigator.mediaDevices?.getUserMedia)throw new Error('CAMERA_UNSUPPORTED');await loadLib();await stopCamera();if(!dialog.open)dialog.showModal();await sleep(160);await startCamera()}catch(e){console.error('Scanner',e);await stopCamera();try{if(dialog.open)dialog.close()}catch{}const msg=String(e?.name||'')+' '+String(e?.message||e);window.vareliaSound?.('error');if(/NotAllowed|Permission|denied/i.test(msg))alert('Permite la cámara en Chrome para poder escanear.');else if(/NotFound|DevicesNotFound/i.test(msg))alert('No se encontró una cámara disponible en este equipo.');else if(/NotReadable|TrackStart|Could not start video source/i.test(msg))alert('La cámara está ocupada. Cierra otra app que use la cámara y vuelve a intentarlo.');else if(/HTTPS_REQUIRED/.test(msg))alert('Abre Varelia usando https:// para usar la cámara.');else alert('No se pudo iniciar la cámara. Vuelve a tocar Escanear.')}finally{opening=false}}
     function renderCard(p,code){const result=document.getElementById('scannerProductResult'),reader=document.getElementById('vareliaReader'),manual=document.querySelector('.scannerManual'),info=document.getElementById('scannerInfo');if(reader)reader.style.display='none';if(manual)manual.style.display='none';if(info)info.style.display='none';const img=p.image?`<img class="scanProductImg" src="${p.image}" alt="">`:'<div class="scanProductImg scanNoImg">Sin imagen</div>';result.innerHTML=`<div class="scanProductTop">${img}<div class="scanProductData"><div class="scanProductName">${esc(p.name||'Producto')}</div><div class="meta">Código: ${esc(code)}</div><div class="scanStock">Stock: <b>${Number(p.stock||0)} ${esc(p.unit||'Unidad')}</b></div><div class="scanPrice">S/ ${Number(p.sellPrice||0).toFixed(2)}</div></div></div><label class="scanQtyLabel">Cantidad<input id="scannerActionQty" type="number" min="1" step="1" value="1"></label><div class="scanActions"><button type="button" class="btn secondary" id="scannerIncrease">➕ Aumentar stock</button><button type="button" class="btn primary" id="scannerSell">🛒 Vender</button></div><button type="button" class="btn secondary scanAgain" id="scannerAgain">📷 Escanear otro producto</button>`;result.hidden=false;
       document.getElementById('scannerIncrease').onclick=()=>{const q=Math.max(1,Math.floor(+document.getElementById('scannerActionQty').value||1)),before=+p.stock||0;p.stock=before+q;persistProducts();window.vareliaSound?.('add');window.vareliaToast?.('Stock actualizado: +'+q,'ok');renderCard(p,code)};
       document.getElementById('scannerSell').onclick=async()=>{const q=Math.max(1,Math.floor(+document.getElementById('scannerActionQty').value||1));if((+p.stock||0)<q){window.vareliaSound?.('error');return alert('Stock insuficiente. Disponible: '+Number(p.stock||0))}await closeScanner();try{if(typeof openSale==='function'&&!saleDialog?.open)openSale();if(typeof addToCart==='function')addToCart(p,q);enhanceCart();window.vareliaSound?.('sale')}catch(e){console.error(e);window.vareliaSound?.('error');alert('No se pudo preparar la venta.')}};
@@ -117,8 +147,8 @@
         if(typeof addToCart!=='function')throw new Error('CART_UNAVAILABLE');
         const isMedicine=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
         const isWeight=/^(kg|kilo|kilos|kilogramo|kilogramos|g|gr|gramo|gramos)$/i.test(String(p.unit||'').trim());
-        addToCart(p,1);enhanceCart();
-        setTimeout(()=>{try{if(Array.isArray(cart)&&cart.length&&!saleDialog?.open&&typeof openSale==='function')openSale(false)}catch{}},0);
+        addToCart(p,1);enhanceCart();renderScannerCart();
+        setTimeout(renderScannerCart,80);
         if(!isMedicine&&!isWeight){window.vareliaSound?.('add');window.vareliaToast?.(`${p.name||'Producto'} · S/ ${Number(p.sellPrice||0).toFixed(2)} agregado`,'ok');}
         if(saleSearch)saleSearch.value='';
       }catch(e){console.error(e);window.vareliaSound?.('error');}
