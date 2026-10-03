@@ -8,7 +8,7 @@
   if(!document.getElementById('vareliaProfessionalFlowLoader')){
     const f=document.createElement('script');
     f.id='vareliaProfessionalFlowLoader';
-    f.src='professional-flow.js?v=20261003-1';
+    f.src='professional-flow.js?v=20260819-1';
     document.body.appendChild(f);
   }
   if(!document.getElementById('vareliaCashDailyLoader')){
@@ -41,10 +41,9 @@
 
       const style=document.createElement('style');
       style.textContent=`
-      .bt-print-btn{border:1px solid var(--line)!important;background:var(--card)!important;color:var(--ink)!important;box-shadow:none!important;border-radius:11px!important;padding:8px 10px!important;font-size:11px!important;font-weight:850!important;min-height:34px!important}
-      .bt-print-status{display:flex;align-items:center;gap:6px;width:max-content;max-width:100%;margin:5px 0 8px;padding:5px 8px;border-radius:999px;background:transparent;color:var(--muted);font-size:10px;font-weight:750}
-      .bt-dot{width:7px;height:7px;border-radius:50%;background:#94a3b8;flex:0 0 auto}.bt-dot.on{background:#16a34a;box-shadow:0 0 0 3px #16a34a18}.bt-dot.warn{background:#f59e0b;box-shadow:0 0 0 3px #f59e0b18}
-      @media(max-width:560px){#bcToolbar{display:flex!important;gap:6px!important;align-items:center!important;flex-wrap:wrap!important}#bcToolbar>*{width:auto!important;flex:0 0 auto!important}.bt-print-btn{max-width:58%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+      .bt-print-btn{border:1px solid color-mix(in srgb,var(--p) 40%,var(--line))!important;background:var(--card)!important;color:var(--p)!important;box-shadow:none!important}
+      .bt-print-status{display:flex;align-items:center;gap:7px;width:100%;margin-top:2px;padding:9px 11px;border-radius:12px;background:var(--bg);color:var(--muted);font-size:12px;font-weight:800}
+      .bt-dot{width:9px;height:9px;border-radius:50%;background:#94a3b8;flex:0 0 auto}.bt-dot.on{background:#16a34a;box-shadow:0 0 0 4px #16a34a22}.bt-dot.warn{background:#f59e0b;box-shadow:0 0 0 4px #f59e0b22}
       `;
       document.head.appendChild(style);
 
