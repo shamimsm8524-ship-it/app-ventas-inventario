@@ -67,10 +67,14 @@ public class MainActivity extends AppCompatActivity {
         s.setAllowContentAccess(true);
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
-        s.setUseWideViewPort(true);
-        s.setLoadWithOverviewMode(true);
+        // Respetar el viewport móvil real. "Overview mode" hacía que toda la app
+        // se encogiera como si fuera una página de escritorio dentro del WebView.
+        s.setUseWideViewPort(false);
+        s.setLoadWithOverviewMode(false);
+        s.setTextZoom(100);
         s.setBuiltInZoomControls(false);
         s.setDisplayZoomControls(false);
+        webView.setInitialScale(100);
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
