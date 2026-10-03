@@ -108,18 +108,49 @@
     }
     async function setTorch(on){
       const track=torchTrack();if(!track)throw new Error('NO_TRACK');
-      const caps=track.getCapabilities?.()||{};
-      if(!caps.torch)throw new Error('NO_TORCH');
-      await track.applyConstraints({advanced:[{torch:!!on}]});
-      torchOn=!!on;
+      const wanted=!!on;
+      let lastError=null;
+      // Algunos Android/Chrome no anuncian "torch" en getCapabilities(),
+      // pero sí aceptan la restricción. Por eso se intenta directamente.
+      try{
+        await track.applyConstraints({advanced:[{torch:wanted}]});
+        torchOn=wanted;
+      }catch(e){lastError=e}
+      if(torchOn!==wanted){
+        try{
+          const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
+          const caps=track.getCapabilities?.()||{};
+          if(supported.torch||caps.torch){
+            await track.applyConstraints({torch:wanted});
+            torchOn=wanted;
+          }
+        }catch(e){lastError=e}
+      }
+      if(torchOn!==wanted)throw lastError||new Error('NO_TORCH');
       const b=document.getElementById('scannerTorch');
       if(b)b.textContent=torchOn?'🔦 Apagar luz':'🔦 Encender luz';
     }
     function ensureTorchButton(){
       let b=document.getElementById('scannerTorch');
-      if(!b){b=document.createElement('button');b.type='button';b.id='scannerTorch';b.className='btn secondary';b.style.cssText='width:100%;margin-top:10px';b.textContent='🔦 Encender luz';const r=document.getElementById('vareliaReader');r?.after(b);b.onclick=async()=>{try{await setTorch(!torchOn)}catch{b.disabled=true;b.textContent='🔦 Luz no disponible en este celular';}}}
-      b.disabled=false;b.textContent='🔦 Encender luz';torchOn=false;
-      setTimeout(()=>{const t=torchTrack(),caps=t?.getCapabilities?.()||{};if(!caps.torch){b.disabled=true;b.textContent='🔦 Luz no disponible en este celular'}},500);
+      if(!b){
+        b=document.createElement('button');b.type='button';b.id='scannerTorch';b.className='btn secondary';
+        b.style.cssText='width:100%;margin-top:10px';b.textContent='🔦 Encender luz';
+        const r=document.getElementById('vareliaReader');r?.after(b);
+        b.onclick=async()=>{
+          b.disabled=true;
+          try{
+            await setTorch(!torchOn);
+          }catch(e){
+            console.warn('Linterna no expuesta por este navegador',e);
+            torchOn=false;
+            b.textContent='🔦 Linterna no permitida por el navegador';
+            window.vareliaToast?.('Este navegador no permite controlar el flash de la cámara.','warn');
+          }finally{
+            setTimeout(()=>{b.disabled=false;if(!torchOn)b.textContent='🔦 Intentar encender luz'},700);
+          }
+        };
+      }
+      b.disabled=false;b.textContent=torchOn?'🔦 Apagar luz':'🔦 Encender luz';
     }
     function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))}
     function norm(v){return String(v??'').trim().replace(/[^0-9A-Za-z]/g,'').toUpperCase()}
