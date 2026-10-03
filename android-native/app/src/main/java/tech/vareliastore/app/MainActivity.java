@@ -45,7 +45,8 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
-    private String pendingScannerTarget = "sale";\n    private String pendingCartSummary = "";
+    private String pendingScannerTarget = "sale";
+    private String pendingCartSummary = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
