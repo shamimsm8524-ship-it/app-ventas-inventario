@@ -28,10 +28,21 @@ jobs:
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Preparar archivos
-        uses: actions/upload-pages-artifact@v4
+      - name: Preparar archivos incluyendo .well-known
+        run: |
+          tar --dereference --hard-dereference \
+            -cvf "$RUNNER_TEMP/artifact.tar" \
+            --exclude=.git \
+            --exclude=.github \
+            .
+
+      - name: Subir artefacto de Pages
+        uses: actions/upload-artifact@v4
         with:
-          path: .
+          name: github-pages
+          path: ${{ runner.temp }}/artifact.tar
+          retention-days: 1
+          if-no-files-found: error
 
       - name: Publicar
         id: deployment
