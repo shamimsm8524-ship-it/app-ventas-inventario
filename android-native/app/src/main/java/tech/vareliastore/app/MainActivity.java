@@ -45,7 +45,7 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
-    private String pendingScannerTarget = "sale";
+    private String pendingScannerTarget = "sale";\n    private String pendingCartSummary = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -195,7 +195,12 @@ public class MainActivity extends AppCompatActivity {
     public class NativeBridge {
         @JavascriptInterface
         public void openScanner(String target) {
-            runOnUiThread(() -> startNativeScanner(target));
+            runOnUiThread(() -> startNativeScanner(target, ""));
+        }
+
+        @JavascriptInterface
+        public void openScannerWithCart(String target, String cartSummary) {
+            runOnUiThread(() -> startNativeScanner(target, cartSummary));
         }
 
         @JavascriptInterface
@@ -261,6 +266,11 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if (requestCode == REQ_SCAN && resultCode == RESULT_OK && data != null) {
+            String action = data.getStringExtra("action");
+            if ("checkout".equals(action)) {
+                webView.evaluateJavascript("window.VareliaNativeScannerAction&&window.VareliaNativeScannerAction('checkout')", null);
+                return;
+            }
             String code = data.getStringExtra("code");
             String target = data.getStringExtra("target");
             if (code != null && !code.isEmpty()) {
