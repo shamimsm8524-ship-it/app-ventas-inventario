@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261003-MOBILE-READABLE-V87';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261003-MOBILE-FINE-V88';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <meta id="themeMeta" name="theme-color" content="#be185d">
 <title>VareliaStore</title>
@@ -104,6 +104,75 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
   #productViewBar .productViewBtn{min-height:38px!important;padding:8px 6px!important;font-size:12px!important}
   .bt-print-status{margin:4px 0 8px!important;font-size:11px!important}
   #bcToolbar{gap:7px!important;margin:8px 0!important}
+}
+</style>
+<style id="vareliaMobileFineV88">
+@media(max-width:650px){
+  .top{
+    padding:12px 12px 18px!important;
+  }
+  .brand{
+    gap:10px!important;
+    align-items:center!important;
+  }
+  .left{
+    gap:10px!important;
+  }
+  .logo,.menu{
+    width:48px!important;
+    height:48px!important;
+    border-radius:14px!important;
+  }
+  .brand h1,#vareliaAppName{
+    font-size:22px!important;
+    line-height:1.05!important;
+  }
+  .meta{
+    font-size:12px!important;
+    line-height:1.25!important;
+    margin:3px 0!important;
+  }
+  #cloudStatus{
+    font-size:11px!important;
+  }
+  #newSaleTop{
+    min-height:48px!important;
+    padding:10px 14px!important;
+    font-size:13px!important;
+    border-radius:14px!important;
+  }
+
+  .content{
+    padding:15px 12px 132px!important;
+  }
+
+  #vmobileNav{
+    height:100px!important;
+    min-height:100px!important;
+    padding:6px 4px 20px!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    align-items:start!important;
+    overflow:visible!important;
+  }
+  #vmobileNav button{
+    height:76px!important;
+    min-height:76px!important;
+    padding:5px 1px 9px!important;
+    gap:4px!important;
+    font-size:11px!important;
+    line-height:1.05!important;
+    font-weight:850!important;
+    overflow:visible!important;
+  }
+  #vmobileNav button span{
+    font-size:30px!important;
+    line-height:1!important;
+    margin:0!important;
+  }
+}
+@media(max-width:370px){
+  #vmobileNav button{font-size:10px!important}
+  #vmobileNav button span{font-size:28px!important}
 }
 </style>
 </head>
