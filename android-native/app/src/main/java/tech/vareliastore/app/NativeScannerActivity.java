@@ -40,7 +40,8 @@ public class NativeScannerActivity extends AppCompatActivity {
     private ExecutorService cameraExecutor;
     private final AtomicBoolean returning = new AtomicBoolean(false);
     private boolean torchOn = false;
-    private String target = "sale";\n    private String cartSummary = "";
+    private String target = "sale";
+    private String cartSummary = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
