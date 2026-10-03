@@ -22,6 +22,7 @@ import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -40,7 +41,9 @@ import androidx.core.view.WindowInsetsCompat;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.ByteArrayInputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
@@ -49,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.20";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.21&fresh=20261003";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -115,6 +118,36 @@ public class MainActivity extends AppCompatActivity {
         webView.addJavascriptInterface(new NativeBridge(), "VareliaAndroid");
 
         webView.setWebViewClient(new WebViewClient() {
+            private WebResourceResponse blockLegacyAutoTicket(Uri uri) {
+                if (uri == null) return null;
+                String path = uri.getPath() == null ? "" : uri.getPath();
+                if (path.endsWith("/auto-ticket-print.js")
+                        || path.endsWith("/pos-receipt-20260930-17.js")) {
+                    String stub = "window.__vareliaAutoTicketPrintV1=true;"
+                            + "console.log('Varelia: flujo antiguo de ticket bloqueado por la APK');";
+                    return new WebResourceResponse(
+                            "application/javascript",
+                            "UTF-8",
+                            new ByteArrayInputStream(stub.getBytes(StandardCharsets.UTF_8)));
+                }
+                return null;
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                WebResourceResponse blocked = blockLegacyAutoTicket(request == null ? null : request.getUrl());
+                if (blocked != null) return blocked;
+                return super.shouldInterceptRequest(view, request);
+            }
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, String url) {
+                WebResourceResponse blocked = null;
+                try { blocked = blockLegacyAutoTicket(Uri.parse(url)); } catch (Exception ignored) {}
+                if (blocked != null) return blocked;
+                return super.shouldInterceptRequest(view, url);
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 return handleNavigation(request.getUrl());
@@ -134,8 +167,25 @@ public class MainActivity extends AppCompatActivity {
                         + "document.title='Varelia Store';"
                         + "})();";
                 view.evaluateJavascript(brandJs, null);
+
+                String receiptJs = "(function(){"
+                        + "try{"
+                        + "window.__vareliaAutoTicketPrintV1=true;"
+                        + "if(!window.VareliaReceipt&&!document.getElementById('vareliaNativeReceiptLoader')){"
+                        + "var s=document.createElement('script');"
+                        + "s.id='vareliaNativeReceiptLoader';"
+                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261003-native-force-v19&ts='+Date.now();"
+                        + "document.head.appendChild(s);"
+                        + "}"
+                        + "}catch(e){console.error(e);}"
+                        + "})();";
+                view.evaluateJavascript(receiptJs, null);
+
                 view.postDelayed(() -> {
-                    if (!isFinishing()) view.evaluateJavascript(brandJs, null);
+                    if (!isFinishing()) {
+                        view.evaluateJavascript(brandJs, null);
+                        view.evaluateJavascript(receiptJs, null);
+                    }
                 }, 700);
             }
         });
