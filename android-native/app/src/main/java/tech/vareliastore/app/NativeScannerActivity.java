@@ -1,8 +1,15 @@
 package tech.vareliastore.app;
 
 import android.content.Intent;
+import android.content.Context;
 import android.graphics.Color;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CaptureRequest;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Size;
 import android.view.Gravity;
 import android.view.ViewGroup;
@@ -15,9 +22,13 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.camera.core.Camera;
+import androidx.camera.core.CameraInfo;
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
 import androidx.camera.core.Preview;
+import androidx.camera.camera2.interop.Camera2CameraControl;
+import androidx.camera.camera2.interop.Camera2CameraInfo;
+import androidx.camera.camera2.interop.CaptureRequestOptions;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
@@ -28,6 +39,7 @@ import com.google.mlkit.vision.barcode.BarcodeScanning;
 import com.google.mlkit.vision.barcode.common.Barcode;
 import com.google.mlkit.vision.common.InputImage;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,6 +52,8 @@ public class NativeScannerActivity extends AppCompatActivity {
     private ExecutorService cameraExecutor;
     private final AtomicBoolean returning = new AtomicBoolean(false);
     private boolean torchOn = false;
+    private String activeCameraId = null;
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private String target = "sale";
     private String cartSummary = "";
 
@@ -168,8 +182,24 @@ public class NativeScannerActivity extends AppCompatActivity {
                 });
 
                 provider.unbindAll();
-                camera = provider.bindToLifecycle(
-                        this, CameraSelector.DEFAULT_BACK_CAMERA, preview, analysis);
+
+                CameraSelector selector = new CameraSelector.Builder()
+                        .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+                        .addCameraFilter(cameraInfos -> {
+                            List<CameraInfo> withFlash = new ArrayList<>();
+                            for (CameraInfo info : cameraInfos) {
+                                if (info.hasFlashUnit()) withFlash.add(info);
+                            }
+                            return withFlash.isEmpty() ? cameraInfos : withFlash;
+                        })
+                        .build();
+
+                camera = provider.bindToLifecycle(this, selector, preview, analysis);
+                try {
+                    activeCameraId = Camera2CameraInfo.from(camera.getCameraInfo()).getCameraId();
+                } catch (Exception ignored) {
+                    activeCameraId = null;
+                }
             } catch (Exception e) {
                 Toast.makeText(this, "No se pudo iniciar la cámara.", Toast.LENGTH_LONG).show();
                 finish();
@@ -193,18 +223,107 @@ public class NativeScannerActivity extends AppCompatActivity {
     }
 
     private void toggleTorch(Button button) {
-        if (camera == null) return;
-        if (!camera.getCameraInfo().hasFlashUnit()) {
-            Toast.makeText(this, "Este celular no tiene flash disponible para la cámara.", Toast.LENGTH_SHORT).show();
+        if (camera == null) {
+            Toast.makeText(this, "La cámara todavía está iniciando.", Toast.LENGTH_SHORT).show();
             return;
         }
-        torchOn = !torchOn;
-        camera.getCameraControl().enableTorch(torchOn);
-        button.setText(torchOn ? "🔦 Apagar" : "🔦 Linterna");
+
+        final boolean wanted = !torchOn;
+        button.setEnabled(false);
+        button.setText(wanted ? "Encendiendo…" : "Apagando…");
+
+        try {
+            camera.getCameraControl().enableTorch(wanted);
+        } catch (Exception ignored) {}
+
+        applyCamera2Torch(wanted);
+
+        mainHandler.postDelayed(() -> {
+            Integer state = camera != null ? camera.getCameraInfo().getTorchState().getValue() : null;
+            boolean cameraXOn = state != null && state == androidx.camera.core.TorchState.ON;
+
+            if (wanted && !cameraXOn) {
+                applySystemTorch(true);
+            } else if (!wanted) {
+                applySystemTorch(false);
+            }
+
+            mainHandler.postDelayed(() -> {
+                Integer finalState = camera != null ? camera.getCameraInfo().getTorchState().getValue() : null;
+                boolean reportedOn = finalState != null && finalState == androidx.camera.core.TorchState.ON;
+
+                torchOn = wanted && (reportedOn || isSystemTorchLikelyOn());
+                button.setEnabled(true);
+                button.setText(torchOn ? "🔦 Apagar" : "🔦 Linterna");
+
+                if (wanted && !torchOn) {
+                    Toast.makeText(this,
+                            "No se pudo activar el flash con la cámara actual. Se intentaron 3 métodos.",
+                            Toast.LENGTH_LONG).show();
+                }
+            }, 450);
+        }, 350);
+    }
+
+    private void applyCamera2Torch(boolean on) {
+        if (camera == null) return;
+        try {
+            Camera2CameraControl control = Camera2CameraControl.from(camera.getCameraControl());
+            CaptureRequestOptions options = new CaptureRequestOptions.Builder()
+                    .setCaptureRequestOption(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                    .setCaptureRequestOption(
+                            CaptureRequest.FLASH_MODE,
+                            on ? CaptureRequest.FLASH_MODE_TORCH : CaptureRequest.FLASH_MODE_OFF)
+                    .build();
+            control.setCaptureRequestOptions(options);
+        } catch (Exception ignored) {}
+    }
+
+    private void applySystemTorch(boolean on) {
+        CameraManager manager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+        if (manager == null) return;
+
+        try {
+            String id = activeCameraId;
+            if (id == null || id.isEmpty()) id = findBackFlashCameraId(manager);
+            if (id != null) {
+                activeCameraId = id;
+                manager.setTorchMode(id, on);
+                if (on) torchOn = true;
+                else torchOn = false;
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private String findBackFlashCameraId(CameraManager manager) {
+        try {
+            for (String id : manager.getCameraIdList()) {
+                CameraCharacteristics chars = manager.getCameraCharacteristics(id);
+                Boolean flash = chars.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                Integer facing = chars.get(CameraCharacteristics.LENS_FACING);
+                if (Boolean.TRUE.equals(flash)
+                        && facing != null
+                        && facing == CameraCharacteristics.LENS_FACING_BACK) {
+                    return id;
+                }
+            }
+        } catch (CameraAccessException ignored) {}
+        return null;
+    }
+
+    private boolean isSystemTorchLikelyOn() {
+        return torchOn;
     }
 
     @Override
     protected void onDestroy() {
+        try {
+            if (torchOn) {
+                if (camera != null) camera.getCameraControl().enableTorch(false);
+                applyCamera2Torch(false);
+                applySystemTorch(false);
+            }
+        } catch (Exception ignored) {}
         super.onDestroy();
         if (scanner != null) scanner.close();
         if (cameraExecutor != null) cameraExecutor.shutdown();
