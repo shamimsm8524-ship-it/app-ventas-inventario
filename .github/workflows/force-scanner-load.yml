@@ -14,100 +14,15 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          import re
+          import base64, re
+
+          block = base64.b64decode("ICAgIGNvbnN0IHNsZWVwPW1zPT5uZXcgUHJvbWlzZShyPT5zZXRUaW1lb3V0KHIsbXMpKTsKICAgIGxldCB0b3JjaE9uPWZhbHNlOwogICAgZnVuY3Rpb24gdG9yY2hUcmFjaygpewogICAgICB0cnl7CiAgICAgICAgY29uc3Qgdj1kb2N1bWVudC5xdWVyeVNlbGVjdG9yKCcjdmFyZWxpYVJlYWRlciB2aWRlbycpOwogICAgICAgIHJldHVybiB2Py5zcmNPYmplY3Q/LmdldFZpZGVvVHJhY2tzPy4oKVswXXx8bnVsbDsKICAgICAgfWNhdGNoe3JldHVybiBudWxsfQogICAgfQogICAgZnVuY3Rpb24gdG9yY2hDYXBhYmlsaXRpZXMoKXsKICAgICAgbGV0IGNhcHM9e307CiAgICAgIHRyeXtjYXBzPXNjYW5uZXI/LmdldFJ1bm5pbmdUcmFja0NhcGFiaWxpdGllcz8uKCl8fHt9fWNhdGNoe30KICAgICAgaWYoIWNhcHN8fHR5cGVvZiBjYXBzIT09J29iamVjdCcpY2Fwcz17fTsKICAgICAgaWYoISgndG9yY2gnIGluIGNhcHMpKXsKICAgICAgICB0cnl7Y2Fwcz17Li4uY2FwcywuLi4odG9yY2hUcmFjaygpPy5nZXRDYXBhYmlsaXRpZXM/LigpfHx7fSl9fWNhdGNoe30KICAgICAgfQogICAgICByZXR1cm4gY2FwczsKICAgIH0KICAgIGFzeW5jIGZ1bmN0aW9uIHNldFRvcmNoKG9uKXsKICAgICAgY29uc3Qgd2FudGVkPSEhb247CiAgICAgIGxldCBsYXN0RXJyb3I9bnVsbDsKICAgICAgaWYoc2Nhbm5lcj8uYXBwbHlWaWRlb0NvbnN0cmFpbnRzKXsKICAgICAgICB0cnl7CiAgICAgICAgICBhd2FpdCBzY2FubmVyLmFwcGx5VmlkZW9Db25zdHJhaW50cyh7YWR2YW5jZWQ6W3t0b3JjaDp3YW50ZWR9XX0pOwogICAgICAgICAgdG9yY2hPbj13YW50ZWQ7CiAgICAgICAgfWNhdGNoKGUpe2xhc3RFcnJvcj1lfQogICAgICB9CiAgICAgIGlmKHRvcmNoT24hPT13YW50ZWQpewogICAgICAgIGNvbnN0IHRyYWNrPXRvcmNoVHJhY2soKTsKICAgICAgICBpZighdHJhY2spdGhyb3cgbGFzdEVycm9yfHxuZXcgRXJyb3IoJ05PX1RSQUNLJyk7CiAgICAgICAgdHJ5ewogICAgICAgICAgYXdhaXQgdHJhY2suYXBwbHlDb25zdHJhaW50cyh7YWR2YW5jZWQ6W3t0b3JjaDp3YW50ZWR9XX0pOwogICAgICAgICAgdG9yY2hPbj13YW50ZWQ7CiAgICAgICAgfWNhdGNoKGUpe2xhc3RFcnJvcj1lfQogICAgICB9CiAgICAgIGlmKHRvcmNoT24hPT13YW50ZWQpewogICAgICAgIGNvbnN0IHRyYWNrPXRvcmNoVHJhY2soKTsKICAgICAgICB0cnl7CiAgICAgICAgICBhd2FpdCB0cmFjaz8uYXBwbHlDb25zdHJhaW50cz8uKHt0b3JjaDp3YW50ZWR9KTsKICAgICAgICAgIHRvcmNoT249d2FudGVkOwogICAgICAgIH1jYXRjaChlKXtsYXN0RXJyb3I9ZX0KICAgICAgfQogICAgICBpZih0b3JjaE9uIT09d2FudGVkKXRocm93IGxhc3RFcnJvcnx8bmV3IEVycm9yKCdOT19UT1JDSCcpOwogICAgICBjb25zdCBiPWRvY3VtZW50LmdldEVsZW1lbnRCeUlkKCdzY2FubmVyVG9yY2gnKTsKICAgICAgaWYoYil7CiAgICAgICAgYi50ZXh0Q29udGVudD10b3JjaE9uPyfwn5SmIEFwYWdhciBsaW50ZXJuYSc6J/CflKYgRW5jZW5kZXIgbGludGVybmEnOwogICAgICAgIGIuc2V0QXR0cmlidXRlKCdhcmlhLXByZXNzZWQnLHRvcmNoT24/J3RydWUnOidmYWxzZScpOwogICAgICB9CiAgICB9CiAgICBmdW5jdGlvbiBlbnN1cmVUb3JjaEJ1dHRvbigpewogICAgICBsZXQgYj1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgnc2Nhbm5lclRvcmNoJyk7CiAgICAgIGlmKCFiKXsKICAgICAgICBiPWRvY3VtZW50LmNyZWF0ZUVsZW1lbnQoJ2J1dHRvbicpOwogICAgICAgIGIudHlwZT0nYnV0dG9uJzsKICAgICAgICBiLmlkPSdzY2FubmVyVG9yY2gnOwogICAgICAgIGIuY2xhc3NOYW1lPSdidG4gc2Vjb25kYXJ5JzsKICAgICAgICBiLnN0eWxlLmNzc1RleHQ9J3dpZHRoOjEwMCU7bWFyZ2luLXRvcDoxMHB4O2ZvbnQtd2VpZ2h0OjkwMCc7CiAgICAgICAgY29uc3Qgcj1kb2N1bWVudC5nZXRFbGVtZW50QnlJZCgndmFyZWxpYVJlYWRlcicpOwogICAgICAgIHI/LmFmdGVyKGIpOwogICAgICB9CiAgICAgIGIuZGlzYWJsZWQ9ZmFsc2U7CiAgICAgIGIudGV4dENvbnRlbnQ9dG9yY2hPbj8n8J+UpiBBcGFnYXIgbGludGVybmEnOifwn5SmIEVuY2VuZGVyIGxpbnRlcm5hJzsKICAgICAgYi5zZXRBdHRyaWJ1dGUoJ2FyaWEtcHJlc3NlZCcsdG9yY2hPbj8ndHJ1ZSc6J2ZhbHNlJyk7CiAgICAgIGIub25jbGljaz1hc3luYygpPT57CiAgICAgICAgaWYoYi5kaXNhYmxlZClyZXR1cm47CiAgICAgICAgYi5kaXNhYmxlZD10cnVlOwogICAgICAgIGIudGV4dENvbnRlbnQ9dG9yY2hPbj8nQXBhZ2FuZG/igKYnOidFbmNlbmRpZW5kb+KApic7CiAgICAgICAgdHJ5ewogICAgICAgICAgYXdhaXQgc2V0VG9yY2goIXRvcmNoT24pOwogICAgICAgICAgd2luZG93LnZhcmVsaWFUb2FzdD8uKHRvcmNoT24/J0xpbnRlcm5hIGVuY2VuZGlkYS4nOidMaW50ZXJuYSBhcGFnYWRhLicsJ29rJyk7CiAgICAgICAgfWNhdGNoKGUpewogICAgICAgICAgY29uc29sZS53YXJuKCdMaW50ZXJuYSBubyBkaXNwb25pYmxlIGVuIGVzdGUgbW90b3IvY8OhbWFyYScsZSx7Y2Fwczp0b3JjaENhcGFiaWxpdGllcygpfSk7CiAgICAgICAgICB0b3JjaE9uPWZhbHNlOwogICAgICAgICAgYi50ZXh0Q29udGVudD0n8J+UpiBMaW50ZXJuYSBubyBkaXNwb25pYmxlJzsKICAgICAgICAgIGIuc2V0QXR0cmlidXRlKCdhcmlhLXByZXNzZWQnLCdmYWxzZScpOwogICAgICAgICAgd2luZG93LnZhcmVsaWFUb2FzdD8uKCdFc3RlIGNlbHVsYXIgbyBlbCBtb3RvciBkZSBsYSBhcHAgbm8gZXhwb25lIGVsIGZsYXNoIGRlIGxhIGPDoW1hcmEuJywnd2FybicpOwogICAgICAgICAgYXdhaXQgc2xlZXAoOTAwKTsKICAgICAgICB9ZmluYWxseXsKICAgICAgICAgIGIuZGlzYWJsZWQ9ZmFsc2U7CiAgICAgICAgICBpZihiLnRleHRDb250ZW50PT09J0VuY2VuZGllbmRv4oCmJ3x8Yi50ZXh0Q29udGVudD09PSdBcGFnYW5kb+KApid8fGIudGV4dENvbnRlbnQ9PT0n8J+UpiBMaW50ZXJuYSBubyBkaXNwb25pYmxlJyl7CiAgICAgICAgICAgIGIudGV4dENvbnRlbnQ9dG9yY2hPbj8n8J+UpiBBcGFnYXIgbGludGVybmEnOifwn5SmIEVuY2VuZGVyIGxpbnRlcm5hJzsKICAgICAgICAgIH0KICAgICAgICB9CiAgICAgIH07CiAgICB9Cg==").decode()
 
           p=Path('scanner-fix.js')
           s=p.read_text()
-
           start=s.index('    const sleep=ms=>new Promise(r=>setTimeout(r,ms));')
           end=s.index('    function esc(v)', start)
-          block=r'''    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-    let torchOn=false;
-    function torchTrack(){
-      try{
-        const v=document.querySelector('#vareliaReader video');
-        return v?.srcObject?.getVideoTracks?.()[0]||null;
-      }catch{return null}
-    }
-    function torchCapabilities(){
-      let caps={};
-      try{caps=scanner?.getRunningTrackCapabilities?.()||{}}catch{}
-      if(!caps||typeof caps!=='object')caps={};
-      if(!('torch' in caps)){
-        try{caps={...caps,...(torchTrack()?.getCapabilities?.()||{})}}catch{}
-      }
-      return caps;
-    }
-    async function setTorch(on){
-      const wanted=!!on;
-      let lastError=null;
-      if(scanner?.applyVideoConstraints){
-        try{
-          await scanner.applyVideoConstraints({advanced:[{torch:wanted}]});
-          torchOn=wanted;
-        }catch(e){lastError=e}
-      }
-      if(torchOn!==wanted){
-        const track=torchTrack();
-        if(!track)throw lastError||new Error('NO_TRACK');
-        try{
-          await track.applyConstraints({advanced:[{torch:wanted}]});
-          torchOn=wanted;
-        }catch(e){lastError=e}
-      }
-      if(torchOn!==wanted){
-        const track=torchTrack();
-        try{
-          await track?.applyConstraints?.({torch:wanted});
-          torchOn=wanted;
-        }catch(e){lastError=e}
-      }
-      if(torchOn!==wanted)throw lastError||new Error('NO_TORCH');
-      const b=document.getElementById('scannerTorch');
-      if(b){
-        b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
-        b.setAttribute('aria-pressed',torchOn?'true':'false');
-      }
-    }
-    function ensureTorchButton(){
-      let b=document.getElementById('scannerTorch');
-      if(!b){
-        b=document.createElement('button');
-        b.type='button';
-        b.id='scannerTorch';
-        b.className='btn secondary';
-        b.style.cssText='width:100%;margin-top:10px;font-weight:900';
-        const r=document.getElementById('vareliaReader');
-        r?.after(b);
-      }
-      b.disabled=false;
-      b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
-      b.setAttribute('aria-pressed',torchOn?'true':'false');
-      b.onclick=async()=>{
-        if(b.disabled)return;
-        b.disabled=true;
-        b.textContent=torchOn?'Apagando…':'Encendiendo…';
-        try{
-          await setTorch(!torchOn);
-          window.vareliaToast?.(torchOn?'Linterna encendida.':'Linterna apagada.','ok');
-        }catch(e){
-          console.warn('Linterna no disponible en este motor/cámara',e,{caps:torchCapabilities()});
-          torchOn=false;
-          b.textContent='🔦 Linterna no disponible';
-          b.setAttribute('aria-pressed','false');
-          window.vareliaToast?.('Este celular o el motor de la app no expone el flash de la cámara.','warn');
-          await sleep(900);
-        }finally{
-          b.disabled=false;
-          if(b.textContent==='Encendiendo…'||b.textContent==='Apagando…'||b.textContent==='🔦 Linterna no disponible'){
-            b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
-          }
-        }
-      };
-    }
-'''
-          s=s[:start]+block+s[end:]
-          p.write_text(s)
+          p.write_text(s[:start]+block+s[end:])
 
           i=Path('index.html')
           x=i.read_text()
