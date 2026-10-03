@@ -32,6 +32,10 @@ import androidx.camera.camera2.interop.CaptureRequestOptions;
 import androidx.camera.lifecycle.ProcessCameraProvider;
 import androidx.camera.view.PreviewView;
 import androidx.core.content.ContextCompat;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.mlkit.vision.barcode.BarcodeScanner;
@@ -74,8 +78,19 @@ public class NativeScannerActivity extends AppCompatActivity {
         cameraExecutor = Executors.newSingleThreadExecutor();
         scanner = BarcodeScanning.getClient();
 
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
+
+        // Mantener todos los controles dentro del área segura del teléfono:
+        // debajo de la barra de estado y por encima de los botones de Android.
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            view.setPadding(0, bars.top, 0, bars.bottom);
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(root);
 
         previewView = new PreviewView(this);
         previewView.setScaleType(PreviewView.ScaleType.FILL_CENTER);
@@ -114,6 +129,25 @@ public class NativeScannerActivity extends AppCompatActivity {
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
+        if ("sale".equals(target)) {
+            Button checkout = new Button(this);
+            checkout.setText("💳 COBRAR");
+            checkout.setTextSize(17);
+            checkout.setAllCaps(false);
+            checkout.setMinHeight(58);
+            checkout.setOnClickListener(v -> {
+                Intent result = new Intent();
+                result.putExtra("action", "checkout");
+                result.putExtra("target", target);
+                setResult(RESULT_OK, result);
+                finish();
+            });
+            LinearLayout.LayoutParams payLp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            payLp.setMargins(0, 6, 0, 10);
+            bottom.addView(checkout, payLp);
+        }
+
         LinearLayout controls = new LinearLayout(this);
         controls.setOrientation(LinearLayout.HORIZONTAL);
         controls.setGravity(Gravity.CENTER);
@@ -132,27 +166,10 @@ public class NativeScannerActivity extends AppCompatActivity {
         bottom.addView(controls, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        if ("sale".equals(target)) {
-            Button checkout = new Button(this);
-            checkout.setText("💳 Cobrar");
-            checkout.setTextSize(16);
-            checkout.setOnClickListener(v -> {
-                Intent result = new Intent();
-                result.putExtra("action", "checkout");
-                result.putExtra("target", target);
-                setResult(RESULT_OK, result);
-                finish();
-            });
-            LinearLayout.LayoutParams payLp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            payLp.setMargins(0, 10, 0, 0);
-            bottom.addView(checkout, payLp);
-        }
-
         FrameLayout.LayoutParams controlsLp = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         controlsLp.gravity = Gravity.BOTTOM;
-        controlsLp.setMargins(18, 0, 18, 18);
+        controlsLp.setMargins(18, 0, 18, 26);
         root.addView(bottom, controlsLp);
 
         setContentView(root);
