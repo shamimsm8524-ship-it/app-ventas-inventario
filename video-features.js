@@ -9,6 +9,66 @@
     const loadSettings=()=>{try{return {...DEFAULTS,...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{return {...DEFAULTS}}};
     let cfg=loadSettings();
     const saveCfg=()=>{try{localStorage.setItem(STORE,JSON.stringify(cfg));window.vareliaVideoSettings={...cfg}}catch{}};window.vareliaVideoSettings={...cfg};
+
+    const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+    let cloudPaymentSyncPromise=null;
+    async function cloudPaymentContext(){
+      for(let i=0;i<80&&!window.vareliaSupabase;i++)await sleep(100);
+      const sb=window.vareliaSupabase;if(!sb)return null;
+      const {data:u,error:ue}=await sb.auth.getUser();if(ue||!u?.user)return null;
+      const {data:p,error:pe}=await sb.from('profiles').select('business_id,role').eq('id',u.user.id).maybeSingle();
+      if(pe||!p?.business_id)return null;
+      return {sb,businessId:String(p.business_id),role:String(p.role||'')};
+    }
+    async function pushCloudPaymentSettings(context=null){
+      const ctx=context||await cloudPaymentContext();
+      if(!ctx||ctx.role!=='owner')return false;
+      const payload={
+        business_id:ctx.businessId,
+        payment_methods:['Efectivo','Yape','Plin','Transferencia','Tarjeta'],
+        payment_qr_data:cfg.yapeQr||cfg.plinQr||null,
+        yape_qr_data:cfg.yapeQr||null,
+        plin_qr_data:cfg.plinQr||null,
+        payment_qr_yape:cfg.yapeQr||null,
+        payment_qr_plin:cfg.plinQr||null,
+        payment_holder:cfg.yapeHolder||cfg.plinHolder||null,
+        transfer_details:cfg.transferDetails||null,
+        updated_at:new Date().toISOString()
+      };
+      const {error}=await ctx.sb.from('varelia_business_settings').upsert(payload,{onConflict:'business_id'});
+      if(error)throw error;
+      return true;
+    }
+    async function pullCloudPaymentSettings(){
+      if(cloudPaymentSyncPromise)return cloudPaymentSyncPromise;
+      cloudPaymentSyncPromise=(async()=>{
+        const ctx=await cloudPaymentContext();if(!ctx)return false;
+        const {data,error}=await ctx.sb.from('varelia_business_settings')
+          .select('yape_qr_data,plin_qr_data,payment_qr_yape,payment_qr_plin,payment_qr_data,payment_holder,transfer_details')
+          .eq('business_id',ctx.businessId).maybeSingle();
+        if(error)throw error;
+        const cloudYape=String(data?.yape_qr_data||data?.payment_qr_yape||'');
+        const cloudPlin=String(data?.plin_qr_data||data?.payment_qr_plin||'');
+        const hadLocalYape=!!cfg.yapeQr,hadLocalPlin=!!cfg.plinQr;
+        if(cloudYape)cfg.yapeQr=cloudYape;
+        if(cloudPlin)cfg.plinQr=cloudPlin;
+        if(data?.payment_holder){
+          if(!cfg.yapeHolder)cfg.yapeHolder=String(data.payment_holder);
+          if(!cfg.plinHolder)cfg.plinHolder=String(data.payment_holder);
+        }
+        if(data?.transfer_details)cfg.transferDetails=String(data.transfer_details);
+        saveCfg();
+        const y=document.getElementById('vYapePreview'),p=document.getElementById('vPlinPreview');
+        if(y)y.src=cfg.yapeQr||'';if(p)p.src=cfg.plinQr||'';
+        const yh=document.getElementById('vsetYapeHolder'),ph=document.getElementById('vsetPlinHolder'),td=document.getElementById('vsetTransferDetails');
+        if(yh&&!yh.value)yh.value=cfg.yapeHolder||'';if(ph&&!ph.value)ph.value=cfg.plinHolder||'';if(td&&!td.value)td.value=cfg.transferDetails||'';
+        window.VareliaSaleExtrasUpdate?.();
+        // Migración automática: si el QR sólo existía en este dispositivo, súbelo a la cuenta del negocio.
+        if(ctx.role==='owner'&&((hadLocalYape&&!cloudYape)||(hadLocalPlin&&!cloudPlin)))await pushCloudPaymentSettings(ctx);
+        return true;
+      })().catch(err=>{console.warn('Varelia cloud payment sync',err);return false});
+      return cloudPaymentSyncPromise;
+    }
     const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const money=n=>(cfg.currency||'S/')+' '+Number(n||0).toFixed(2);
     const arr=name=>{try{return typeof window[name]!=='undefined'&&Array.isArray(window[name])?window[name]:(eval('typeof '+name+"!=='undefined'?"+name+':[]'))}catch{return[]}};
@@ -194,8 +254,16 @@
         sec.querySelector('#vsetLogo').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.logo=v;sec.querySelector('#vLogoPreview').src=v}};
         sec.querySelector('#vsetYapeQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.yapeQr=v;sec.querySelector('#vYapePreview').src=v}};
         sec.querySelector('#vsetPlinQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.plinQr=v;sec.querySelector('#vPlinPreview').src=v}};
-        sec.querySelector('#vsettingsSave').onclick=()=>{
-          cfg.businessName=sec.querySelector('#vsetBusiness').value.trim();cfg.businessSlogan=sec.querySelector('#vsetBusinessSlogan').value.trim();cfg.ruc=sec.querySelector('#vsetRuc').value.trim();cfg.phone=sec.querySelector('#vsetPhone').value.trim();cfg.address=sec.querySelector('#vsetAddress').value.trim();cfg.businessHours=sec.querySelector('#vsetBusinessHours').value.trim();cfg.publicMapUrl=sec.querySelector('#vsetMapUrl').value.trim();cfg.publicAllowDelivery=sec.querySelector('#vsetAllowDelivery').checked;cfg.publicAllowPickup=sec.querySelector('#vsetAllowPickup').checked;cfg.deliveryInDriveEnabled=sec.querySelector('#vsetInDriveEnabled').checked;cfg.deliveryInDriveCost=Math.max(0,Number(sec.querySelector('#vsetInDriveCost').value)||0);cfg.deliveryOlvaEnabled=sec.querySelector('#vsetOlvaEnabled').checked;cfg.deliveryOlvaCost=Math.max(0,Number(sec.querySelector('#vsetOlvaCost').value)||0);cfg.deliveryShalomEnabled=sec.querySelector('#vsetShalomEnabled').checked;cfg.deliveryShalomCost=Math.max(0,Number(sec.querySelector('#vsetShalomCost').value)||0);cfg.deliveryShalomPayAgency=sec.querySelector('#vsetShalomPayAgency').checked;cfg.publicPaymentMethods=[...sec.querySelectorAll('[data-public-payment]:checked')].map(x=>x.dataset.publicPayment).join(',');cfg.ticketMessage=sec.querySelector('#vsetMessage').value.trim()||DEFAULTS.ticketMessage;cfg.currency=sec.querySelector('#vsetCurrency').value;cfg.socialTikTok=sec.querySelector('#vsetTikTok').value.trim();cfg.socialFacebook=sec.querySelector('#vsetFacebook').value.trim();cfg.socialInstagram=sec.querySelector('#vsetInstagram').value.trim();cfg.socialWhatsApp=sec.querySelector('#vsetWhatsApp').value.trim();cfg.socialYouTube=sec.querySelector('#vsetYouTube').value.trim();cfg.socialOther=sec.querySelector('#vsetSocialOther').value.trim();cfg.yapeHolder=sec.querySelector('#vsetYapeHolder').value.trim();cfg.plinHolder=sec.querySelector('#vsetPlinHolder').value.trim();cfg.transferDetails=sec.querySelector('#vsetTransferDetails').value.trim();cfg.thermalWidth=sec.querySelector('#vsetThermal').value;cfg.autoBarcode=sec.querySelector('#vsetAutoBarcode').checked;cfg.enableVariants=sec.querySelector('#vsetVariants').checked;saveCfg();applyBusinessName();setupProductExtras(true);window.dispatchEvent(new CustomEvent('varelia:catalog-settings-changed'));try{window.vareliaPublicCatalogSync?.()}catch{}window.vareliaToast?.('Configuración guardada.','ok')
+        sec.querySelector('#vsettingsSave').onclick=async()=>{
+          cfg.businessName=sec.querySelector('#vsetBusiness').value.trim();cfg.businessSlogan=sec.querySelector('#vsetBusinessSlogan').value.trim();cfg.ruc=sec.querySelector('#vsetRuc').value.trim();cfg.phone=sec.querySelector('#vsetPhone').value.trim();cfg.address=sec.querySelector('#vsetAddress').value.trim();cfg.businessHours=sec.querySelector('#vsetBusinessHours').value.trim();cfg.publicMapUrl=sec.querySelector('#vsetMapUrl').value.trim();cfg.publicAllowDelivery=sec.querySelector('#vsetAllowDelivery').checked;cfg.publicAllowPickup=sec.querySelector('#vsetAllowPickup').checked;cfg.deliveryInDriveEnabled=sec.querySelector('#vsetInDriveEnabled').checked;cfg.deliveryInDriveCost=Math.max(0,Number(sec.querySelector('#vsetInDriveCost').value)||0);cfg.deliveryOlvaEnabled=sec.querySelector('#vsetOlvaEnabled').checked;cfg.deliveryOlvaCost=Math.max(0,Number(sec.querySelector('#vsetOlvaCost').value)||0);cfg.deliveryShalomEnabled=sec.querySelector('#vsetShalomEnabled').checked;cfg.deliveryShalomCost=Math.max(0,Number(sec.querySelector('#vsetShalomCost').value)||0);cfg.deliveryShalomPayAgency=sec.querySelector('#vsetShalomPayAgency').checked;cfg.publicPaymentMethods=[...sec.querySelectorAll('[data-public-payment]:checked')].map(x=>x.dataset.publicPayment).join(',');cfg.ticketMessage=sec.querySelector('#vsetMessage').value.trim()||DEFAULTS.ticketMessage;cfg.currency=sec.querySelector('#vsetCurrency').value;cfg.socialTikTok=sec.querySelector('#vsetTikTok').value.trim();cfg.socialFacebook=sec.querySelector('#vsetFacebook').value.trim();cfg.socialInstagram=sec.querySelector('#vsetInstagram').value.trim();cfg.socialWhatsApp=sec.querySelector('#vsetWhatsApp').value.trim();cfg.socialYouTube=sec.querySelector('#vsetYouTube').value.trim();cfg.socialOther=sec.querySelector('#vsetSocialOther').value.trim();cfg.yapeHolder=sec.querySelector('#vsetYapeHolder').value.trim();cfg.plinHolder=sec.querySelector('#vsetPlinHolder').value.trim();cfg.transferDetails=sec.querySelector('#vsetTransferDetails').value.trim();cfg.thermalWidth=sec.querySelector('#vsetThermal').value;cfg.autoBarcode=sec.querySelector('#vsetAutoBarcode').checked;cfg.enableVariants=sec.querySelector('#vsetVariants').checked;saveCfg();applyBusinessName();setupProductExtras(true);window.dispatchEvent(new CustomEvent('varelia:catalog-settings-changed'));try{window.vareliaPublicCatalogSync?.()}catch{}
+          const btn=sec.querySelector('#vsettingsSave');if(btn)btn.disabled=true;
+          try{
+            const synced=await pushCloudPaymentSettings();
+            window.vareliaToast?.(synced?'Configuración y QR guardados.':'Configuración guardada en este dispositivo.','ok');
+          }catch(err){
+            console.error('Varelia save payment settings',err);
+            window.vareliaToast?.('Se guardó localmente, pero no se pudo guardar el QR en la nube.','warn');
+          }finally{if(btn)btn.disabled=false}
         };
       };
       sec.onclick=e=>{
@@ -282,6 +350,7 @@
     }
 
     function init(){
+      pullCloudPaymentSettings();
       applyBusinessName();
       setupHistory();
       setupSettings();
