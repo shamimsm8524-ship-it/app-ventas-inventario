@@ -79,10 +79,10 @@
   async function loadSettings(){
     if(!sb||!businessId)return null;
     const {data,error}=await sb.from('varelia_business_settings')
-      .select('business_id,payment_methods,payment_qr_data,yape_qr_data,plin_qr_data,generic_qr_data,payment_holder,transfer_details')
+      .select('business_id,payment_methods,payment_qr_data,yape_qr_data,plin_qr_data,generic_qr_data,payment_qr_yape,payment_qr_plin,payment_qr_other,payment_holder,transfer_details')
       .eq('business_id',businessId).maybeSingle();
     if(error)throw error;
-    settings=data||{business_id:businessId,payment_methods:METHODS,payment_qr_data:null,yape_qr_data:null,plin_qr_data:null,generic_qr_data:null,payment_holder:'',transfer_details:''};
+    settings=data||{business_id:businessId,payment_methods:METHODS,payment_qr_data:null,yape_qr_data:null,plin_qr_data:null,generic_qr_data:null,payment_qr_yape:null,payment_qr_plin:null,payment_qr_other:null,payment_holder:'',transfer_details:''};
 
     if(isOwner()&&!settings.yape_qr_data&&!settings.plin_qr_data&&!settings.generic_qr_data){
       const legacy=findLegacyQr();
@@ -161,13 +161,13 @@
       document.getElementById('vpayAddMixed').onclick=()=>addRow(methods[0]);return;
     }
     let local={};try{local=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}
-    const holder=String(method==='Yape'?(local.yapeHolder||settings?.payment_holder||''):method==='Plin'?(local.plinHolder||settings?.payment_holder||''):(settings?.payment_holder||'')).trim();
+    const holder=String(method==='Yape'?(settings?.payment_holder||local.yapeHolder||''):method==='Plin'?(settings?.payment_holder||local.plinHolder||''):(settings?.payment_holder||'')).trim();
     const qr=method==='Yape'
-      ? String(local.yapeQr||settings?.yape_qr_data||settings?.payment_qr_data||'')
+      ? String(settings?.yape_qr_data||settings?.payment_qr_yape||settings?.payment_qr_data||local.yapeQr||'')
       : method==='Plin'
-        ? String(local.plinQr||settings?.plin_qr_data||settings?.payment_qr_data||'')
-        : String(settings?.generic_qr_data||settings?.payment_qr_data||'');
-    const transfer=String(local.transferDetails||settings?.transfer_details||'').trim();
+        ? String(settings?.plin_qr_data||settings?.payment_qr_plin||settings?.payment_qr_data||local.plinQr||'')
+        : String(settings?.generic_qr_data||settings?.payment_qr_other||settings?.payment_qr_data||'');
+    const transfer=String(settings?.transfer_details||local.transferDetails||'').trim();
 
     if(method==='Efectivo'){
       const total=currentSaleTotal();
