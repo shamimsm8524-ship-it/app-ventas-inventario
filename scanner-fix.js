@@ -104,62 +104,86 @@
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     let torchOn=false;
     function torchTrack(){
-      try{const v=document.querySelector('#vareliaReader video');return v?.srcObject?.getVideoTracks?.()[0]||null}catch{return null}
+      try{
+        const v=document.querySelector('#vareliaReader video');
+        return v?.srcObject?.getVideoTracks?.()[0]||null;
+      }catch{return null}
+    }
+    function torchCapabilities(){
+      let caps={};
+      try{caps=scanner?.getRunningTrackCapabilities?.()||{}}catch{}
+      if(!caps||typeof caps!=='object')caps={};
+      if(!('torch' in caps)){
+        try{caps={...caps,...(torchTrack()?.getCapabilities?.()||{})}}catch{}
+      }
+      return caps;
     }
     async function setTorch(on){
-      const track=torchTrack();if(!track)throw new Error('NO_TRACK');
       const wanted=!!on;
       let lastError=null;
-      // Algunos Android/Chrome no anuncian "torch" en getCapabilities(),
-      // pero sí aceptan la restricción. Por eso se intenta directamente.
-      try{
-        await track.applyConstraints({advanced:[{torch:wanted}]});
-        torchOn=wanted;
-      }catch(e){lastError=e}
-      if(torchOn!==wanted){
+      if(scanner?.applyVideoConstraints){
         try{
-          const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
-          const caps=track.getCapabilities?.()||{};
-          if(supported.torch||caps.torch){
-            await track.applyConstraints({torch:wanted});
-            torchOn=wanted;
-          }
+          await scanner.applyVideoConstraints({advanced:[{torch:wanted}]});
+          torchOn=wanted;
+        }catch(e){lastError=e}
+      }
+      if(torchOn!==wanted){
+        const track=torchTrack();
+        if(!track)throw lastError||new Error('NO_TRACK');
+        try{
+          await track.applyConstraints({advanced:[{torch:wanted}]});
+          torchOn=wanted;
+        }catch(e){lastError=e}
+      }
+      if(torchOn!==wanted){
+        const track=torchTrack();
+        try{
+          await track?.applyConstraints?.({torch:wanted});
+          torchOn=wanted;
         }catch(e){lastError=e}
       }
       if(torchOn!==wanted)throw lastError||new Error('NO_TORCH');
       const b=document.getElementById('scannerTorch');
-      if(b)b.textContent=torchOn?'🔦 Apagar luz':'🔦 Encender luz';
+      if(b){
+        b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
+        b.setAttribute('aria-pressed',torchOn?'true':'false');
+      }
     }
     function ensureTorchButton(){
       let b=document.getElementById('scannerTorch');
       if(!b){
-        b=document.createElement('button');b.type='button';b.id='scannerTorch';b.className='btn secondary';
-        b.style.cssText='width:100%;margin-top:10px';b.textContent='🔦 Encender luz';
-        const r=document.getElementById('vareliaReader');r?.after(b);
-        b.onclick=async()=>{
-          b.disabled=true;
-          try{
-            await setTorch(!torchOn);
-          }catch(e){
-            console.warn('Linterna no expuesta por este navegador',e);
-            torchOn=false;
-            b.textContent='🔦 Abrir en Chrome para usar linterna';
-            b.dataset.chromeFallback='1';
-            window.vareliaToast?.('Este navegador no permite controlar el flash. Ábrelo en Chrome.','warn');
-            b.onclick=()=>{
-              try{
-                const clean=location.href.replace(/^https?:\/\//,'');
-                location.href='intent://'+clean+'#Intent;scheme=https;package=com.android.chrome;end';
-              }catch{
-                window.open(location.href,'_blank');
-              }
-            };
-          }finally{
-            setTimeout(()=>{b.disabled=false;if(!torchOn)b.textContent='🔦 Intentar encender luz'},700);
-          }
-        };
+        b=document.createElement('button');
+        b.type='button';
+        b.id='scannerTorch';
+        b.className='btn secondary';
+        b.style.cssText='width:100%;margin-top:10px;font-weight:900';
+        const r=document.getElementById('vareliaReader');
+        r?.after(b);
       }
-      if(!b.dataset.chromeFallback){b.disabled=false;b.textContent=torchOn?'🔦 Apagar luz':'🔦 Encender luz';}
+      b.disabled=false;
+      b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
+      b.setAttribute('aria-pressed',torchOn?'true':'false');
+      b.onclick=async()=>{
+        if(b.disabled)return;
+        b.disabled=true;
+        b.textContent=torchOn?'Apagando…':'Encendiendo…';
+        try{
+          await setTorch(!torchOn);
+          window.vareliaToast?.(torchOn?'Linterna encendida.':'Linterna apagada.','ok');
+        }catch(e){
+          console.warn('Linterna no disponible en este motor/cámara',e,{caps:torchCapabilities()});
+          torchOn=false;
+          b.textContent='🔦 Linterna no disponible';
+          b.setAttribute('aria-pressed','false');
+          window.vareliaToast?.('Este celular o el motor de la app no expone el flash de la cámara.','warn');
+          await sleep(900);
+        }finally{
+          b.disabled=false;
+          if(b.textContent==='Encendiendo…'||b.textContent==='Apagando…'||b.textContent==='🔦 Linterna no disponible'){
+            b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
+          }
+        }
+      };
     }
     function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]))}
     function norm(v){return String(v??'').trim().replace(/[^0-9A-Za-z]/g,'').toUpperCase()}
