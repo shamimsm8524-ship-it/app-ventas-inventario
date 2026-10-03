@@ -301,7 +301,7 @@
     if(nativePay&&native&&Number(native.total)>=0&&Math.abs(Number(native.total)-Number(snap.total))<.01){
       snap={...native};
     }else if(nativePay&&nativeCash){
-      const total=Number(String((document.getElementById('vposTotal')?.textContent||'')).replace(/[^0-9.]/g,''))||0;
+      const total=(Array.isArray(window.cart||cart)?(window.cart||cart).reduce((sum,i)=>sum+Number(i.price||0)*Number(i.qty||0),0):0)||Number(String((document.getElementById('saleTotal')?.textContent||document.getElementById('vposTotal')?.textContent||'')).replace(/[^0-9.]/g,''))||0;
       const received=Math.max(0,Number(nativeCash.value)||0);
       const method=document.getElementById('vposPayMethod')?.value||'Efectivo';
       if(method==='Efectivo'){
