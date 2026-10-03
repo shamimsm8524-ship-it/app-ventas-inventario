@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261002-MEDICINA-GUARDADO-V78';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261003-MOBILE-COMPACT-V83';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <meta id="themeMeta" name="theme-color" content="#be185d">
 <title>VareliaStore</title>
@@ -76,7 +76,37 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 #vstaffQuickQtyWrap{display:none!important}
 #vareliaPosSales .vposSearch{grid-template-columns:1fr!important}
 #vareliaPosSales .vposSearch #vposScan{grid-column:auto!important}
-</style></head>
+</style>
+<style id="vareliaMobileCompactProducts">
+@media(max-width:650px){
+  .top{padding:7px 10px!important}
+  .brand{gap:7px!important}
+  .left{gap:7px!important}
+  .logo,.menu{width:38px!important;height:38px!important;border-radius:12px!important}
+  .brand h1{font-size:17px!important;line-height:1.05!important}
+  .meta{font-size:10px!important;line-height:1.15!important;margin:1px 0!important}
+  #cloudStatus{font-size:9px!important}
+  #newSaleTop{padding:8px 11px!important;border-radius:11px!important;font-size:11px!important;min-height:38px!important}
+
+  .content{padding:12px 10px 88px!important}
+  #products .head{margin-bottom:9px!important;gap:8px!important}
+  #products .head h2{font-size:22px!important}
+  #products .head .notice{font-size:10px!important;line-height:1.25!important}
+  #products .toolbar{margin-bottom:8px!important}
+  #products .toolbar input{padding:9px 11px!important;border-radius:12px!important;min-height:40px!important;font-size:12px!important}
+  #products .flowRole{padding:10px!important;margin-bottom:9px!important;border-radius:14px!important}
+  #products .chips{gap:6px!important;margin-bottom:8px!important}
+  #products .chip{padding:7px 11px!important;font-size:10px!important}
+  #products .btn{padding:8px 10px!important;border-radius:11px!important;font-size:11px!important}
+  #products .catalogHeadActions{gap:6px!important}
+  #productViewBar{margin:6px 0 8px!important}
+  #productViewBar .productViewButtons{gap:5px!important}
+  #productViewBar .productViewBtn{min-height:34px!important;padding:6px 4px!important;font-size:10px!important}
+  .bt-print-status{margin:3px 0 6px!important;font-size:10px!important}
+  #bcToolbar{gap:6px!important;margin:6px 0!important}
+}
+</style>
+</head>
 <body>
 <header class="top"><div class="brand"><div class="left"><button class="menu" id="menuBtn">☰</button><div class="logo">MN</div><div><h1>Mi Negocio</h1><p class="meta">Ventas e inventario <span id="cloudStatus" style="font-size:11px;color:var(--p);font-weight:800;margin-left:6px;cursor:pointer">☁️ Conectando...</span></p></div></div><button class="btn primary" id="newSaleTop">+ Nueva venta</button></div></header>
 <div class="overlay" id="overlay"></div>
@@ -724,11 +754,34 @@ if ('serviceWorker' in navigator) {
 </script>
 <style id="vareliaAdminBottomPatchCss">
 @media(max-width:980px){
-  #vmobileNav{grid-template-columns:repeat(6,minmax(0,1fr))!important;height:92px!important;padding-top:8px!important;padding-bottom:calc(8px + env(safe-area-inset-bottom))!important}
-  #vmobileNav button{font-size:10px!important;gap:5px!important;padding:7px 1px!important}
-  #vmobileNav button span{font-size:33px!important;line-height:1!important}
+  #vmobileNav{
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    height:72px!important;
+    min-height:72px!important;
+    padding:4px 2px 8px!important;
+    align-items:start!important;
+    overflow:visible!important;
+  }
+  #vmobileNav button{
+    min-width:0!important;
+    height:60px!important;
+    min-height:60px!important;
+    padding:3px 1px 8px!important;
+    gap:2px!important;
+    font-size:9px!important;
+    line-height:1.05!important;
+    overflow:visible!important;
+  }
+  #vmobileNav button span{
+    font-size:25px!important;
+    line-height:1!important;
+    margin:0!important;
+  }
   #vmobileNav [data-mobile-tab="mobileAdminHub"]{display:grid!important}
-  @media(max-width:360px){#vmobileNav button{font-size:9px!important}#vmobileNav button span{font-size:29px!important}}
+  @media(max-width:360px){
+    #vmobileNav button{font-size:8px!important}
+    #vmobileNav button span{font-size:22px!important}
+  }
 }
 </style>
 <script id="vareliaOrdersMobileVisibleFix">
