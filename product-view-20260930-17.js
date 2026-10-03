@@ -1,3 +1,29 @@
+(()=>{if(document.getElementById('vareliaProductsPolish'))return;const s=document.createElement('style');s.id='vareliaProductsPolish';s.textContent=`
+#products .head{gap:10px;margin-bottom:8px}
+#products .head h2{margin-bottom:2px}
+#products .head .notice{font-size:11px;line-height:1.3;margin-top:2px}
+#products .toolbar{margin:8px 0}
+#products .toolbar input{min-height:42px;padding:10px 12px;border-radius:12px}
+#productViewBar{display:grid;grid-template-columns:auto 1fr;gap:8px;align-items:center;margin:7px 0 11px;padding:0;background:transparent;border:0;box-shadow:none}
+#productViewBar .productViewLabel{font-size:11px;color:var(--muted);font-weight:850;white-space:nowrap}
+#productViewBar .productViewButtons{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+#productViewBar .productViewBtn{min-height:34px;padding:7px 5px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--ink);font-size:10px;font-weight:850;box-shadow:none}
+#productViewBar .productViewBtn.active{background:color-mix(in srgb,var(--p) 10%,var(--card));color:var(--p);border-color:color-mix(in srgb,var(--p) 45%,var(--line))}
+#products .chips{gap:6px;margin:7px 0 10px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:2px}
+#products .chip{padding:7px 11px;font-size:11px;border-radius:999px;white-space:nowrap}
+@media(max-width:560px){
+ #products .head{align-items:flex-start}
+ #products .head>div:first-child{min-width:0}
+ #products .catalogHeadActions{margin-top:2px}
+ #products .flowRole{margin-bottom:8px}
+ #products .toolbar{margin:7px 0}
+ #productViewBar{grid-template-columns:1fr;margin-top:6px}
+ #productViewBar .productViewLabel{display:none}
+ #productViewBar .productViewButtons{gap:4px}
+ #productViewBar .productViewBtn{min-height:32px;font-size:10px;padding:6px 4px}
+}
+`;document.head.appendChild(s)})();
+
 (()=>{const section=document.getElementById('products');const grid=document.getElementById('productGrid');if(section&&grid&&!document.getElementById('productViewBar')){const toolbar=section.querySelector('.toolbar');const bar=document.createElement('div');bar.id='productViewBar';bar.className='productViewBar';bar.innerHTML='<span class="productViewLabel">Ver productos como</span><div class="productViewButtons"><button type="button" class="productViewBtn" data-product-view="list">☰ Lista</button><button type="button" class="productViewBtn" data-product-view="grid">▦ Cuadrícula</button><button type="button" class="productViewBtn" data-product-view="compact">▥ Compacta</button></div>';toolbar.insertAdjacentElement('afterend',bar);const key='miNegocio_productView_v1';const valid=['list','grid','compact'];function apply(mode){if(!valid.includes(mode))mode='grid';grid.classList.remove('view-list','view-grid','view-compact');grid.classList.add('view-'+mode);bar.querySelectorAll('[data-product-view]').forEach(b=>b.classList.toggle('active',b.dataset.productView===mode));try{localStorage.setItem(key,mode)}catch{}}bar.addEventListener('click',e=>{const b=e.target.closest('[data-product-view]');if(b)apply(b.dataset.productView)});let saved='grid';try{saved=localStorage.getItem(key)||'grid'}catch{}apply(saved)}})();
 
 (()=>{
