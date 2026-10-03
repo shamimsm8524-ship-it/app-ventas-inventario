@@ -18,7 +18,28 @@ const SUPABASE_KEY=atob('c2JfcHVibGlzaGFibGVfYnoyejV1Z2xmX0VBTEplenF2NHJDd19TNzN
 const CALLBACK='https://vareliastore.tech/auth-callback.html';
 const HOME='https://vareliastore.tech/';
 const msg=document.getElementById('msg');
-const goHome=()=>location.replace(HOME+'?login=ok&t='+Date.now());
+
+function goHome(session){
+  const android=/Android/i.test(navigator.userAgent||'');
+  if(android&&session?.access_token&&session?.refresh_token){
+    const q=new URLSearchParams({
+      access_token:session.access_token,
+      refresh_token:session.refresh_token
+    }).toString();
+    const intent='intent://auth?'+q+'#Intent;scheme=varelia;package=tech.vareliastore.app;end';
+
+    msg.innerHTML='Inicio correcto.<br><b>Volviendo a la app Varelia...</b><br><button id="openVareliaApp" style="margin-top:14px;border:0;border-radius:12px;padding:12px 16px;background:#be185d;color:#fff;font-weight:900">Abrir Varelia</button>';
+    const open=()=>{location.href=intent};
+    document.getElementById('openVareliaApp')?.addEventListener('click',open);
+    setTimeout(open,180);
+    setTimeout(()=>{
+      // Si Android/Chrome impide el salto automático, dejamos el botón visible.
+      msg.querySelector('b').textContent='Toca “Abrir Varelia” para volver a la app.';
+    },1300);
+    return;
+  }
+  location.replace(HOME+'?login=ok&t='+Date.now());
+}
 try{
   // Primero aceptar un retorno OAuth sin PKCE. Esto evita fallos en navegadores
   // móviles/in-app que cambian de contexto y pierden el code_verifier.
@@ -26,14 +47,14 @@ try{
   await new Promise(r=>setTimeout(r,80));
   let {data:implicitData,error:implicitError}=await implicit.auth.getSession();
   if(implicitError)throw implicitError;
-  if(implicitData?.session){goHome();return;}
+  if(implicitData?.session){goHome(implicitData.session);return;}
 
   const code=new URLSearchParams(location.search).get('code');
   if(code){
     const pkce=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce'}});
     msg.textContent='Completando inicio con Google...';
     const {data,error}=await pkce.auth.exchangeCodeForSession(code);
-    if(!error&&data?.session){goHome();return;}
+    if(!error&&data?.session){goHome(data.session);return;}
 
     // Si el navegador perdió el verificador PKCE, iniciar un segundo intento
     // desde este mismo contexto usando el flujo compatible con SPA.
