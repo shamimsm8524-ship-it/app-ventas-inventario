@@ -526,7 +526,7 @@ saleSearch.oninput=()=>{
   saleResults.innerHTML=list.map(p=>{
     const existing=cart.filter(i=>String(i.id)===String(p.id));
     const inQty=existing.reduce((a,i)=>a+Number(i.qty||0),0);
-    return `<button type="button" class="btn secondary" data-saleadd="${p.id}" style="width:100%;display:flex;justify-content:space-between;align-items:center;margin:6px 0"><span>${esc(p.name)}</span><b>${existing.length?'Agregar más · en carrito '+(inQty<1?Math.round(inQty*1000)+' g':inQty):'Agregar'}</b></button>`
+    return `<button type="button" class="btn secondary" data-saleadd="${p.id}" style="width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;margin:6px 0;padding:14px 16px;text-align:left"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:850">${esc(p.name)}</span><span style="max-width:170px;text-align:right;font-size:14px;line-height:1.15;color:var(--p);font-weight:850">${existing.length?(inQty<1?'En carrito: '+Math.round(inQty*1000)+' g · + Agregar más':'En carrito: '+inQty+' · + Agregar más'):'+ Agregar'}</span></button>`
   }).join('');
 };
 saleSearch.addEventListener('focus',()=>{if(!saleSearch.value.trim())saleSearch.oninput()});
