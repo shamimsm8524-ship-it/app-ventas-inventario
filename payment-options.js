@@ -17,6 +17,13 @@
     #vareliaPaymentPanel .vpayHead{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:10px}
     #vareliaPaymentPanel .vpayHead b{font-size:13px}
     #vposPaymentMethod{width:100%;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);padding:12px;font-weight:850;font-size:15px}
+    #vpayNativePicker{position:relative}
+    #vpayNativeMethodButton{width:100%;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);padding:13px 14px;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:space-between}
+    #vpayNativeMethodMenu{display:none;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:9999;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 45px rgba(15,23,42,.22);overflow:hidden}
+    #vpayNativeMethodMenu.show{display:block}
+    #vpayNativeMethodMenu button{display:flex;width:100%;align-items:center;justify-content:space-between;border:0;border-bottom:1px solid var(--line);background:var(--card);color:var(--ink);padding:14px 15px;text-align:left;font-weight:850;font-size:15px}
+    #vpayNativeMethodMenu button:last-child{border-bottom:0}
+    #vpayNativeMethodMenu button.active{color:var(--p);background:color-mix(in srgb,var(--p) 8%,var(--card))}
     #vareliaPaymentDetail{margin-top:12px}
     .vpayQrBox{text-align:center;padding:14px;border:1px dashed var(--line);border-radius:15px;background:var(--card)}
     .vpayQrBox img{display:block;width:min(280px,80vw);height:auto;max-height:280px;object-fit:contain;margin:0 auto 10px;border-radius:12px;background:#fff;padding:8px}
@@ -101,6 +108,48 @@
     return settings;
   }
 
+  function isNativeAndroid(){
+    try{return !!window.VareliaAndroid?.isNativeApp?.()}catch{}
+    try{return new URL(location.href).searchParams.has('native_app')}catch{}
+    return false;
+  }
+
+  function ensureNativePaymentPicker(sel,methods){
+    if(!sel)return;
+    let picker=document.getElementById('vpayNativePicker');
+    if(!isNativeAndroid()){
+      sel.style.display='';
+      if(picker)picker.remove();
+      return;
+    }
+    sel.style.display='none';
+    if(!picker){
+      picker=document.createElement('div');
+      picker.id='vpayNativePicker';
+      picker.innerHTML='<button type="button" id="vpayNativeMethodButton"><span></span><b>⌄</b></button><div id="vpayNativeMethodMenu"></div>';
+      sel.insertAdjacentElement('afterend',picker);
+      const button=picker.querySelector('#vpayNativeMethodButton'),menu=picker.querySelector('#vpayNativeMethodMenu');
+      button.onclick=e=>{e.preventDefault();e.stopPropagation();menu.classList.toggle('show')};
+      menu.onclick=e=>{
+        const option=e.target.closest('[data-vpay-native-method]');if(!option)return;
+        e.preventDefault();e.stopPropagation();
+        const value=String(option.dataset.vpayNativeMethod||'');
+        if(value&&[...sel.options].some(o=>o.value===value)){
+          sel.value=value;
+          try{localStorage.setItem('varelia_last_payment_method',value)}catch{}
+          sel.dispatchEvent(new Event('change',{bubbles:true}));
+        }
+        menu.classList.remove('show');
+      };
+      document.addEventListener('click',e=>{if(!e.target.closest('#vpayNativePicker'))menu.classList.remove('show')},true);
+    }
+    const button=picker.querySelector('#vpayNativeMethodButton'),menu=picker.querySelector('#vpayNativeMethodMenu');
+    if(button)button.querySelector('span').textContent=sel.value||methods[0]||'Efectivo';
+    if(menu){
+      menu.innerHTML=methods.map(m=>'<button type="button" data-vpay-native-method="'+esc(m)+'" class="'+(m===sel.value?'active':'')+'"><span>'+esc(m)+'</span><span>'+(m===sel.value?'●':'○')+'</span></button>').join('');
+    }
+  }
+
   function methodList(){
     const list=Array.isArray(settings?.payment_methods)?settings.payment_methods:[];
     const merged=[];
@@ -129,15 +178,20 @@
     const previous=sel.value||localStorage.getItem('varelia_last_payment_method')||'Efectivo';
     const methods=methodList();
     const signature=methods.join('|');
-    if(sel.dataset.vareliaMethods===signature&&sel.options.length===methods.length)return true;
-    sel.dataset.vareliaMethods=signature;
-    sel.innerHTML=methods.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join('');
-    sel.value=methods.includes(previous)?previous:methods[0]||'Efectivo';
+    if(sel.dataset.vareliaMethods!==signature||sel.options.length!==methods.length){
+      sel.dataset.vareliaMethods=signature;
+      sel.innerHTML=methods.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join('');
+      sel.value=methods.includes(previous)?previous:methods[0]||'Efectivo';
+    }else if(methods.includes(previous)&&sel.value!==previous){
+      sel.value=previous;
+    }
     sel.disabled=false;
     sel.onchange=()=>{
       try{localStorage.setItem('varelia_last_payment_method',sel.value)}catch{}
+      ensureNativePaymentPicker(sel,methods);
       renderPaymentDetail();
     };
+    ensureNativePaymentPicker(sel,methods);
     const mt=document.getElementById('vpayMixedToggle');
     if(mt&&!mt.dataset.bound){mt.dataset.bound='1';mt.onchange=renderPaymentDetail;}
     renderPaymentDetail();
