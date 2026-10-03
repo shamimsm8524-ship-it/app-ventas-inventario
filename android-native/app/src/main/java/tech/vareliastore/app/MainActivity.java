@@ -49,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.20";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -92,6 +93,7 @@ public class MainActivity extends AppCompatActivity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
+        s.setCacheMode(WebSettings.LOAD_NO_CACHE);
         s.setAllowFileAccess(true);
         s.setAllowContentAccess(true);
         s.setMediaPlaybackRequiresUserGesture(false);
@@ -109,6 +111,7 @@ public class MainActivity extends AppCompatActivity {
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
 
+        webView.clearCache(true);
         webView.addJavascriptInterface(new NativeBridge(), "VareliaAndroid");
 
         webView.setWebViewClient(new WebViewClient() {
@@ -205,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         Uri launch = getIntent() != null ? getIntent().getData() : null;
-        if (!handleIncomingUri(launch)) webView.loadUrl(HOME);
+        if (!handleIncomingUri(launch)) webView.loadUrl(HOME_FRESH);
     }
 
     private boolean handleIncomingUri(Uri uri) {
