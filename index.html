@@ -637,7 +637,7 @@ render();
 <script src="dashboard-premium-summary.js?v=20260902-1"></script>
 <script src="reminder-alarm.js?v=20260819-1"></script>
 <script src="barcode-tools.js?v=20260819-5"></script>
-<script src="scanner-fix.js?v=20261002-torch-compat-v44"></script>
+<script src="scanner-fix.js?v=20261002-torch-chrome-v45"></script>
 <script>
 document.querySelectorAll('[title]').forEach(el=>el.removeAttribute('title'));
 new MutationObserver(()=>document.querySelectorAll('[title]').forEach(el=>el.removeAttribute('title'))).observe(document.body,{attributes:true,subtree:true,attributeFilter:['title']});
@@ -669,7 +669,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js?v=20261002-torch-compat-v44',{updateViaCache:'none'});
+  navigator.serviceWorker.register('/sw.js?v=20261002-torch-chrome-v45',{updateViaCache:'none'});
 }
 </script>
 <script id="vareliaReaderTruthGuardV1">
