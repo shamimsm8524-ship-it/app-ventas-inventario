@@ -9,11 +9,11 @@
 
     const style=document.createElement('style');
     style.textContent=`
-      .catalogViewBar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:6px 0 12px;flex-wrap:wrap}
-      .catalogViewLabel{font-size:11px;color:var(--muted);font-weight:850}
-      .catalogViewButtons{display:flex;gap:4px;padding:3px;background:transparent;border:0;border-radius:12px;box-shadow:none}
-      .catalogViewBtn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:11px;padding:7px 9px;font-size:11px;font-weight:850;white-space:nowrap;min-height:34px}
-      .catalogViewBtn.active{background:color-mix(in srgb,var(--p) 10%,var(--card));color:var(--p);border-color:color-mix(in srgb,var(--p) 45%,var(--line));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--p) 10%,transparent)}
+      .catalogViewBar{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:-2px 0 14px;flex-wrap:wrap}
+      .catalogViewLabel{font-size:12px;color:var(--muted);font-weight:800}
+      .catalogViewButtons{display:flex;gap:6px;padding:4px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 18px rgba(15,23,42,.05)}
+      .catalogViewBtn{border:0;background:transparent;color:var(--muted);border-radius:10px;padding:8px 10px;font-size:12px;font-weight:900;white-space:nowrap}
+      .catalogViewBtn.active{background:var(--p);color:#fff}
 
       #grid.catalog-mode-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
       #grid.catalog-mode-list{grid-template-columns:1fr}
@@ -37,7 +37,7 @@
 
       @media(max-width:850px){#grid.catalog-mode-grid{grid-template-columns:repeat(2,minmax(0,1fr))}#grid.catalog-mode-compact{grid-template-columns:repeat(3,minmax(0,1fr))}}
       @media(max-width:560px){
-        .catalogViewBar{align-items:center;display:grid;grid-template-columns:auto 1fr;gap:7px}.catalogViewLabel{width:auto;white-space:nowrap}.catalogViewButtons{width:100%;display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.catalogViewBtn{padding:7px 4px;font-size:10px;min-height:32px}
+        .catalogViewBar{align-items:stretch}.catalogViewLabel{width:100%}.catalogViewButtons{width:100%;display:grid;grid-template-columns:repeat(3,1fr)}.catalogViewBtn{padding:9px 5px}
         #grid.catalog-mode-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
         #grid.catalog-mode-grid .body{padding:10px}#grid.catalog-mode-grid .body h2{font-size:14px}#grid.catalog-mode-grid .price{font-size:17px}#grid.catalog-mode-grid .available{font-size:9px;padding:5px 6px}#grid.catalog-mode-grid .choose{font-size:11px;padding:9px 7px}
         #grid.catalog-mode-list .product{grid-template-columns:112px minmax(0,1fr);min-height:132px}
@@ -50,7 +50,7 @@
 
     const bar=document.createElement('div');
     bar.className='catalogViewBar';
-    bar.innerHTML='<span class="catalogViewLabel">Ver productos como</span><div class="catalogViewButtons"><button type="button" class="catalogViewBtn" data-catalog-view="list">☰ Lista</button><button type="button" class="catalogViewBtn" data-catalog-view="grid">▦ Cuadrícula</button><button type="button" class="catalogViewBtn" data-catalog-view="compact">▥ Compacta</button></div>';
+    bar.innerHTML='<span class="catalogViewLabel">Cómo ver el catálogo</span><div class="catalogViewButtons"><button type="button" class="catalogViewBtn" data-catalog-view="grid">▦ Cuadrícula</button><button type="button" class="catalogViewBtn" data-catalog-view="list">☰ Lista</button><button type="button" class="catalogViewBtn" data-catalog-view="compact">▥ Compacto</button></div>';
     chips.insertAdjacentElement('afterend',bar);
 
     const key='varelia_catalog_view_mode_v1';
