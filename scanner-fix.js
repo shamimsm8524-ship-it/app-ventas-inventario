@@ -275,6 +275,25 @@
         return false;
       }
     }
+    window.VareliaNativeAddSaleAndSummary=(raw)=>{
+      try{
+        const code=norm(raw),p=findProduct(code);
+        if(!p)return '⚠ Código '+code+' no vinculado.\n\n'+nativeScannerSummary();
+        const med=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
+        const weight=/^(kg|kilo|kilos|kilogramo|kilogramos|g|gr|gramo|gramos)$/i.test(String(p.unit||'').trim());
+        if(med)return '⚠ '+(p.name||'Medicamento')+' requiere elegir presentación.\n\n'+nativeScannerSummary();
+        if(weight)return '⚠ '+(p.name||'Producto')+' requiere elegir peso.\n\n'+nativeScannerSummary();
+        addToCart(p,1);
+        try{enhanceCart()}catch{}
+        try{renderCart()}catch{}
+        try{renderScannerCart()}catch{}
+        try{window.VareliaPOS?.sync?.()}catch{}
+        return nativeScannerSummary();
+      }catch(e){
+        console.error(e);
+        return '⚠ No se pudo agregar el producto.\n\n'+nativeScannerSummary();
+      }
+    };
     window.VareliaNativeScanResult=(which,raw)=>{
       target=which||target;
       finishing=false;
