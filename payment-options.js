@@ -169,7 +169,7 @@
       const total=currentSaleTotal();
       detail.innerHTML='<div class="vpayCash"><label>Monto recibido (S/)</label><input id="vpayReceived" type="number" inputmode="decimal" min="0" step="0.10" placeholder="0.00"><div class="vpayChange"><span>Vuelto</span><strong id="vpayChange">S/ 0.00</strong></div><small id="vpayCashMsg" style="color:var(--muted)"></small></div>';
       const inp=document.getElementById('vpayReceived'),out=document.getElementById('vpayChange'),msg=document.getElementById('vpayCashMsg');
-      const calc=()=>{const received=Number(inp.value)||0,change=received-total;out.textContent='S/ '+Math.max(0,change).toFixed(2);msg.textContent=received>0&&received<total?'Faltan S/ '+(total-received).toFixed(2):'';out.style.color=received>=total?'var(--p)':'#b91c1c'};
+      const calc=()=>{const received=Number(inp.value)||0,liveTotal=currentSaleTotal(),change=received-liveTotal;out.textContent='S/ '+Math.max(0,change).toFixed(2);msg.textContent=received>0&&received<liveTotal?'Faltan S/ '+(liveTotal-received).toFixed(2):'';out.style.color=received>=liveTotal?'var(--p)':'#b91c1c'};
       inp.oninput=calc;calc();return;
     }
 
