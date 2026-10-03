@@ -252,8 +252,25 @@
           <button class="vsettingsAction primary" id="vsettingsSave">Guardar configuración</button>
         `;
         sec.querySelector('#vsetLogo').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.logo=v;sec.querySelector('#vLogoPreview').src=v}};
-        sec.querySelector('#vsetYapeQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.yapeQr=v;sec.querySelector('#vYapePreview').src=v}};
-        sec.querySelector('#vsetPlinQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.plinQr=v;sec.querySelector('#vPlinPreview').src=v}};
+        const persistQrNow=async(kind,v)=>{
+          if(!v)return;
+          if(kind==='yape')cfg.yapeQr=v;else cfg.plinQr=v;
+          const holderId=kind==='yape'?'#vsetYapeHolder':'#vsetPlinHolder';
+          const holder=sec.querySelector(holderId)?.value?.trim()||'';
+          if(kind==='yape')cfg.yapeHolder=holder;else cfg.plinHolder=holder;
+          cfg.transferDetails=sec.querySelector('#vsetTransferDetails')?.value?.trim()||cfg.transferDetails||'';
+          saveCfg();
+          window.dispatchEvent(new CustomEvent('varelia:payment-settings-changed',{detail:{kind}}));
+          try{
+            const synced=await pushCloudPaymentSettings();
+            window.vareliaToast?.(synced?'QR de '+(kind==='yape'?'Yape':'Plin')+' guardado.':'QR guardado en este dispositivo.','ok');
+          }catch(err){
+            console.error('Varelia QR autosave',err);
+            window.vareliaToast?.('QR guardado en el teléfono; falta sincronizarlo con la nube.','warn');
+          }
+        };
+        sec.querySelector('#vsetYapeQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.yapeQr=v;sec.querySelector('#vYapePreview').src=v;await persistQrNow('yape',v)}};
+        sec.querySelector('#vsetPlinQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.plinQr=v;sec.querySelector('#vPlinPreview').src=v;await persistQrNow('plin',v)}};
         sec.querySelector('#vsettingsSave').onclick=async()=>{
           cfg.businessName=sec.querySelector('#vsetBusiness').value.trim();cfg.businessSlogan=sec.querySelector('#vsetBusinessSlogan').value.trim();cfg.ruc=sec.querySelector('#vsetRuc').value.trim();cfg.phone=sec.querySelector('#vsetPhone').value.trim();cfg.address=sec.querySelector('#vsetAddress').value.trim();cfg.businessHours=sec.querySelector('#vsetBusinessHours').value.trim();cfg.publicMapUrl=sec.querySelector('#vsetMapUrl').value.trim();cfg.publicAllowDelivery=sec.querySelector('#vsetAllowDelivery').checked;cfg.publicAllowPickup=sec.querySelector('#vsetAllowPickup').checked;cfg.deliveryInDriveEnabled=sec.querySelector('#vsetInDriveEnabled').checked;cfg.deliveryInDriveCost=Math.max(0,Number(sec.querySelector('#vsetInDriveCost').value)||0);cfg.deliveryOlvaEnabled=sec.querySelector('#vsetOlvaEnabled').checked;cfg.deliveryOlvaCost=Math.max(0,Number(sec.querySelector('#vsetOlvaCost').value)||0);cfg.deliveryShalomEnabled=sec.querySelector('#vsetShalomEnabled').checked;cfg.deliveryShalomCost=Math.max(0,Number(sec.querySelector('#vsetShalomCost').value)||0);cfg.deliveryShalomPayAgency=sec.querySelector('#vsetShalomPayAgency').checked;cfg.publicPaymentMethods=[...sec.querySelectorAll('[data-public-payment]:checked')].map(x=>x.dataset.publicPayment).join(',');cfg.ticketMessage=sec.querySelector('#vsetMessage').value.trim()||DEFAULTS.ticketMessage;cfg.currency=sec.querySelector('#vsetCurrency').value;cfg.socialTikTok=sec.querySelector('#vsetTikTok').value.trim();cfg.socialFacebook=sec.querySelector('#vsetFacebook').value.trim();cfg.socialInstagram=sec.querySelector('#vsetInstagram').value.trim();cfg.socialWhatsApp=sec.querySelector('#vsetWhatsApp').value.trim();cfg.socialYouTube=sec.querySelector('#vsetYouTube').value.trim();cfg.socialOther=sec.querySelector('#vsetSocialOther').value.trim();cfg.yapeHolder=sec.querySelector('#vsetYapeHolder').value.trim();cfg.plinHolder=sec.querySelector('#vsetPlinHolder').value.trim();cfg.transferDetails=sec.querySelector('#vsetTransferDetails').value.trim();cfg.thermalWidth=sec.querySelector('#vsetThermal').value;cfg.autoBarcode=sec.querySelector('#vsetAutoBarcode').checked;cfg.enableVariants=sec.querySelector('#vsetVariants').checked;saveCfg();applyBusinessName();setupProductExtras(true);window.dispatchEvent(new CustomEvent('varelia:catalog-settings-changed'));try{window.vareliaPublicCatalogSync?.()}catch{}
           const btn=sec.querySelector('#vsettingsSave');if(btn)btn.disabled=true;
