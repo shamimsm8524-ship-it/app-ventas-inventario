@@ -251,11 +251,7 @@
         const isMedicine=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());
         const isWeight=/^(kg|kilo|kilos|kilogramo|kilogramos|g|gr|gramo|gramos)$/i.test(String(p.unit||'').trim());
 
-        // El escaneo para venta siempre debe crear y mostrar el carrito real.
-        try{
-          if(typeof openSale==='function' && (!saleDialog || !saleDialog.open)) openSale(false);
-        }catch(e){console.warn('No se pudo abrir el carrito antes de agregar',e)}
-
+        // Durante el escaneo mantenemos el carrito visible dentro de esta misma ventana.
         addToCart(p,1);
         try{enhanceCart()}catch{}
         try{renderCart()}catch{}
@@ -305,10 +301,11 @@
           }
           finishing=false;
 
-          // Deja visible el carrito para revisar cantidad, total y cobrar.
+          // Mantén abierta esta misma ventana y sigue escaneando.
           if(added&&!med&&!weight){
-            try{if(dialog?.open)dialog.close()}catch{}
-            try{if(typeof openSale==='function' && (!saleDialog || !saleDialog.open))openSale(false)}catch(e){console.warn(e)}
+            try{renderScannerCart()}catch{}
+            await sleep(220);
+            try{await startCamera()}catch(e){console.warn(e)}
           }
           return;
         }
