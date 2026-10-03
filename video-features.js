@@ -49,9 +49,12 @@
         if(error)throw error;
         const cloudYape=String(data?.yape_qr_data||data?.payment_qr_yape||'');
         const cloudPlin=String(data?.plin_qr_data||data?.payment_qr_plin||'');
-        const hadLocalYape=!!cfg.yapeQr,hadLocalPlin=!!cfg.plinQr;
-        if(cloudYape)cfg.yapeQr=cloudYape;
-        if(cloudPlin)cfg.plinQr=cloudPlin;
+        const localYape=String(cfg.yapeQr||'');
+        const localPlin=String(cfg.plinQr||'');
+        const hadLocalYape=!!localYape,hadLocalPlin=!!localPlin;
+        // Nunca pisar un QR específico ya elegido en este dispositivo con una copia antigua de la nube.
+        if(!hadLocalYape&&cloudYape)cfg.yapeQr=cloudYape;
+        if(!hadLocalPlin&&cloudPlin)cfg.plinQr=cloudPlin;
         if(data?.payment_holder){
           if(!cfg.yapeHolder)cfg.yapeHolder=String(data.payment_holder);
           if(!cfg.plinHolder)cfg.plinHolder=String(data.payment_holder);
@@ -63,8 +66,11 @@
         const yh=document.getElementById('vsetYapeHolder'),ph=document.getElementById('vsetPlinHolder'),td=document.getElementById('vsetTransferDetails');
         if(yh&&!yh.value)yh.value=cfg.yapeHolder||'';if(ph&&!ph.value)ph.value=cfg.plinHolder||'';if(td&&!td.value)td.value=cfg.transferDetails||'';
         window.VareliaSaleExtrasUpdate?.();
-        // Migración automática: si el QR sólo existía en este dispositivo, súbelo a la cuenta del negocio.
-        if(ctx.role==='owner'&&((hadLocalYape&&!cloudYape)||(hadLocalPlin&&!cloudPlin)))await pushCloudPaymentSettings(ctx);
+        // Si el QR local falta en nube o es distinto, el QR elegido por el dueño en la APK gana y se sincroniza.
+        if(ctx.role==='owner'&&(
+          (hadLocalYape&&localYape!==cloudYape)||
+          (hadLocalPlin&&localPlin!==cloudPlin)
+        ))await pushCloudPaymentSettings(ctx);
         return true;
       })().catch(err=>{console.warn('Varelia cloud payment sync',err);return false});
       return cloudPaymentSyncPromise;
