@@ -3,10 +3,10 @@
   window.__vareliaPaymentOptionsV2=true;
 
   const METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta'];
-  const QR_YAPE_STORE='varelia_qr_yape_v2';
-  const QR_PLIN_STORE='varelia_qr_plin_v2';
-  const QR_YAPE_HOLDER_STORE='varelia_qr_yape_holder_v2';
-  const QR_PLIN_HOLDER_STORE='varelia_qr_plin_holder_v2';
+  const QR_YAPE_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_yape_v2'):'varelia_qr_yape_v2__no_account';
+  const QR_PLIN_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_plin_v2'):'varelia_qr_plin_v2__no_account';
+  const QR_YAPE_HOLDER_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_yape_holder_v2'):'varelia_qr_yape_holder_v2__no_account';
+  const QR_PLIN_HOLDER_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_plin_holder_v2'):'varelia_qr_plin_holder_v2__no_account';
   const toast=(m,t='warn')=>window.vareliaToast?window.vareliaToast(m,t):alert(m);
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   let sb=null,profile=null,businessId='',settings=null,pendingSale=null;
@@ -138,7 +138,7 @@
         const value=String(option.dataset.vpayNativeMethod||'');
         if(value&&[...sel.options].some(o=>o.value===value)){
           sel.value=value;
-          try{localStorage.setItem('varelia_last_payment_method',value)}catch{}
+          try{localStorage.setItem((window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_payment_method'):'varelia_last_payment_method__no_account'),value)}catch{}
           sel.dispatchEvent(new Event('change',{bubbles:true}));
         }
         menu.classList.remove('show');
@@ -177,7 +177,7 @@
 
     const sel=document.getElementById('vposPaymentMethod');
     if(!sel)return false;
-    const previous=sel.value||localStorage.getItem('varelia_last_payment_method')||'Efectivo';
+    const previous=sel.value||localStorage.getItem((window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_payment_method'):'varelia_last_payment_method__no_account'))||'Efectivo';
     const methods=methodList();
     const signature=methods.join('|');
     if(sel.dataset.vareliaMethods!==signature||sel.options.length!==methods.length){
@@ -189,7 +189,7 @@
     }
     sel.disabled=false;
     sel.onchange=()=>{
-      try{localStorage.setItem('varelia_last_payment_method',sel.value)}catch{}
+      try{localStorage.setItem((window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_payment_method'):'varelia_last_payment_method__no_account'),sel.value)}catch{}
       ensureNativePaymentPicker(sel,methods);
       renderPaymentDetail();
     };
@@ -216,7 +216,7 @@
       addRow(methods.includes(method)?method:methods[0]);addRow(methods.find(m=>m!==method)||methods[0]);
       document.getElementById('vpayAddMixed').onclick=()=>addRow(methods[0]);return;
     }
-    let local={};try{local=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}
+    let local={};try{local=JSON.parse(localStorage.getItem((window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_video_settings_v1'):'varelia_video_settings_v1__no_account'))||'{}')}catch{}
     const live=window.vareliaVideoSettings||{};
     const previewYape=document.getElementById('vYapePreview')?.src||'';
     const previewPlin=document.getElementById('vPlinPreview')?.src||'';
@@ -394,7 +394,7 @@
     if(snap.missing>.005){toast('Faltan S/ '+snap.missing.toFixed(2)+' para completar el pago.');return false}
     pendingSale={...snap,before,at:Date.now()};
     window.VareliaPaymentSnapshot={...snap,at:Date.now()};
-    try{localStorage.setItem('varelia_last_payment_method',pendingSale.method)}catch{}
+    try{localStorage.setItem((window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_payment_method'):'varelia_last_payment_method__no_account'),pendingSale.method)}catch{}
     setTimeout(applyPaymentToSale,80);setTimeout(applyPaymentToSale,220);setTimeout(applyPaymentToSale,500);setTimeout(applyPaymentToSale,1000);
     return true;
   }
