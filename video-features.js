@@ -5,10 +5,27 @@
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn();
   ready(()=>{
     const STORE='varelia_video_settings_v1';
+    const QR_YAPE_STORE='varelia_qr_yape_v2';
+    const QR_PLIN_STORE='varelia_qr_plin_v2';
+    const QR_YAPE_HOLDER_STORE='varelia_qr_yape_holder_v2';
+    const QR_PLIN_HOLDER_STORE='varelia_qr_plin_holder_v2';
     const DEFAULTS={businessName:'',businessSlogan:'',logo:'',ruc:'',phone:'',address:'',businessHours:'',publicMapUrl:'',publicAllowDelivery:true,publicAllowPickup:true,publicPaymentMethods:'Efectivo,Yape,Plin,Transferencia',deliveryInDriveEnabled:true,deliveryInDriveCost:12,deliveryOlvaEnabled:true,deliveryOlvaCost:15,deliveryShalomEnabled:true,deliveryShalomCost:0,deliveryShalomPayAgency:true,ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',transferDetails:'',thermalWidth:'80',autoBarcode:true,enableVariants:false,socialTikTok:'',socialFacebook:'',socialInstagram:'',socialWhatsApp:'',socialYouTube:'',socialOther:''};
-    const loadSettings=()=>{try{return {...DEFAULTS,...JSON.parse(localStorage.getItem(STORE)||'{}')}}catch{return {...DEFAULTS}}};
+    const loadSettings=()=>{try{
+      const base={...DEFAULTS,...JSON.parse(localStorage.getItem(STORE)||'{}')};
+      const y=localStorage.getItem(QR_YAPE_STORE),p=localStorage.getItem(QR_PLIN_STORE);
+      const yh=localStorage.getItem(QR_YAPE_HOLDER_STORE),ph=localStorage.getItem(QR_PLIN_HOLDER_STORE);
+      if(y)base.yapeQr=y;if(p)base.plinQr=p;if(yh!==null)base.yapeHolder=yh;if(ph!==null)base.plinHolder=ph;
+      return base;
+    }catch{return {...DEFAULTS}}};
     let cfg=loadSettings();
-    const saveCfg=()=>{try{localStorage.setItem(STORE,JSON.stringify(cfg));window.vareliaVideoSettings={...cfg}}catch{}};window.vareliaVideoSettings={...cfg};
+    const saveCfg=()=>{try{
+      localStorage.setItem(STORE,JSON.stringify(cfg));
+      if(cfg.yapeQr)localStorage.setItem(QR_YAPE_STORE,cfg.yapeQr);
+      if(cfg.plinQr)localStorage.setItem(QR_PLIN_STORE,cfg.plinQr);
+      localStorage.setItem(QR_YAPE_HOLDER_STORE,String(cfg.yapeHolder||''));
+      localStorage.setItem(QR_PLIN_HOLDER_STORE,String(cfg.plinHolder||''));
+      window.vareliaVideoSettings={...cfg};
+    }catch{}};window.vareliaVideoSettings={...cfg};
 
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     let cloudPaymentSyncPromise=null;
@@ -49,8 +66,8 @@
         if(error)throw error;
         const cloudYape=String(data?.yape_qr_data||data?.payment_qr_yape||'');
         const cloudPlin=String(data?.plin_qr_data||data?.payment_qr_plin||'');
-        const localYape=String(cfg.yapeQr||'');
-        const localPlin=String(cfg.plinQr||'');
+        const localYape=String(localStorage.getItem(QR_YAPE_STORE)||cfg.yapeQr||'');
+        const localPlin=String(localStorage.getItem(QR_PLIN_STORE)||cfg.plinQr||'');
         const hadLocalYape=!!localYape,hadLocalPlin=!!localPlin;
         // Nunca pisar un QR específico ya elegido en este dispositivo con una copia antigua de la nube.
         if(!hadLocalYape&&cloudYape)cfg.yapeQr=cloudYape;
@@ -260,10 +277,12 @@
         sec.querySelector('#vsetLogo').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.logo=v;sec.querySelector('#vLogoPreview').src=v}};
         const persistQrNow=async(kind,v)=>{
           if(!v)return;
-          if(kind==='yape')cfg.yapeQr=v;else cfg.plinQr=v;
+          if(kind==='yape'){cfg.yapeQr=v;localStorage.setItem(QR_YAPE_STORE,v)}
+          else{cfg.plinQr=v;localStorage.setItem(QR_PLIN_STORE,v)}
           const holderId=kind==='yape'?'#vsetYapeHolder':'#vsetPlinHolder';
           const holder=sec.querySelector(holderId)?.value?.trim()||'';
-          if(kind==='yape')cfg.yapeHolder=holder;else cfg.plinHolder=holder;
+          if(kind==='yape'){cfg.yapeHolder=holder;localStorage.setItem(QR_YAPE_HOLDER_STORE,holder)}
+          else{cfg.plinHolder=holder;localStorage.setItem(QR_PLIN_HOLDER_STORE,holder)}
           cfg.transferDetails=sec.querySelector('#vsetTransferDetails')?.value?.trim()||cfg.transferDetails||'';
           saveCfg();
           window.dispatchEvent(new CustomEvent('varelia:payment-settings-changed',{detail:{kind}}));
