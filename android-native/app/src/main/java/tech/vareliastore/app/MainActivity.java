@@ -303,11 +303,6 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(() -> Toast.makeText(MainActivity.this,
                     "PDF guardado en Descargas/Varelia", Toast.LENGTH_LONG).show());
         } catch (Exception e) {
-                    Toast.makeText(MainActivity.this,
-                            "El PDF quedó guardado en Descargas/Varelia.", Toast.LENGTH_LONG).show();
-                }
-            });
-        } catch (Exception e) {
             runOnUiThread(() -> Toast.makeText(MainActivity.this,
                     "No se pudo generar el comprobante PDF.", Toast.LENGTH_LONG).show());
         }
