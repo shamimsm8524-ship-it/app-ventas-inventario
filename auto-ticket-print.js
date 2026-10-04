@@ -9,7 +9,7 @@
   const getCart=()=>{try{return Array.isArray(cart)?cart:[]}catch{return[]}};
 
   function settings(){
-    try{return JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{return{}}
+    try{return JSON.parse(localStorage.getItem(window.vareliaScopedLocalKey('varelia_video_settings_v1'))||'{}')}catch{return{}}
   }
   function businessName(){
     const s=settings();
