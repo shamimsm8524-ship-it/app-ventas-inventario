@@ -121,32 +121,39 @@
           payFields.innerHTML='<div class="vposParts">'+PAY_METHODS.map(m=>'<label class="vposPart"><span>'+m+'</span><input type="number" min="0" step="0.10" inputmode="decimal" data-vpos-part="'+m+'" placeholder="S/ 0.00"></label>').join('')+'</div><div class="vposPayResult"><span id="vposPayStatus">Falta</span><strong id="vposPayDiff">S/ '+total.toFixed(2)+'</strong></div>';
           payFields.querySelectorAll('[data-vpos-part]').forEach(x=>x.oninput=updatePay);
         }else if(payMethod.value==='Efectivo'){
-          payFields.innerHTML='<label class="vposCashRow"><span>Me paga con</span><input id="vposCashReceived" type="number" min="0" step="0.10" inputmode="decimal" placeholder="S/ 0.00"></label><div class="vposPayResult"><span id="vposPayStatus">Vuelto</span><strong id="vposPayDiff">S/ 0.00</strong></div>';
-          root.querySelector('#vposCashReceived').oninput=updatePay;
+          payFields.innerHTML='<label class="vposCashRow"><span>Me paga con</span><input id="vposAmountReceived" type="number" min="0" step="0.10" inputmode="decimal" placeholder="Ej. 50.00"></label><div class="vposPayResult"><span id="vposPayStatus">Vuelto</span><strong id="vposPayDiff">S/ 0.00</strong></div>';
+          root.querySelector('#vposAmountReceived').oninput=updatePay;
         }else if(payMethod.value==='Yape'||payMethod.value==='Plin'){
           const info=paymentQrInfo(payMethod.value);
-          payFields.innerHTML=info.qr
+          const qrBox=info.qr
             ? '<div style="display:grid;gap:10px;text-align:center;padding:12px;border:1px dashed var(--line);border-radius:14px;background:var(--card)"><img src="'+info.qr+'" alt="QR '+payMethod.value+'" style="width:min(300px,82vw);max-height:300px;object-fit:contain;margin:auto;border-radius:12px;background:#fff;padding:8px"><b>Escanea para pagar con '+payMethod.value+'</b>'+(info.holder?'<small style="color:var(--muted)">Titular: '+esc(info.holder)+'</small>':'')+'<small style="color:var(--muted)">Total: S/ '+total.toFixed(2)+'</small></div>'
             : '<div style="padding:12px;border:1px dashed var(--line);border-radius:14px;background:var(--card);text-align:center"><b>QR de '+payMethod.value+' no configurado</b><small style="display:block;margin-top:5px;color:var(--muted)">Cárgalo en Ajustes → Métodos de pago.</small></div>';
-        }else payFields.innerHTML='<small style="color:var(--muted);font-weight:750">Se cobrará S/ '+total.toFixed(2)+' por '+payMethod.value+'.</small>';
+          payFields.innerHTML=qrBox+'<label class="vposCashRow" style="margin-top:12px"><span>Me paga con</span><input id="vposAmountReceived" type="number" min="0" step="0.10" inputmode="decimal" placeholder="Ej. 50.00"></label><div class="vposPayResult"><span id="vposPayStatus">Vuelto</span><strong id="vposPayDiff">S/ 0.00</strong></div>';
+          root.querySelector('#vposAmountReceived').oninput=updatePay;
+        }else{
+          payFields.innerHTML='<small style="display:block;color:var(--muted);font-weight:750;margin-bottom:10px">Se cobrará S/ '+total.toFixed(2)+' por '+payMethod.value+'.</small><label class="vposCashRow"><span>Me paga con</span><input id="vposAmountReceived" type="number" min="0" step="0.10" inputmode="decimal" placeholder="Ej. 50.00"></label><div class="vposPayResult"><span id="vposPayStatus">Vuelto</span><strong id="vposPayDiff">S/ 0.00</strong></div>';
+          root.querySelector('#vposAmountReceived').oninput=updatePay;
+        }
         updatePay();
       }
       function paySnapshot(){
         const total=currentTotal();let breakdown={},received=0;
         if(mixedPay.checked){
           payFields.querySelectorAll('[data-vpos-part]').forEach(x=>{const n=Math.max(0,Number(x.value)||0);if(n){breakdown[x.dataset.vposPart]=n;received+=n}});
-        }else if(payMethod.value==='Efectivo'){
-          received=Math.max(0,Number(root.querySelector('#vposCashReceived')?.value)||0);if(received)breakdown.Efectivo=received;
-        }else{received=total;breakdown[payMethod.value]=total}
+        }else{
+          received=Math.max(0,Number(root.querySelector('#vposAmountReceived')?.value)||0);
+          if(received)breakdown[payMethod.value]=received;
+        }
         const missing=Math.max(0,total-received),change=Math.max(0,received-total);
-        if(change&&breakdown.Efectivo)breakdown.Efectivo=Math.max(0,breakdown.Efectivo-change);
+        if(!mixedPay.checked&&breakdown[payMethod.value])breakdown[payMethod.value]=Math.min(total,received);
+        else if(change&&breakdown.Efectivo)breakdown.Efectivo=Math.max(0,breakdown.Efectivo-change);
         const entries=Object.entries(breakdown).filter(([,v])=>v>0);
         return {total,received,missing,change,breakdown:Object.fromEntries(entries),method:entries.length>1?'Pago mixto':(entries[0]?.[0]||payMethod.value)};
       }
       function updatePay(){
         const p=paySnapshot(),st=root.querySelector('#vposPayStatus'),df=root.querySelector('#vposPayDiff');if(!st||!df)return;
         if(mixedPay.checked){st.textContent=p.missing>0?'Falta':'Vuelto';df.textContent='S/ '+(p.missing>0?p.missing:p.change).toFixed(2);df.style.color=p.missing>0?'#b91c1c':'var(--p)'}
-        else if(payMethod.value==='Efectivo'){st.textContent=p.missing>0?'Falta':'Vuelto';df.textContent='S/ '+(p.missing>0?p.missing:p.change).toFixed(2);df.style.color=p.missing>0?'#b91c1c':'var(--p)'}
+        else{st.textContent=p.missing>0?'Falta':'Vuelto';df.textContent='S/ '+(p.missing>0?p.missing:p.change).toFixed(2);df.style.color=p.missing>0?'#b91c1c':'var(--p)'}
       }
       payMethod.onchange=renderPay;mixedPay.onchange=renderPay;
       window.addEventListener('varelia:payment-settings-changed',()=>setTimeout(renderPay,0));
