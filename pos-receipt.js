@@ -166,7 +166,26 @@
             return;
           }
         }catch(e){console.warn('Guardado PDF nativo no disponible',e)}
-        alert('No se pudo descargar el comprobante.');
+        try{
+          const jsPDF=await loadJsPDF(),items=Array.isArray(sale.items)?sale.items:[],bs=businessSettings();
+          const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[80,Math.max(150,120+items.length*16)]});
+          let y=8;
+          if(bs.logo){try{const logo=await pdfLogoData(bs.logo);if(logo){doc.addImage(logo,'JPEG',30,y,20,16,undefined,'FAST');y+=19}}catch{}}
+          doc.setFont('courier','bold');doc.setFontSize(12);doc.text(businessName(),40,y,{align:'center'});y+=5;
+          doc.setFont('courier','normal');doc.setFontSize(7);doc.text('COMPROBANTE INTERNO DE VENTA',40,y,{align:'center'});y+=4;
+          if(bs.ruc){doc.text('RUC/Doc: '+bs.ruc,40,y,{align:'center'});y+=4} if(bs.phone){doc.text('Tel: '+bs.phone,40,y,{align:'center'});y+=4} if(bs.address){doc.text(String(bs.address),40,y,{align:'center'});y+=4}
+          doc.setLineDashPattern([1,1],0);doc.line(7,y,73,y);y+=5;
+          const lr=(l,r,b)=>{doc.setFont('courier',b?'bold':'normal');doc.setFontSize(7);doc.text(String(l),7,y);doc.text(String(r||''),73,y,{align:'right'});y+=4};
+          lr('N.º',ticketNo(sale),true);lr('Fecha',dateText(sale));lr('Pago',sale.paymentMethod||'Efectivo');if(sale.sellerName)lr('Vendedor',sale.sellerName);
+          doc.line(7,y,73,y);y+=5;
+          items.forEach(i=>{const q=Number(i.qty||0),p=Number(i.price||0),weighted=i.saleType==='weight'||i.unit==='kg'||i.byWeight===true||(!Number.isInteger(q)&&q>0);lr(i.name||'Producto',money(q*p),true);if(weighted){lr('Peso: '+(q<1?Math.round(q*1000)+' g':q+' kg'),'');lr('Precio por kilo: '+money(p),'')}else lr(q+' × '+money(p),'');});
+          doc.line(7,y,73,y);y+=5;doc.setFont('courier','bold');doc.setFontSize(12);doc.text('TOTAL',7,y);doc.text(money(sale.total),73,y,{align:'right'});y+=6;doc.line(7,y,73,y);y+=5;
+          const bd=sale.paymentBreakdown&&typeof sale.paymentBreakdown==='object'?sale.paymentBreakdown:{};Object.entries(bd).filter(([,v])=>Number(v)>0).forEach(([k,v])=>lr(k,money(v),false));
+          if(Number(sale.amountReceived)>0)lr('Recibido',money(sale.amountReceived));lr('Vuelto',money(Number(sale.changeGiven)||0));
+          y+=4;doc.setFont('courier','normal');doc.setFontSize(5.5);doc.text(String(bs.ticketMessage||'Gracias por su compra.'),40,y,{align:'center',maxWidth:64});y+=3;doc.text('Este ticket es un comprobante interno y no reemplaza',40,y,{align:'center'});y+=3;doc.text('una boleta o factura electrónica SUNAT.',40,y,{align:'center'});
+          const name='comprobante-'+ticketNo(sale)+'.pdf',uri=doc.output('datauristring');
+          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function')window.VareliaAndroid.saveDataUrl(uri,name);else doc.save(name);
+        }catch(e){console.error(e);alert('No se pudo descargar el comprobante.')}
       }
             async function shareReceipt(sale){
         const text=receiptText(sale);
