@@ -15,10 +15,12 @@
           pay.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><b>💳 Forma de pago</b><select id="vposPayMethod" style="max-width:190px"><option>Efectivo</option><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta</option></select></div><label style="display:flex;gap:8px;align-items:center;font-weight:850"><input type="checkbox" id="vposMixed" style="width:18px;height:18px"> Pago mixto (combinar métodos)</label><div id="vposPayFields"></div>';
           bottom.insertBefore(pay,checkout);
           const total=()=>Number(String(existingPos.querySelector('#vposTotal')?.textContent||'').replace(/[^0-9.]/g,''))||0,method=pay.querySelector('#vposPayMethod'),mixed=pay.querySelector('#vposMixed'),fields=pay.querySelector('#vposPayFields'),methods=['Efectivo','Yape','Plin','Transferencia','Tarjeta'];
+          const qrInfo=m=>{let legacy={};try{legacy=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}const live=window.vareliaVideoSettings||{};return m==='Yape'?{qr:String(localStorage.getItem('varelia_qr_yape_v2')||live.yapeQr||legacy.yapeQr||''),holder:String(localStorage.getItem('varelia_qr_yape_holder_v2')||live.yapeHolder||legacy.yapeHolder||'')}:m==='Plin'?{qr:String(localStorage.getItem('varelia_qr_plin_v2')||live.plinQr||legacy.plinQr||''),holder:String(localStorage.getItem('varelia_qr_plin_holder_v2')||live.plinHolder||legacy.plinHolder||'')}:{qr:'',holder:''}};
           const snapshot=()=>{let received=0,breakdown={};if(mixed.checked){fields.querySelectorAll('[data-vpart]').forEach(x=>{let n=Math.max(0,+x.value||0);if(n){received+=n;breakdown[x.dataset.vpart]=n}})}else if(method.value==='Efectivo'){received=Math.max(0,+fields.querySelector('#vCash')?.value||0);if(received)breakdown.Efectivo=received}else{received=total();breakdown[method.value]=total()}let t=total(),missing=Math.max(0,t-received),change=Math.max(0,received-t);if(change&&breakdown.Efectivo)breakdown.Efectivo=Math.max(0,breakdown.Efectivo-change);return{total:t,received,missing,change,breakdown,method:Object.keys(breakdown).length>1?'Pago mixto':(Object.keys(breakdown)[0]||method.value)}};
           const update=()=>{let p=snapshot(),a=fields.querySelector('#vStat'),b=fields.querySelector('#vDiff');if(a&&b){a.textContent=p.missing>0?'Falta':'Vuelto';b.textContent='S/ '+(p.missing>0?p.missing:p.change).toFixed(2);b.style.color=p.missing>0?'#b91c1c':'var(--p)'}};
-          const render=()=>{let t=total();if(mixed.checked){fields.innerHTML=methods.map(m=>'<label style="display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;margin-top:7px"><span>'+m+'</span><input data-vpart="'+m+'" type="number" min="0" step="0.10" inputmode="decimal" placeholder="0.00"></label>').join('')+'<div style="display:flex;justify-content:space-between;font-weight:900;margin-top:10px"><span id="vStat">Falta</span><b id="vDiff">S/ '+t.toFixed(2)+'</b></div>';fields.querySelectorAll('[data-vpart]').forEach(x=>x.oninput=update)}else if(method.value==='Efectivo'){fields.innerHTML='<label style="display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;margin-top:7px"><b>Me paga con</b><input id="vCash" type="number" min="0" step="0.10" inputmode="decimal" placeholder="0.00"></label><div style="display:flex;justify-content:space-between;font-weight:900;margin-top:10px"><span id="vStat">Vuelto</span><b id="vDiff">S/ 0.00</b></div>';fields.querySelector('#vCash').oninput=update}else fields.innerHTML='<small>Se cobrará S/ '+t.toFixed(2)+' por '+method.value+'.</small>';update()};
+          const render=()=>{let t=total();if(mixed.checked){fields.innerHTML=methods.map(m=>'<label style="display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;margin-top:7px"><span>'+m+'</span><input data-vpart="'+m+'" type="number" min="0" step="0.10" inputmode="decimal" placeholder="0.00"></label>').join('')+'<div style="display:flex;justify-content:space-between;font-weight:900;margin-top:10px"><span id="vStat">Falta</span><b id="vDiff">S/ '+t.toFixed(2)+'</b></div>';fields.querySelectorAll('[data-vpart]').forEach(x=>x.oninput=update)}else if(method.value==='Efectivo'){fields.innerHTML='<label style="display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;margin-top:7px"><b>Me paga con</b><input id="vCash" type="number" min="0" step="0.10" inputmode="decimal" placeholder="0.00"></label><div style="display:flex;justify-content:space-between;font-weight:900;margin-top:10px"><span id="vStat">Vuelto</span><b id="vDiff">S/ 0.00</b></div>';fields.querySelector('#vCash').oninput=update}else if(method.value==='Yape'||method.value==='Plin'){const info=qrInfo(method.value);fields.innerHTML=info.qr?'<div style="display:grid;gap:9px;text-align:center;padding:12px;border:1px dashed var(--line);border-radius:14px;background:var(--card)"><img src="'+info.qr+'" alt="QR '+method.value+'" style="width:min(300px,82vw);max-height:300px;object-fit:contain;margin:auto;border-radius:12px;background:#fff;padding:8px"><b>Escanea para pagar con '+method.value+'</b>'+(info.holder?'<small style="color:var(--muted)">Titular: '+info.holder.replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]))+'</small>':'')+'</div>':'<small>QR de '+method.value+' no configurado. Cárgalo en Ajustes.</small>'}else fields.innerHTML='<small>Se cobrará S/ '+t.toFixed(2)+' por '+method.value+'.</small>';update()};
           method.onchange=render;mixed.onchange=render;render();
+          window.addEventListener('varelia:payment-settings-changed',()=>setTimeout(render,0));
           checkout.addEventListener('click',e=>{const p=snapshot();if(p.missing>.005){e.preventDefault();e.stopImmediatePropagation();window.vareliaToast?.('Faltan S/ '+p.missing.toFixed(2),'warn');return}window.VareliaPaymentSnapshot={...p,at:Date.now()}},true);
           new MutationObserver(render).observe(existingPos.querySelector('#vposTotal'),{childList:true,characterData:true,subtree:true});
         }
@@ -99,6 +101,19 @@
       const matches=q=>{q=norm(q);const list=allProducts();if(!q)return [];return list.filter(p=>norm(p.barcode).includes(q)||norm(p.name).includes(q)||norm(p.category).includes(q)).slice(0,12)};
 
       const PAY_METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta'];
+      const paymentQrInfo=method=>{
+        let legacy={};try{legacy=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}
+        const live=window.vareliaVideoSettings||{};
+        if(method==='Yape')return {
+          qr:String(localStorage.getItem('varelia_qr_yape_v2')||live.yapeQr||legacy.yapeQr||''),
+          holder:String(localStorage.getItem('varelia_qr_yape_holder_v2')||live.yapeHolder||legacy.yapeHolder||'')
+        };
+        if(method==='Plin')return {
+          qr:String(localStorage.getItem('varelia_qr_plin_v2')||live.plinQr||legacy.plinQr||''),
+          holder:String(localStorage.getItem('varelia_qr_plin_holder_v2')||live.plinHolder||legacy.plinHolder||'')
+        };
+        return {qr:'',holder:''};
+      };
       const currentTotal=()=>legacyRows().reduce((a,x)=>a+x.subtotal,0);
       function renderPay(){
         const total=currentTotal();
@@ -108,6 +123,11 @@
         }else if(payMethod.value==='Efectivo'){
           payFields.innerHTML='<label class="vposCashRow"><span>Me paga con</span><input id="vposCashReceived" type="number" min="0" step="0.10" inputmode="decimal" placeholder="S/ 0.00"></label><div class="vposPayResult"><span id="vposPayStatus">Vuelto</span><strong id="vposPayDiff">S/ 0.00</strong></div>';
           root.querySelector('#vposCashReceived').oninput=updatePay;
+        }else if(payMethod.value==='Yape'||payMethod.value==='Plin'){
+          const info=paymentQrInfo(payMethod.value);
+          payFields.innerHTML=info.qr
+            ? '<div style="display:grid;gap:10px;text-align:center;padding:12px;border:1px dashed var(--line);border-radius:14px;background:var(--card)"><img src="'+info.qr+'" alt="QR '+payMethod.value+'" style="width:min(300px,82vw);max-height:300px;object-fit:contain;margin:auto;border-radius:12px;background:#fff;padding:8px"><b>Escanea para pagar con '+payMethod.value+'</b>'+(info.holder?'<small style="color:var(--muted)">Titular: '+esc(info.holder)+'</small>':'')+'<small style="color:var(--muted)">Total: S/ '+total.toFixed(2)+'</small></div>'
+            : '<div style="padding:12px;border:1px dashed var(--line);border-radius:14px;background:var(--card);text-align:center"><b>QR de '+payMethod.value+' no configurado</b><small style="display:block;margin-top:5px;color:var(--muted)">Cárgalo en Ajustes → Métodos de pago.</small></div>';
         }else payFields.innerHTML='<small style="color:var(--muted);font-weight:750">Se cobrará S/ '+total.toFixed(2)+' por '+payMethod.value+'.</small>';
         updatePay();
       }
@@ -129,6 +149,7 @@
         else if(payMethod.value==='Efectivo'){st.textContent=p.missing>0?'Falta':'Vuelto';df.textContent='S/ '+(p.missing>0?p.missing:p.change).toFixed(2);df.style.color=p.missing>0?'#b91c1c':'var(--p)'}
       }
       payMethod.onchange=renderPay;mixedPay.onchange=renderPay;
+      window.addEventListener('varelia:payment-settings-changed',()=>setTimeout(renderPay,0));
 
       function legacyRows(){
         try{
