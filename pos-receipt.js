@@ -81,10 +81,17 @@
       const ticketNo=sale=>sale.receiptNumber||('V-'+String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-10).toUpperCase());
       const dateText=sale=>new Date(sale.date||Date.now()).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'});
       let currentReceipt=null;
+      const paymentDetailHTML=sale=>{
+        const b=sale&&sale.paymentBreakdown&&typeof sale.paymentBreakdown==='object'?sale.paymentBreakdown:{};
+        const rows=Object.entries(b).filter(([,v])=>Number(v)>0).map(([k,v])=>`<div class="vreceiptLine"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('');
+        const received=Number.isFinite(Number(sale?.amountReceived))&&Number(sale?.amountReceived)>0?`<div class="vreceiptLine"><span>Recibido</span><b>${money(sale.amountReceived)}</b></div>`:'';
+        const change=Number.isFinite(Number(sale?.changeGiven))&&Number(sale?.changeGiven)>=0?`<div class="vreceiptLine"><span>Vuelto</span><b>${money(sale.changeGiven)}</b></div>`:'';
+        return rows||received||change?`<div class="vreceiptSep"></div>${rows}${received}${change}`:'';
+      };
 
       function receiptHTML(sale){
         const items=Array.isArray(sale.items)?sale.items:[],bs=businessSettings(),subtotal=Number(sale.subtotal??((Number(sale.total)||0)+(Number(sale.discount)||0)));
-        return `<div class="vreceiptPaper">${bs.logo?`<div class="center"><img src="${bs.logo}" alt="" style="max-width:74px;max-height:50px;object-fit:contain;margin-bottom:6px"></div>`:''}<h3>${esc(businessName())}</h3><div class="center muted">COMPROBANTE INTERNO DE VENTA</div>${bs.ruc?`<div class="center muted">RUC/Doc: ${esc(bs.ruc)}</div>`:''}${bs.phone?`<div class="center muted">Tel: ${esc(bs.phone)}</div>`:''}${bs.address?`<div class="center muted">${esc(bs.address)}</div>`:''}<div class="vreceiptSep"></div><div class="vreceiptLine"><span>N.º</span><b>${esc(ticketNo(sale))}</b></div><div class="vreceiptLine"><span>Fecha</span><span>${esc(dateText(sale))}</span></div><div class="vreceiptLine"><span>Pago</span><span>${esc(sale.paymentMethod||'Efectivo')}</span></div>${sale.customerName?`<div class="vreceiptLine"><span>Cliente</span><span>${esc(sale.customerName)}</span></div>`:''}${sale.sellerName?`<div class="vreceiptLine"><span>Vendedor</span><span>${esc(sale.sellerName)}</span></div>`:''}<div class="vreceiptSep"></div>${items.map(i=>`<div class="vreceiptLine"><div><div class="vreceiptItemName">${esc(i.name||'Producto')}</div><div class="vreceiptItemMeta">${Number(i.qty||0)} × ${money(i.price)}</div></div><b>${money(Number(i.qty||0)*Number(i.price||0))}</b></div>`).join('')}${Number(sale.discount)>0?`<div class="vreceiptSep"></div><div class="vreceiptLine"><span>Subtotal</span><span>${money(subtotal)}</span></div><div class="vreceiptLine"><span>Descuento</span><span>-${money(sale.discount)}</span></div>`:''}<div class="vreceiptSep"></div><div class="vreceiptTotal"><span>TOTAL</span><span>${money(sale.total)}</span></div>${sale.paymentMethod==='Fiado'?`<div class="center muted" style="margin-top:8px">Venta al crédito · Saldo: ${money(Math.max(0,(Number(sale.total)||0)-(Number(sale.paidAmount)||0)))}</div>`:''}${sale.notes?`<div class="center muted" style="margin-top:8px">Nota: ${esc(sale.notes)}</div>`:''}<div class="vreceiptDisclaimer">${esc(bs.ticketMessage||'Gracias por su compra.')}<br>Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.</div></div>`;
+        return `<div class="vreceiptPaper">${bs.logo?`<div class="center"><img src="${bs.logo}" alt="" style="max-width:74px;max-height:50px;object-fit:contain;margin-bottom:6px"></div>`:''}<h3>${esc(businessName())}</h3><div class="center muted">COMPROBANTE INTERNO DE VENTA</div>${bs.ruc?`<div class="center muted">RUC/Doc: ${esc(bs.ruc)}</div>`:''}${bs.phone?`<div class="center muted">Tel: ${esc(bs.phone)}</div>`:''}${bs.address?`<div class="center muted">${esc(bs.address)}</div>`:''}<div class="vreceiptSep"></div><div class="vreceiptLine"><span>N.º</span><b>${esc(ticketNo(sale))}</b></div><div class="vreceiptLine"><span>Fecha</span><span>${esc(dateText(sale))}</span></div><div class="vreceiptLine"><span>Pago</span><span>${esc(sale.paymentMethod||'Efectivo')}</span></div>${sale.customerName?`<div class="vreceiptLine"><span>Cliente</span><span>${esc(sale.customerName)}</span></div>`:''}${sale.sellerName?`<div class="vreceiptLine"><span>Vendedor</span><span>${esc(sale.sellerName)}</span></div>`:''}<div class="vreceiptSep"></div>${items.map(i=>`<div class="vreceiptLine"><div><div class="vreceiptItemName">${esc(i.name||'Producto')}</div><div class="vreceiptItemMeta">${Number(i.qty||0)} × ${money(i.price)}</div></div><b>${money(Number(i.qty||0)*Number(i.price||0))}</b></div>`).join('')}${Number(sale.discount)>0?`<div class="vreceiptSep"></div><div class="vreceiptLine"><span>Subtotal</span><span>${money(subtotal)}</span></div><div class="vreceiptLine"><span>Descuento</span><span>-${money(sale.discount)}</span></div>`:''}<div class="vreceiptSep"></div><div class="vreceiptTotal"><span>TOTAL</span><span>${money(sale.total)}</span></div>${paymentDetailHTML(sale)}${sale.paymentMethod==='Fiado'?`<div class="center muted" style="margin-top:8px">Venta al crédito · Saldo: ${money(Math.max(0,(Number(sale.total)||0)-(Number(sale.paidAmount)||0)))}</div>`:''}${sale.notes?`<div class="center muted" style="margin-top:8px">Nota: ${esc(sale.notes)}</div>`:''}<div class="vreceiptDisclaimer">${esc(bs.ticketMessage||'Gracias por su compra.')}<br>Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.</div></div>`;
       }
       function showReceipt(sale){currentReceipt=sale;preview.innerHTML=receiptHTML(sale);overlay.classList.add('show')}
       function receiptText(sale){
@@ -93,11 +100,20 @@
         return `${businessName()}\nCOMPROBANTE DE VENTA\nN.º ${ticketNo(sale)}\n${dateText(sale)}\nPago: ${sale.paymentMethod||'Efectivo'}${sale.customerName?'\nCliente: '+sale.customerName:''}${sale.sellerName?'\nVendedor: '+sale.sellerName:''}\n\n${items}${Number(sale.discount)>0?'\n\nSubtotal: '+money(subtotal)+'\nDescuento: -'+money(sale.discount):''}\n\nTOTAL: ${money(sale.total)}${sale.paymentMethod==='Fiado'?'\nSaldo pendiente: '+money(Math.max(0,(Number(sale.total)||0)-(Number(sale.paidAmount)||0))):''}${sale.notes?'\nNota: '+sale.notes:''}\n\n${bs.ticketMessage||'Gracias por su compra.'}`;
       }
       function nativeReceiptPayload(sale){
+        const bs=businessSettings();
         return {
           business:businessName(),
+          logo:String(bs.logo||''),
+          ruc:String(bs.ruc||''),
+          phone:String(bs.phone||''),
+          address:String(bs.address||''),
+          message:String(bs.ticketMessage||'Gracias por su compra.'),
+          thermalWidth:String(bs.thermalWidth||'80'),
           ticket:ticketNo(sale),
           date:dateText(sale),
           method:String(sale?.paymentMethod||'Efectivo'),
+          seller:String(sale?.sellerName||''),
+          customer:String(sale?.customerName||''),
           total:Number(sale?.total||0),
           received:Number(sale?.amountReceived||0),
           change:Number(sale?.changeGiven||0),
@@ -145,10 +161,6 @@
 
       async function savePDF(sale){
         try{
-          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveSalePdf==='function'){
-            window.VareliaAndroid.saveSalePdf(JSON.stringify(nativeReceiptPayload(sale)));
-            return;
-          }
           const jsPDF=await loadJsPDF();
           const bs=businessSettings(),items=Array.isArray(sale.items)?sale.items:[],subtotal=Number(sale.subtotal??((Number(sale.total)||0)+(Number(sale.discount)||0)));
           const extraLines=(bs.ruc?1:0)+(bs.phone?1:0)+(bs.address?1:0)+(sale.customerName?1:0)+(sale.sellerName?1:0)+(Number(sale.discount)>0?2:0)+(sale.paymentMethod==='Fiado'?1:0)+(sale.notes?1:0);
