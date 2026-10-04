@@ -36,7 +36,13 @@
     const $=id=>document.getElementById(id);let lastSignature='',publicId='',publicSlug='',syncing=null;
     const toast=t=>window.vareliaToast?window.vareliaToast(t):alert(t);
     const color=()=>getComputedStyle(document.documentElement).getPropertyValue('--p').trim()||'#be185d';
-    const settings=()=>{try{return {...(JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')||{}),...(window.vareliaVideoSettings||{})}}catch{return window.vareliaVideoSettings||{}}};
+    const settings=()=>{try{
+      const out={...(JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')||{}),...(window.vareliaVideoSettings||{})};
+      const y=localStorage.getItem('varelia_qr_yape_v2'),p=localStorage.getItem('varelia_qr_plin_v2');
+      const yh=localStorage.getItem('varelia_qr_yape_holder_v2'),ph=localStorage.getItem('varelia_qr_plin_holder_v2');
+      if(y)out.yapeQr=y;if(p)out.plinQr=p;if(yh!==null)out.yapeHolder=yh;if(ph!==null)out.plinHolder=ph;
+      return out;
+    }catch{return window.vareliaVideoSettings||{}}};
     const catalogBusinessName=()=>{
       const s=settings();
       const candidates=[
@@ -89,7 +95,9 @@
       let mapUrl=String(s.publicMapUrl||'').trim();
       if(mapUrl&&!/^https?:\/\//i.test(mapUrl))mapUrl='https://'+mapUrl.replace(/^\/+/, '');
       try{if(mapUrl){const u=new URL(mapUrl);mapUrl=['http:','https:'].includes(u.protocol)?u.href:''}}catch{mapUrl=''}
-      const slogan=String(s.businessSlogan||'').trim().slice(0,120);return {slogan,delivery:{indrive:{enabled:s.deliveryInDriveEnabled!==false,cost:Math.max(0,Number(s.deliveryInDriveCost)||0)},olva:{enabled:s.deliveryOlvaEnabled!==false,cost:Math.max(0,Number(s.deliveryOlvaCost)||0)},shalom:{enabled:s.deliveryShalomEnabled!==false,cost:Math.max(0,Number(s.deliveryShalomCost)||0),pay_at_agency:s.deliveryShalomPayAgency!==false},pickup:s.publicAllowPickup!==false},phone:String(s.phone||'').trim().slice(0,40),whatsapp:normalizeSocialUrl(s.socialWhatsApp||s.phone||'','whatsapp'),address:String(s.address||'').trim().slice(0,240),hours:String(s.businessHours||'').trim().slice(0,300),map_url:mapUrl,allow_delivery:s.publicAllowDelivery!==false,allow_pickup:s.publicAllowPickup!==false,payment_methods:methods.length?methods:['Efectivo']};
+      const slogan=String(s.businessSlogan||'').trim().slice(0,120);
+      const yapeQr=String(s.yapeQr||''),plinQr=String(s.plinQr||'');
+      return {slogan,delivery:{indrive:{enabled:s.deliveryInDriveEnabled!==false,cost:Math.max(0,Number(s.deliveryInDriveCost)||0)},olva:{enabled:s.deliveryOlvaEnabled!==false,cost:Math.max(0,Number(s.deliveryOlvaCost)||0)},shalom:{enabled:s.deliveryShalomEnabled!==false,cost:Math.max(0,Number(s.deliveryShalomCost)||0),pay_at_agency:s.deliveryShalomPayAgency!==false},pickup:s.publicAllowPickup!==false},phone:String(s.phone||'').trim().slice(0,40),whatsapp:normalizeSocialUrl(s.socialWhatsApp||s.phone||'','whatsapp'),address:String(s.address||'').trim().slice(0,240),hours:String(s.businessHours||'').trim().slice(0,300),map_url:mapUrl,allow_delivery:s.publicAllowDelivery!==false,allow_pickup:s.publicAllowPickup!==false,payment_methods:methods.length?methods:['Efectivo'],payment_qr:{yape:{image:yapeQr,holder:String(s.yapeHolder||'').trim().slice(0,120)},plin:{image:plinQr,holder:String(s.plinHolder||'').trim().slice(0,120)}},transfer_details:String(s.transferDetails||'').trim().slice(0,800)};
     };
     const imageCache=new Map();
     const specFor=p=>String(specs[String(p.id)]??p.specifications??'');
@@ -120,14 +128,14 @@
         const {data:publicCatalog,error:slugError}=await sb.from('public_catalogs').select('public_slug').eq('public_id',publicId).eq('enabled',true).maybeSingle();
         if(slugError||!publicCatalog?.public_slug)throw slugError||new Error('No se pudo crear el enlace del catálogo');
         publicSlug=String(publicCatalog.public_slug);lastSignature=sig;
-        const url=location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261003-PRODUCTOS-REPETIDOS-V81';
+        const url=location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261004-PUBLIC-QR-V82';
         $('catalogPublicLink').value=url;$('catalogSyncState').textContent='Catálogo actualizado · '+rows.length+' producto(s) disponible(s)';
         return publicId;
       })().finally(()=>{syncing=null});
       return syncing;
     }
     window.vareliaPublicCatalogSync=()=>syncNow(true);
-    async function catalogUrl(force=false){await syncNow(force);return location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261003-PRODUCTOS-REPETIDOS-V81'}
+    async function catalogUrl(force=false){await syncNow(force);return location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261004-PUBLIC-QR-V82'}
     btn.addEventListener('click',async()=>{btn.disabled=true;try{dialog.showModal();$('catalogSyncState').textContent='Preparando catálogo…';await catalogUrl(true)}catch(e){console.error(e);dialog.close();alert('No se pudo preparar el catálogo público. Inténtalo otra vez.')}finally{btn.disabled=false}});
     $('catalogClose').onclick=()=>dialog.close();
     $('catalogOpen').onclick=async()=>{try{const url=await catalogUrl(false);window.open(url,'_blank','noopener')}catch(e){alert('No se pudo abrir el catálogo.')}};
