@@ -254,14 +254,41 @@ public class MainActivity extends AppCompatActivity {
             paint.setColor(Color.BLACK);
             paint.setTextSize(22f);
             paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-            float y = 48f;
+            float y = 38f;
+            String logoData = data.optString("logo", "");
+            if (logoData.startsWith("data:image") && logoData.contains(",")) {
+                try {
+                    String encoded = logoData.substring(logoData.indexOf(',') + 1);
+                    byte[] logoBytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT);
+                    android.graphics.Bitmap logoBitmap = android.graphics.BitmapFactory.decodeByteArray(logoBytes, 0, logoBytes.length);
+                    if (logoBitmap != null) {
+                        float maxW = 92f, maxH = 58f;
+                        float scale = Math.min(maxW / logoBitmap.getWidth(), maxH / logoBitmap.getHeight());
+                        float w = logoBitmap.getWidth() * scale, h = logoBitmap.getHeight() * scale;
+                        android.graphics.RectF dst = new android.graphics.RectF((595f-w)/2f, y, (595f+w)/2f, y+h);
+                        canvas.drawBitmap(logoBitmap, null, dst, paint);
+                        y += h + 14f;
+                    }
+                } catch (Exception ignored) {}
+            }
             String business = data.optString("business", "Varelia");
-            y = drawPdfText(canvas, paint, business, 40f, y, 515f, 28f);
+            paint.setTextAlign(Paint.Align.CENTER);
+            y = drawPdfText(canvas, paint, business, 297.5f, y, 515f, 28f);
+            paint.setTextAlign(Paint.Align.LEFT);
 
             paint.setTextSize(14f);
             paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
-            canvas.drawText("COMPROBANTE INTERNO DE VENTA", 40f, y + 5f, paint);
-            y += 34f;
+            paint.setTextAlign(Paint.Align.CENTER);
+            canvas.drawText("COMPROBANTE INTERNO DE VENTA", 297.5f, y + 5f, paint);
+            y += 24f;
+            String ruc = data.optString("ruc", "");
+            String phone = data.optString("phone", "");
+            String address = data.optString("address", "");
+            if (!ruc.isEmpty()) { canvas.drawText("RUC/Doc: " + ruc, 297.5f, y, paint); y += 19f; }
+            if (!phone.isEmpty()) { canvas.drawText("Tel: " + phone, 297.5f, y, paint); y += 19f; }
+            if (!address.isEmpty()) { canvas.drawText(address, 297.5f, y, paint); y += 19f; }
+            paint.setTextAlign(Paint.Align.LEFT);
+            y += 10f;
 
             String ticket = data.optString("ticket", "V-" + System.currentTimeMillis());
             canvas.drawText("N.º: " + ticket, 40f, y, paint); y += 22f;
@@ -350,8 +377,13 @@ public class MainActivity extends AppCompatActivity {
 
             paint.setTextSize(10f);
             paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+            String message = data.optString("message", "Gracias por su compra.");
+            if (!message.isEmpty()) {
+                y = drawPdfText(canvas, paint, message, 40f, y, 515f, 14f);
+                y += 4f;
+            }
             y = drawPdfText(canvas, paint,
-                    "Comprobante interno. No reemplaza boleta o factura electrónica SUNAT.",
+                    "Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.",
                     40f, y, 515f, 14f);
 
             document.finishPage(page);
