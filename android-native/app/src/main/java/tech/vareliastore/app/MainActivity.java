@@ -54,6 +54,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 public class MainActivity extends AppCompatActivity {
+    // Build refresh PDF parity V105
     private static MainActivity currentInstance;
     private static final int REQ_CAMERA = 201;
     private static final int REQ_FILE = 202;
