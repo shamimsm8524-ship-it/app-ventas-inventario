@@ -52,7 +52,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.24&fresh=20261004-payment-qr-v25";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.25&fresh=20261004-native-pdf-v30";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -174,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
                         + "if(!window.VareliaReceipt&&!document.getElementById('vareliaNativeReceiptLoader')){"
                         + "var s=document.createElement('script');"
                         + "s.id='vareliaNativeReceiptLoader';"
-                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261003-native-force-v19&ts='+Date.now();"
+                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261004-native-pdf-v30&ts='+Date.now();"
                         + "document.head.appendChild(s);"
                         + "}"
                         + "}catch(e){console.error(e);}"
