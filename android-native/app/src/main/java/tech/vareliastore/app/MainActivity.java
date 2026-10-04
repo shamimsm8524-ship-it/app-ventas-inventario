@@ -16,6 +16,8 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.print.PrintDocumentAdapter;
+import android.print.PrintManager;
 import android.util.Base64;
 import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
@@ -56,12 +58,13 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.26&fresh=20261004-native-pdf-v31";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.27&fresh=20261004-print-first-v32";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
     private String pendingScannerTarget = "sale";
     private String pendingCartSummary = "";
+    private WebView printWebView;
 
     private String safePdfName(String value) {
         String s = value == null ? "" : value.replaceAll("[^A-Za-z0-9_-]+", "-");
@@ -90,6 +93,102 @@ public class MainActivity extends AppCompatActivity {
             y += lineHeight;
         }
         return y;
+    }
+
+    private String escHtml(String value) {
+        if (value == null) return "";
+        return value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                .replace("\"", "&quot;").replace("'", "&#39;");
+    }
+
+    private void printSaleReceiptNative(String saleJson) {
+        runOnUiThread(() -> {
+            try {
+                JSONObject data = new JSONObject(saleJson == null ? "{}" : saleJson);
+                JSONArray items = data.optJSONArray("items");
+                JSONObject breakdown = data.optJSONObject("breakdown");
+                String business = escHtml(data.optString("business", "Varelia"));
+                String ticket = escHtml(data.optString("ticket", "V-" + System.currentTimeMillis()));
+                String date = escHtml(data.optString("date", ""));
+                String method = escHtml(data.optString("method", "Efectivo"));
+                double total = data.optDouble("total", 0);
+                double received = data.optDouble("received", 0);
+                double change = data.optDouble("change", 0);
+
+                StringBuilder rows = new StringBuilder();
+                if (items != null) {
+                    for (int i = 0; i < items.length(); i++) {
+                        JSONObject it = items.optJSONObject(i);
+                        if (it == null) continue;
+                        double qty = it.optDouble("qty", 0);
+                        double price = it.optDouble("price", 0);
+                        double subtotal = it.optDouble("subtotal", qty * price);
+                        rows.append("<div class='item'><div><b>")
+                                .append(escHtml(it.optString("name", "Producto")))
+                                .append("</b><small>")
+                                .append(String.format(Locale.US, "%.3g x S/ %.2f", qty, price))
+                                .append("</small></div><b>S/ ")
+                                .append(String.format(Locale.US, "%.2f", subtotal))
+                                .append("</b></div>");
+                    }
+                }
+
+                StringBuilder pays = new StringBuilder();
+                if (breakdown != null) {
+                    java.util.Iterator<String> keys = breakdown.keys();
+                    while (keys.hasNext()) {
+                        String k = keys.next();
+                        double v = breakdown.optDouble(k, 0);
+                        if (v <= 0) continue;
+                        pays.append("<div class='line'><span>")
+                                .append(escHtml(k))
+                                .append("</span><b>S/ ")
+                                .append(String.format(Locale.US, "%.2f", v))
+                                .append("</b></div>");
+                    }
+                }
+
+                String html = "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
+                        + "<style>@page{margin:5mm}body{font-family:monospace;color:#111;margin:0;padding:12px}.paper{max-width:72mm;margin:auto}"
+                        + "h2{text-align:center;margin:0 0 4px;font-size:18px}.sub{text-align:center;font-size:11px;margin-bottom:10px}.sep{border-top:1px dashed #777;margin:10px 0}"
+                        + ".line,.item,.total{display:flex;justify-content:space-between;gap:12px;margin:7px 0;align-items:flex-start}.item small{display:block;color:#444;margin-top:2px}"
+                        + ".total{font-size:18px;font-weight:900}.note{text-align:center;font-size:9px;margin-top:14px;color:#555}</style></head><body><div class='paper'>"
+                        + "<h2>" + business + "</h2><div class='sub'>COMPROBANTE INTERNO DE VENTA</div>"
+                        + "<div class='line'><span>N.º</span><b>" + ticket + "</b></div>"
+                        + "<div class='line'><span>Fecha</span><span>" + date + "</span></div>"
+                        + "<div class='line'><span>Pago</span><span>" + method + "</span></div>"
+                        + "<div class='sep'></div>" + rows
+                        + "<div class='sep'></div><div class='total'><span>TOTAL</span><span>S/ " + String.format(Locale.US, "%.2f", total) + "</span></div>"
+                        + "<div class='sep'></div>" + pays
+                        + "<div class='line'><span>Recibido</span><b>S/ " + String.format(Locale.US, "%.2f", received) + "</b></div>"
+                        + "<div class='line'><span>Vuelto</span><b>S/ " + String.format(Locale.US, "%.2f", change) + "</b></div>"
+                        + "<div class='note'>Comprobante interno. No reemplaza boleta o factura electrónica SUNAT.</div>"
+                        + "</div></body></html>";
+
+                printWebView = new WebView(MainActivity.this);
+                printWebView.getSettings().setJavaScriptEnabled(false);
+                printWebView.setWebViewClient(new WebViewClient() {
+                    boolean started = false;
+                    @Override
+                    public void onPageFinished(WebView view, String url) {
+                        if (started) return;
+                        started = true;
+                        try {
+                            PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+                            PrintDocumentAdapter adapter = view.createPrintDocumentAdapter("Varelia-" + ticket);
+                            printManager.print("Comprobante " + ticket, adapter, null);
+                        } catch (Exception e) {
+                            Toast.makeText(MainActivity.this,
+                                    "No se pudo abrir la impresión.", Toast.LENGTH_LONG).show();
+                        }
+                    }
+                });
+                printWebView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+            } catch (Exception e) {
+                Toast.makeText(MainActivity.this,
+                        "No se pudo preparar el comprobante para imprimir.", Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     private void saveSalePdfNative(String saleJson) {
@@ -336,7 +435,7 @@ public class MainActivity extends AppCompatActivity {
                         + "if(!window.VareliaReceipt&&!document.getElementById('vareliaNativeReceiptLoader')){"
                         + "var s=document.createElement('script');"
                         + "s.id='vareliaNativeReceiptLoader';"
-                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261004-native-pdf-v31&ts='+Date.now();"
+                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261004-print-first-v32&ts='+Date.now();"
                         + "document.head.appendChild(s);"
                         + "}"
                         + "}catch(e){console.error(e);}"
@@ -360,7 +459,7 @@ public class MainActivity extends AppCompatActivity {
                         + "var rows=(pending.state.rows||[]).map(function(r){return {name:String(r.name||r.p&&r.p.name||'Producto'),qty:Number(r.qty||0),price:Number(r.price||0),subtotal:Number(r.subtotal||0)}});"
                         + "var business=(document.getElementById('vareliaBusinessName')||{}).textContent||((document.querySelector('.brand h1')||{}).textContent)||'Varelia';"
                         + "var data={business:String(business).trim(),ticket:'V-'+Date.now(),date:new Date().toLocaleString('es-PE'),method:String(snap.method||''),total:Number(snap.total||pending.state.total||0),received:Number(snap.received||0),change:Number(snap.change||0),breakdown:snap.breakdown||{},items:rows};"
-                        + "VareliaAndroid.saveSalePdf(JSON.stringify(data));pending=null;"
+                        + "VareliaAndroid.printSaleReceipt(JSON.stringify(data));pending=null;"
                         + "}catch(x){console.error('PDF nativo',x)}},25);"
                         + "},false);"
                         + "}catch(e){console.error(e)}})();";
@@ -586,6 +685,11 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(MainActivity.this, "No se pudo abrir el enlace.", Toast.LENGTH_SHORT).show();
                 }
             });
+        }
+
+        @JavascriptInterface
+        public void printSaleReceipt(String saleJson) {
+            printSaleReceiptNative(saleJson);
         }
 
         @JavascriptInterface
