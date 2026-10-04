@@ -16,6 +16,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.print.PrintAttributes;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
 import android.util.Base64;
@@ -58,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.29&fresh=20261004-receipt-print-v35";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.30&fresh=20261004-receipt-match-v36";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -107,10 +108,19 @@ public class MainActivity extends AppCompatActivity {
                 JSONObject data = new JSONObject(saleJson == null ? "{}" : saleJson);
                 JSONArray items = data.optJSONArray("items");
                 JSONObject breakdown = data.optJSONObject("breakdown");
+
                 String business = escHtml(data.optString("business", "Varelia"));
+                String logo = escHtml(data.optString("logo", ""));
+                String ruc = escHtml(data.optString("ruc", ""));
+                String phone = escHtml(data.optString("phone", ""));
+                String address = escHtml(data.optString("address", ""));
+                String message = escHtml(data.optString("message", "Gracias por su compra."));
                 String ticket = escHtml(data.optString("ticket", "V-" + System.currentTimeMillis()));
                 String date = escHtml(data.optString("date", ""));
                 String method = escHtml(data.optString("method", "Efectivo"));
+                String seller = escHtml(data.optString("seller", ""));
+                String customer = escHtml(data.optString("customer", ""));
+                String thermalWidth = data.optString("thermalWidth", "80");
                 double total = data.optDouble("total", 0);
                 double received = data.optDouble("received", 0);
                 double change = data.optDouble("change", 0);
@@ -126,7 +136,7 @@ public class MainActivity extends AppCompatActivity {
                         rows.append("<div class='item'><div><b>")
                                 .append(escHtml(it.optString("name", "Producto")))
                                 .append("</b><small>")
-                                .append(String.format(Locale.US, "%.3g x S/ %.2f", qty, price))
+                                .append(String.format(Locale.US, "%.3g × S/ %.2f", qty, price))
                                 .append("</small></div><b>S/ ")
                                 .append(String.format(Locale.US, "%.2f", subtotal))
                                 .append("</b></div>");
@@ -148,21 +158,40 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
 
+                String logoHtml = logo.isEmpty() ? "" :
+                        "<div class='logo'><img src='" + logo + "' alt='Logo'></div>";
+                String businessInfo =
+                        (ruc.isEmpty() ? "" : "<div class='center muted'>RUC/Doc: " + ruc + "</div>") +
+                        (phone.isEmpty() ? "" : "<div class='center muted'>Tel: " + phone + "</div>") +
+                        (address.isEmpty() ? "" : "<div class='center muted'>" + address + "</div>");
+                String people =
+                        (customer.isEmpty() ? "" : "<div class='line'><span>Cliente</span><span>" + customer + "</span></div>") +
+                        (seller.isEmpty() ? "" : "<div class='line'><span>Vendedor</span><span>" + seller + "</span></div>");
+                String payDetail = pays.toString()
+                        + (received > 0 ? "<div class='line'><span>Recibido</span><b>S/ " + String.format(Locale.US, "%.2f", received) + "</b></div>" : "")
+                        + "<div class='line'><span>Vuelto</span><b>S/ " + String.format(Locale.US, "%.2f", change) + "</b></div>";
+
                 String html = "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
-                        + "<style>@page{margin:5mm}body{font-family:monospace;color:#111;margin:0;padding:12px}.paper{max-width:72mm;margin:auto}"
-                        + "h2{text-align:center;margin:0 0 4px;font-size:18px}.sub{text-align:center;font-size:11px;margin-bottom:10px}.sep{border-top:1px dashed #777;margin:10px 0}"
-                        + ".line,.item,.total{display:flex;justify-content:space-between;gap:12px;margin:7px 0;align-items:flex-start}.item small{display:block;color:#444;margin-top:2px}"
-                        + ".total{font-size:18px;font-weight:900}.note{text-align:center;font-size:9px;margin-top:14px;color:#555}</style></head><body><div class='paper'>"
-                        + "<h2>" + business + "</h2><div class='sub'>COMPROBANTE INTERNO DE VENTA</div>"
+                        + "<style>"
+                        + "@page{margin:3mm}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}"
+                        + "body{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}"
+                        + ".paper{width:100%;margin:0 auto;padding:3mm 2.5mm}.logo{text-align:center;margin:0 0 2mm}.logo img{display:block;margin:0 auto;max-width:26mm;max-height:18mm;width:auto;height:auto;object-fit:contain}"
+                        + "h2{text-align:center;margin:0;font-size:17px}.center{text-align:center}.muted{color:#555;font-size:9px;line-height:1.3}.sep{border-top:1px dashed #777;margin:2.2mm 0}"
+                        + ".line,.item,.total{display:flex;justify-content:space-between;gap:2mm;margin:1.4mm 0;align-items:flex-start;font-size:10px}.item small{display:block;color:#555;margin-top:.7mm;font-size:9px}"
+                        + ".total{font-size:17px;font-weight:900;margin-top:2mm}.note{text-align:center;font-size:8px;line-height:1.35;margin-top:3mm;color:#555}"
+                        + "</style></head><body><div class='paper'>"
+                        + logoHtml
+                        + "<h2>" + business + "</h2><div class='center muted'>COMPROBANTE INTERNO DE VENTA</div>"
+                        + businessInfo
+                        + "<div class='sep'></div>"
                         + "<div class='line'><span>N.º</span><b>" + ticket + "</b></div>"
                         + "<div class='line'><span>Fecha</span><span>" + date + "</span></div>"
                         + "<div class='line'><span>Pago</span><span>" + method + "</span></div>"
+                        + people
                         + "<div class='sep'></div>" + rows
                         + "<div class='sep'></div><div class='total'><span>TOTAL</span><span>S/ " + String.format(Locale.US, "%.2f", total) + "</span></div>"
-                        + "<div class='sep'></div>" + pays
-                        + "<div class='line'><span>Recibido</span><b>S/ " + String.format(Locale.US, "%.2f", received) + "</b></div>"
-                        + "<div class='line'><span>Vuelto</span><b>S/ " + String.format(Locale.US, "%.2f", change) + "</b></div>"
-                        + "<div class='note'>Comprobante interno. No reemplaza boleta o factura electrónica SUNAT.</div>"
+                        + "<div class='sep'></div>" + payDetail
+                        + "<div class='note'>" + message + "<br>Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.</div>"
                         + "</div></body></html>";
 
                 printWebView = new WebView(MainActivity.this);
@@ -173,17 +202,33 @@ public class MainActivity extends AppCompatActivity {
                     public void onPageFinished(WebView view, String url) {
                         if (started) return;
                         started = true;
-                        try {
-                            PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
-                            PrintDocumentAdapter adapter = view.createPrintDocumentAdapter("Varelia-" + ticket);
-                            printManager.print("Comprobante " + ticket, adapter, null);
-                        } catch (Exception e) {
-                            Toast.makeText(MainActivity.this,
-                                    "No se pudo abrir la impresión.", Toast.LENGTH_LONG).show();
-                        }
+                        view.postDelayed(() -> {
+                            try {
+                                PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+                                PrintDocumentAdapter adapter = view.createPrintDocumentAdapter("Varelia-" + ticket);
+                                int widthMils = "58".equals(thermalWidth) ? 2283 : 3150;
+                                int itemCount = items == null ? 0 : items.length();
+                                int paymentCount = breakdown == null ? 0 : breakdown.length();
+                                int heightMils = Math.max(4800, 3900 + itemCount * 520 + paymentCount * 260);
+                                PrintAttributes.MediaSize media = new PrintAttributes.MediaSize(
+                                        "VARELIA_RECEIPT_" + thermalWidth,
+                                        thermalWidth + " mm",
+                                        widthMils,
+                                        heightMils
+                                );
+                                PrintAttributes attrs = new PrintAttributes.Builder()
+                                        .setMediaSize(media)
+                                        .setMinMargins(new PrintAttributes.Margins(60, 60, 60, 60))
+                                        .build();
+                                printManager.print("Comprobante " + ticket, adapter, attrs);
+                            } catch (Exception e) {
+                                Toast.makeText(MainActivity.this,
+                                        "No se pudo abrir la impresión.", Toast.LENGTH_LONG).show();
+                            }
+                        }, 350);
                     }
                 });
-                printWebView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
+                printWebView.loadDataWithBaseURL("https://vareliastore.tech/", html, "text/html", "UTF-8", null);
             } catch (Exception e) {
                 Toast.makeText(MainActivity.this,
                         "No se pudo preparar el comprobante para imprimir.", Toast.LENGTH_LONG).show();
@@ -413,7 +458,7 @@ public class MainActivity extends AppCompatActivity {
                 String brandJs = "(function(){"
                         + "var l=document.querySelector('.logo');if(l){l.textContent='VS';l.title='Varelia Store';}"
                         + "var h=document.querySelector('.brand h1');if(h){h.textContent='Varelia';h.id='vareliaAppName';}"
-                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.29';}"
+                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.30';}"
                         + "document.title='Varelia Store';"
                         + "})();";
                 view.evaluateJavascript(brandJs, null);
@@ -424,7 +469,7 @@ public class MainActivity extends AppCompatActivity {
                         + "if(!window.VareliaReceipt&&!document.getElementById('vareliaNativeReceiptLoader')){"
                         + "var s=document.createElement('script');"
                         + "s.id='vareliaNativeReceiptLoader';"
-                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261003-97&ts='+Date.now();"
+                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261004-101&ts='+Date.now();"
                         + "document.head.appendChild(s);"
                         + "}"
                         + "}catch(e){console.error(e);}"
@@ -649,7 +694,7 @@ public class MainActivity extends AppCompatActivity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.29";
+            return "1.0.30";
         }
 
         @JavascriptInterface
