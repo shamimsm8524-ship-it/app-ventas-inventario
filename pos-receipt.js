@@ -161,53 +161,12 @@
 
       async function savePDF(sale){
         try{
-          const jsPDF=await loadJsPDF();
-          const bs=businessSettings(),items=Array.isArray(sale.items)?sale.items:[];
-          const breakdown=(sale&&sale.paymentBreakdown&&typeof sale.paymentBreakdown==='object')?sale.paymentBreakdown:{};
-          const payRows=Object.entries(breakdown).filter(([,v])=>Number(v)>0);
-          const height=Math.max(150,112+(bs.logo?22:0)+items.length*14+payRows.length*5);
-          const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[80,height]});
-          let y=6;
-          if(bs.logo){
-            try{const logo=await pdfLogoData(bs.logo);if(logo){doc.addImage(logo,'JPEG',32,y,16,16,undefined,'FAST');y+=18}}catch{}
+          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveSalePdf==='function'){
+            window.VareliaAndroid.saveSalePdf(JSON.stringify(nativeReceiptPayload(sale)));
+            return;
           }
-          doc.setFont('courier','bold');doc.setFontSize(12);doc.text(businessName(),40,y,{align:'center'});y+=4;
-          doc.setFont('courier','normal');doc.setFontSize(6.5);doc.text('COMPROBANTE INTERNO DE VENTA',40,y,{align:'center'});y+=3;
-          if(bs.ruc){doc.text('RUC/Doc: '+bs.ruc,40,y,{align:'center'});y+=3}
-          if(bs.phone){doc.text('Tel: '+bs.phone,40,y,{align:'center'});y+=3}
-          if(bs.address){doc.text(String(bs.address),40,y,{align:'center',maxWidth:68});y+=4}
-          doc.setLineDashPattern([.6,.6],0);doc.line(8,y,72,y);y+=4;
-          const lr=(l,r,b=false)=>{doc.setFont('courier',b?'bold':'normal');doc.setFontSize(7);doc.text(String(l),8,y);doc.text(String(r||''),72,y,{align:'right'});y+=4};
-          lr('N.º',ticketNo(sale),true);lr('Fecha',dateText(sale));lr('Pago',String(sale.paymentMethod||'Efectivo'));if(sale.sellerName)lr('Vendedor',sale.sellerName);if(sale.customerName)lr('Cliente',sale.customerName);
-          doc.line(8,y,72,y);y+=4;
-          for(const i of items){
-            const q=Number(i.qty||0),p=Number(i.price||0),sub=q*p;
-            const weighted=(i.saleType==='weight'||i.unit==='kg'||i.byWeight===true||(!Number.isInteger(q)&&q>0));
-            doc.setFont('courier','bold');doc.setFontSize(7.5);doc.text(String(i.name||'Producto'),8,y);doc.text(money(sub),72,y,{align:'right'});y+=3.5;
-            doc.setFont('courier','normal');doc.setFontSize(6.5);
-            if(weighted){
-              const wt=q<1?Math.round(q*1000)+' g':q.toLocaleString('es-PE')+' kg';
-              doc.text('Peso: '+wt,8,y);y+=3;
-              doc.text('Precio por kilo: '+money(p),8,y);y+=4;
-            }else{doc.text(q+' × '+money(p),8,y);y+=4}
-          }
-          doc.line(8,y,72,y);y+=5;
-          doc.setFont('courier','bold');doc.setFontSize(12);doc.text('TOTAL',8,y);doc.text(money(sale.total),72,y,{align:'right'});y+=5;
-          doc.line(8,y,72,y);y+=4;
-          for(const [k,v] of payRows)lr(k,money(v));
-          if(Number.isFinite(Number(sale?.amountReceived))&&Number(sale.amountReceived)>0)lr('Recibido',money(sale.amountReceived));
-          if(Number.isFinite(Number(sale?.changeGiven))&&Number(sale.changeGiven)>=0)lr('Vuelto',money(sale.changeGiven));
-          y+=3;doc.setFont('courier','normal');doc.setFontSize(5.5);
-          doc.text(String(bs.ticketMessage||'Gracias por su compra.'),40,y,{align:'center',maxWidth:64});y+=3;
-          doc.text('Este ticket es un comprobante interno y no reemplaza',40,y,{align:'center'});y+=2.5;
-          doc.text('una boleta o factura electrónica SUNAT.',40,y,{align:'center'});
-          const fileName='comprobante-'+ticketNo(sale)+'.pdf';
-          const dataUri=doc.output('datauristring');
-          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function'){
-            window.VareliaAndroid.saveDataUrl(dataUri,fileName);return;
-          }
-          doc.save(fileName);
-        }catch(e){console.error(e);alert('No se pudo descargar el comprobante.')}
+        }catch(e){console.warn('Guardado PDF nativo no disponible',e)}
+        alert('No se pudo descargar el comprobante.');
       }
             async function shareReceipt(sale){
         const text=receiptText(sale);
