@@ -91,7 +91,27 @@
         const subtotal=Number(sale.subtotal??((Number(sale.total)||0)+(Number(sale.discount)||0)));
         return `${businessName()}\nCOMPROBANTE DE VENTA\nN.º ${ticketNo(sale)}\n${dateText(sale)}\nPago: ${sale.paymentMethod||'Efectivo'}${sale.customerName?'\nCliente: '+sale.customerName:''}${sale.sellerName?'\nVendedor: '+sale.sellerName:''}\n\n${items}${Number(sale.discount)>0?'\n\nSubtotal: '+money(subtotal)+'\nDescuento: -'+money(sale.discount):''}\n\nTOTAL: ${money(sale.total)}${sale.paymentMethod==='Fiado'?'\nSaldo pendiente: '+money(Math.max(0,(Number(sale.total)||0)-(Number(sale.paidAmount)||0))):''}${sale.notes?'\nNota: '+sale.notes:''}\n\n${bs.ticketMessage||'Gracias por su compra.'}`;
       }
+      function nativeReceiptPayload(sale){
+        const items=Array.isArray(sale?.items)?sale.items:[];
+        return {
+          business:businessName(),
+          ticket:ticketNo(sale),
+          date:dateText(sale),
+          method:String(sale?.paymentMethod||'Efectivo'),
+          total:Number(sale?.total||0),
+          received:Number(sale?.amountReceived||0),
+          change:Number(sale?.changeGiven||0),
+          breakdown:(sale?.paymentBreakdown&&typeof sale.paymentBreakdown==='object')?sale.paymentBreakdown:{},
+          items:items.map(i=>({name:String(i?.name||'Producto'),qty:Number(i?.qty||0),price:Number(i?.price||0),subtotal:Number(i?.qty||0)*Number(i?.price||0)}))
+        };
+      }
       function printReceipt(sale){
+        try{
+          if(window.VareliaAndroid&&typeof window.VareliaAndroid.printSaleReceipt==='function'){
+            window.VareliaAndroid.printSaleReceipt(JSON.stringify(nativeReceiptPayload(sale)));
+            return;
+          }
+        }catch(e){console.warn('Impresión nativa no disponible',e)}
         const w=window.open('','_blank','width=420,height=720');
         if(!w)return alert('Permite ventanas emergentes para imprimir el comprobante.');
         const bs=businessSettings(),width=String(bs.thermalWidth||'80')==='58'?58:80,paper=width===58?52:72;
