@@ -1,6 +1,6 @@
 (()=>{
 if(window.__vareliaDeliverySettings)return;window.__vareliaDeliverySettings=true;
-const KEY='varelia_video_settings_v1';
+const KEY=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_video_settings_v1'):'varelia_video_settings_v1__no_account';
 const read=()=>{try{return JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch{return{}}};
 const save=s=>{localStorage.setItem(KEY,JSON.stringify(s));window.dispatchEvent(new CustomEvent('varelia:catalog-settings-changed'));window.vareliaToast?.('Métodos de entrega guardados.','ok')};
 const css=document.createElement('style');css.textContent=`.vdelivery{margin-top:14px}.vdelivery h3{margin:0 0 5px}.vdelivery p{margin:0 0 14px;color:var(--muted);font-size:12px}.vdeliveryRow{display:grid;grid-template-columns:minmax(0,1fr) 115px;gap:10px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}.vdeliveryMethod{display:flex;align-items:center;gap:10px;font-weight:850}.vdeliveryMethod input{width:20px;height:20px;accent-color:var(--p)}.vdeliveryPrice{position:relative}.vdeliveryPrice:before{content:'S/';position:absolute;left:12px;top:50%;transform:translateY(-50%);font-weight:800;color:var(--muted);font-size:12px}.vdeliveryPrice input{padding-left:34px;text-align:right}.vdeliveryHint{font-size:11px;color:var(--muted);margin-top:4px}.vdeliverySave{width:100%;margin-top:10px}@media(max-width:380px){.vdeliveryRow{grid-template-columns:minmax(0,1fr) 105px}}`;document.head.appendChild(css);
