@@ -3,6 +3,10 @@
   window.__vareliaAccountIsolation=true;
   const clean=v=>String(v||'').replace(/[^a-zA-Z0-9_-]/g,'_');
   const PRIVATE_KEYS=[
+    'miNegocio_products_v1','miNegocio_categories_v1','miNegocio_sales_v1',
+    'miNegocio_closures_v1','miNegocio_cashStart_v1','miNegocio_theme_v1',
+    'miNegocio_movements_v1','miNegocio_suppliers_v1','miNegocio_purchases_v1',
+    'varelia_active_sale_cart_v1',
     'varelia_video_settings_v1','varelia_qr_yape_v2','varelia_qr_plin_v2',
     'varelia_qr_yape_holder_v2','varelia_qr_plin_holder_v2','varelia_product_specs_v1',
     'varelia_last_payment_method','varelia_bt_printer_name','varelia_last_weekly_backup',
