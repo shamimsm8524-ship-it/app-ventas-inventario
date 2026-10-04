@@ -17,15 +17,17 @@
     return s?base+'__'+s:base+'__no_account';
   };
   function migrateLegacy(scope){
+    let changed=false;
     const ownerKey='varelia_private_legacy_owner_scope';
     let owner=clean(localStorage.getItem(ownerKey)||localStorage.getItem('varelia_legacy_owner_scope')||'');
     if(!owner){owner=scope;localStorage.setItem(ownerKey,owner)}
-    if(owner!==scope)return;
+    if(owner!==scope)return false;
     localStorage.setItem(ownerKey,owner);
     for(const base of PRIVATE_KEYS){
       const target=base+'__'+scope;
-      if(localStorage.getItem(target)==null&&localStorage.getItem(base)!=null)localStorage.setItem(target,localStorage.getItem(base));
+      if(localStorage.getItem(target)==null&&localStorage.getItem(base)!=null){localStorage.setItem(target,localStorage.getItem(base));changed=true;}
     }
+    return changed;
   }
   async function resolve(){
     const sb=window.vareliaSupabase;
@@ -34,11 +36,11 @@
     if(!u?.user)return false;
     const {data:p}=await sb.from('profiles').select('business_id').eq('id',u.user.id).maybeSingle();
     const scope=clean(p?.business_id||u.user.id);if(!scope)return false;
-    migrateLegacy(scope);
+    const migrated=migrateLegacy(scope);
     const prev=clean(localStorage.getItem('varelia_active_business_id')||'');
     localStorage.setItem('varelia_active_business_id',scope);
     window.vareliaBusinessScope=scope;
-    if(prev!==scope){location.reload();return true}
+    if(prev!==scope||migrated){location.reload();return true}
     window.dispatchEvent(new CustomEvent('varelia:account-isolation-ready',{detail:{businessId:scope,userId:u.user.id}}));
     return true;
   }
