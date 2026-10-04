@@ -4,11 +4,11 @@
 
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn();
   ready(()=>{
-    const STORE='varelia_video_settings_v1';
-    const QR_YAPE_STORE='varelia_qr_yape_v2';
-    const QR_PLIN_STORE='varelia_qr_plin_v2';
-    const QR_YAPE_HOLDER_STORE='varelia_qr_yape_holder_v2';
-    const QR_PLIN_HOLDER_STORE='varelia_qr_plin_holder_v2';
+    const STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_video_settings_v1'):'varelia_video_settings_v1__no_account';
+    const QR_YAPE_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_yape_v2'):'varelia_qr_yape_v2__no_account';
+    const QR_PLIN_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_plin_v2'):'varelia_qr_plin_v2__no_account';
+    const QR_YAPE_HOLDER_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_yape_holder_v2'):'varelia_qr_yape_holder_v2__no_account';
+    const QR_PLIN_HOLDER_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_plin_holder_v2'):'varelia_qr_plin_holder_v2__no_account';
     const DEFAULTS={businessName:'',businessSlogan:'',logo:'',ruc:'',phone:'',address:'',businessHours:'',publicMapUrl:'',publicAllowDelivery:true,publicAllowPickup:true,publicPaymentMethods:'Efectivo,Yape,Plin,Transferencia',deliveryInDriveEnabled:true,deliveryInDriveCost:12,deliveryOlvaEnabled:true,deliveryOlvaCost:15,deliveryShalomEnabled:true,deliveryShalomCost:0,deliveryShalomPayAgency:true,ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',transferDetails:'',thermalWidth:'80',autoBarcode:true,enableVariants:false,socialTikTok:'',socialFacebook:'',socialInstagram:'',socialWhatsApp:'',socialYouTube:'',socialOther:''};
     const loadSettings=()=>{try{
       const base={...DEFAULTS,...JSON.parse(localStorage.getItem(STORE)||'{}')};
