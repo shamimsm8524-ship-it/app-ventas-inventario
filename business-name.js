@@ -84,9 +84,9 @@
           if(catalogError)console.warn('No se pudo sincronizar el nombre del catálogo',catalogError);
         }catch(syncErr){console.warn('No se pudo sincronizar el nombre público',syncErr)}
         try{
-          const local=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}');
+          const local=JSON.parse(localStorage.getItem(window.vareliaScopedLocalKey('varelia_video_settings_v1'))||'{}');
           local.businessName=savedName;
-          localStorage.setItem('varelia_video_settings_v1',JSON.stringify(local));
+          localStorage.setItem(window.vareliaScopedLocalKey('varelia_video_settings_v1'),JSON.stringify(local));
           window.vareliaVideoSettings={...(window.vareliaVideoSettings||{}),businessName:savedName};
         }catch{}
         window.dispatchEvent(new CustomEvent('varelia:business-name-changed',{detail:{businessId,name:savedName}}));
