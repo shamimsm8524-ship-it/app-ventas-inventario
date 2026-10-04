@@ -252,7 +252,8 @@ public class MainActivity extends AppCompatActivity {
             String ticket = data.optString("ticket", "V-" + System.currentTimeMillis());
             canvas.drawText("N.º: " + ticket, 40f, y, paint); y += 22f;
             canvas.drawText("Fecha: " + data.optString("date", ""), 40f, y, paint); y += 22f;
-            canvas.drawText("Pago: " + data.optString("method", "Efectivo"), 40f, y, paint); y += 26f;
+            canvas.drawText("Pago: " + data.optString("method", "Efectivo"), 40f, y, paint); y += 22f;
+            canvas.drawText("Vendedor: " + data.optString("seller", "Usuario"), 40f, y, paint); y += 26f;
 
             paint.setStrokeWidth(1f);
             canvas.drawLine(40f, y, 555f, y, paint); y += 24f;
