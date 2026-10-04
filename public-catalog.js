@@ -11,7 +11,7 @@
     const productId=document.getElementById('productId');
     if(!section||!head||!newProduct)return;
 
-    const SPECS_KEY='varelia_product_specs_v1';
+    const SPECS_KEY=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_product_specs_v1'):'varelia_product_specs_v1__no_account';
     let specs={};
     try{specs=JSON.parse(localStorage.getItem(SPECS_KEY)||'{}')||{}}catch{specs={}}
     const saveSpecs=()=>{try{localStorage.setItem(SPECS_KEY,JSON.stringify(specs))}catch{}};
