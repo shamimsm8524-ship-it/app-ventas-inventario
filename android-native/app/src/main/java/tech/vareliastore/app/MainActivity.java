@@ -133,10 +133,23 @@ public class MainActivity extends AppCompatActivity {
                         double qty = it.optDouble("qty", 0);
                         double price = it.optDouble("price", 0);
                         double subtotal = it.optDouble("subtotal", qty * price);
+                        boolean weighted = "weight".equalsIgnoreCase(it.optString("saleType", ""))
+                                || "kg".equalsIgnoreCase(it.optString("unit", ""))
+                                || it.optBoolean("byWeight", false)
+                                || (qty > 0 && Math.abs(qty - Math.rint(qty)) > 0.000001);
+                        String meta;
+                        if (weighted) {
+                            String weightText = qty < 1
+                                    ? String.format(Locale.US, "%d g", Math.round(qty * 1000))
+                                    : String.format(Locale.US, "%.3g kg", qty);
+                            meta = "Peso: " + weightText + "<br>Precio por kilo: S/ " + String.format(Locale.US, "%.2f", price);
+                        } else {
+                            meta = String.format(Locale.US, "%.3g × S/ %.2f", qty, price);
+                        }
                         rows.append("<div class='item'><div><b>")
                                 .append(escHtml(it.optString("name", "Producto")))
                                 .append("</b><small>")
-                                .append(String.format(Locale.US, "%.3g × S/ %.2f", qty, price))
+                                .append(meta)
                                 .append("</small></div><b>S/ ")
                                 .append(String.format(Locale.US, "%.2f", subtotal))
                                 .append("</b></div>");
