@@ -37,9 +37,9 @@
     const toast=t=>window.vareliaToast?window.vareliaToast(t):alert(t);
     const color=()=>getComputedStyle(document.documentElement).getPropertyValue('--p').trim()||'#be185d';
     const settings=()=>{try{
-      const out={...(JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')||{}),...(window.vareliaVideoSettings||{})};
-      const y=localStorage.getItem('varelia_qr_yape_v2'),p=localStorage.getItem('varelia_qr_plin_v2');
-      const yh=localStorage.getItem('varelia_qr_yape_holder_v2'),ph=localStorage.getItem('varelia_qr_plin_holder_v2');
+      const out={...(JSON.parse(localStorage.getItem(window.vareliaScopedLocalKey('varelia_video_settings_v1'))||'{}')||{}),...(window.vareliaVideoSettings||{})};
+      const y=localStorage.getItem(window.vareliaScopedLocalKey('varelia_qr_yape_v2')),p=localStorage.getItem(window.vareliaScopedLocalKey('varelia_qr_plin_v2'));
+      const yh=localStorage.getItem(window.vareliaScopedLocalKey('varelia_qr_yape_holder_v2')),ph=localStorage.getItem(window.vareliaScopedLocalKey('varelia_qr_plin_holder_v2'));
       if(y)out.yapeQr=y;if(p)out.plinQr=p;if(yh!==null)out.yapeHolder=yh;if(ph!==null)out.plinHolder=ph;
       return out;
     }catch{return window.vareliaVideoSettings||{}}};
