@@ -282,7 +282,14 @@
           const disclaimer=doc.splitTextToSize('Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.',68);
           doc.text(disclaimer,40,y,{align:'center'});
 
-          doc.save('comprobante-'+ticketNo(sale)+'.pdf');
+          const fileName='comprobante-'+ticketNo(sale)+'.pdf';
+          try{
+            if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function'){
+              window.VareliaAndroid.saveDataUrl(doc.output('datauristring'),fileName);
+              return;
+            }
+          }catch(e){console.warn('Guardado nativo no disponible',e)}
+          doc.save(fileName);
         }catch(e){
           console.error(e);
           alert('No se pudo generar el PDF. Puedes usar Imprimir y elegir Guardar como PDF.');
