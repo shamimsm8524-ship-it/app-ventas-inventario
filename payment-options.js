@@ -3,6 +3,10 @@
   window.__vareliaPaymentOptionsV2=true;
 
   const METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta'];
+  const QR_YAPE_STORE='varelia_qr_yape_v2';
+  const QR_PLIN_STORE='varelia_qr_plin_v2';
+  const QR_YAPE_HOLDER_STORE='varelia_qr_yape_holder_v2';
+  const QR_PLIN_HOLDER_STORE='varelia_qr_plin_holder_v2';
   const toast=(m,t='warn')=>window.vareliaToast?window.vareliaToast(m,t):alert(m);
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   let sb=null,profile=null,businessId='',settings=null,pendingSale=null;
@@ -213,14 +217,23 @@
       document.getElementById('vpayAddMixed').onclick=()=>addRow(methods[0]);return;
     }
     let local={};try{local=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}
-    const holder=String(method==='Yape'?(local.yapeHolder||settings?.payment_holder||''):method==='Plin'?(local.plinHolder||settings?.payment_holder||''):(settings?.payment_holder||'')).trim();
-    // Yape y Plin son independientes: jamás usar el QR genérico ni el del otro método.
-    const qr=method==='Yape'
-      ? String(local.yapeQr||settings?.yape_qr_data||settings?.payment_qr_yape||'')
+    const live=window.vareliaVideoSettings||{};
+    const previewYape=document.getElementById('vYapePreview')?.src||'';
+    const previewPlin=document.getElementById('vPlinPreview')?.src||'';
+    const dedicatedYape=localStorage.getItem(QR_YAPE_STORE)||'';
+    const dedicatedPlin=localStorage.getItem(QR_PLIN_STORE)||'';
+    const holder=String(method==='Yape'
+      ? (localStorage.getItem(QR_YAPE_HOLDER_STORE)||live.yapeHolder||local.yapeHolder||settings?.payment_holder||'')
       : method==='Plin'
-        ? String(local.plinQr||settings?.plin_qr_data||settings?.payment_qr_plin||'')
+        ? (localStorage.getItem(QR_PLIN_HOLDER_STORE)||live.plinHolder||local.plinHolder||settings?.payment_holder||'')
+        : (settings?.payment_holder||'')).trim();
+    // Fuente estricta por método. Nunca usar el QR del otro método ni el QR genérico como reemplazo.
+    const qr=method==='Yape'
+      ? String(previewYape||dedicatedYape||live.yapeQr||local.yapeQr||settings?.yape_qr_data||settings?.payment_qr_yape||'')
+      : method==='Plin'
+        ? String(previewPlin||dedicatedPlin||live.plinQr||local.plinQr||settings?.plin_qr_data||settings?.payment_qr_plin||'')
         : String(settings?.generic_qr_data||settings?.payment_qr_other||settings?.payment_qr_data||'');
-    const transfer=String(local.transferDetails||settings?.transfer_details||'').trim();
+    const transfer=String(live.transferDetails||local.transferDetails||settings?.transfer_details||'').trim();
 
     if(method==='Efectivo'){
       const total=currentSaleTotal();
@@ -417,9 +430,8 @@
     if(!capturePayment()){e.preventDefault();e.stopImmediatePropagation()}
   },true);
 
-  window.addEventListener('varelia:payment-settings-changed',async()=>{
+  window.addEventListener('varelia:payment-settings-changed',()=>{
     try{
-      await loadSettings();
       ensurePaymentPanel();
       renderPaymentDetail();
     }catch(err){console.warn('Varelia payment refresh',err)}
