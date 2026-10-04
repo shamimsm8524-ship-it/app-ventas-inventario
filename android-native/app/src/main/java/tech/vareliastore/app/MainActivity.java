@@ -59,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.31&fresh=20261004-print-button-v37";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.32&fresh=20261004-print-restored-v38";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -202,21 +202,19 @@ public class MainActivity extends AppCompatActivity {
                     public void onPageFinished(WebView view, String url) {
                         if (started) return;
                         started = true;
-                        view.postDelayed(() -> {
-                            try {
-                                PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
-                                PrintDocumentAdapter adapter = view.createPrintDocumentAdapter("Varelia-" + ticket);
-                                // Abrir siempre el diálogo nativo de impresión. Algunos servicios de
-                                // impresión Samsung/Epson rechazan tamaños personalizados y no muestran nada.
-                                printManager.print("Comprobante " + ticket, adapter, null);
-                            } catch (Exception e) {
-                                Toast.makeText(MainActivity.this,
-                                        "No se pudo abrir la impresión.", Toast.LENGTH_LONG).show();
-                            }
-                        }, 350);
+                        try {
+                            PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
+                            PrintDocumentAdapter adapter = view.createPrintDocumentAdapter("Varelia-" + ticket);
+                            printManager.print("Comprobante " + ticket, adapter, null);
+                        } catch (Exception e) {
+                            Toast.makeText(MainActivity.this,
+                                    "No se pudo abrir la impresión.", Toast.LENGTH_LONG).show();
+                        }
                     }
                 });
-                printWebView.loadDataWithBaseURL("https://vareliastore.tech/", html, "text/html", "UTF-8", null);
+                // Mismo mecanismo de la versión anterior de Varelia que sí abría
+                // el diálogo de impresión en este dispositivo.
+                printWebView.loadDataWithBaseURL(null, html, "text/html", "UTF-8", null);
             } catch (Exception e) {
                 Toast.makeText(MainActivity.this,
                         "No se pudo preparar el comprobante para imprimir.", Toast.LENGTH_LONG).show();
@@ -446,7 +444,7 @@ public class MainActivity extends AppCompatActivity {
                 String brandJs = "(function(){"
                         + "var l=document.querySelector('.logo');if(l){l.textContent='VS';l.title='Varelia Store';}"
                         + "var h=document.querySelector('.brand h1');if(h){h.textContent='Varelia';h.id='vareliaAppName';}"
-                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.31';}"
+                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.32';}"
                         + "document.title='Varelia Store';"
                         + "})();";
                 view.evaluateJavascript(brandJs, null);
@@ -682,7 +680,7 @@ public class MainActivity extends AppCompatActivity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.31";
+            return "1.0.32";
         }
 
         @JavascriptInterface
