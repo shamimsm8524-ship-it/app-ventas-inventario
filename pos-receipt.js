@@ -145,6 +145,10 @@
 
       async function savePDF(sale){
         try{
+          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveSalePdf==='function'){
+            window.VareliaAndroid.saveSalePdf(JSON.stringify(nativeReceiptPayload(sale)));
+            return;
+          }
           const jsPDF=await loadJsPDF();
           const bs=businessSettings(),items=Array.isArray(sale.items)?sale.items:[],subtotal=Number(sale.subtotal??((Number(sale.total)||0)+(Number(sale.discount)||0)));
           const extraLines=(bs.ruc?1:0)+(bs.phone?1:0)+(bs.address?1:0)+(sale.customerName?1:0)+(sale.sellerName?1:0)+(Number(sale.discount)>0?2:0)+(sale.paymentMethod==='Fiado'?1:0)+(sale.notes?1:0);
