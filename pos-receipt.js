@@ -76,7 +76,7 @@
       overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('show')});
       const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const money=v=>'S/ '+Number(v||0).toFixed(2);
-      const businessSettings=()=>{try{return JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{return{}}};
+      const businessSettings=()=>{try{return JSON.parse(localStorage.getItem(window.vareliaScopedLocalKey('varelia_video_settings_v1'))||'{}')}catch{return{}}};
       const businessName=()=>businessSettings().businessName||document.getElementById('vareliaBusinessName')?.textContent?.trim()||'Varelia Store';
       const ticketNo=sale=>sale.receiptNumber||('V-'+String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-10).toUpperCase());
       const dateText=sale=>new Date(sale.date||Date.now()).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'});
