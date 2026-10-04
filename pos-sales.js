@@ -7,6 +7,64 @@
       const salesSec=document.getElementById('sales'),salesList=document.getElementById('salesList'),legacyCart=document.getElementById('cart'),legacyTotal=document.getElementById('saleTotal'),legacyCheckout=document.getElementById('checkout'),saleDialog=document.getElementById('saleDialog'),scanForSale=document.getElementById('scanForSale');
       if(!salesSec||!salesList||!legacyCart||!legacyTotal||!legacyCheckout||!saleDialog||!scanForSale||typeof addToCart!=='function')return;
       clearInterval(wait);
+
+      const moneyPay=n=>'S/ '+Number(n||0).toFixed(2);
+      function paymentDetailLines(p){
+        const lines=['DETALLE DE COBRO','Total: '+moneyPay(p.total)];
+        Object.entries(p.breakdown||{}).filter(([,v])=>Number(v)>0).forEach(([k,v])=>lines.push(k+': '+moneyPay(v)));
+        lines.push('Recibido: '+moneyPay(p.received));
+        if(Number(p.missing)>0.005)lines.push('Falta: '+moneyPay(p.missing));
+        else lines.push('Vuelto: '+moneyPay(p.change));
+        return lines;
+      }
+      function paymentPdfBlob(p){
+        const safe=s=>String(s||'').replace(/[^\x20-\x7E]/g,' ').replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+        const lines=paymentDetailLines(p);
+        let stream='BT\n/F1 18 Tf\n50 790 Td\n('+safe(lines[0])+') Tj\n/F1 12 Tf\n';
+        lines.slice(1).forEach(line=>{stream+='0 -24 Td\n('+safe(line)+') Tj\n'});
+        stream+='ET\n';
+        const objs=[
+          '<< /Type /Catalog /Pages 2 0 R >>',
+          '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+          '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+          '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+          '<< /Length '+stream.length+' >>\nstream\n'+stream+'endstream'
+        ];
+        let pdf='%PDF-1.4\n',offs=[0];
+        objs.forEach((o,i)=>{offs[i+1]=pdf.length;pdf+=(i+1)+' 0 obj\n'+o+'\nendobj\n'});
+        const xref=pdf.length;
+        pdf+='xref\n0 '+(objs.length+1)+'\n0000000000 65535 f \n';
+        for(let i=1;i<=objs.length;i++)pdf+=String(offs[i]).padStart(10,'0')+' 00000 n \n';
+        pdf+='trailer\n<< /Size '+(objs.length+1)+' /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF';
+        return new Blob([pdf],{type:'application/pdf'});
+      }
+      function ensurePaymentDetail(){
+        let d=document.getElementById('vposPaymentDetailModal');
+        if(d)return d;
+        d=document.createElement('div');d.id='vposPaymentDetailModal';
+        d.style.cssText='display:none;position:fixed;inset:0;z-index:99999;background:rgba(15,23,42,.58);padding:18px;align-items:center;justify-content:center';
+        d.innerHTML='<div style="width:min(92vw,460px);max-height:88vh;overflow:auto;background:var(--card,#fff);color:var(--ink,#111);border-radius:22px;padding:20px;box-shadow:0 24px 80px rgba(0,0,0,.28)"><div style="display:flex;justify-content:space-between;gap:12px;align-items:center"><h3 style="margin:0;font-size:22px">Detalle del cobro</h3><button type="button" id="vpayDetailClose" style="border:0;background:transparent;font-size:28px;line-height:1">×</button></div><div id="vpayDetailBody" style="margin-top:14px"></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px"><button type="button" id="vpayDetailPrint" class="btn secondary">🖨 Imprimir</button><button type="button" id="vpayDetailDownload" class="btn primary">⬇ Descargar PDF</button></div></div>';
+        document.body.appendChild(d);
+        d.querySelector('#vpayDetailClose').onclick=()=>{d.style.display='none'};
+        d.addEventListener('click',e=>{if(e.target===d)d.style.display='none'});
+        return d;
+      }
+      function showPaymentDetail(p){
+        const d=ensurePaymentDetail(),body=d.querySelector('#vpayDetailBody');
+        const escPay=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        const rows=Object.entries(p.breakdown||{}).filter(([,v])=>Number(v)>0).map(([k,v])=>'<div style="display:flex;justify-content:space-between;gap:16px;padding:9px 0;border-bottom:1px solid var(--line,#e5e7eb)"><span>'+escPay(k)+'</span><b>'+moneyPay(v)+'</b></div>').join('');
+        body.innerHTML='<div style="display:flex;justify-content:space-between;gap:16px;padding:10px 0;font-size:18px"><b>Total</b><b>'+moneyPay(p.total)+'</b></div>'+rows+'<div style="display:flex;justify-content:space-between;gap:16px;padding:10px 0"><span>Recibido</span><b>'+moneyPay(p.received)+'</b></div><div style="display:flex;justify-content:space-between;gap:16px;padding:12px;border-radius:12px;background:'+(p.missing>0.005?'#fff1f2':'#ecfdf5')+';font-size:18px"><b>'+(p.missing>0.005?'Falta':'Vuelto')+'</b><b style="color:'+(p.missing>0.005?'#b91c1c':'#047857')+'">'+moneyPay(p.missing>0.005?p.missing:p.change)+'</b></div>';
+        d._snapshot=p;d.style.display='flex';
+        d.querySelector('#vpayDetailDownload').onclick=()=>{
+          const blob=paymentPdfBlob(d._snapshot),url=URL.createObjectURL(blob),a=document.createElement('a');
+          a.href=url;a.download='detalle-cobro-'+new Date().toISOString().slice(0,10)+'.pdf';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);
+        };
+        d.querySelector('#vpayDetailPrint').onclick=()=>{
+          const lines=paymentDetailLines(d._snapshot),f=document.createElement('iframe');f.style.cssText='position:fixed;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(f);
+          const w=f.contentWindow;w.document.open();w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Detalle de cobro</title><style>body{font-family:Arial,sans-serif;padding:28px;color:#111}h1{font-size:22px}.row{display:flex;justify-content:space-between;border-bottom:1px solid #ddd;padding:10px 0}.big{font-size:19px;font-weight:700}</style></head><body><h1>'+lines[0]+'</h1>'+lines.slice(1).map((x,i)=>'<div class="row '+(i>=lines.length-3?'big':'')+'"><span>'+x.replace(': ','</span><span>')+'</span></div>').join('')+'</body></html>');w.document.close();setTimeout(()=>{try{w.focus();w.print()}finally{setTimeout(()=>f.remove(),1000)}},250);
+        };
+      }
+
       const existingPos=document.getElementById('vareliaPosSales');
       if(existingPos){
         const bottom=existingPos.querySelector('.vposBottom'),checkout=existingPos.querySelector('#vposCheckout');
@@ -21,7 +79,7 @@
           const render=()=>{let t=total();if(mixed.checked){fields.innerHTML=methods.map(m=>'<label style="display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;margin-top:7px"><span>'+m+'</span><input data-vpart="'+m+'" type="number" min="0" step="0.10" inputmode="decimal" placeholder="0.00"></label>').join('')+'<div style="display:flex;justify-content:space-between;font-weight:900;margin-top:10px"><span id="vStat">Falta</span><b id="vDiff">S/ '+t.toFixed(2)+'</b></div>';fields.querySelectorAll('[data-vpart]').forEach(x=>x.oninput=update)}else{let top='';if(method.value==='Yape'||method.value==='Plin'){const info=qrInfo(method.value);top=info.qr?'<div style="display:grid;gap:9px;text-align:center;padding:12px;border:1px dashed var(--line);border-radius:14px;background:var(--card)"><img src="'+info.qr+'" alt="QR '+method.value+'" style="width:min(300px,82vw);max-height:300px;object-fit:contain;margin:auto;border-radius:12px;background:#fff;padding:8px"><b>Escanea para pagar con '+method.value+'</b>'+(info.holder?'<small style="color:var(--muted)">Titular: '+info.holder.replace(/[&<>"']/g,x=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[x]))+'</small>':'')+'<small style="color:var(--muted)">Total: S/ '+t.toFixed(2)+'</small></div>':'<small>QR de '+method.value+' no configurado. Cárgalo en Ajustes.</small>'}else if(method.value!=='Efectivo')top='<small style="display:block;margin-bottom:9px">Se cobrará S/ '+t.toFixed(2)+' por '+method.value+'.</small>';fields.innerHTML=top+'<label style="display:grid;grid-template-columns:1fr 130px;gap:8px;align-items:center;margin-top:12px"><b>Me paga con</b><input id="vReceived" type="number" min="0" step="0.10" inputmode="decimal" placeholder="Ej. 50.00"></label><div style="display:flex;justify-content:space-between;font-weight:900;margin-top:10px"><span id="vStat">Vuelto</span><b id="vDiff">S/ 0.00</b></div>';fields.querySelector('#vReceived').oninput=update}update()};
           method.onchange=render;mixed.onchange=render;render();
           window.addEventListener('varelia:payment-settings-changed',()=>setTimeout(render,0));
-          checkout.addEventListener('click',e=>{const p=snapshot();if(p.missing>.005){e.preventDefault();e.stopImmediatePropagation();window.vareliaToast?.('Faltan S/ '+p.missing.toFixed(2),'warn');return}window.VareliaPaymentSnapshot={...p,at:Date.now()}},true);
+          checkout.addEventListener('click',e=>{const p=snapshot();if(p.missing>.005){e.preventDefault();e.stopImmediatePropagation();showPaymentDetail(p);window.vareliaToast?.('Faltan S/ '+p.missing.toFixed(2),'warn');return}window.VareliaPaymentSnapshot={...p,at:Date.now()}},true);
           new MutationObserver(render).observe(existingPos.querySelector('#vposTotal'),{childList:true,characterData:true,subtree:true});
         }
         return;
@@ -305,7 +363,7 @@
         try{if(saleDialog.open)saleDialog.close()}catch{}document.body.classList.remove('vposReset');input.value='';hideSuggestions();sync();input.focus();window.vareliaToast?.(forceReset?'Nueva venta lista':'Carrito conservado','ok')
       }
       const posNew=root.querySelector('#vposNew');if(posNew)posNew.onclick=()=>startNew(true);
-      checkoutBtn.onclick=()=>{const state=sync();if(!state.rows.length)return;const p=paySnapshot();if(p.missing>.005){window.vareliaToast?.('Faltan S/ '+p.missing.toFixed(2)+' para completar el pago','warn');return}window.VareliaPaymentSnapshot={...p,at:Date.now()};try{legacyCheckout.click();setTimeout(()=>{try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}sync();renderPay();try{if(typeof renderSales==='function')renderSales()}catch{}window.vareliaToast?.('Venta registrada','ok')},160)}catch(e){console.error(e);window.vareliaSound?.('error')}};
+      checkoutBtn.onclick=()=>{const state=sync();if(!state.rows.length)return;const p=paySnapshot();if(p.missing>.005){showPaymentDetail(p);window.vareliaToast?.('Faltan S/ '+p.missing.toFixed(2)+' para completar el pago','warn');return}window.VareliaPaymentSnapshot={...p,at:Date.now()};try{legacyCheckout.click();setTimeout(()=>{try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}sync();renderPay();try{if(typeof renderSales==='function')renderSales()}catch{}window.vareliaToast?.('Venta registrada','ok')},160)}catch(e){console.error(e);window.vareliaSound?.('error')}};
 
       function goSales(){const nav=document.querySelector('.nav [data-view="sales"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew();root.scrollIntoView({behavior:'smooth',block:'start'})},80)}
       document.addEventListener('click',e=>{const b=e.target.closest('#newSaleTop,#newSaleFab');if(!b)return;e.preventDefault();e.stopImmediatePropagation();goSales()},true);
