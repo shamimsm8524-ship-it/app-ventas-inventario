@@ -300,7 +300,9 @@ public class MainActivity extends AppCompatActivity {
                         canvas.drawText(line, 40f, y, paint);
                     }
                     paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+                    paint.setTextAlign(Paint.Align.RIGHT);
                     canvas.drawText(String.format(Locale.US, "S/ %.2f", subtotal), 555f, y, paint);
+                    paint.setTextAlign(Paint.Align.LEFT);
                     y += 28f;
                 }
             }
@@ -309,7 +311,9 @@ public class MainActivity extends AppCompatActivity {
             paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
             paint.setTextSize(20f);
             canvas.drawText("TOTAL", 40f, y, paint);
+            paint.setTextAlign(Paint.Align.RIGHT);
             canvas.drawText(String.format(Locale.US, "S/ %.2f", data.optDouble("total", 0)), 555f, y, paint);
+            paint.setTextAlign(Paint.Align.LEFT);
             y += 32f;
 
             if (breakdown != null && breakdown.length() > 0) {
@@ -321,7 +325,9 @@ public class MainActivity extends AppCompatActivity {
                     paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
                     canvas.drawText(k, 40f, y, paint);
                     paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+                    paint.setTextAlign(Paint.Align.RIGHT);
                     canvas.drawText(String.format(Locale.US, "S/ %.2f", v), 555f, y, paint);
+                    paint.setTextAlign(Paint.Align.LEFT);
                     y += 22f;
                 }
             }
@@ -330,12 +336,16 @@ public class MainActivity extends AppCompatActivity {
             paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
             canvas.drawText("Recibido", 40f, y, paint);
             paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            paint.setTextAlign(Paint.Align.RIGHT);
             canvas.drawText(String.format(Locale.US, "S/ %.2f", data.optDouble("received", 0)), 555f, y, paint);
+            paint.setTextAlign(Paint.Align.LEFT);
             y += 22f;
             paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
             canvas.drawText("Vuelto", 40f, y, paint);
             paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            paint.setTextAlign(Paint.Align.RIGHT);
             canvas.drawText(String.format(Locale.US, "S/ %.2f", data.optDouble("change", 0)), 555f, y, paint);
+            paint.setTextAlign(Paint.Align.LEFT);
             y += 30f;
 
             paint.setTextSize(10f);
