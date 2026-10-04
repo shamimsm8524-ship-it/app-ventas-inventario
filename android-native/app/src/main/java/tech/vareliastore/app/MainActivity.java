@@ -8,6 +8,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Typeface;
+import android.graphics.pdf.PdfDocument;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -52,12 +56,170 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.25&fresh=20261004-native-pdf-v30";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.26&fresh=20261004-native-pdf-v31";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
     private String pendingScannerTarget = "sale";
     private String pendingCartSummary = "";
+
+    private String safePdfName(String value) {
+        String s = value == null ? "" : value.replaceAll("[^A-Za-z0-9_-]+", "-");
+        if (s.isEmpty()) s = String.valueOf(System.currentTimeMillis());
+        return s;
+    }
+
+    private float drawPdfText(Canvas canvas, Paint paint, String text, float x, float y, float maxWidth, float lineHeight) {
+        if (text == null) text = "";
+        String[] words = text.trim().split("\\s+");
+        StringBuilder line = new StringBuilder();
+        for (String word : words) {
+            String test = line.length() == 0 ? word : line + " " + word;
+            if (paint.measureText(test) > maxWidth && line.length() > 0) {
+                canvas.drawText(line.toString(), x, y, paint);
+                y += lineHeight;
+                line.setLength(0);
+                line.append(word);
+            } else {
+                if (line.length() > 0) line.append(" ");
+                line.append(word);
+            }
+        }
+        if (line.length() > 0) {
+            canvas.drawText(line.toString(), x, y, paint);
+            y += lineHeight;
+        }
+        return y;
+    }
+
+    private void saveSalePdfNative(String saleJson) {
+        try {
+            JSONObject data = new JSONObject(saleJson == null ? "{}" : saleJson);
+            JSONArray items = data.optJSONArray("items");
+            JSONObject breakdown = data.optJSONObject("breakdown");
+            int itemCount = items == null ? 0 : items.length();
+            int paymentCount = breakdown == null ? 0 : breakdown.length();
+            int pageHeight = Math.max(842, 430 + itemCount * 58 + paymentCount * 34);
+
+            PdfDocument document = new PdfDocument();
+            PdfDocument.PageInfo info = new PdfDocument.PageInfo.Builder(595, pageHeight, 1).create();
+            PdfDocument.Page page = document.startPage(info);
+            Canvas canvas = page.getCanvas();
+
+            Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            paint.setColor(Color.BLACK);
+            paint.setTextSize(22f);
+            paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            float y = 48f;
+            String business = data.optString("business", "Varelia");
+            y = drawPdfText(canvas, paint, business, 40f, y, 515f, 28f);
+
+            paint.setTextSize(14f);
+            paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+            canvas.drawText("COMPROBANTE INTERNO DE VENTA", 40f, y + 5f, paint);
+            y += 34f;
+
+            String ticket = data.optString("ticket", "V-" + System.currentTimeMillis());
+            canvas.drawText("N.º: " + ticket, 40f, y, paint); y += 22f;
+            canvas.drawText("Fecha: " + data.optString("date", ""), 40f, y, paint); y += 22f;
+            canvas.drawText("Pago: " + data.optString("method", "Efectivo"), 40f, y, paint); y += 26f;
+
+            paint.setStrokeWidth(1f);
+            canvas.drawLine(40f, y, 555f, y, paint); y += 24f;
+
+            if (items != null) {
+                for (int i = 0; i < items.length(); i++) {
+                    JSONObject it = items.optJSONObject(i);
+                    if (it == null) continue;
+                    paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+                    paint.setTextSize(14f);
+                    y = drawPdfText(canvas, paint, it.optString("name", "Producto"), 40f, y, 360f, 18f);
+                    paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+                    paint.setTextSize(12f);
+                    double qty = it.optDouble("qty", 0);
+                    double price = it.optDouble("price", 0);
+                    double subtotal = it.optDouble("subtotal", qty * price);
+                    String line = String.format(Locale.US, "%.3g x S/ %.2f", qty, price);
+                    canvas.drawText(line, 40f, y, paint);
+                    paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+                    canvas.drawText(String.format(Locale.US, "S/ %.2f", subtotal), 555f, y, paint);
+                    y += 28f;
+                }
+            }
+
+            canvas.drawLine(40f, y, 555f, y, paint); y += 28f;
+            paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            paint.setTextSize(20f);
+            canvas.drawText("TOTAL", 40f, y, paint);
+            canvas.drawText(String.format(Locale.US, "S/ %.2f", data.optDouble("total", 0)), 555f, y, paint);
+            y += 32f;
+
+            if (breakdown != null && breakdown.length() > 0) {
+                paint.setTextSize(13f);
+                java.util.Iterator<String> keys = breakdown.keys();
+                while (keys.hasNext()) {
+                    String k = keys.next();
+                    double v = breakdown.optDouble(k, 0);
+                    paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+                    canvas.drawText(k, 40f, y, paint);
+                    paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+                    canvas.drawText(String.format(Locale.US, "S/ %.2f", v), 555f, y, paint);
+                    y += 22f;
+                }
+            }
+
+            paint.setTextSize(13f);
+            paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+            canvas.drawText("Recibido", 40f, y, paint);
+            paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            canvas.drawText(String.format(Locale.US, "S/ %.2f", data.optDouble("received", 0)), 555f, y, paint);
+            y += 22f;
+            paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+            canvas.drawText("Vuelto", 40f, y, paint);
+            paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            canvas.drawText(String.format(Locale.US, "S/ %.2f", data.optDouble("change", 0)), 555f, y, paint);
+            y += 30f;
+
+            paint.setTextSize(10f);
+            paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+            y = drawPdfText(canvas, paint,
+                    "Comprobante interno. No reemplaza boleta o factura electrónica SUNAT.",
+                    40f, y, 515f, 14f);
+
+            document.finishPage(page);
+
+            String fileName = "comprobante-" + safePdfName(ticket) + ".pdf";
+            ContentValues cv = new ContentValues();
+            cv.put(MediaStore.Downloads.DISPLAY_NAME, fileName);
+            cv.put(MediaStore.Downloads.MIME_TYPE, "application/pdf");
+            cv.put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Varelia");
+            Uri outUri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+            if (outUri == null) throw new IllegalStateException("No se pudo crear el PDF");
+            try (OutputStream os = getContentResolver().openOutputStream(outUri)) {
+                if (os == null) throw new IllegalStateException("No se pudo escribir el PDF");
+                document.writeTo(os);
+            }
+            document.close();
+
+            Uri finalUri = outUri;
+            runOnUiThread(() -> {
+                Toast.makeText(MainActivity.this,
+                        "PDF guardado en Descargas/Varelia", Toast.LENGTH_LONG).show();
+                try {
+                    Intent open = new Intent(Intent.ACTION_VIEW);
+                    open.setDataAndType(finalUri, "application/pdf");
+                    open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(Intent.createChooser(open, "Abrir comprobante para imprimir"));
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this,
+                            "El PDF quedó guardado en Descargas/Varelia.", Toast.LENGTH_LONG).show();
+                }
+            });
+        } catch (Exception e) {
+            runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                    "No se pudo generar el comprobante PDF.", Toast.LENGTH_LONG).show());
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -181,10 +343,34 @@ public class MainActivity extends AppCompatActivity {
                         + "})();";
                 view.evaluateJavascript(receiptJs, null);
 
+                String nativePdfHookJs = "(function(){try{"
+                        + "if(window.__vareliaNativePdfHookV2)return;window.__vareliaNativePdfHookV2=true;"
+                        + "var pending=null;"
+                        + "document.addEventListener('click',function(e){"
+                        + "var b=e.target&&e.target.closest?e.target.closest('#vposCheckout'):null;if(!b)return;"
+                        + "try{var st=window.VareliaPOS&&window.VareliaPOS.sync?window.VareliaPOS.sync():null;"
+                        + "if(!st||!st.rows||!st.rows.length)return;"
+                        + "pending={at:Date.now(),state:st};}catch(x){console.error(x)}"
+                        + "},true);"
+                        + "document.addEventListener('click',function(e){"
+                        + "var b=e.target&&e.target.closest?e.target.closest('#vposCheckout'):null;if(!b||!pending)return;"
+                        + "setTimeout(function(){try{"
+                        + "var snap=window.VareliaPaymentSnapshot;"
+                        + "if(!snap||Number(snap.missing||0)>0.005||Number(snap.at||0)<pending.at-100)return;"
+                        + "var rows=(pending.state.rows||[]).map(function(r){return {name:String(r.name||r.p&&r.p.name||'Producto'),qty:Number(r.qty||0),price:Number(r.price||0),subtotal:Number(r.subtotal||0)}});"
+                        + "var business=(document.getElementById('vareliaBusinessName')||{}).textContent||((document.querySelector('.brand h1')||{}).textContent)||'Varelia';"
+                        + "var data={business:String(business).trim(),ticket:'V-'+Date.now(),date:new Date().toLocaleString('es-PE'),method:String(snap.method||''),total:Number(snap.total||pending.state.total||0),received:Number(snap.received||0),change:Number(snap.change||0),breakdown:snap.breakdown||{},items:rows};"
+                        + "VareliaAndroid.saveSalePdf(JSON.stringify(data));pending=null;"
+                        + "}catch(x){console.error('PDF nativo',x)}},25);"
+                        + "},false);"
+                        + "}catch(e){console.error(e)}})();";
+                view.evaluateJavascript(nativePdfHookJs, null);
+
                 view.postDelayed(() -> {
                     if (!isFinishing()) {
                         view.evaluateJavascript(brandJs, null);
                         view.evaluateJavascript(receiptJs, null);
+                        view.evaluateJavascript(nativePdfHookJs, null);
                     }
                 }, 700);
             }
@@ -400,6 +586,11 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(MainActivity.this, "No se pudo abrir el enlace.", Toast.LENGTH_SHORT).show();
                 }
             });
+        }
+
+        @JavascriptInterface
+        public void saveSalePdf(String saleJson) {
+            saveSalePdfNative(saleJson);
         }
 
         @JavascriptInterface
