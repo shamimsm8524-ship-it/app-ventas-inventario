@@ -363,7 +363,84 @@
         try{if(saleDialog.open)saleDialog.close()}catch{}document.body.classList.remove('vposReset');input.value='';hideSuggestions();sync();input.focus();window.vareliaToast?.(forceReset?'Nueva venta lista':'Carrito conservado','ok')
       }
       const posNew=root.querySelector('#vposNew');if(posNew)posNew.onclick=()=>startNew(true);
-      checkoutBtn.onclick=()=>{const state=sync();if(!state.rows.length)return;const p=paySnapshot();if(p.missing>.005){showPaymentDetail(p);window.vareliaToast?.('Faltan S/ '+p.missing.toFixed(2)+' para completar el pago','warn');return}window.VareliaPaymentSnapshot={...p,at:Date.now()};try{legacyCheckout.click();setTimeout(()=>{try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}sync();renderPay();try{if(typeof renderSales==='function')renderSales()}catch{}window.vareliaToast?.('Venta registrada','ok')},160)}catch(e){console.error(e);window.vareliaSound?.('error')}};
+      function showPaidReceipt(before,paymentSnap){
+        let tries=0;
+        const open=()=>{
+          tries++;
+          let sale=null;
+          try{
+            if(Array.isArray(sales)&&sales.length>before)sale=sales[sales.length-1];
+          }catch{}
+          if(!sale){
+            if(tries<30)setTimeout(open,60);
+            else window.vareliaToast?.('La venta se registró, pero no se pudo abrir el comprobante.','warn');
+            return;
+          }
+          try{
+            sale.paymentMethod=paymentSnap.method||sale.paymentMethod||'Efectivo';
+            sale.paymentBreakdown=paymentSnap.breakdown||sale.paymentBreakdown||{};
+            sale.amountReceived=Number(paymentSnap.received||0);
+            sale.changeGiven=Number(paymentSnap.change||0);
+            if(!sale.receiptNumber){
+              const d=new Date(sale.date||Date.now()).toISOString().slice(0,10).replace(/-/g,'');
+              const id=String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-6).toUpperCase();
+              sale.receiptNumber='V-'+d+'-'+id;
+            }
+            const vp=window.vareliaCurrentUserProfile||{};
+            sale.sellerName=sale.sellerName||vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';
+            try{if(typeof save==='function')save()}catch{}
+          }catch(e){console.warn('Preparar comprobante',e)}
+
+          const show=()=>{
+            if(window.VareliaReceipt?.show){
+              window.VareliaReceipt.show(sale);
+              return true;
+            }
+            return false;
+          };
+          if(show())return;
+
+          let loader=document.getElementById('vareliaReceiptEmergencyLoader');
+          if(!loader){
+            loader=document.createElement('script');
+            loader.id='vareliaReceiptEmergencyLoader';
+            loader.src='pos-receipt.js?v=20261004-98&ts='+Date.now();
+            loader.onload=()=>setTimeout(()=>{if(!show())window.vareliaToast?.('No se pudo abrir el comprobante.','warn')},80);
+            loader.onerror=()=>window.vareliaToast?.('No se pudo cargar el comprobante.','warn');
+            document.head.appendChild(loader);
+          }else{
+            setTimeout(()=>{if(!show()&&tries<30)setTimeout(open,100)},100);
+          }
+        };
+        setTimeout(open,40);
+      }
+
+      checkoutBtn.onclick=()=>{
+        const state=sync();
+        if(!state.rows.length)return;
+        const p=paySnapshot();
+        if(p.missing>.005){
+          showPaymentDetail(p);
+          window.vareliaToast?.('Faltan S/ '+p.missing.toFixed(2)+' para completar el pago','warn');
+          return;
+        }
+        window.VareliaPaymentSnapshot={...p,at:Date.now()};
+        let before=0;
+        try{before=Array.isArray(sales)?sales.length:0}catch{}
+        try{
+          legacyCheckout.click();
+          showPaidReceipt(before,p);
+          setTimeout(()=>{
+            try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}
+            sync();renderPay();
+            try{if(typeof renderSales==='function')renderSales()}catch{}
+            window.vareliaToast?.('Venta registrada','ok');
+          },160);
+        }catch(e){
+          console.error(e);
+          window.vareliaSound?.('error');
+        }
+      };
 
       function goSales(){const nav=document.querySelector('.nav [data-view="sales"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew();root.scrollIntoView({behavior:'smooth',block:'start'})},80)}
       document.addEventListener('click',e=>{const b=e.target.closest('#newSaleTop,#newSaleFab');if(!b)return;e.preventDefault();e.stopImmediatePropagation();goSales()},true);
