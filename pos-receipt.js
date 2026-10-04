@@ -161,35 +161,56 @@
 
       async function savePDF(sale){
         try{
-          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveSalePdf==='function'){
-            window.VareliaAndroid.saveSalePdf(JSON.stringify(nativeReceiptPayload(sale)));
-            return;
-          }
-        }catch(e){console.warn('Guardado PDF nativo no disponible',e)}
-        try{
           const jsPDF=await loadJsPDF();
           const bs=businessSettings(),items=Array.isArray(sale.items)?sale.items:[];
-          const height=Math.max(145,115+items.length*16+(bs.logo?24:0));
+          const paymentRows=paymentDetailRows(sale);
+          const height=Math.max(190,142+items.length*20+paymentRows.length*6+(bs.logo?24:0));
           const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[80,height]});
-          let y=8;
+          let y=7;
           if(bs.logo){
-            try{const logo=await pdfLogoData(bs.logo);if(logo){doc.addImage(logo,'JPEG',27,y,26,18,undefined,'FAST');y+=22}}catch{}
+            try{const logo=await pdfLogoData(bs.logo);if(logo){doc.addImage(logo,'JPEG',29,y,22,18,undefined,'FAST');y+=21}}catch{}
           }
-          doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text(businessName(),40,y,{align:'center',maxWidth:68});y+=6;
-          doc.setFont('helvetica','normal');doc.setFontSize(8);doc.text('COMPROBANTE INTERNO DE VENTA',40,y,{align:'center'});y+=6;
+          doc.setFont('courier','bold');doc.setFontSize(13);doc.text(businessName(),40,y,{align:'center',maxWidth:70});y+=5;
+          doc.setFont('courier','normal');doc.setFontSize(7.5);doc.text('COMPROBANTE INTERNO DE VENTA',40,y,{align:'center'});y+=4;
+          if(bs.ruc){doc.text('RUC/Doc: '+bs.ruc,40,y,{align:'center'});y+=4}
+          if(bs.phone){doc.text('Tel: '+bs.phone,40,y,{align:'center'});y+=4}
+          if(bs.address){doc.text(String(bs.address),40,y,{align:'center',maxWidth:70});y+=5}
+          doc.setLineDashPattern([1,1],0);doc.line(5,y,75,y);y+=6;
+          const row=(label,value,bold=false)=>{doc.setFont('courier',bold?'bold':'normal');doc.setFontSize(8);doc.text(String(label),5,y);doc.text(String(value||''),75,y,{align:'right',maxWidth:50});y+=5};
+          row('N.º',ticketNo(sale),true);row('Fecha',dateText(sale));row('Pago',methodText(sale));if(sale.sellerName)row('Vendedor',sale.sellerName);if(sale.customerName)row('Cliente',sale.customerName);
+          doc.line(5,y,75,y);y+=6;
           for(const i of items){
-            doc.setFont('helvetica','bold');doc.text(String(i.name||'Producto'),5,y);
-            doc.text(money(Number(i.qty||0)*Number(i.price||0)),75,y,{align:'right'});y+=4;
-            doc.setFont('helvetica','normal');doc.text(Number(i.qty||0)+' × '+money(i.price),5,y);y+=6;
+            const q=Number(i.qty||0),p=Number(i.price||0),sub=q*p;
+            const weighted=(i.saleType==='weight'||i.unit==='kg'||i.byWeight===true||(!Number.isInteger(q)&&q>0));
+            doc.setFont('courier','bold');doc.setFontSize(9);doc.text(String(i.name||'Producto'),5,y);doc.text(money(sub),75,y,{align:'right'});y+=5;
+            doc.setFont('courier','normal');doc.setFontSize(8);
+            if(weighted){
+              const wt=q<1?Math.round(q*1000)+' g':q.toLocaleString('es-PE')+' kg';
+              doc.text('Peso: '+wt,5,y);y+=4;
+              doc.text('Precio por kilo: '+money(p),5,y);y+=5;
+            }else{doc.text(q+' × '+money(p),5,y);y+=5}
           }
-          doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('TOTAL',5,y);doc.text(money(sale.total),75,y,{align:'right'});
-          doc.save('comprobante-'+ticketNo(sale)+'.pdf');
+          doc.line(5,y,75,y);y+=7;
+          doc.setFont('courier','bold');doc.setFontSize(14);doc.text('TOTAL',5,y);doc.text(money(sale.total),75,y,{align:'right'});y+=7;
+          doc.line(5,y,75,y);y+=6;
+          for(const pr of paymentRows)row(pr[0],money(pr[1]),pr[0]==='Vuelto');
+          y+=4;doc.setFont('courier','normal');doc.setFontSize(7.5);
+          doc.text(String(bs.message||'Gracias por su compra.'),40,y,{align:'center',maxWidth:68});y+=5;
+          doc.text('Este ticket es un comprobante interno y no',40,y,{align:'center'});y+=4;
+          doc.text('reemplaza una boleta o factura electrónica SUNAT.',40,y,{align:'center'});
+          const fileName='comprobante-'+ticketNo(sale)+'.pdf';
+          const dataUri=doc.output('datauristring');
+          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function'){
+            window.VareliaAndroid.saveDataUrl(dataUri,fileName);
+            return;
+          }
+          doc.save(fileName);
         }catch(e){
           console.error(e);
           alert('No se pudo descargar el comprobante.');
         }
       }
-      async function shareReceipt(sale){
+            async function shareReceipt(sale){
         const text=receiptText(sale);
         if(navigator.share){try{await navigator.share({title:'Comprobante '+ticketNo(sale),text});return}catch(e){if(e?.name==='AbortError')return}}
         window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
