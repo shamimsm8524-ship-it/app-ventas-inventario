@@ -2,6 +2,7 @@
   if(window.__vareliaAccountIsolation)return;
   window.__vareliaAccountIsolation=true;
   const clean=v=>String(v||'').replace(/[^a-zA-Z0-9_-]/g,'_');
+  const initialScope=clean(localStorage.getItem('varelia_active_business_id')||'');
   const PRIVATE_KEYS=[
     'miNegocio_products_v1','miNegocio_categories_v1','miNegocio_sales_v1',
     'miNegocio_closures_v1','miNegocio_cashStart_v1','miNegocio_theme_v1',
@@ -40,7 +41,7 @@
     const prev=clean(localStorage.getItem('varelia_active_business_id')||'');
     localStorage.setItem('varelia_active_business_id',scope);
     window.vareliaBusinessScope=scope;
-    if(prev!==scope||migrated){location.reload();return true}
+    if(initialScope!==scope||prev!==scope||migrated){location.reload();return true}
     window.dispatchEvent(new CustomEvent('varelia:account-isolation-ready',{detail:{businessId:scope,userId:u.user.id}}));
     return true;
   }
