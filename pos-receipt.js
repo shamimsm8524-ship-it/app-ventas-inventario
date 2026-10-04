@@ -281,7 +281,7 @@
             if(!sale.receiptNumber)sale.receiptNumber='V-'+new Date(sale.date||Date.now()).toISOString().slice(0,10).replace(/-/g,'')+'-'+String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-6).toUpperCase();
             sale.paymentMethod=pending.paymentMethod;const ex=pending.extras||{};const originalTotal=Number(sale.total)||0;sale.subtotal=originalTotal;sale.discount=Math.max(0,Math.min(originalTotal,Number(ex.discount)||0));sale.total=Math.max(0,originalTotal-sale.discount);sale.notes=String(ex.notes||'').trim();sale.customerName=String(ex.customerName||'').trim();if(sale.paymentMethod==='Fiado'&&!Number.isFinite(Number(sale.paidAmount)))sale.paidAmount=0;const vp=window.vareliaCurrentUserProfile||{};sale.sellerId=vp.id||window.vareliaSellerId||'';sale.sellerName=vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';sale.sellerRole=vp.role||window.vareliaSellerRole||'';sale.receiptIssuedAt=new Date().toISOString();
             try{if(typeof save==='function')save()}catch{}
-            showReceipt(sale);window.vareliaSound?.('sale');
+            showReceipt(sale);window.vareliaSound?.('sale');setTimeout(()=>{try{savePDF(sale)}catch(e){console.error('PDF automatico',e)}},180);
           }finally{pending=null}
         },120);
       },true);
