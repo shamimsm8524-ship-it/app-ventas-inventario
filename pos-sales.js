@@ -404,7 +404,7 @@
           if(!loader){
             loader=document.createElement('script');
             loader.id='vareliaReceiptEmergencyLoader';
-            loader.src='pos-receipt.js?v=20261004-100&ts='+Date.now();
+            loader.src='pos-receipt.js?v=20261004-104&ts='+Date.now();
             loader.onload=()=>setTimeout(()=>{if(!show())window.vareliaToast?.('No se pudo abrir el comprobante.','warn')},80);
             loader.onerror=()=>window.vareliaToast?.('No se pudo cargar el comprobante.','warn');
             document.head.appendChild(loader);
