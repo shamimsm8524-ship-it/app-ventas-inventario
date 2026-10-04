@@ -59,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.30&fresh=20261004-receipt-match-v36";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.31&fresh=20261004-print-button-v37";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -175,7 +175,7 @@ public class MainActivity extends AppCompatActivity {
                         + "<style>"
                         + "@page{margin:3mm}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}"
                         + "body{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}"
-                        + ".paper{width:100%;margin:0 auto;padding:3mm 2.5mm}.logo{text-align:center;margin:0 0 2mm}.logo img{display:block;margin:0 auto;max-width:26mm;max-height:18mm;width:auto;height:auto;object-fit:contain}"
+                        + ".paper{width:76mm;max-width:100%;margin:0 auto;padding:3mm 2.5mm}.logo{text-align:center;margin:0 0 2mm}.logo img{display:block;margin:0 auto;max-width:26mm;max-height:18mm;width:auto;height:auto;object-fit:contain}"
                         + "h2{text-align:center;margin:0;font-size:17px}.center{text-align:center}.muted{color:#555;font-size:9px;line-height:1.3}.sep{border-top:1px dashed #777;margin:2.2mm 0}"
                         + ".line,.item,.total{display:flex;justify-content:space-between;gap:2mm;margin:1.4mm 0;align-items:flex-start;font-size:10px}.item small{display:block;color:#555;margin-top:.7mm;font-size:9px}"
                         + ".total{font-size:17px;font-weight:900;margin-top:2mm}.note{text-align:center;font-size:8px;line-height:1.35;margin-top:3mm;color:#555}"
@@ -206,21 +206,9 @@ public class MainActivity extends AppCompatActivity {
                             try {
                                 PrintManager printManager = (PrintManager) getSystemService(Context.PRINT_SERVICE);
                                 PrintDocumentAdapter adapter = view.createPrintDocumentAdapter("Varelia-" + ticket);
-                                int widthMils = "58".equals(thermalWidth) ? 2283 : 3150;
-                                int itemCount = items == null ? 0 : items.length();
-                                int paymentCount = breakdown == null ? 0 : breakdown.length();
-                                int heightMils = Math.max(4800, 3900 + itemCount * 520 + paymentCount * 260);
-                                PrintAttributes.MediaSize media = new PrintAttributes.MediaSize(
-                                        "VARELIA_RECEIPT_" + thermalWidth,
-                                        thermalWidth + " mm",
-                                        widthMils,
-                                        heightMils
-                                );
-                                PrintAttributes attrs = new PrintAttributes.Builder()
-                                        .setMediaSize(media)
-                                        .setMinMargins(new PrintAttributes.Margins(60, 60, 60, 60))
-                                        .build();
-                                printManager.print("Comprobante " + ticket, adapter, attrs);
+                                // Abrir siempre el diálogo nativo de impresión. Algunos servicios de
+                                // impresión Samsung/Epson rechazan tamaños personalizados y no muestran nada.
+                                printManager.print("Comprobante " + ticket, adapter, null);
                             } catch (Exception e) {
                                 Toast.makeText(MainActivity.this,
                                         "No se pudo abrir la impresión.", Toast.LENGTH_LONG).show();
@@ -458,7 +446,7 @@ public class MainActivity extends AppCompatActivity {
                 String brandJs = "(function(){"
                         + "var l=document.querySelector('.logo');if(l){l.textContent='VS';l.title='Varelia Store';}"
                         + "var h=document.querySelector('.brand h1');if(h){h.textContent='Varelia';h.id='vareliaAppName';}"
-                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.30';}"
+                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.31';}"
                         + "document.title='Varelia Store';"
                         + "})();";
                 view.evaluateJavascript(brandJs, null);
@@ -694,7 +682,7 @@ public class MainActivity extends AppCompatActivity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.30";
+            return "1.0.31";
         }
 
         @JavascriptInterface
