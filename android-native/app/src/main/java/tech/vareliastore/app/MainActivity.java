@@ -270,8 +270,21 @@ public class MainActivity extends AppCompatActivity {
                     double qty = it.optDouble("qty", 0);
                     double price = it.optDouble("price", 0);
                     double subtotal = it.optDouble("subtotal", qty * price);
-                    String line = String.format(Locale.US, "%.3g x S/ %.2f", qty, price);
-                    canvas.drawText(line, 40f, y, paint);
+                    boolean weighted = "weight".equalsIgnoreCase(it.optString("saleType", ""))
+                            || "kg".equalsIgnoreCase(it.optString("unit", ""))
+                            || it.optBoolean("byWeight", false)
+                            || (qty > 0 && Math.abs(qty - Math.rint(qty)) > 0.000001);
+                    if (weighted) {
+                        String weightText = qty < 1
+                                ? String.format(Locale.US, "%d g", Math.round(qty * 1000))
+                                : String.format(Locale.US, "%.3g kg", qty);
+                        canvas.drawText("Peso: " + weightText, 40f, y, paint);
+                        y += 18f;
+                        canvas.drawText(String.format(Locale.US, "Precio por kilo: S/ %.2f", price), 40f, y, paint);
+                    } else {
+                        String line = String.format(Locale.US, "%.3g x S/ %.2f", qty, price);
+                        canvas.drawText(line, 40f, y, paint);
+                    }
                     paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
                     canvas.drawText(String.format(Locale.US, "S/ %.2f", subtotal), 555f, y, paint);
                     y += 28f;
