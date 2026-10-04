@@ -268,7 +268,7 @@ public class MainActivity extends AppCompatActivity {
                         float w = logoBitmap.getWidth() * scale, h = logoBitmap.getHeight() * scale;
                         android.graphics.RectF dst = new android.graphics.RectF((595f-w)/2f, y, (595f+w)/2f, y+h);
                         canvas.drawBitmap(logoBitmap, null, dst, paint);
-                        y += h + 14f;
+                        y += h + 28f;
                     }
                 } catch (Exception ignored) {}
             }
