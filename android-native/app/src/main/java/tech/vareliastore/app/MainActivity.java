@@ -263,7 +263,7 @@ public class MainActivity extends AppCompatActivity {
                     byte[] logoBytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT);
                     android.graphics.Bitmap logoBitmap = android.graphics.BitmapFactory.decodeByteArray(logoBytes, 0, logoBytes.length);
                     if (logoBitmap != null) {
-                        float maxW = 92f, maxH = 58f;
+                        float maxW = 72f, maxH = 44f;
                         float scale = Math.min(maxW / logoBitmap.getWidth(), maxH / logoBitmap.getHeight());
                         float w = logoBitmap.getWidth() * scale, h = logoBitmap.getHeight() * scale;
                         android.graphics.RectF dst = new android.graphics.RectF((595f-w)/2f, y, (595f+w)/2f, y+h);
