@@ -58,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.27&fresh=20261004-print-first-v33";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.28&fresh=20261004-receipt-print-v34";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -300,16 +300,9 @@ public class MainActivity extends AppCompatActivity {
             }
             document.close();
 
-            Uri finalUri = outUri;
-            runOnUiThread(() -> {
-                Toast.makeText(MainActivity.this,
-                        "PDF guardado en Descargas/Varelia", Toast.LENGTH_LONG).show();
-                try {
-                    Intent open = new Intent(Intent.ACTION_VIEW);
-                    open.setDataAndType(finalUri, "application/pdf");
-                    open.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
-                    startActivity(Intent.createChooser(open, "Abrir comprobante para imprimir"));
-                } catch (Exception e) {
+            runOnUiThread(() -> Toast.makeText(MainActivity.this,
+                    "PDF guardado en Descargas/Varelia", Toast.LENGTH_LONG).show());
+        } catch (Exception e) {
                     Toast.makeText(MainActivity.this,
                             "El PDF quedó guardado en Descargas/Varelia.", Toast.LENGTH_LONG).show();
                 }
@@ -435,34 +428,16 @@ public class MainActivity extends AppCompatActivity {
                         + "if(!window.VareliaReceipt&&!document.getElementById('vareliaNativeReceiptLoader')){"
                         + "var s=document.createElement('script');"
                         + "s.id='vareliaNativeReceiptLoader';"
-                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261004-print-first-v32&ts='+Date.now();"
+                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261003-97&ts='+Date.now();"
                         + "document.head.appendChild(s);"
                         + "}"
                         + "}catch(e){console.error(e);}"
                         + "})();";
                 view.evaluateJavascript(receiptJs, null);
 
-                String nativePdfHookJs = "(function(){try{"
-                        + "if(window.__vareliaNativePdfHookV2)return;window.__vareliaNativePdfHookV2=true;"
-                        + "var pending=null;"
-                        + "document.addEventListener('click',function(e){"
-                        + "var b=e.target&&e.target.closest?e.target.closest('#vposCheckout'):null;if(!b)return;"
-                        + "try{var st=window.VareliaPOS&&window.VareliaPOS.sync?window.VareliaPOS.sync():null;"
-                        + "if(!st||!st.rows||!st.rows.length)return;"
-                        + "pending={at:Date.now(),state:st};}catch(x){console.error(x)}"
-                        + "},true);"
-                        + "document.addEventListener('click',function(e){"
-                        + "var b=e.target&&e.target.closest?e.target.closest('#vposCheckout'):null;if(!b||!pending)return;"
-                        + "setTimeout(function(){try{"
-                        + "var snap=window.VareliaPaymentSnapshot;"
-                        + "if(!snap||Number(snap.missing||0)>0.005||Number(snap.at||0)<pending.at-100)return;"
-                        + "var rows=(pending.state.rows||[]).map(function(r){return {name:String(r.name||r.p&&r.p.name||'Producto'),qty:Number(r.qty||0),price:Number(r.price||0),subtotal:Number(r.subtotal||0)}});"
-                        + "var business=(document.getElementById('vareliaBusinessName')||{}).textContent||((document.querySelector('.brand h1')||{}).textContent)||'Varelia';"
-                        + "var data={business:String(business).trim(),ticket:'V-'+Date.now(),date:new Date().toLocaleString('es-PE'),method:String(snap.method||''),total:Number(snap.total||pending.state.total||0),received:Number(snap.received||0),change:Number(snap.change||0),breakdown:snap.breakdown||{},items:rows};"
-                        + "VareliaAndroid.printSaleReceipt(JSON.stringify(data));pending=null;"
-                        + "}catch(x){console.error('PDF nativo',x)}},25);"
-                        + "},false);"
-                        + "}catch(e){console.error(e)}})();";
+                // La impresión ya NO se dispara al cobrar. El comprobante se muestra en Varelia
+                // y el usuario decide entre Imprimir o Descargar PDF.
+                String nativePdfHookJs = "(function(){try{window.__vareliaNativePdfHookV2=true;}catch(e){}})();";
                 view.evaluateJavascript(nativePdfHookJs, null);
 
                 view.postDelayed(() -> {
