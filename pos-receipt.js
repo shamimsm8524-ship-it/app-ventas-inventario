@@ -170,7 +170,7 @@
           const jsPDF=await loadJsPDF(),items=Array.isArray(sale.items)?sale.items:[],bs=businessSettings();
           const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[80,Math.max(150,120+items.length*16)]});
           let y=8;
-          if(bs.logo){try{const logo=await pdfLogoData(bs.logo);if(logo){doc.addImage(logo,'JPEG',30,y,20,16,undefined,'FAST');y+=19}}catch{}}
+          if(bs.logo){try{const logo=await pdfLogoData(bs.logo);if(logo){doc.addImage(logo,'JPEG',33,y,14,12,undefined,'FAST');y+=16}}catch{}}
           doc.setFont('courier','bold');doc.setFontSize(12);doc.text(businessName(),40,y,{align:'center'});y+=5;
           doc.setFont('courier','normal');doc.setFontSize(7);doc.text('COMPROBANTE INTERNO DE VENTA',40,y,{align:'center'});y+=4;
           if(bs.ruc){doc.text('RUC/Doc: '+bs.ruc,40,y,{align:'center'});y+=4} if(bs.phone){doc.text('Tel: '+bs.phone,40,y,{align:'center'});y+=4} if(bs.address){doc.text(String(bs.address),40,y,{align:'center'});y+=4}
