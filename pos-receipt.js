@@ -163,7 +163,10 @@
         try{
           const jsPDF=await loadJsPDF();
           const bs=businessSettings(),items=Array.isArray(sale.items)?sale.items:[];
-          const paymentRows=paymentDetailRows(sale);
+          const breakdown=(sale&&sale.paymentBreakdown&&typeof sale.paymentBreakdown==='object')?sale.paymentBreakdown:{};
+          const paymentRows=Object.entries(breakdown).filter(([,v])=>Number(v)>0).map(([k,v])=>[k,Number(v)]);
+          if(Number.isFinite(Number(sale?.amountReceived))&&Number(sale.amountReceived)>0)paymentRows.push(['Recibido',Number(sale.amountReceived)]);
+          if(Number.isFinite(Number(sale?.changeGiven))&&Number(sale.changeGiven)>=0)paymentRows.push(['Vuelto',Number(sale.changeGiven)]);
           const height=Math.max(190,142+items.length*20+paymentRows.length*6+(bs.logo?24:0));
           const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[80,height]});
           let y=7;
@@ -177,7 +180,7 @@
           if(bs.address){doc.text(String(bs.address),40,y,{align:'center',maxWidth:70});y+=5}
           doc.setLineDashPattern([1,1],0);doc.line(5,y,75,y);y+=6;
           const row=(label,value,bold=false)=>{doc.setFont('courier',bold?'bold':'normal');doc.setFontSize(8);doc.text(String(label),5,y);doc.text(String(value||''),75,y,{align:'right',maxWidth:50});y+=5};
-          row('N.º',ticketNo(sale),true);row('Fecha',dateText(sale));row('Pago',methodText(sale));if(sale.sellerName)row('Vendedor',sale.sellerName);if(sale.customerName)row('Cliente',sale.customerName);
+          row('N.º',ticketNo(sale),true);row('Fecha',dateText(sale));row('Pago',String(sale.paymentMethod||'Efectivo'));if(sale.sellerName)row('Vendedor',sale.sellerName);if(sale.customerName)row('Cliente',sale.customerName);
           doc.line(5,y,75,y);y+=6;
           for(const i of items){
             const q=Number(i.qty||0),p=Number(i.price||0),sub=q*p;
@@ -195,7 +198,7 @@
           doc.line(5,y,75,y);y+=6;
           for(const pr of paymentRows)row(pr[0],money(pr[1]),pr[0]==='Vuelto');
           y+=4;doc.setFont('courier','normal');doc.setFontSize(7.5);
-          doc.text(String(bs.message||'Gracias por su compra.'),40,y,{align:'center',maxWidth:68});y+=5;
+          doc.text(String(bs.ticketMessage||'Gracias por su compra.'),40,y,{align:'center',maxWidth:68});y+=5;
           doc.text('Este ticket es un comprobante interno y no',40,y,{align:'center'});y+=4;
           doc.text('reemplaza una boleta o factura electrónica SUNAT.',40,y,{align:'center'});
           const fileName='comprobante-'+ticketNo(sale)+'.pdf';
