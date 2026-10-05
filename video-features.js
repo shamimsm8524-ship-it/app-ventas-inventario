@@ -177,7 +177,7 @@
           <div class="vrefTabs" style="margin-top:12px;margin-bottom:0">
             ${[['today','Hoy'],['day','📅 Día'],['week','Semana'],['month','Mes'],['all','Todo']].map(([k,l])=>`<button class="vrefTab ${period===k?'active':''}" data-period="${k}">${l}</button>`).join('')}
           </div>
-          \${period==='day'?(()=>{
+          ${period==='day'?(()=>{
             const cm=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth(),1);
             const cy=cm.getFullYear(),cmo=cm.getMonth(),first=(cm.getDay()+6)%7,days=new Date(cy,cmo+1,0).getDate();
             const title=cm.toLocaleDateString('es-PE',{month:'long',year:'numeric'});
