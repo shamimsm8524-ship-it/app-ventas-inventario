@@ -38,7 +38,23 @@
             const redirectTo=isNative
               ? 'https://vareliastore.tech/auth-callback.html?app=1'
               : 'https://vareliastore.tech/auth-callback.html';
-            const {error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo}});
+
+            // En la APK el OAuth termina en Chrome y luego vuelve a Varelia.
+            // El cliente principal usa PKCE, pero su code_verifier queda en el WebView
+            // y no existe en Chrome. Para la APK usamos un cliente OAuth independiente
+            // con implicit flow, que devuelve la sesión directamente al callback.
+            const oauthClient=isNative
+              ? window.supabase.createClient(
+                  'https://onvdcaohnftrjunwdvjp.supabase.co',
+                  atob('c2JfcHVibGlzaGFibGVfYnoyejV1Z2xmX0VBTEplenF2NHJDd19TNzNHTU5yaA=='),
+                  {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,flowType:'implicit'}}
+                )
+              : sb;
+
+            const {error}=await oauthClient.auth.signInWithOAuth({
+              provider:'google',
+              options:{redirectTo}
+            });
             if(error)throw error;
           }catch(e){if(msg){msg.textContent='No se pudo iniciar con Google: '+(e.message||e);msg.className='va-msg error'}}
         };
