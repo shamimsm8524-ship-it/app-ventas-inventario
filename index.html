@@ -211,7 +211,7 @@ const K=Object.fromEntries(Object.entries(__baseK).map(([n,k])=>[n,__sk(k)]));
 const $=id=>document.getElementById(id),money=n=>'S/ '+Number(n||0).toFixed(2),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),esc=s=>String(s??'');
 function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}
 let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.sales,[]),closures=load(K.closures,[]),cashStart=load(K.cashStart,new Date().toISOString()),theme=load(K.theme,{color:'#be185d',dark:false,updatedAt:0}),movements=load(K.movements,[]),suppliers=load(K.suppliers,[]),purchases=load(K.purchases,[]),activeCategory='Todos',cart=load(__sk('varelia_active_sale_cart_v1'),[]),purchaseCart=[],inventoryProductId=null;
-products.forEach(p=>{if(!p.id)p.id=uid();p.id=String(p.id);if(p.reorderLevel==null)p.reorderLevel=5});window.products=products;
+products.forEach(p=>{if(!p.id)p.id=uid();p.id=String(p.id);if(p.reorderLevel==null)p.reorderLevel=5});window.products=products;window.sales=sales;
 let isRemoteSync=false;
 function setCloudStatus(txt,isError=false){const el=$('cloudStatus');if(!el)return;el.textContent=txt;el.style.color=isError?'#b91c1c':'var(--p)'}
 function syncProductToCloud(){}
