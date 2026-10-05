@@ -155,9 +155,10 @@
 
     function setupHistory(){
       const sec=document.getElementById('mobileHistoryHub');if(!sec)return false;if(sec.__vHistoryReady){window.VareliaVideoHistory?.render?.();return true}sec.__vHistoryReady=true;
-      let period='today',mode='tickets';
+      let period='today',mode='tickets',selectedDate=new Date().toISOString().slice(0,10);
       const render=()=>{
-        const ss=periodSales(period),total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
+        const allSales=salesList();
+        const ss=period==='day'?allSales.filter(s=>String(s.date||'').slice(0,10)===selectedDate):periodSales(period),total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
         const payments={};ss.forEach(s=>{const k=s.paymentMethod||'No registrado';payments[k]=(payments[k]||0)+(Number(s.total)||0)});
         const fiados=salesList().filter(s=>(s.paymentMethod||'')==='Fiado'&&Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0))>0);
         sec.innerHTML=`
@@ -174,11 +175,14 @@
           </div>
           <div class="vrefPanel"><h3>Desglose por método de pago</h3><div class="vrefPayments">${Object.keys(payments).length?Object.entries(payments).map(([k,v])=>`<div class="vrefPayment"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join(''):'<div class="vrefPayment"><span>Sin ventas</span><b>${money(0)}</b></div>'}</div></div>
           <div class="vrefTabs" style="margin-top:12px;margin-bottom:0">
-            ${[['today','Hoy'],['week','Semana'],['month','Mes'],['all','Todo']].map(([k,l])=>`<button class="vrefTab ${period===k?'active':''}" data-period="${k}">${l}</button>`).join('')}
+            ${[['today','Hoy'],['day','📅 Día'],['week','Semana'],['month','Mes'],['all','Todo']].map(([k,l])=>`<button class="vrefTab ${period===k?'active':''}" data-period="${k}">${l}</button>`).join('')}
           </div>
+          ${period==='day'?`<div class="vrefPanel"><h3>📅 Consultar ventas por fecha</h3><p style="margin:0 0 10px;color:var(--muted)">Selecciona un día para ver todo el historial de ventas de esa fecha.</p><input id="vhistoryDate" type="date" value="${selectedDate}" style="width:100%;box-sizing:border-box;font-size:17px;padding:12px;border-radius:12px;border:1px solid #ddd"></div>`:'' }
           <div class="vrefPanel" id="vhistoryBody"></div>
           <div class="vrefTools"><button data-open-existing="reports">Reportes</button><button data-open-existing="profit">Ganancias</button><button data-open-existing="cash">Caja y cierres</button></div>
         `;
+        const dateInput=sec.querySelector('#vhistoryDate');
+        if(dateInput)dateInput.addEventListener('change',()=>{selectedDate=dateInput.value||new Date().toISOString().slice(0,10);render()});
         const body=sec.querySelector('#vhistoryBody');
         if(mode==='credits'){
           body.innerHTML='<h3>Cuaderno de fiados</h3>'+(
