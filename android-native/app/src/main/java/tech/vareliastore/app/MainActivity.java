@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.32&fresh=20261004-print-restored-v38";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.33&fresh=20261004-print-restored-v38";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -515,7 +515,7 @@ public class MainActivity extends AppCompatActivity {
                 String brandJs = "(function(){"
                         + "var l=document.querySelector('.logo');if(l){l.textContent='VS';l.title='Varelia Store';}"
                         + "var h=document.querySelector('.brand h1');if(h){h.textContent='Varelia';h.id='vareliaAppName';}"
-                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.32';}"
+                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.33';}"
                         + "document.title='Varelia Store';"
                         + "})();";
                 view.evaluateJavascript(brandJs, null);
@@ -764,7 +764,7 @@ public class MainActivity extends AppCompatActivity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.32";
+            return "1.0.33";
         }
 
         @JavascriptInterface
