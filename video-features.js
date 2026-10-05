@@ -155,7 +155,7 @@
 
     function setupHistory(){
       const sec=document.getElementById('mobileHistoryHub');if(!sec)return false;if(sec.__vHistoryReady){window.VareliaVideoHistory?.render?.();return true}sec.__vHistoryReady=true;
-      let period='today',mode='tickets',selectedDate=new Date().toISOString().slice(0,10);
+      let period='today',mode='tickets',selectedDate=new Date().toISOString().slice(0,10),calendarMonth=new Date(),calendarOpen=false;
       const render=()=>{
         const allSales=salesList();
         const ss=period==='day'?allSales.filter(s=>String(s.date||'').slice(0,10)===selectedDate):periodSales(period),total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
@@ -177,7 +177,19 @@
           <div class="vrefTabs" style="margin-top:12px;margin-bottom:0">
             ${[['today','Hoy'],['day','📅 Día'],['week','Semana'],['month','Mes'],['all','Todo']].map(([k,l])=>`<button class="vrefTab ${period===k?'active':''}" data-period="${k}">${l}</button>`).join('')}
           </div>
-          ${period==='day'?`<div class="vrefPanel"><h3>📅 Consultar ventas por fecha</h3><p style="margin:0 0 10px;color:var(--muted)">Selecciona un día para ver todo el historial de ventas de esa fecha.</p><input id="vhistoryDate" type="date" value="${selectedDate}" style="width:100%;box-sizing:border-box;font-size:17px;padding:12px;border-radius:12px;border:1px solid #ddd"></div>`:'' }
+          \${period==='day'?(()=>{
+            const cm=new Date(calendarMonth.getFullYear(),calendarMonth.getMonth(),1);
+            const cy=cm.getFullYear(),cmo=cm.getMonth(),first=(cm.getDay()+6)%7,days=new Date(cy,cmo+1,0).getDate();
+            const title=cm.toLocaleDateString('es-PE',{month:'long',year:'numeric'});
+            const names=['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+            let grid=names.map(n=>'<div style="text-align:center;font-size:10px;font-weight:900;color:var(--muted);padding:5px 0">'+n+'</div>').join('');
+            for(let i=0;i<first;i++)grid+='<div></div>';
+            for(let d=1;d<=days;d++){
+              const ds=cy+'-'+String(cmo+1).padStart(2,'0')+'-'+String(d).padStart(2,'0'),active=ds===selectedDate;
+              grid+='<button type="button" data-cal-date="'+ds+'" style="border:1px solid '+(active?'var(--p)':'var(--line)')+';background:'+(active?'var(--p)':'var(--card)')+';color:'+(active?'#fff':'var(--ink)')+';border-radius:10px;padding:9px 0;font-weight:900;font-size:12px">'+d+'</button>';
+            }
+            return '<div class="vrefPanel"><h3>📅 Consultar ventas por fecha</h3><p style="margin:0 0 10px;color:var(--muted)">Elige un día para ver todas las ventas de esa fecha.</p><button type="button" data-cal-open style="width:100%;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:12px;font-size:16px;font-weight:900;text-align:left">📅 '+new Date(selectedDate+'T12:00:00').toLocaleDateString('es-PE',{day:'2-digit',month:'long',year:'numeric'})+'</button><div id="vhistoryCalendar" style="display:'+(calendarOpen?'block':'none')+';margin-top:10px;border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--bg)"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px"><button type="button" data-cal-prev style="border:1px solid var(--line);background:var(--card);border-radius:9px;padding:7px 11px;font-weight:900">‹</button><b style="text-transform:capitalize">'+title+'</b><button type="button" data-cal-next style="border:1px solid var(--line);background:var(--card);border-radius:9px;padding:7px 11px;font-weight:900">›</button></div><div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px">'+grid+'</div></div></div>';
+          })():'' }
           <div class="vrefPanel" id="vhistoryBody"></div>
           <div class="vrefTools"><button data-open-existing="reports">Reportes</button><button data-open-existing="profit">Ganancias</button><button data-open-existing="cash">Caja y cierres</button></div>
         `;
@@ -199,6 +211,14 @@
         }
       };
       sec.onclick=e=>{
+        const calOpen=e.target.closest('[data-cal-open]');
+        if(calOpen){calendarOpen=true;calendarMonth=new Date(selectedDate+'T12:00:00');render();return}
+        const calPrev=e.target.closest('[data-cal-prev]');
+        if(calPrev){calendarMonth.setMonth(calendarMonth.getMonth()-1);calendarOpen=true;render();return}
+        const calNext=e.target.closest('[data-cal-next]');
+        if(calNext){calendarMonth.setMonth(calendarMonth.getMonth()+1);calendarOpen=true;render();return}
+        const calDate=e.target.closest('[data-cal-date]');
+        if(calDate){selectedDate=calDate.dataset.calDate;calendarOpen=false;render();return}
         const hm=e.target.closest('[data-hmode]');if(hm){mode=hm.dataset.hmode;render();return}
         const pr=e.target.closest('[data-period]');if(pr){period=pr.dataset.period;render();return}
         const op=e.target.closest('[data-open-existing]');if(op){openExisting(op.dataset.openExisting);return}
