@@ -155,10 +155,11 @@
 
     function setupHistory(){
       const sec=document.getElementById('mobileHistoryHub');if(!sec)return false;if(sec.__vHistoryReady){window.VareliaVideoHistory?.render?.();return true}sec.__vHistoryReady=true;
-      let period='today',mode='tickets',selectedDate=new Date().toISOString().slice(0,10),calendarMonth=new Date(),calendarOpen=false;
+      const localDateKey=d=>{const x=new Date(d);if(Number.isNaN(x.getTime()))return String(d||'').slice(0,10);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
+      let period='today',mode='tickets',selectedDate=localDateKey(new Date()),calendarMonth=new Date(),calendarOpen=false;
       const render=()=>{
         const allSales=salesList();
-        const ss=period==='day'?allSales.filter(s=>String(s.date||'').slice(0,10)===selectedDate):periodSales(period),total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
+        const ss=period==='day'?allSales.filter(s=>localDateKey(s.date)===selectedDate):periodSales(period),total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
         const payments={};ss.forEach(s=>{const k=s.paymentMethod||'No registrado';payments[k]=(payments[k]||0)+(Number(s.total)||0)});
         const fiados=salesList().filter(s=>(s.paymentMethod||'')==='Fiado'&&Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0))>0);
         sec.innerHTML=`
@@ -194,7 +195,7 @@
           <div class="vrefTools"><button data-open-existing="reports">Reportes</button><button data-open-existing="profit">Ganancias</button><button data-open-existing="cash">Caja y cierres</button></div>
         `;
         const dateInput=sec.querySelector('#vhistoryDate');
-        if(dateInput)dateInput.addEventListener('change',()=>{selectedDate=dateInput.value||new Date().toISOString().slice(0,10);render()});
+        if(dateInput)dateInput.addEventListener('change',()=>{selectedDate=dateInput.value||localDateKey(new Date());render()});
         const body=sec.querySelector('#vhistoryBody');
         if(mode==='credits'){
           body.innerHTML='<h3>Cuaderno de fiados</h3>'+(
