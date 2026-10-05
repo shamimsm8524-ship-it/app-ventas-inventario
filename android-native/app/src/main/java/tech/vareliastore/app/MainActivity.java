@@ -616,7 +616,13 @@ public class MainActivity extends AppCompatActivity {
         });
 
         Uri launch = getIntent() != null ? getIntent().getData() : null;
-        if (!handleIncomingUri(launch)) webView.loadUrl(HOME_FRESH);
+        if (!handleIncomingUri(launch)) {
+            // La app puede conservar un Service Worker antiguo aunque WebView use LOAD_NO_CACHE.
+            // Lo eliminamos una vez y forzamos una carga nueva del sitio para que la APK no muestre
+            // la interfaz vieja de Reportes/Ticket promedio.
+            String cleanUrl = HOME_FRESH + "&native_clean=1&ts=" + System.currentTimeMillis();
+            webView.loadUrl(cleanUrl);
+        }
     }
 
     private boolean handleIncomingUri(Uri uri) {
