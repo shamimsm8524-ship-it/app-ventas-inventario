@@ -274,7 +274,7 @@
           <div class="vsettingsSection"><h3>Avanzado</h3><p>Opciones adicionales del catálogo.</p><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px"><input type="checkbox" id="vsetAutoBarcode" ${cfg.autoBarcode?'checked':''} style="width:18px">Generar código de barras automáticamente</label><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px;margin-top:10px"><input type="checkbox" id="vsetVariants" ${cfg.enableVariants?'checked':''} style="width:18px">Activar campo de tallas / colores / variantes</label></div>
           <button class="vsettingsAction primary" id="vsettingsSave">Guardar configuración</button>
         `;
-        sec.querySelector('#vsetLogo').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.logo=v;sec.querySelector('#vLogoPreview').src=v}};
+        sec.querySelector('#vsetLogo').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.logo=v;sec.querySelector('#vLogoPreview').src=v;saveCfg();window.dispatchEvent(new CustomEvent('varelia:business-settings-local-changed'));}};
         const persistQrNow=async(kind,v)=>{
           if(!v)return;
           if(kind==='yape'){cfg.yapeQr=v;localStorage.setItem(QR_YAPE_STORE,v)}
