@@ -157,7 +157,7 @@
       const sec=document.getElementById('mobileHistoryHub');if(!sec)return false;if(sec.__vHistoryReady){window.VareliaVideoHistory?.render?.();return true}sec.__vHistoryReady=true;
       let period='today',mode='tickets',selectedDate=new Date().toISOString().slice(0,10);
       const render=()=>{
-        const baseSales=periodSales(period==='day'?'today':period);const ss=period==='day'?baseSales.filter(s=>String(s.date||'').slice(0,10)===selectedDate):baseSales;const total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
+        const baseSales=period==='day'?salesList():periodSales(period);const ss=period==='day'?baseSales.filter(s=>String(s.date||'').slice(0,10)===selectedDate):baseSales;const total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
         const payments={};ss.forEach(s=>{const k=s.paymentMethod||'No registrado';payments[k]=(payments[k]||0)+(Number(s.total)||0)});
         const fiados=salesList().filter(s=>(s.paymentMethod||'')==='Fiado'&&Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0))>0);
         sec.innerHTML=`
