@@ -150,16 +150,20 @@
       const payments={};sales.forEach(s=>{const k=s.paymentMethod||'No registrado';payments[k]=(payments[k]||0)+(Number(s.total)||0)});
       const qty={};sales.forEach(s=>(s.items||[]).forEach(i=>{const k=i.name||'Producto';qty[k]=(qty[k]||0)+(Number(i.qty)||0)}));
       const top=Object.entries(qty).sort((a,b)=>b[1]-a[1]).slice(0,10);
-      let profit=0,hasCost=false;
+      let profit=0,hasCost=false,estimatedCost=false;
       sales.forEach(s=>(s.items||[]).forEach(i=>{
-        const cost=Number(i.cost??i.purchasePrice??i.buyPrice);
-        if(Number.isFinite(cost)){profit+=(Number(i.price)||0)*Number(i.qty||0)-cost*Number(i.qty||0);hasCost=true}
+        const p=Array.isArray(window.products)?window.products.find(x=>String(x.id)===String(i.id||i.productId)):null;
+        const raw=i.cost??i.purchasePrice??i.buyPrice;
+        const cost=Number(raw);
+        const fallback=Number(p?.buyPrice);
+        const unitCost=Number.isFinite(cost)&&cost>0?cost:(Number.isFinite(fallback)?fallback:0);
+        if(unitCost>0){profit+=(Number(i.price)||0)*Number(i.qty||1)-unitCost*Number(i.qty||1);hasCost=true;if(!(Number.isFinite(cost)&&cost>0))estimatedCost=true}
       }));
       let m=document.getElementById('vareliaHistoryExtraModal');
       if(!m){m=document.createElement('div');m.id='vareliaHistoryExtraModal';m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:99999;display:flex;align-items:flex-end;justify-content:center;padding:12px;box-sizing:border-box';document.body.appendChild(m)}
       const title=kind==='profit'?'💰 Ganancias':'📊 Reportes';
       const body=kind==='profit'
-        ? '<div style="font-size:14px;color:var(--muted);margin-bottom:14px">Resumen de ganancias con los costos guardados en las ventas.</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="vrefStat"><small>Ventas</small><strong>'+moneyFn(total)+'</strong></div><div class="vrefStat"><small>Ganancia</small><strong>'+moneyFn(hasCost?profit:0)+'</strong></div></div>'+(hasCost?'':'<p style="margin-top:14px;color:var(--muted)">Las ventas antiguas no guardan costo de compra, por eso no se puede calcular una ganancia exacta de esas ventas.</p>')
+        ? '<div style="font-size:14px;color:var(--muted);margin-bottom:14px">La ganancia se calcula con el costo de compra del producto. Si una venta antigua no guardó el costo, se usa el costo actual del producto.</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="vrefStat"><small>Ventas</small><strong>'+moneyFn(total)+'</strong></div><div class="vrefStat"><small>Ganancia'+(estimatedCost?' estimada':'')+'</small><strong>'+moneyFn(hasCost?profit:0)+'</strong></div></div>'+(estimatedCost?'<p style="margin-top:14px;color:var(--muted)">⚠️ Algunas ventas usan el precio de compra actual del producto, porque no tenían guardado su costo histórico.</p>':(hasCost?'':'<p style="margin-top:14px;color:var(--muted)">Configura el precio de compra de tus productos para calcular las ganancias.</p>'))
         : '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="vrefStat"><small>Venta total</small><strong>'+moneyFn(total)+'</strong></div><div class="vrefStat"><small>Transacciones</small><strong>'+sales.length+'</strong></div><div class="vrefStat"><small>Ticket promedio</small><strong>'+moneyFn(avg)+'</strong></div></div><h3 style="margin-top:18px">Métodos de pago</h3><div>'+Object.entries(payments).map(([k,v])=>'<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span>'+escFn(k)+'</span><b>'+moneyFn(v)+'</b></div>').join('')+'</div><h3 style="margin-top:18px">Productos más vendidos</h3><div>'+top.map(([k,v])=>'<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line)"><span>'+escFn(k)+'</span><b>'+v+'</b></div>').join('')+'</div>';
       m.innerHTML='<div style="width:min(680px,100%);max-height:88vh;overflow:auto;background:var(--card);color:var(--ink);border-radius:18px;padding:18px;box-sizing:border-box;box-shadow:0 12px 40px rgba(0,0,0,.25)"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h2 style="margin:0">'+title+'</h2><button type="button" data-history-extra-close style="font-size:24px;border:0;background:transparent">×</button></div><div style="margin-top:14px">'+body+'</div><button type="button" data-history-extra-close style="margin-top:18px;width:100%;padding:12px;border-radius:12px;border:0;background:var(--p);color:#fff;font-weight:900">Cerrar</button></div>';
       m.querySelectorAll('[data-history-extra-close]').forEach(b=>b.onclick=()=>m.remove());
