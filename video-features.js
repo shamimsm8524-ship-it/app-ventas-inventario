@@ -177,7 +177,7 @@
           <div class="vrefTabs" style="margin-top:12px;margin-bottom:0">
             ${[['today','Hoy'],['day','📅 Día'],['week','Semana'],['month','Mes'],['all','Todo']].map(([k,l])=>`<button class="vrefTab ${period===k?'active':''}" data-period="${k}">${l}</button>`).join('')}
           </div>
-          ${period==='day'?`<div class="vrefPanel"><h3>📅 Consultar ventas por fecha</h3><p style="margin:0 0 10px;color:var(--muted)">Selecciona un día para ver todo el historial de ventas de esa fecha.</p><input id="vhistoryDate" type="date" value="${selectedDate}" style="width:100%;box-sizing:border-box;font-size:17px;padding:12px;border-radius:12px;border:1px solid #ddd"></div>`:'' }
+          ${period==='day'?`<div class="vrefPanel"><h3>📅 Consultar ventas por fecha</h3><p style="margin:0 0 10px;color:var(--muted)">Selecciona un día para ver todo el historial de ventas de esa fecha.</p><input id="vhistoryDate" type="date" value="${selectedDate}" style="color-scheme:light;color:#111;background:#fff;width:100%;box-sizing:border-box;font-size:17px;padding:12px;border-radius:12px;border:1px solid #ddd"></div>`:'' }
           <div class="vrefPanel" id="vhistoryBody"></div>
           <div class="vrefTools"><button data-open-existing="reports">Reportes</button><button data-open-existing="profit">Ganancias</button><button data-open-existing="cash">Caja y cierres</button></div>
         `;
