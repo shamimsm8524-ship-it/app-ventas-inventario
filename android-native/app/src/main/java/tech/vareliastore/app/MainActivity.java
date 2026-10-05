@@ -538,6 +538,13 @@ public class MainActivity extends AppCompatActivity {
                 String nativePdfHookJs = "(function(){try{window.__vareliaNativePdfHookV2=true;}catch(e){}})();";
                 view.evaluateJavascript(nativePdfHookJs, null);
 
+                // Limpiar Service Workers heredados de versiones antiguas. Esto evita que una
+                // versión vieja de la interfaz quede atrapada aunque el WebView no use caché.
+                if (url != null && url.contains("native_clean=1")) {
+                    String swCleanJs = "(async function(){try{if(navigator.serviceWorker){var rs=await navigator.serviceWorker.getRegistrations();for(var i=0;i<rs.length;i++){try{await rs[i].unregister();}catch(e){}}}var u=new URL(location.href);u.searchParams.set('native_clean','2');u.searchParams.set('ts',Date.now().toString());location.replace(u.toString());}catch(e){console.error(e);}})();";
+                    view.evaluateJavascript(swCleanJs, null);
+                }
+
                 view.postDelayed(() -> {
                     if (!isFinishing()) {
                         view.evaluateJavascript(brandJs, null);
