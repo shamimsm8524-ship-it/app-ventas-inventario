@@ -1,4 +1,4 @@
-name: Varelia 1.0.34 APK
+name: Varelia 1.0.35 APK
 on:
   push:
     branches: [main]
@@ -37,10 +37,10 @@ jobs:
           file android-native/app/build/outputs/apk/debug/app-debug.apk
           ls -lh android-native/app/build/outputs/apk/debug/app-debug.apk
 
-      - name: Upload Varelia 1.0.34 APK
+      - name: Upload Varelia 1.0.35 APK
         uses: actions/upload-artifact@v4
         with:
-          name: Varelia-1.0.34-APK
+          name: Varelia-1.0.35-APK
           path: android-native/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
