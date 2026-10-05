@@ -5,7 +5,7 @@
     const money=n=>'S/ '+(Number(n)||0).toFixed(2);
     const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const arr=n=>{try{return Array.isArray(window[n])?window[n]:eval('typeof '+n+'!=="undefined"&&Array.isArray('+n+')?'+n+':[]')}catch{return[]}};
-    const products=()=>arr('products'), sales=()=>arr('sales');
+    const products=()=>Array.isArray(window.products)?window.products:[], sales=()=>Array.isArray(window.sales)?window.sales:[];
     const findProduct=it=>products().find(p=>String(p.id)===String(it.id||it.productId))||products().find(p=>String(p.barcode||'')===String(it.barcode||'')&&String(it.barcode||''));
     const qty=it=>Number(it.qty??it.quantity??1)||1;
     const sell=it=>{const p=findProduct(it);return Number(it.sellPrice??it.price??p?.sellPrice??0)||0};
