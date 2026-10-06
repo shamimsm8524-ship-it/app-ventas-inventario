@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Abriendo catálogo</title><style>body{font-family:system-ui;max-width:520px;margin:15vh auto;padding:24px;color:#172554}a{color:#2563eb}button{padding:12px;border-radius:10px;border:0;background:#2563eb;color:white}</style><h1>Catálogo del negocio</h1><p id="state">Abriendo catálogo…</p><button id="retry" hidden>Volver a intentar</button><script>
+(()=>{
+const API="https://onvdcaohnftrjunwdvjp.supabase.co/rest/v1/",KEY="sb_publishable_bz2z5uglf_EALJezqv4rCw_S73GMNrh",state=document.getElementById('state'),retry=document.getElementById('retry');
+async function open(){
+ retry.hidden=true;state.textContent='Abriendo catálogo…';
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ try{
+  const match=location.pathname.match(/^\/c\/([^/]+)\/?$/);
+  const slug=match?decodeURIComponent(match[1]):'';
+  if(!/^[a-z0-9][a-z0-9-]{0,99}$/.test(slug))throw new Error('Este enlace no es válido.');
+  const query=new URLSearchParams({select:'public_id',public_slug:'eq.'+slug,enabled:'eq.true',limit:'1'});
+  const response=await fetch(API+'public_catalogs?'+query,{headers:{apikey:KEY},signal:controller.signal});
+  if(!response.ok)throw new Error('No se pudo consultar el catálogo.');
+  const rows=await response.json(),id=rows[0]?.public_id;
+  if(!id)throw new Error('Este catálogo no existe o no está disponible.');
+  const target=new URL('/catalogo/milagros/catalogo-v2.html',location.origin);target.searchParams.set('c',id);
+  location.replace(target.href);
+ }catch(e){state.textContent=e.name==='AbortError'?'La conexión tarda demasiado. Inténtalo otra vez.':e.message;retry.hidden=false;}
+ finally{clearTimeout(timer);}
+}
+retry.onclick=open;open();
+})();
+</script></html>
