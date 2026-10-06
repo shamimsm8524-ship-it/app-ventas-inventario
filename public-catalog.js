@@ -97,7 +97,7 @@
       try{if(mapUrl){const u=new URL(mapUrl);mapUrl=['http:','https:'].includes(u.protocol)?u.href:''}}catch{mapUrl=''}
       const slogan=String(s.businessSlogan||'').trim().slice(0,120);
       const yapeQr=String(s.yapeQr||''),plinQr=String(s.plinQr||'');
-      return {slogan,delivery:{indrive:{enabled:s.deliveryInDriveEnabled!==false,cost:Math.max(0,Number(s.deliveryInDriveCost)||0)},olva:{enabled:s.deliveryOlvaEnabled!==false,cost:Math.max(0,Number(s.deliveryOlvaCost)||0)},shalom:{enabled:s.deliveryShalomEnabled!==false,cost:Math.max(0,Number(s.deliveryShalomCost)||0),pay_at_agency:s.deliveryShalomPayAgency!==false},pickup:s.publicAllowPickup!==false},phone:String(s.phone||'').trim().slice(0,40),whatsapp:normalizeSocialUrl(s.socialWhatsApp||s.phone||'','whatsapp'),address:String(s.address||'').trim().slice(0,240),hours:String(s.businessHours||'').trim().slice(0,300),map_url:mapUrl,allow_delivery:s.publicAllowDelivery!==false,allow_pickup:s.publicAllowPickup!==false,payment_methods:methods.length?methods:['Efectivo'],payment_qr:{yape:{image:yapeQr,holder:String(s.yapeHolder||'').trim().slice(0,120)},plin:{image:plinQr,holder:String(s.plinHolder||'').trim().slice(0,120)}},transfer_details:String(s.transferDetails||'').trim().slice(0,800)};
+      return {logo:String(s.logo||'').trim(),slogan,delivery:{indrive:{enabled:s.deliveryInDriveEnabled!==false,cost:Math.max(0,Number(s.deliveryInDriveCost)||0)},olva:{enabled:s.deliveryOlvaEnabled!==false,cost:Math.max(0,Number(s.deliveryOlvaCost)||0)},shalom:{enabled:s.deliveryShalomEnabled!==false,cost:Math.max(0,Number(s.deliveryShalomCost)||0),pay_at_agency:s.deliveryShalomPayAgency!==false},pickup:s.publicAllowPickup!==false},phone:String(s.phone||'').trim().slice(0,40),whatsapp:normalizeSocialUrl(s.socialWhatsApp||s.phone||'','whatsapp'),address:String(s.address||'').trim().slice(0,240),hours:String(s.businessHours||'').trim().slice(0,300),map_url:mapUrl,allow_delivery:s.publicAllowDelivery!==false,allow_pickup:s.publicAllowPickup!==false,payment_methods:methods.length?methods:['Efectivo'],payment_qr:{yape:{image:yapeQr,holder:String(s.yapeHolder||'').trim().slice(0,120)},plin:{image:plinQr,holder:String(s.plinHolder||'').trim().slice(0,120)}},transfer_details:String(s.transferDetails||'').trim().slice(0,800)};
     };
     const imageCache=new Map();
     const specFor=p=>String(specs[String(p.id)]??p.specifications??'');
@@ -116,7 +116,7 @@
     async function waitSb(){for(let i=0;i<60&&!window.vareliaSupabase;i++)await new Promise(r=>setTimeout(r,120));return window.vareliaSupabase}
     async function syncNow(force=false){
       if(syncing)return syncing;
-      const sig=signature();if(!force&&sig===lastSignature&&publicId&&publicSlug)return publicId;
+      const sig=signature();if(!force&&sig===lastSignature&&publicId)return publicId;
       syncing=(async()=>{
         const sb=await waitSb();if(!sb)throw new Error('Supabase no disponible');
         const {data:sess}=await sb.auth.getSession();if(!sess?.session?.user)throw new Error('Inicia sesión para publicar el catálogo');
@@ -125,20 +125,67 @@
         const {data,error}=await sb.rpc('varelia_sync_public_catalog_v4',{p_products:rows,p_theme_color:color(),p_social_links:socialLinks(),p_business_name:catalogBusinessName(),p_business_info:publicBusinessInfo()});
         if(error)throw error;
         publicId=String(data||'');
-        const {data:publicCatalog,error:slugError}=await sb.from('public_catalogs').select('public_slug').eq('public_id',publicId).eq('enabled',true).maybeSingle();
-        if(slugError||!publicCatalog?.public_slug)throw slugError||new Error('No se pudo crear el enlace del catálogo');
-        publicSlug=String(publicCatalog.public_slug);lastSignature=sig;
-        const url=location.origin+'/c/'+encodeURIComponent(publicSlug);
+        if(publicId){const result=await deadline(sb.from('public_catalogs').select('public_slug').eq('public_id',publicId).eq('enabled',true).maybeSingle()).catch(()=>null);publicSlug=String(result?.data?.public_slug||publicSlug||'');}
+        cacheLink();
+        if(!publicId)throw new Error('No se recibió el enlace del catálogo.');
+        lastSignature=sig;
+        const url=link();
         $('catalogPublicLink').value=url;$('catalogSyncState').textContent='Catálogo actualizado · '+rows.length+' producto(s) disponible(s)';
         return publicId;
       })().finally(()=>{syncing=null});
       return syncing;
     }
     window.vareliaPublicCatalogSync=()=>syncNow(true);
-    async function catalogUrl(force=false){await syncNow(force);return location.origin+'/c/'+encodeURIComponent(publicSlug)}
-    btn.addEventListener('click',async()=>{btn.disabled=true;try{dialog.showModal();$('catalogSyncState').textContent='Preparando catálogo…';await catalogUrl(true)}catch(e){console.error(e);dialog.close();alert('No se pudo preparar el catálogo público. Inténtalo otra vez.')}finally{btn.disabled=false}});
+    const link=()=>publicSlug&&/^[a-z0-9][a-z0-9-]{0,99}$/.test(publicSlug)?location.origin+'/c/'+encodeURIComponent(publicSlug):location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId);
+    function deadline(promise){
+      let timer;
+      return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('La actualización tarda demasiado. Revisa tu conexión e inténtalo nuevamente.')),15000)})]).finally(()=>clearTimeout(timer));
+    }
+    const scopedCache=()=>window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_public_catalog_id_v1'):'';
+    function cacheLink(){const key=scopedCache();if(key&&!key.endsWith('__no_account')&&publicId)try{{localStorage.setItem(key,publicId);if(publicSlug)localStorage.setItem(key+'_slug',publicSlug)}}catch{}}
+    function restoreLink(){const key=scopedCache();if(key&&!key.endsWith('__no_account'))try{const id=localStorage.getItem(key);if(id&&/^[a-zA-Z0-9_-]+$/.test(id)){publicId=id;publicSlug=localStorage.getItem(key+'_slug')||''}}catch{};if(publicId)$('catalogPublicLink').value=link();}
+    let lookup=null;
+    async function publishedLink(){
+      restoreLink();if(publicId&&publicSlug)return link();
+      if(!lookup)lookup=(async()=>{
+        const sb=await waitSb();if(!sb)throw new Error('No hay conexión con el catálogo.');
+        const {data:session,error:sessionError}=await sb.auth.getSession();if(sessionError)throw sessionError;
+        const user=session?.session?.user;if(!user)throw new Error('Inicia sesión para abrir el catálogo de tu negocio.');
+        const {data:profile,error:profileError}=await sb.from('profiles').select('business_id').eq('id',user.id).maybeSingle();
+        if(profileError)throw profileError;if(!profile?.business_id)throw new Error('No se encontró tu negocio.');
+        const {data:rows,error}=await sb.from('public_catalogs').select('public_id,public_slug').eq('business_id',profile.business_id).eq('enabled',true).limit(1);
+        if(error)throw error;
+        if(rows?.[0]?.public_id){publicId=String(rows[0].public_id);publicSlug=String(rows[0].public_slug||'');cacheLink();$('catalogPublicLink').value=link();return link();}
+        return '';
+      })().finally(()=>lookup=null);
+      return deadline(lookup).catch(e=>{if(publicId)return link();throw e});
+    }
+    async function catalogUrl(force=false){
+      if(!force){const existing=await publishedLink();if(existing)return existing;}
+      await deadline(syncNow(force));
+      if(!publicId)throw new Error('No se recibió el enlace del catálogo.');
+      return link();
+    }
+    btn.addEventListener('click',async()=>{
+      btn.disabled=true;dialog.showModal();restoreLink();
+      $('catalogSyncState').textContent=publicId?'Enlace disponible · Actualizando productos…':'Buscando el enlace de tu negocio…';
+      try{
+        const existing=await publishedLink();
+        if(existing)$('catalogSyncState').textContent='Enlace disponible · Actualizando productos…';
+        await deadline(syncNow(true));
+      }catch(e){
+        console.error(e);
+        $('catalogSyncState').textContent=publicId?'Puedes abrir el catálogo publicado. No se pudo actualizar ahora; los productos pueden mostrar la última actualización.':(e.message||'No se pudo obtener el enlace. Revisa tu conexión.');
+      }finally{btn.disabled=false}
+    });
     $('catalogClose').onclick=()=>dialog.close();
-    $('catalogOpen').onclick=async()=>{try{const url=await catalogUrl(false);window.open(url,'_blank','noopener')}catch(e){alert('No se pudo abrir el catálogo.')}};
+    $('catalogOpen').onclick=async()=>{
+      const open=$('catalogOpen');if(open.disabled)return;
+      open.disabled=true;const text=open.textContent;open.textContent='Abriendo catálogo…';
+      try{const url=await catalogUrl(false);window.location.assign(url)}
+      catch(e){$('catalogSyncState').textContent=e.message||'No se pudo abrir el catálogo. Revisa tu conexión.';}
+      finally{open.disabled=false;open.textContent=text}
+    };
     $('catalogCopy').onclick=async()=>{try{const url=await catalogUrl(false);await navigator.clipboard.writeText(url);toast('Link del catálogo copiado.')}catch{const i=$('catalogPublicLink');i.select();document.execCommand('copy');toast('Link del catálogo copiado.')}};
     $('catalogShare').onclick=async()=>{try{const url=await catalogUrl(false);if(navigator.share)await navigator.share({title:'Catálogo de productos',text:'Mira nuestros productos disponibles',url});else{await navigator.clipboard.writeText(url);toast('Link del catálogo copiado.')}}catch{}};
 
