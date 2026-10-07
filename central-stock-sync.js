@@ -155,7 +155,12 @@
     }
 
     const catMap=new Map(catRows.map(x=>[String(x.id),String(x.name||'')]));
-    const mapped=rows.map(p=>({
+    const mapped=rows.map(p=>{
+      const remoteStock=Number(p.stock)||0;
+      const key=String(p.id||'');
+      const pending=lastProductStockWrite.get(key);
+      const stock=(pending&&Date.now()-pending.at<5000)?pending.stock:remoteStock;
+      return {
       id:String(p.legacy_id||p.id),
       _cloudId:String(p.id),
       barcode:String(p.barcode||''),
@@ -163,7 +168,7 @@
       category:catMap.get(String(p.category_id||''))||'',
       buyPrice:Number(p.buy_price)||0,
       sellPrice:Number(p.sell_price)||0,
-      stock:Number(p.stock)||0,
+      stock:stock,
       unit:String(p.unit||'Unidad'),
       reorderLevel:Number(p.reorder_level)||0,
       description:String(p.description||''),
@@ -183,7 +188,8 @@
       blisterPrice:Number(p.blister_price)||0,
       unitMedicinePrice:Number(p.unit_medicine_price)||0,
       medicineStockBoxes:Number(p.medicine_stock_boxes)||0
-    }));
+      };
+    });
 
     try{
       products=mapped;
@@ -199,10 +205,16 @@
   }
 
   let suppressRefreshUntil=0;
+  let lastProductStockWrite=new Map();
   function scheduleRefresh(){
     clearTimeout(refreshTimer);
     const wait=Math.max(120,suppressRefreshUntil-Date.now()+150);
-    refreshTimer=setTimeout(()=>refreshCloud().catch(e=>console.error('Sync stock',e)),wait);
+    refreshTimer=setTimeout(async()=>{
+      try{
+        if(Date.now()<suppressRefreshUntil)return scheduleRefresh();
+        await refreshCloud();
+      }catch(e){console.error('Sync stock',e)}
+    },wait);
   }
 
   const productSyncLocks=new Map();
@@ -264,7 +276,8 @@
         if(mv.error)throw mv.error;
       }
       p._cloudId=verify.data.id;
-      suppressRefreshUntil=Date.now()+1200;
+      lastProductStockWrite.set(String(verify.data.id),{stock:verifiedStock,at:Date.now()});
+      suppressRefreshUntil=Date.now()+5000;
       await refreshPublicStock();
       window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
     })().finally(()=>productSyncLocks.delete(key));
