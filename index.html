@@ -359,7 +359,7 @@ function openProduct(id){
   reorderLevel.value=p?.reorderLevel??5;
   description.value=p?.description||'';
   const qtyInput=document.getElementById('productQty');
-  if(qtyInput) qtyInput.value=p?Math.max(0,Number(p.stock)||0):0;
+  if(qtyInput){ qtyInput.value=p?Math.max(0,Number(p.stock)||0):0; window.vareliaProductQtyLast=String(qtyInput.value||'0'); }
   if(p?.image){imagePreview.src=p.image;imagePreview.hidden=false}else{imagePreview.src='';imagePreview.hidden=true}
   
   const delBtn=$('deleteProductModalBtn');
@@ -401,10 +401,15 @@ productImage.onchange=e=>{
   reader.readAsDataURL(f);
 };
 
+const productQtyField=document.getElementById('productQty');
+if(productQtyField){
+  productQtyField.addEventListener('input',()=>{window.vareliaProductQtyLast=String(productQtyField.value||'0')});
+  productQtyField.addEventListener('change',()=>{window.vareliaProductQtyLast=String(productQtyField.value||'0')});
+}
 productForm.onsubmit=async e=>{
   e.preventDefault();
   const quantityField=document.getElementById('productQty');
-  const enteredQuantity=Math.max(0,Number(quantityField?.valueAsNumber ?? quantityField?.value ?? 0)||0);
+  const enteredQuantity=Math.max(0,Number(quantityField?.value||0)||0,Number(window.vareliaProductQtyLast||0)||0);
   let id=productId.value||uid(),old=products.find(p=>String(p.id).trim()===String(id).trim());
   const editor=document.getElementById('vcharEditor');
   let extra={characteristics:[],variantCombinations:[]};
