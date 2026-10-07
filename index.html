@@ -395,6 +395,8 @@ productImage.onchange=e=>{
   reader.readAsDataURL(f);
 };
 
+// Captura independiente de la cantidad escrita para evitar que otro script/formulario la reemplace antes de guardar.
+(()=>{const q=document.getElementById('productQty');if(!q)return;window.vareliaProductQtyLast=String(q.value||'');q.addEventListener('input',()=>{window.vareliaProductQtyLast=String(q.value||'')});q.addEventListener('change',()=>{window.vareliaProductQtyLast=String(q.value||'')});})();
 productForm.onsubmit=async e=>{
   e.preventDefault();
   const quantityField=document.getElementById('productQty');
