@@ -53,6 +53,14 @@
     return verify.data.id;
   }
 
+  window.vareliaEnsureCategory=async function(name){
+    if(!businessId)throw new Error('Cuenta todavía no inicializada.');
+    const id=await ensureCategory(name);
+    if(!id)throw new Error('No se pudo asociar la categoría a esta cuenta.');
+    await refreshCloud();
+    return id;
+  };
+
   function productPayload(p,categoryId){
     return {
       business_id:businessId,
