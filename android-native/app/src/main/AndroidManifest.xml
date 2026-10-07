@@ -9,7 +9,7 @@
     <application
         android:allowBackup="true"
         android:hardwareAccelerated="true"
-        android:icon="@drawable/varelia_icon"
+        android:icon="@mipmap/varelia_icon"
         android:roundIcon="@drawable/varelia_icon"
         android:label="Varelia"
         android:supportsRtl="true"
