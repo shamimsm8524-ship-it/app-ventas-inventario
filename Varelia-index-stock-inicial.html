@@ -402,15 +402,16 @@ productForm.onsubmit=async e=>{
   // y evita que un producto nuevo se guarde vacío aunque tenga talla/color con stock.
   if(editor&&window.VareliaCharacteristics?.readEditor){
     extra=window.VareliaCharacteristics.readEditor()||{characteristics:[],variantCombinations:[]};
-    // Leer siempre el stock actual de los campos visibles de cada talla/color.
-    // Evita que readEditor conserve un 0 anterior y borre el stock recién escrito.
+    // Siempre tomar el stock directamente de los inputs visibles de combinaciones.
+    // Esto evita que readEditor devuelva valores anteriores y sobrescriba lo escrito justo antes de Guardar.
     const parseStockValue=v=>Math.max(0,Number(String(v??'').trim().replace(',','.'))||0);
     const comboEls=[...editor.querySelectorAll('[data-combo]')];
     let liveCombos=comboEls.map(i=>({
       values:String(i.dataset.combo||'').split('||').filter(Boolean),
       stock:parseStockValue(i.value)
     }));
-    // Compatibilidad con el editor que coloca el input number dentro de un contenedor.
+    // Respaldo para versiones de characteristics.js donde data-combo está en el contenedor
+    // y el valor real está en un input number interno, o donde el atributo no existe.
     if(!liveCombos.length || liveCombos.every(c=>c.stock===0)){
       const numericInputs=[...editor.querySelectorAll('input[type="number"]')]
         .filter(i=>!i.disabled && i.offsetParent!==null);
@@ -432,7 +433,7 @@ productForm.onsubmit=async e=>{
       const values=[...r.querySelectorAll('.vcharValue')].map(v=>({label:String(v.querySelector('[data-val-label]')?.value||'').trim(),color:colorish?String(v.querySelector('[data-val-color]')?.value||''):''})).filter(v=>v.label);
       return{name,values};
     }).filter(c=>c.name&&c.values.length);
-    extra.variantCombinations=[...editor.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(i.value)||0)}));
+    extra.variantCombinations=[...editor.querySelectorAll('[data-combo]')].map(i=>{const input=i.matches('input')?i:i.querySelector('input[type="number"]');return{values:String(i.dataset.combo||input?.dataset.combo||'').split('||').filter(Boolean),stock:Math.max(0,Number(String(input?.value??i.value??'0').replace(',','.'))||0)}});
   }else extra={characteristics:old?.characteristics||[],variantCombinations:old?.variantCombinations||[]};
   const comboStock=(extra.variantCombinations||[]).reduce((a,c)=>a+(Number(c.stock)||0),0);
   const medicineCategory=/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(productCategory.value||'').trim());
