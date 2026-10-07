@@ -215,6 +215,9 @@
       const categoryId=await ensureCategory(p.category);
       const payload=productPayload(p,categoryId);
       const legacy=String(p.id||'');
+      const existingBefore=await sb.from('varelia_products').select('id,stock').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
+      if(existingBefore.error)throw existingBefore.error;
+      const existedBefore=!!existingBefore.data?.id;
       // Upsert atómico por negocio + id local: evita dos INSERT simultáneos
       // cuando el formulario y las características se guardan en el mismo instante.
       let up=await sb.from('varelia_products').upsert(payload,{onConflict:'business_id,legacy_id'}).select('id').single();
@@ -237,6 +240,10 @@
       if(verify.error)throw verify.error;
       if(!verify.data?.id)throw new Error('El producto no quedó registrado en la base de datos.');
       if(String(verify.data.business_id)!==String(businessId))throw new Error('El producto quedó asociado a otra cuenta.');
+      if(!existedBefore&&Number(verify.data.stock||0)>0){
+        const mv=await sb.from('varelia_inventory_movements').insert({business_id:businessId,product_id:verify.data.id,product_name:verify.data.name,type:'add',qty:Number(verify.data.stock),stock_before:0,stock_after:Number(verify.data.stock),source:'producto_nuevo'});
+        if(mv.error)throw mv.error;
+      }
       p._cloudId=verify.data.id;
       suppressRefreshUntil=Date.now()+1200;
       await refreshPublicStock();
