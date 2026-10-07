@@ -1,4 +1,4 @@
-name: Varelia 1.0.35 APK
+name: Varelia 1.0.43 APK
 on:
   push:
     branches: [main]
