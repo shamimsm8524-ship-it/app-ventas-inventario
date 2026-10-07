@@ -236,7 +236,15 @@ function save(){
     }
   }catch(e){console.error('Varelia: error de persistencia por cuenta',e)}
 }
-setCloudStatus('☁️ Iniciando...');window.addEventListener('varelia:business-scope-ready',()=>setCloudStatus('☁️ Conectado'));
+setCloudStatus('☁️ Iniciando...');
+// El módulo de autenticación puede inicializar la cuenta antes de registrar este listener.
+// Si ya existe un negocio activo, mostrar Conectado inmediatamente y no dejar la app en "Conectando...".
+try{
+  const activeBusiness=localStorage.getItem('varelia_active_business_id');
+  if(activeBusiness) setCloudStatus('☁️ Conectado');
+}catch(e){}
+window.addEventListener('varelia:business-scope-ready',()=>setCloudStatus('☁️ Conectado'));
+window.addEventListener('varelia:business-scope-error',e=>setCloudStatus('☁️ Error de conexión',true));
 function shade(h,a=-28){let n=parseInt(h.slice(1),16),r=Math.max(0,Math.min(255,(n>>16)+a)),g=Math.max(0,Math.min(255,((n>>8)&255)+a)),b=Math.max(0,Math.min(255,(n&255)+a));return '#'+(b|g<<8|r<<16).toString(16).padStart(6,'0')}
 
 function applyTheme(){
