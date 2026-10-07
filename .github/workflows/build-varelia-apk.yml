@@ -19,12 +19,12 @@ jobs:
 
       - name: Prepare exact Varelia logo
         run: |
-          mkdir -p android-native/app/src/main/res/drawable
+          mkdir -p android-native/app/src/main/res/mipmap-xxxhdpi
           python3 -m pip install --disable-pip-version-check --quiet pillow
           python3 - <<'PY'
           from PIL import Image
           img = Image.open("varelia_icon.jpg").convert("RGB")
-          img.save("android-native/app/src/main/res/drawable/varelia_icon.png", format="PNG", optimize=True)
+          img.save("android-native/app/src/main/res/mipmap-xxxhdpi/varelia_icon.png", format="PNG", optimize=True)
           PY
 
       - name: Build installable APK
