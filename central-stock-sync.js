@@ -225,6 +225,14 @@
     suppressRefreshUntil=Date.now()+2500;
     const task=(async()=>{
       const categoryId=await ensureCategory(p.category);
+      // Última defensa para productos nuevos: si el objeto llega con stock 0,
+      // recuperar la cantidad que el administrador acaba de escribir en el campo visible.
+      if(!p._cloudId && Math.max(0,Number(p.stock)||0)===0){
+        const field=document.getElementById('productQty');
+        const remembered=window.vareliaProductQtyLast;
+        const raw=field?.value??remembered??'';
+        if(String(raw).trim()!=='')p.stock=Math.max(0,Number(raw)||0);
+      }
       const payload=productPayload(p,categoryId);
       const legacy=String(p.id||'');
       const existingBefore=await sb.from('varelia_products').select('id,stock').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
