@@ -108,7 +108,9 @@
       const old=products.find(p=>String(p.id)===String(id));
       const newId=id||uid();
       let img='';if(!imagePreview.hidden&&imagePreview.src)img=imagePreview.src;
-      const obj={id:newId,barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:old?+old.stock||0:0,unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:img};
+      const qtyEl=document.getElementById('productQty');
+      const qty=qtyEl?Math.max(0,Number(qtyEl.value)||0):(old?+old.stock||0:0);
+      const obj={id:newId,barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:qty,unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:img};
       try{if(img)await putImage(newId,img);else await deleteImage(newId)}catch(err){console.warn('No se pudo guardar la imagen',err)}
       old?Object.assign(old,obj):products.push(obj);
       productDialog.close();safeSave();
