@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261007-STOCK-FIX-V4';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261007-STOCK-FIX-V5';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <script>
 try{if(new URL(location.href).searchParams.has('native_app'))window.__vareliaNativePdfHookV2=true}catch{}
@@ -401,7 +401,29 @@ productForm.onsubmit=async e=>{
   // Leer el editor oficial antes de guardar. Esto genera/conserva las combinaciones
   // y evita que un producto nuevo se guarde vacío aunque tenga talla/color con stock.
   if(editor&&window.VareliaCharacteristics?.readEditor){
-    extra=window.VareliaCharacteristics.readEditor();
+    extra=window.VareliaCharacteristics.readEditor()||{characteristics:[],variantCombinations:[]};
+    // Leer siempre el stock actual de los campos visibles de cada talla/color.
+    // Evita que readEditor conserve un 0 anterior y borre el stock recién escrito.
+    const parseStockValue=v=>Math.max(0,Number(String(v??'').trim().replace(',','.'))||0);
+    const comboEls=[...editor.querySelectorAll('[data-combo]')];
+    let liveCombos=comboEls.map(i=>({
+      values:String(i.dataset.combo||'').split('||').filter(Boolean),
+      stock:parseStockValue(i.value)
+    }));
+    // Compatibilidad con el editor que coloca el input number dentro de un contenedor.
+    if(!liveCombos.length || liveCombos.every(c=>c.stock===0)){
+      const numericInputs=[...editor.querySelectorAll('input[type="number"]')]
+        .filter(i=>!i.disabled && i.offsetParent!==null);
+      if(Array.isArray(extra.variantCombinations)&&extra.variantCombinations.length&&numericInputs.length){
+        const stockInputs=numericInputs.slice(-extra.variantCombinations.length);
+        liveCombos=extra.variantCombinations.map((c,idx)=>({
+          ...c,
+          values:Array.isArray(c.values)?c.values:[],
+          stock:parseStockValue(stockInputs[idx]?.value ?? c.stock)
+        }));
+      }
+    }
+    if(liveCombos.length) extra.variantCombinations=liveCombos;
   }else if(editor){
     extra.characteristics=[...editor.querySelectorAll('.vcharRow')].map(r=>{
       const sel=r.querySelector('[data-char-name]');
@@ -419,7 +441,7 @@ productForm.onsubmit=async e=>{
   const qtyRaw=String(qtyField?.value??'').trim();
   const typedStock=qtyRaw!==''?Math.max(0,Number(qtyRaw)||0):Math.max(0,Number(old?.stock)||0);
   window.vareliaProductQtyLast=typedStock;
-  let obj={id:String(id),barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:(isMedicineProduct?Math.max(0,Math.floor(Number(document.getElementById('vMedicineStockBoxes')?.value||0)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineBlistersPerBox')?.value||1)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineUnitsPerBlister')?.value||1))):typedStock),unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src,
+  let obj={id:String(id),barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:(isMedicineProduct?Math.max(0,Math.floor(Number(document.getElementById('vMedicineStockBoxes')?.value||0)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineBlistersPerBox')?.value||1)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineUnitsPerBlister')?.value||1))):(extra.variantCombinations?.length?comboStock:typedStock)),unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src,
   medicine:isMedicineProduct,
   laboratory:String(document.getElementById('vMedicineLaboratory')?.value||old?.laboratory||'').trim(),
   medicinePresentation:String(document.getElementById('vMedicinePresentation')?.value||old?.medicinePresentation||'').trim(),
