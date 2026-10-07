@@ -156,10 +156,14 @@
 
     const catMap=new Map(catRows.map(x=>[String(x.id),String(x.name||'')]));
     const mapped=rows.map(p=>{
+      const variantTotal=Array.isArray(p.variant_combinations)?p.variant_combinations.reduce((a,c)=>a+(Number(c?.stock)||0),0):0;
       const remoteStock=Number(p.stock)||0;
+      // Si el stock principal quedó en 0 pero las tallas/colores sí tienen unidades,
+      // el inventario debe mostrar la suma de las combinaciones.
+      const effectiveRemoteStock=(remoteStock<=0&&variantTotal>0)?variantTotal:remoteStock;
       const key=String(p.id||'');
       const pending=lastProductStockWrite.get(key);
-      const stock=(pending&&Date.now()-pending.at<5000)?pending.stock:remoteStock;
+      const stock=(pending&&Date.now()-pending.at<5000)?pending.stock:effectiveRemoteStock;
       return {
       id:String(p.legacy_id||p.id),
       _cloudId:String(p.id),
@@ -233,6 +237,12 @@
         const raw=field?.value??remembered??'';
         if(String(raw).trim()!=='')p.stock=Math.max(0,Number(raw)||0);
       }
+      // Defensa final: para productos con tallas/colores, el stock principal siempre
+      // debe ser la suma de las cantidades de las combinaciones visibles.
+      if(Array.isArray(p.variantCombinations)&&p.variantCombinations.length){
+        const variantTotal=p.variantCombinations.reduce((a,c)=>a+(Number(c?.stock)||0),0);
+        if(variantTotal>0)p.stock=variantTotal;
+      }
       const payload=productPayload(p,categoryId);
       const legacy=String(p.id||'');
       const existingBefore=await sb.from('varelia_products').select('id,stock').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
@@ -264,7 +274,9 @@
       // exactamente igual en Supabase. Si algún proceso intermedio la cambia,
       // hacemos una corrección explícita y volvemos a comprobarla antes de
       // considerar el producto guardado.
-      const expectedStock=Math.max(0,Number(p.stock)||0);
+      const expectedStock=Array.isArray(p.variantCombinations)&&p.variantCombinations.length
+        ? Math.max(0,p.variantCombinations.reduce((a,c)=>a+(Number(c?.stock)||0),0))
+        : Math.max(0,Number(p.stock)||0);
       let verifiedStock=Number(verify.data.stock)||0;
       if(Math.abs(verifiedStock-expectedStock)>0.000001){
         const repair=await sb.from('varelia_products')
@@ -299,6 +311,7 @@
     window.syncProductToCloud=fn;
     window.vareliaCentralStockSyncProduct=fn;
     window.vareliaCentralStockReady=true;
+  window.__VARELIA_STOCK_SYNC_BUILD__='20261007-STOCK-FIX-V6';
 
     window.deleteProduct=async function(id){
       if(!isOwner())return toast('Solo el administrador puede eliminar productos.','warn');
