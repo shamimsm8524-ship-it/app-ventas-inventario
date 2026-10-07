@@ -43,9 +43,14 @@
     if(ins.error){
       const again=await sb.from('varelia_categories').select('id').eq('business_id',businessId).eq('name',name).maybeSingle();
       if(again.error)throw ins.error;
-      return again.data?.id||null;
+      if(!again.data?.id)throw ins.error;
+      return again.data.id;
     }
-    return ins.data?.id||null;
+    if(ins.error||!ins.data?.id)throw new Error('La categoría no quedó registrada en la base de datos.');
+    const verify=await sb.from('varelia_categories').select('id,business_id,name').eq('business_id',businessId).eq('id',ins.data.id).maybeSingle();
+    if(verify.error)throw verify.error;
+    if(!verify.data?.id)throw new Error('La categoría no quedó registrada en la base de datos.');
+    return verify.data.id;
   }
 
   function productPayload(p,categoryId){
@@ -206,7 +211,18 @@
         else up=await sb.from('varelia_products').insert(payload).select('id').single();
       }
       if(up.error)throw up.error;
-      p._cloudId=up.data.id;
+      if(!up.data?.id)throw new Error('La base de datos no devolvió el producto guardado.');
+      // Verificación real: no mostramos "guardado" hasta comprobar que el registro
+      // existe en la cuenta/negocio correcto después del INSERT/UPSERT.
+      const verify=await sb.from('varelia_products')
+        .select('id,legacy_id,business_id,name,stock,sell_price,buy_price')
+        .eq('business_id',businessId)
+        .eq('id',up.data.id)
+        .maybeSingle();
+      if(verify.error)throw verify.error;
+      if(!verify.data?.id)throw new Error('El producto no quedó registrado en la base de datos.');
+      if(String(verify.data.business_id)!==String(businessId))throw new Error('El producto quedó asociado a otra cuenta.');
+      p._cloudId=verify.data.id;
       suppressRefreshUntil=Date.now()+1200;
       await refreshPublicStock();
       window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
