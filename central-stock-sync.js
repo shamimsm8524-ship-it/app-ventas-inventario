@@ -62,7 +62,9 @@
     if(!businessId)throw new Error('Cuenta todavía no inicializada.');
     const id=await ensureCategory(name);
     if(!id)throw new Error('No se pudo asociar la categoría a esta cuenta.');
-    await refreshCloud();
+    // No recargar toda la lista aquí: el botón de categorías actualiza la UI
+    // después de confirmar el INSERT. Así evitamos que otra sincronización concurrente
+    // sobrescriba la categoría recién creada.
     return id;
   };
 
@@ -376,8 +378,12 @@
       btn.disabled=true;
       try{
         await ensureCategory(name);
+        if(!categories.some(c=>String(c)===name))categories.push(name);
+        window.categories=categories;
+        try{localStorage.setItem(K.categories,JSON.stringify(categories))}catch{}
+        if(typeof renderCategories==='function')renderCategories();
+        if(typeof fillCats==='function')fillCats();
         input.value='';
-        await refreshCloud();
         toast('Categoría guardada.','ok');
       }catch(e){
         console.error(e);
