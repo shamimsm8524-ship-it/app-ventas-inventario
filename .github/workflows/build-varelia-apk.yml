@@ -1,4 +1,4 @@
-name: Varelia 1.0.45 APK
+name: Varelia 1.0.47 APK
 on:
   push:
     branches: [main]
@@ -19,12 +19,13 @@ jobs:
 
       - name: Prepare exact Varelia logo
         run: |
-          mkdir -p android-native/app/src/main/res/mipmap-xxxhdpi
+          mkdir -p android-native/app/src/main/res/mipmap-xxxhdpi android-native/app/src/main/res/drawable
           python3 -m pip install --disable-pip-version-check --quiet pillow
           python3 - <<'PY'
           from PIL import Image
           img = Image.open("varelia_icon.jpg").convert("RGB")
           img.save("android-native/app/src/main/res/mipmap-xxxhdpi/varelia_icon.png", format="PNG", optimize=True)
+          img.save("android-native/app/src/main/res/drawable/varelia_icon.png", format="PNG", optimize=True)
           PY
 
       - name: Build installable APK
@@ -39,6 +40,7 @@ jobs:
           test -f Varelia.apk
           file Varelia.apk
           ls -lh Varelia.apk
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs Varelia.apk
 
       - name: Upload Varelia APK
         uses: actions/upload-artifact@v4
