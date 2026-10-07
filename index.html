@@ -456,7 +456,7 @@ function productActions(e){
 productGrid.onclick=productActions;
 search.oninput=renderProducts;
 categoryChips.onclick=e=>{if(e.target.dataset.cat){activeCategory=e.target.dataset.cat;renderProducts()}};
-addCategory.onclick=()=>{let n=newCategoryName.value.trim();if(n&&!categories.includes(n)){categories.push(n);newCategoryName.value='';save()}};
+addCategory.onclick=async()=>{let n=newCategoryName.value.trim();if(!n||categories.includes(n))return;categories.push(n);newCategoryName.value='';save();try{for(let i=0;i<50&&typeof window.vareliaEnsureCategory!=='function';i++)await new Promise(r=>setTimeout(r,100));if(typeof window.vareliaEnsureCategory!=='function')throw new Error('Sincronización de categorías no disponible');await window.vareliaEnsureCategory(n);window.vareliaToast?.('Categoría guardada en esta cuenta.','ok')}catch(e){console.error('Categoría no sincronizada',e);categories=categories.filter(x=>x!==n);save();renderCategories?.();window.vareliaToast?.('No se pudo guardar la categoría. Inténtalo nuevamente.','warn')}};
 function selectInv(p){inventoryProductId=p?.id||null;inventoryName.value=p?.name||'';inventoryCode.value=p?.barcode||'';inventoryNameResults.innerHTML='';renderInvSelected()}
 function renderInvSelected(){let p=products.find(x=>String(x.id).trim()===String(inventoryProductId).trim());inventorySelected.hidden=!p;if(p)inventorySelected.innerHTML=`<strong>${esc(p.name)}</strong><div class="big">${p.stock} ${esc(p.unit)}</div>`}
 inventoryName.oninput=()=>{let q=inventoryName.value.trim().toLowerCase();inventoryNameResults.innerHTML=q?products.filter(p=>p.name.toLowerCase().includes(q)).map(p=>`<button class="result" data-inv="${p.id}">${esc(p.name)}</button>`).join(''):''};
