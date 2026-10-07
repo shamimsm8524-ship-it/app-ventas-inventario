@@ -4,7 +4,7 @@
 
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const toast=(m,t='ok')=>window.vareliaToast?window.vareliaToast(m,t):console.log(m);
-  let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false;
+  let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false,initBusy=false;
 
   const localProducts=()=>{try{return Array.isArray(products)?products:[]}catch{return[]}};
   const localCategories=()=>{try{return Array.isArray(categories)?categories:[]}catch{return[]}};
@@ -467,6 +467,8 @@
   }
 
   async function init(){
+    if(initBusy)return;
+    initBusy=true;
     try{
       if(!await waitClient())return;
       // Siempre volver a leer el perfil: businessId/rol pueden haber cambiado al entrar con otra cuenta.\n      if(!await loadProfile()||!businessId)return;\n      if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
@@ -493,7 +495,10 @@
       document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleRefresh()});
     }catch(e){
       console.error('Varelia central stock',e);
+      window.dispatchEvent(new CustomEvent('varelia:business-scope-error',{detail:{error:e}}));
       toast('No se pudo activar la sincronización central del inventario. Tus datos locales no fueron borrados.','warn');
+    }finally{
+      initBusy=false;
     }
   }
 
