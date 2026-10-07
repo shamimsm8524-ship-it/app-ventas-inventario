@@ -50,7 +50,7 @@
         input.focus();
         readerBtn.disabled=false;readerBtn.textContent='✓ Lector listo';
         setReader(deviceName?'Conectado: '+deviceName:'Lector listo · USB/Bluetooth modo teclado','on');
-        try{localStorage.setItem('varelia_reader_ready','1')}catch{}
+        try{localStorage.setItem(window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_reader_ready'):'varelia_reader_ready__no_account','1')}catch{}
       }
       readerBtn.onclick=connectReader;
       try{if(localStorage.getItem('varelia_reader_ready')==='1'){readerBtn.textContent='✓ Lector listo';setReader('Lector listo · toca aquí para reconectar','on')}}catch{}
