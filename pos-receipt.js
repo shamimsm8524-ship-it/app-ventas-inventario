@@ -64,7 +64,7 @@
       bottom?.insertAdjacentElement('beforebegin',payment);
       const paymentMethod=payment.querySelector('#vposPaymentMethod');
       try{paymentMethod.value=(localStorage.getItem(window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_payment_method'):'varelia_last_payment_method__no_account')||'Efectivo')}catch{}
-      paymentMethod.onchange=()=>{try{localStorage.setItem('varelia_last_payment_method',paymentMethod.value)}catch{}};
+      paymentMethod.onchange=()=>{try{localStorage.setItem(window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_payment_method'):'varelia_last_payment_method__no_account',paymentMethod.value)}catch{}};
 
       document.getElementById('vreceiptOverlay')?.remove();
       const overlay=document.createElement('div');
