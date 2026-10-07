@@ -101,6 +101,13 @@
     if(typeof render==='function')render();
   }
 
+  const qtyField=document.getElementById('productQty');
+  if(qtyField){
+    qtyField.addEventListener('input',()=>{qtyField.dataset.vareliaQty=String(qtyField.value||'0')});
+    qtyField.addEventListener('change',()=>{qtyField.dataset.vareliaQty=String(qtyField.value||'0')});
+    qtyField.dataset.vareliaQty=String(qtyField.value||'0');
+  }
+
   if(typeof productForm!=='undefined'){
     // El formulario principal ya contiene el guardado completo y la sincronización
     // central con Supabase (incluido stock/cantidad inicial). No lo reemplazamos:
@@ -109,7 +116,7 @@
     productForm.onsubmit=async e=>{
       const idBefore=productId.value||uid();
       const q=document.getElementById('productQty');
-      const qtyBefore=q?Math.max(0,Number(q.value)||0):0;
+      const qtyBefore=q?Math.max(0,Number(q.dataset.vareliaQty??q.value)||0):0;
       const imgBefore=(!imagePreview.hidden&&imagePreview.src)?imagePreview.src:'';
       if(typeof originalProductSubmit==='function')await originalProductSubmit.call(productForm,e);
       try{
