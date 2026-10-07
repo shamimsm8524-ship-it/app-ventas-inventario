@@ -52,7 +52,7 @@
       if(!email)return alert('No se pudo detectar el correo afiliado. Cierra sesión y vuelve a ingresar.');
       const body=report();
       try{
-        localStorage.setItem('varelia_last_weekly_backup',JSON.stringify({
+        localStorage.setItem(window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_weekly_backup'):'varelia_last_weekly_backup__no_account',JSON.stringify({
           createdAt:new Date().toISOString(),
           email,
           body,
