@@ -91,7 +91,7 @@
           localStorage.setItem(K.sales,'[]');
           localStorage.setItem(K.closures,'[]');
           localStorage.setItem(K.cashStart,JSON.stringify(cashStart));
-          localStorage.setItem('varelia_last_weekly_reset',new Date().toISOString());
+          localStorage.setItem(window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_weekly_reset'):'varelia_last_weekly_reset__no_account',new Date().toISOString());
         }catch{}
         sessionStorage.removeItem('varelia_weekly_reset_pending');
         try{
