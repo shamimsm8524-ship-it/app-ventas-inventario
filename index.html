@@ -221,6 +221,7 @@ let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.s
 products.forEach(p=>{if(!p.id)p.id=uid();p.id=String(p.id);if(p.reorderLevel==null)p.reorderLevel=5});window.products=products;window.sales=sales;
 let isRemoteSync=false;
 function setCloudStatus(txt,isError=false){const el=$('cloudStatus');if(!el)return;el.textContent=txt;el.style.color=isError?'#b91c1c':'var(--p)'}
+window.vareliaSetCloudStatus=setCloudStatus;
 function syncProductToCloud(){}
 function syncMetaToCloud(){}
 function save(){
@@ -244,6 +245,9 @@ try{
   if(activeBusiness) setCloudStatus('☁️ Conectado');
 }catch(e){}
 window.addEventListener('varelia:business-scope-ready',()=>setCloudStatus('☁️ Conectado'));
+window.addEventListener('varelia:central-sync-ready',()=>setCloudStatus('☁️ Conectado'));
+// Reaplicar el estado si la sesión ya había activado el negocio antes de registrar los eventos.
+try{if(localStorage.getItem('varelia_active_business_id'))setCloudStatus('☁️ Conectado')}catch(e){}
 window.addEventListener('varelia:business-scope-error',e=>setCloudStatus('☁️ Error de conexión',true));
 function shade(h,a=-28){let n=parseInt(h.slice(1),16),r=Math.max(0,Math.min(255,(n>>16)+a)),g=Math.max(0,Math.min(255,((n>>8)&255)+a)),b=Math.max(0,Math.min(255,(n&255)+a));return '#'+(b|g<<8|r<<16).toString(16).padStart(6,'0')}
 
@@ -1017,7 +1021,7 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 <script src="sale-sound.js?v=20260930-2"></script>
-<script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261007-categorias-v81"></script>
+<script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261007-categorias-v82"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
 <script src="weight-sales.js?v=20261001-native-weight-v9"></script>\n<script src="characteristics.js?v=20261002-stock-combos-v54"></script>
 <script>window.__VARELIA_BUILD__='20261002-sale-cart-v24';</script>
