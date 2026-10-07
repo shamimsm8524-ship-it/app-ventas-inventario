@@ -234,10 +234,6 @@ function save(){
     if(typeof cloud==='function' && Array.isArray(products)){
       Promise.all(products.map(p=>Promise.resolve(cloud(p)))).catch(e=>console.error('Varelia: no se pudo respaldar el inventario',e));
     }
-    const ensure=window.vareliaEnsureCategory;
-    if(typeof ensure==='function' && Array.isArray(categories)){
-      Promise.all(categories.map(c=>Promise.resolve(ensure(c)))).catch(e=>console.error('Varelia: no se pudo respaldar las categorías',e));
-    }
   }catch(e){console.error('Varelia: error de persistencia por cuenta',e)}
 }
 setCloudStatus('☁️ Iniciando...');window.addEventListener('varelia:business-scope-ready',()=>setCloudStatus('☁️ Conectado'));
