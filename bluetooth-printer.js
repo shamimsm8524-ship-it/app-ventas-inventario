@@ -86,7 +86,7 @@
           setStatus('Conectada: '+name,'on');
           btn.textContent='✓ '+name;
           btn.disabled=false;
-          try{localStorage.setItem('varelia_bt_printer_name',name)}catch{}
+          try{localStorage.setItem(window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_bt_printer_name'):'varelia_bt_printer_name__no_account',name)}catch{}
           btDevice.addEventListener('gattserverdisconnected',()=>{
             setStatus('Impresora desconectada','warn');
             btn.textContent='🖨️ Conectar impresora Bluetooth';
