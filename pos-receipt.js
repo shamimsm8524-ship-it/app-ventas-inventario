@@ -63,7 +63,7 @@
       payment.innerHTML='<label for="vposPaymentMethod">Método de pago</label><select id="vposPaymentMethod"><option>Efectivo</option><option>Yape</option><option>Plin</option><option>Tarjeta</option><option>Transferencia</option><option>Otro</option></select>';
       bottom?.insertAdjacentElement('beforebegin',payment);
       const paymentMethod=payment.querySelector('#vposPaymentMethod');
-      try{paymentMethod.value=localStorage.getItem('varelia_last_payment_method')||'Efectivo'}catch{}
+      try{paymentMethod.value=(localStorage.getItem(window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_payment_method'):'varelia_last_payment_method__no_account')||'Efectivo')}catch{}
       paymentMethod.onchange=()=>{try{localStorage.setItem('varelia_last_payment_method',paymentMethod.value)}catch{}};
 
       document.getElementById('vreceiptOverlay')?.remove();
