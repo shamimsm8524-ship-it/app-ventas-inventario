@@ -23,7 +23,7 @@
   }
   function paymentMethod(){
     return document.getElementById('vposPaymentMethod')?.value
-      ||localStorage.getItem('varelia_last_payment_method')
+      ||localStorage.getItem(window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_payment_method'):'varelia_last_payment_method__no_account')
       ||'Efectivo';
   }
   function sellerName(){
