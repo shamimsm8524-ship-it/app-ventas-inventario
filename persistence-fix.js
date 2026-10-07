@@ -102,18 +102,20 @@
   }
 
   if(typeof productForm!=='undefined'){
+    // El formulario principal ya contiene el guardado completo y la sincronización
+    // central con Supabase (incluido stock/cantidad inicial). No lo reemplazamos:
+    // lo envolvemos para conservar la imagen en IndexedDB sin romper el guardado cloud.
+    const originalProductSubmit=productForm.onsubmit;
     productForm.onsubmit=async e=>{
-      e.preventDefault();
-      const id=productId.value;
-      const old=products.find(p=>String(p.id)===String(id));
-      const newId=id||uid();
-      let img='';if(!imagePreview.hidden&&imagePreview.src)img=imagePreview.src;
-      const qtyEl=document.getElementById('productQty');
-      const qty=qtyEl?Math.max(0,Number(qtyEl.value)||0):(old?+old.stock||0:0);
-      const obj={id:newId,barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:qty,unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:img};
-      try{if(img)await putImage(newId,img);else await deleteImage(newId)}catch(err){console.warn('No se pudo guardar la imagen',err)}
-      old?Object.assign(old,obj):products.push(obj);
-      productDialog.close();safeSave();
+      const idBefore=productId.value||uid();
+      const imgBefore=(!imagePreview.hidden&&imagePreview.src)?imagePreview.src:'';
+      if(typeof originalProductSubmit==='function'){
+        await originalProductSubmit.call(productForm,e);
+      }
+      try{
+        if(imgBefore)await putImage(idBefore,imgBefore);
+        else if(idBefore)await deleteImage(idBefore);
+      }catch(err){console.warn('No se pudo guardar la imagen',err)}
     };
   }
   if(typeof productGrid!=='undefined')productGrid.addEventListener('click',e=>{const id=e.target?.dataset?.delete;if(id)deleteImage(id).catch(()=>{})},true);
