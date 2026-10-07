@@ -359,7 +359,7 @@ function openProduct(id){
   reorderLevel.value=p?.reorderLevel??5;
   description.value=p?.description||'';
   const qtyInput=document.getElementById('productQty');
-  if(qtyInput){ qtyInput.value=p?Math.max(0,Number(p.stock)||0):0; qtyInput.dataset.vareliaQty=String(qtyInput.value||'0'); }
+  if(qtyInput) qtyInput.value=p?Math.max(0,Number(p.stock)||0):0;
   if(p?.image){imagePreview.src=p.image;imagePreview.hidden=false}else{imagePreview.src='';imagePreview.hidden=true}
   
   const delBtn=$('deleteProductModalBtn');
