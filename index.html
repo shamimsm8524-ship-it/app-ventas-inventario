@@ -228,14 +228,8 @@ function save(){
   for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]])localStorage.setItem(k,JSON.stringify(v));
   window.products=products;
   render();
-  // Persistencia por cuenta: después de guardar localmente, confirma también
-  // productos y categorías en Supabase dentro del business_id activo.
-  try{
-    const cloud=window.vareliaCentralStockSyncProduct;
-    if(typeof cloud==='function' && Array.isArray(products)){
-      Promise.all(products.map(p=>Promise.resolve(cloud(p)))).catch(e=>console.error('Varelia: no se pudo respaldar el inventario',e));
-    }
-  }catch(e){console.error('Varelia: error de persistencia por cuenta',e)}
+  // La sincronización de productos se realiza únicamente desde el formulario
+  // después de capturar la cantidad. Evita que un respaldo paralelo mande stock=0.
 }
 setCloudStatus('☁️ Iniciando...');
 // El módulo de autenticación puede inicializar la cuenta antes de registrar este listener.
@@ -441,7 +435,8 @@ productForm.onsubmit=async e=>{
   medicineStockBoxes:Math.max(0,Math.floor(Number(document.getElementById('vMedicineStockBoxes')?.value||old?.medicineStockBoxes||0))),
   characteristics:extra.characteristics||[],variantCombinations:extra.variantCombinations||[]};
   old?Object.assign(old,obj):products.push(obj);
-  const saved=old||obj;
+  const saved={...obj};
+  if(old)Object.assign(old,saved);
   save();
   try{
     for(let i=0;i<50&&typeof window.vareliaCentralStockSyncProduct!=='function';i++)await new Promise(r=>setTimeout(r,100));
