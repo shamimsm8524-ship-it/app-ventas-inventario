@@ -4,6 +4,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
@@ -17,15 +20,20 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Gradle 8.9
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.9'
-
       - name: Prepare Varelia logo
         run: |
           mkdir -p android-native/app/src/main/res/drawable
-          cp varelia_icon.jpg android-native/app/src/main/res/drawable/varelia_icon.jpg
+          if [ -f varelia_icon.jpg ]; then
+            cp varelia_icon.jpg android-native/app/src/main/res/drawable/varelia_icon.jpg
+          else
+            curl -L --fail --retry 3 'https://sdmntprbrazilsouth.oaiusercontent.com/files/00000000-6288-20eb-b0ed-e9a67c5d015/raw?se=2026-10-07T03%3A56%3A01Z&sp=r&sv=2026-02-06&sr=b&scid=908893ab-0d20-5b19-91b2-13df687e62bd&skoid=a6356955-0ca0-4033-9150-c0c162458498&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-10-07T00%3A44%3A38Z&ske=2026-10-08T00%3A44%3A38Z&sks=b&skv=2026-02-06&sig=92EVTc%2B8pgF3JhoD8GyHPvWneUuNzdDzIHRmAOwLrHY%3D' -o varelia_icon.jpg
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add varelia_icon.jpg
+            git commit -m 'Add the new Varelia logo asset' || true
+            git push
+            cp varelia_icon.jpg android-native/app/src/main/res/drawable/varelia_icon.jpg
+          fi
 
       - name: Build installable APK
         working-directory: android-native
