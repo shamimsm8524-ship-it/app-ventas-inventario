@@ -42,3 +42,5 @@ jobs:
           path: Varelia.apk
           if-no-files-found: error
           retention-days: 30
+
+# Build trigger: verify secure Varelia APK build
