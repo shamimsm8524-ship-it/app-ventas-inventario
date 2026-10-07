@@ -1,1 +1,3 @@
 Forzar despliegue de GitHub Pages de la version actual de Varelia.
+Build: 20261007-STOCK-FIX-V3
+Cache bust: 20261007-2
