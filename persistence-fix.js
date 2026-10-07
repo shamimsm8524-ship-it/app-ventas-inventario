@@ -101,30 +101,15 @@
     if(typeof render==='function')render();
   }
 
+  // El formulario de productos se guarda y sincroniza directamente desde index.html.
+  // No se instala ningún segundo submit: evita carreras que puedan sobrescribir el stock.
   if(typeof productForm!=='undefined'){
-    // El formulario principal ya contiene el guardado completo y la sincronización
-    // central con Supabase (incluido stock/cantidad inicial). No lo reemplazamos:
-    // lo envolvemos para conservar la imagen en IndexedDB sin romper el guardado cloud.
     const originalProductSubmit=productForm.onsubmit;
-    productForm.onsubmit=async e=>{
-      const idBefore=productId.value||uid();
-      const q=document.getElementById('productQty');
-      const qtyBefore=q?Math.max(0,Number(q.value)||0):0;
-      const imgBefore=(!imagePreview.hidden&&imagePreview.src)?imagePreview.src:'';
-      if(typeof originalProductSubmit==='function')await originalProductSubmit.call(productForm,e);
-      try{
-        const saved=products.find(p=>String(p.id).trim()===String(idBefore).trim());
-        if(saved&&qtyBefore>0){
-          saved.stock=qtyBefore;
-          safeSave();
-          for(let i=0;i<50&&typeof window.vareliaCentralStockSyncProduct!=='function';i++)await new Promise(r=>setTimeout(r,100));
-          const syncFn=window.vareliaCentralStockSyncProduct||window.syncProductToCloud;
-          if(typeof syncFn==='function')await syncFn(saved);
-        }
-        if(imgBefore)await putImage(idBefore,imgBefore);
-        else if(idBefore)await deleteImage(idBefore);
-      }catch(err){console.warn('No se pudo reforzar el guardado',err)}
-    };
+    if(typeof originalProductSubmit==='function'){
+      productForm.onsubmit=async e=>{
+        await originalProductSubmit.call(productForm,e);
+      };
+    }
   }
   if(typeof productGrid!=='undefined')productGrid.addEventListener('click',e=>{const id=e.target?.dataset?.delete;if(id)deleteImage(id).catch(()=>{})},true);
 
