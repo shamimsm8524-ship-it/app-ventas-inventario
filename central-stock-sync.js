@@ -240,7 +240,26 @@
       if(verify.error)throw verify.error;
       if(!verify.data?.id)throw new Error('El producto no quedó registrado en la base de datos.');
       if(String(verify.data.business_id)!==String(businessId))throw new Error('El producto quedó asociado a otra cuenta.');
-      if(!existedBefore&&Number(verify.data.stock||0)>0){
+      // Verificación de stock: la cantidad escrita en el formulario debe quedar
+      // exactamente igual en Supabase. Si algún proceso intermedio la cambia,
+      // hacemos una corrección explícita y volvemos a comprobarla antes de
+      // considerar el producto guardado.
+      const expectedStock=Math.max(0,Number(p.stock)||0);
+      let verifiedStock=Number(verify.data.stock)||0;
+      if(Math.abs(verifiedStock-expectedStock)>0.000001){
+        const repair=await sb.from('varelia_products')
+          .update({stock:expectedStock})
+          .eq('business_id',businessId)
+          .eq('id',verify.data.id)
+          .select('id,stock')
+          .maybeSingle();
+        if(repair.error)throw repair.error;
+        if(!repair.data?.id||Math.abs((Number(repair.data.stock)||0)-expectedStock)>0.000001){
+          throw new Error('La cantidad inicial no pudo quedar guardada correctamente.');
+        }
+        verifiedStock=Number(repair.data.stock)||0;
+      }
+      if(!existedBefore&&verifiedStock>0){
         const mv=await sb.from('varelia_inventory_movements').insert({business_id:businessId,product_id:verify.data.id,product_name:verify.data.name,type:'add',qty:Number(verify.data.stock),stock_before:0,stock_after:Number(verify.data.stock),source:'producto_nuevo'});
         if(mv.error)throw mv.error;
       }
