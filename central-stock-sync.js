@@ -35,6 +35,11 @@
   async function ensureCategory(name){
     name=String(name||'').trim();
     if(!name)return null;
+    // Refrescar siempre la cuenta activa antes de escribir. Evita guardar la categoría
+    // con un business_id viejo si la sesión/cuenta cambió recientemente.
+    await loadProfile();
+    if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
+    if(!isOwner())throw new Error('Solo el administrador puede crear categorías.');
     let {data,error}=await sb.from('varelia_categories').select('id,name').eq('business_id',businessId).eq('name',name).maybeSingle();
     if(error)throw error;
     if(data?.id)return data.id;
