@@ -403,6 +403,8 @@ productImage.onchange=e=>{
 
 productForm.onsubmit=async e=>{
   e.preventDefault();
+  const quantityField=document.getElementById('productQty');
+  const enteredQuantity=Math.max(0,Number(quantityField?.valueAsNumber ?? quantityField?.value ?? 0)||0);
   let id=productId.value||uid(),old=products.find(p=>String(p.id).trim()===String(id).trim());
   const editor=document.getElementById('vcharEditor');
   let extra={characteristics:[],variantCombinations:[]};
@@ -423,7 +425,7 @@ productForm.onsubmit=async e=>{
   const comboStock=(extra.variantCombinations||[]).reduce((a,c)=>a+(Number(c.stock)||0),0);
   const medicineCategory=/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(productCategory.value||'').trim());
   const isMedicineProduct=!!document.getElementById('vMedicineToggle')?.checked||medicineCategory;
-  let obj={id:String(id),barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:(isMedicineProduct?Math.max(0,Math.floor(Number(document.getElementById('vMedicineStockBoxes')?.value||0)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineBlistersPerBox')?.value||1)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineUnitsPerBlister')?.value||1))):(Math.max(0,Number(document.getElementById('productQty')?.value||0))>0?Math.max(0,Number(document.getElementById('productQty')?.value||0)):(extra.variantCombinations?.length?comboStock:Math.max(0,Number(old?old.stock:0)||0)))),unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src,
+  let obj={id:String(id),barcode:barcode.value.trim(),name:productName.value.trim(),category:productCategory.value,buyPrice:+buyPrice.value||0,sellPrice:+sellPrice.value||0,stock:(isMedicineProduct?Math.max(0,Math.floor(Number(document.getElementById('vMedicineStockBoxes')?.value||0)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineBlistersPerBox')?.value||1)))*Math.max(1,Math.floor(Number(document.getElementById('vMedicineUnitsPerBlister')?.value||1))):enteredQuantity),unit:unit.value,reorderLevel:Math.max(0,Math.floor(+reorderLevel.value||0)),description:description.value,image:imagePreview.hidden?'':imagePreview.src,
   medicine:isMedicineProduct,
   laboratory:String(document.getElementById('vMedicineLaboratory')?.value||old?.laboratory||'').trim(),
   medicinePresentation:String(document.getElementById('vMedicinePresentation')?.value||old?.medicinePresentation||'').trim(),
