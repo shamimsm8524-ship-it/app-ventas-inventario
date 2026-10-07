@@ -734,7 +734,7 @@ render();
   const map={productos:'products',inventario:'inventory',categorias:'categories',proveedores:'suppliers',mercaderia:'purchases',ventas:'sales',pedidos:'orders',caja:'cash',apariencia:'appearance'};
   const valid=['products','inventory','categories','suppliers','purchases','sales','orders','cash','appearance'];
   let v=map[(location.hash||'').replace(/^#/,'')];
-  if(!v){try{v=localStorage.getItem('miNegocio_lastView_v3')||localStorage.getItem('miNegocio_lastView_v2')||sessionStorage.getItem('miNegocio_lastView_v3')}catch{}}
+  if(!v){try{v=localStorage.getItem((window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('miNegocio_lastView_v3'):'miNegocio_lastView_v3__no_account'))||localStorage.getItem((window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('miNegocio_lastView_v2'):'miNegocio_lastView_v2__no_account'))||sessionStorage.getItem('miNegocio_lastView_v3')}catch{}}
   if(!valid.includes(v))v='products';
   switchView(v);
   checkUrlOrder();
