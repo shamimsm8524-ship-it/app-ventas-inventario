@@ -463,7 +463,7 @@
   async function init(){
     try{
       if(!await waitClient())return;
-      if(!await loadProfile()||!businessId)return;
+      // Siempre volver a leer el perfil: businessId/rol pueden haber cambiado al entrar con otra cuenta.\n      if(!await loadProfile()||!businessId)return;\n      if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
       await seedIfNeeded();
       await refreshCloud();
       installProductBridge();
@@ -491,6 +491,6 @@
     }
   }
 
-  window.addEventListener('varelia:business-scope-ready',()=>setTimeout(init,80),{once:true});
+  // Reiniciar la sincronización cada vez que cambia la cuenta activa.\n  // Antes se ejecutaba una sola vez y, al cambiar de administrador, la vista podía seguir apuntando al negocio anterior.\n  window.addEventListener('varelia:business-scope-ready',()=>setTimeout(()=>init().catch(e=>console.error('Varelia cambio de cuenta',e)),80));
   setTimeout(init,350);
 })();
