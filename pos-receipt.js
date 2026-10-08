@@ -163,12 +163,8 @@
       });
 
       async function savePDF(sale){
-        try{
-          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveSalePdf==='function'){
-            window.VareliaAndroid.saveSalePdf(JSON.stringify(nativeReceiptPayload(sale)));
-            return;
-          }
-        }catch(e){console.warn('Guardado PDF nativo no disponible',e)}
+        // Descargar el comprobante es una función básica y gratuita: generar el PDF
+        // en JavaScript evita activar cualquier restricción del flujo nativo Premium.
         try{
           const jsPDF=await loadJsPDF(),items=Array.isArray(sale.items)?sale.items:[],bs=businessSettings();
           const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[80,Math.max(150,120+items.length*16)]});
@@ -187,8 +183,11 @@
           if(Number(sale.amountReceived)>0)lr('Recibido',money(sale.amountReceived));lr('Vuelto',money(Number(sale.changeGiven)||0));
           y+=4;doc.setFont('courier','normal');doc.setFontSize(5.5);doc.text(String(bs.ticketMessage||'Gracias por su compra.'),40,y,{align:'center',maxWidth:64});y+=3;doc.text('Este ticket es un comprobante interno y no reemplaza',40,y,{align:'center'});y+=3;doc.text('una boleta o factura electrónica SUNAT.',40,y,{align:'center'});
           const name='comprobante-'+ticketNo(sale)+'.pdf',uri=doc.output('datauristring');
-          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function')window.VareliaAndroid.saveDataUrl(uri,name);else doc.save(name);
-        }catch(e){console.error(e);alert('No se pudo descargar el comprobante.')}
+          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function'){
+            try{window.VareliaAndroid.saveDataUrl(uri,name);return}catch(nativeError){console.warn('Guardado nativo no disponible; se usará descarga web',nativeError)}
+          }
+          doc.save(name);
+        }catch(e){console.error(e);alert('No se pudo descargar el comprobante. Intenta usar Imprimir y luego Guardar como PDF.')}
       }
             async function shareReceipt(sale){
         const text=receiptText(sale);
