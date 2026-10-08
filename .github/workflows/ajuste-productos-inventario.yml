@@ -1,0 +1,33 @@
+name: Ajustar Productos e Inventario
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ajuste-productos-inventario.yml'
+permissions:
+  contents: write
+jobs:
+  ajustar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Separar visualmente Productos de Inventario
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old='</style></head>'
+          css='<style>.product .stock,.product [data-stock]{display:none!important}.product .actions{grid-template-columns:repeat(3,1fr)}@media(max-width:560px){.product .actions{grid-template-columns:1fr 1fr}.product .actions .danger{grid-column:1/-1}}</style></head>'
+          if old in s and '.product [data-stock]{display:none!important}' not in s:
+              s=s.replace(old,css,1)
+          s=s.replace('Catálogo general de productos.','Catálogo de productos. El control de cantidades se realiza únicamente desde Inventario.')
+          p.write_text(s,encoding='utf-8')
+          PY
+      - name: Guardar cambios
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Separar Productos de Inventario"
+          git push
