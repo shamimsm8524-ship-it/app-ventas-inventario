@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.43&fresh=20261007-varelia-logo-fix";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.50&fresh=20261008-varelia-final&native_clean=1";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -515,7 +515,7 @@ public class MainActivity extends AppCompatActivity {
                 String brandJs = "(function(){"
                         + "var l=document.querySelector('.logo');if(l){l.title='Varelia Store';}"
                         + "var h=document.querySelector('.brand h1');if(h){h.textContent='Varelia';h.id='vareliaAppName';}"
-                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.43';}"
+                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.50';}"
                         + "document.title='Varelia Store';"
                         + "})();";
                 view.evaluateJavascript(brandJs, null);
@@ -627,7 +627,7 @@ public class MainActivity extends AppCompatActivity {
             // La app puede conservar un Service Worker antiguo aunque WebView use LOAD_NO_CACHE.
             // Lo eliminamos una vez y forzamos una carga nueva del sitio para que la APK no muestre
             // la interfaz vieja de Reportes/Ticket promedio.
-            String cleanUrl = HOME_FRESH + "&native_clean=1&ts=" + System.currentTimeMillis();
+            String cleanUrl = HOME_FRESH + "&ts=" + System.currentTimeMillis();
             webView.loadUrl(cleanUrl);
         }
     }
