@@ -139,6 +139,7 @@ public class MainActivity extends AppCompatActivity {
                                 || "kg".equalsIgnoreCase(it.optString("unit", ""))
                                 || it.optBoolean("byWeight", false)
                                 || (qty > 0 && Math.abs(qty - Math.rint(qty)) > 0.000001);
+                        String description = it.optString("description", "");
                         String meta;
                         if (weighted) {
                             String weightText = qty < 1
@@ -150,7 +151,9 @@ public class MainActivity extends AppCompatActivity {
                         }
                         rows.append("<div class='item'><div><b>")
                                 .append(escHtml(it.optString("name", "Producto")))
-                                .append("</b><small>")
+                                .append("</b>")
+                                .append(description.isEmpty() ? "" : "<small>" + escHtml(description) + "</small>")
+                                .append("<small>")
                                 .append(meta)
                                 .append("</small></div><b>S/ ")
                                 .append(String.format(Locale.US, "%.2f", subtotal))
@@ -244,7 +247,7 @@ public class MainActivity extends AppCompatActivity {
             JSONObject breakdown = data.optJSONObject("breakdown");
             int itemCount = items == null ? 0 : items.length();
             int paymentCount = breakdown == null ? 0 : breakdown.length();
-            int pageHeight = Math.max(842, 430 + itemCount * 58 + paymentCount * 34);
+            int pageHeight = Math.max(842, 430 + itemCount * 82 + paymentCount * 34);
 
             PdfDocument document = new PdfDocument();
             PdfDocument.PageInfo info = new PdfDocument.PageInfo.Builder(595, pageHeight, 1).create();
@@ -307,6 +310,12 @@ public class MainActivity extends AppCompatActivity {
                     paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
                     paint.setTextSize(14f);
                     y = drawPdfText(canvas, paint, it.optString("name", "Producto"), 40f, y, 360f, 18f);
+                    String description = it.optString("description", "");
+                    if (!description.isEmpty()) {
+                        paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+                        paint.setTextSize(11f);
+                        y = drawPdfText(canvas, paint, description, 40f, y, 515f, 15f);
+                    }
                     paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
                     paint.setTextSize(12f);
                     double qty = it.optDouble("qty", 0);
