@@ -535,7 +535,7 @@ public class MainActivity extends AppCompatActivity {
                         + "if(!window.VareliaReceipt&&!document.getElementById('vareliaNativeReceiptLoader')){"
                         + "var s=document.createElement('script');"
                         + "s.id='vareliaNativeReceiptLoader';"
-                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261004-103&ts='+Date.now();"
+                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261008-receipt-fix-v3&ts='+Date.now();"
                         + "document.head.appendChild(s);"
                         + "}"
                         + "}catch(e){console.error(e);}"
