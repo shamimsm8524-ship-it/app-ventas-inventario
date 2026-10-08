@@ -22,7 +22,6 @@ async function activateBusinessScope(user,profile){
 
   // No copiar datos locales compartidos a una cuenta Gmail nueva.
   // Cada cuenta debe comenzar y mantenerse exclusivamente con su propio business_id.
-  }
 
   localStorage.setItem('varelia_active_business_id',safeScope);
 
