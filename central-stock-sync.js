@@ -532,8 +532,20 @@
     try{
       if(!await waitClient())return;
       // Siempre volver a leer el perfil: businessId/rol pueden haber cambiado al entrar con otra cuenta.\n      if(!await loadProfile()||!businessId)return;\n      if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
-      await seedIfNeeded();
-      await refreshCloud();
+      // La sincronización no debe quedar bloqueada por un respaldo inicial fallido.
+      // Primero intentamos traer la cuenta desde la nube; si falla, reintentamos.
+      try{ await seedIfNeeded(); }catch(seedErr){ console.warn('Respaldo inicial omitido:',seedErr); }
+      let cloudOk=false,lastErr=null;
+      for(let attempt=1;attempt<=3&&!cloudOk;attempt++){
+        try{
+          cloudOk=await refreshCloud();
+          if(!cloudOk)throw new Error('La nube no devolvió el inventario.');
+        }catch(syncErr){
+          lastErr=syncErr;
+          if(attempt<3)await sleep(700*attempt);
+        }
+      }
+      if(!cloudOk)throw lastErr||new Error('No se pudo sincronizar con Supabase.');
       installProductBridge();
       installCategoryBridge();
       installCategoryDeleteBridge();
