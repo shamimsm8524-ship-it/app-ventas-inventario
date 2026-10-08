@@ -211,6 +211,19 @@
       receiptPdfButton.onclick=()=>{if(!window.__vareliaReceiptDownloadBusy&&currentReceipt)savePDF(currentReceipt)};
       overlay.querySelector('#vreceiptCloseAction').onclick=()=>overlay.classList.remove('show');
 
+      // Blindaje final: capturar desde WINDOW antes de cualquier listener global de Premium.
+      const forceFreeReceiptDownload=(e)=>{
+        const button=e.target&&e.target.closest&&e.target.closest('#vreceiptPdf');
+        if(!button||!currentReceipt)return;
+        try{e.preventDefault();e.stopImmediatePropagation();}catch{}
+        if(window.__vareliaReceiptDownloadBusy)return;
+        window.__vareliaReceiptDownloadBusy=true;
+        Promise.resolve(savePDF(currentReceipt)).finally(()=>setTimeout(()=>{window.__vareliaReceiptDownloadBusy=false},900));
+      };
+      window.addEventListener('pointerdown',forceFreeReceiptDownload,true);
+      window.addEventListener('touchstart',forceFreeReceiptDownload,true);
+      window.addEventListener('click',forceFreeReceiptDownload,true);
+
       // La descarga básica del comprobante no debe pasar por controles Premium globales.
       // Interceptar el clic antes de los manejadores delegados de otros módulos.
       document.addEventListener('click',e=>{
