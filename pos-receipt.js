@@ -235,6 +235,34 @@
         if(sale)savePDF(sale);
       },true);
 
+      // Si otro módulo muestra el muro Premium encima del comprobante, quitar
+      // únicamente ese muro y completar la descarga gratuita del ticket.
+      const receiptPremiumGuard=()=>{
+        const receipt=document.getElementById('vreceiptOverlay');
+        if(!receipt||!receipt.classList.contains('show')||!currentReceipt)return;
+        const candidates=document.querySelectorAll('dialog,[role="dialog"],.modal,.overlay,[class*="premium"],[id*="premium"]');
+        let removed=false;
+        candidates.forEach(el=>{
+          if(!el||el===receipt||receipt.contains(el))return;
+          try{
+            const text=String(el.innerText||el.textContent||'').trim();
+            if(!text||text.length>1400||!/premium/i.test(text)||!/(S\\/?\\.?\\s*28|28\\s*soles|pagar|suscri)/i.test(text))return;
+            const css=getComputedStyle(el);
+            if(css.display==='none'||css.visibility==='hidden'||Number(css.opacity)===0)return;
+            el.style.setProperty('display','none','important');
+            el.style.setProperty('visibility','hidden','important');
+            removed=true;
+          }catch{}
+        });
+        if(removed&&!window.__vareliaReceiptPremiumRecoveryBusy){
+          window.__vareliaReceiptPremiumRecoveryBusy=true;
+          Promise.resolve(window.__vareliaDownloadCurrentReceipt?.()).finally(()=>setTimeout(()=>{window.__vareliaReceiptPremiumRecoveryBusy=false},1400));
+        }
+      };
+      try{
+        new MutationObserver(()=>receiptPremiumGuard()).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style','open']});
+        setInterval(receiptPremiumGuard,350);
+      }catch{}
       let pending=null;
       document.addEventListener('click',e=>{
         const b=e.target.closest('#checkout');if(!b)return;
