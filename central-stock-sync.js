@@ -195,17 +195,19 @@
       };
     });
 
+    products=mapped;
+    window.products=products;
     try{
-      products=mapped;
-      window.products=products;
       if(typeof K!=='undefined'){
         localStorage.setItem(K.products,JSON.stringify(products));
         localStorage.setItem(K.categories,JSON.stringify(categories));
       }
+    }catch(e){console.warn('No se pudo guardar copia local del inventario:',e)}
+    try{
       if(typeof render==='function')render();
-      window.dispatchEvent(new CustomEvent('varelia:central-stock-updated'));
-      return true;
-    }catch(e){console.error('No se pudo aplicar inventario central',e);return false}
+    }catch(e){console.warn('La interfaz no pudo renderizar el inventario, pero la nube sí respondió:',e)}
+    try{window.dispatchEvent(new CustomEvent('varelia:central-stock-updated'))}catch{}
+    return true
   }
 
   let suppressRefreshUntil=0;
