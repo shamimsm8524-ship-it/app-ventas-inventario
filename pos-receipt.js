@@ -198,6 +198,17 @@
       overlay.querySelector('#vreceiptPdf').onclick=()=>currentReceipt&&savePDF(currentReceipt);
       overlay.querySelector('#vreceiptCloseAction').onclick=()=>overlay.classList.remove('show');
 
+      // La descarga básica del comprobante no debe pasar por controles Premium globales.
+      // Interceptar el clic antes de los manejadores delegados de otros módulos.
+      document.addEventListener('click',e=>{
+        const button=e.target&&e.target.closest&&e.target.closest('#vreceiptPdf');
+        if(!button)return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        const sale=currentReceipt;
+        if(sale)savePDF(sale);
+      },true);
+
       let pending=null;
       document.addEventListener('click',e=>{
         const b=e.target.closest('#checkout');if(!b)return;
