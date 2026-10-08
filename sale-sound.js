@@ -54,6 +54,11 @@
     },0);
   }
 
+  function click(){
+    resume();
+    tone(660,0,0.045,0.018,'sine');
+  }
+
   function add(){
     resume();
     tone(880,0,0.07,0.025,'sine');
@@ -67,6 +72,7 @@
 
   window.vareliaSound=(kind)=>{
     if(kind==='sale')return sale();
+    if(kind==='click')return click();
     if(kind==='error')return error();
     return add();
   };
