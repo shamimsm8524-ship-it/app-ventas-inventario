@@ -209,6 +209,27 @@
         }
         let before=0;try{before=Array.isArray(sales)?sales.length:0}catch{}
         pending={before,paymentMethod:paymentMethod.value,total,extras:{...extras}};
+        // La venta puede tardar más de unos milisegundos en guardarse.
+        // Esperamos hasta 6 segundos para mostrar siempre el comprobante después de cobrar.
+        let waited=0;
+        const waitForSavedSale=()=>{
+          if(!pending)return;
+          try{
+            if(Array.isArray(sales)&&sales.length>pending.before){
+              const sale=sales[sales.length-1];
+              if(!sale.receiptNumber)sale.receiptNumber='V-'+new Date(sale.date||Date.now()).toISOString().slice(0,10).replace(/-/g,'')+'-'+String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-6).toUpperCase();
+              sale.paymentMethod=pending.paymentMethod;const snap=window.VareliaPaymentSnapshot;if(snap&&Date.now()-Number(snap.at||0)<15000){sale.paymentMethod=snap.method||sale.paymentMethod;sale.paymentBreakdown=snap.breakdown||{};sale.amountReceived=Number(snap.received)||0;sale.changeGiven=Number(snap.change)||0;}const ex=pending.extras||{};const originalTotal=Number(sale.total)||0;sale.subtotal=originalTotal;sale.discount=Math.max(0,Math.min(originalTotal,Number(ex.discount)||0));sale.total=Math.max(0,originalTotal-sale.discount);sale.notes=String(ex.notes||'').trim();sale.customerName=String(ex.customerName||'').trim();if(sale.paymentMethod==='Fiado'&&!Number.isFinite(Number(sale.paidAmount)))sale.paidAmount=0;const vp=window.vareliaCurrentUserProfile||{};sale.sellerId=vp.id||window.vareliaSellerId||'';sale.sellerName=vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';sale.sellerRole=vp.role||window.vareliaSellerRole||'';sale.receiptIssuedAt=new Date().toISOString();
+              try{if(typeof save==='function')save()}catch{}
+              pending=null;showReceipt(sale);window.vareliaSound?.('sale');return;
+            }
+          }catch(err){console.error('No se pudo preparar el comprobante:',err)}
+          waited+=100;
+          if(waited<6000)setTimeout(waitForSavedSale,100);
+          else{pending=null;window.vareliaToast?.('La venta se guardó, pero no se pudo abrir el comprobante.','warn')}
+        };
+        setTimeout(waitForSavedSale,120);
+        return;
+        /*
         setTimeout(()=>{
           if(!pending)return;
           try{
