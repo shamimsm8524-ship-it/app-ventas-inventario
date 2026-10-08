@@ -20,8 +20,14 @@
     if(!sb)return null;
     const {data:u}=await sb.auth.getUser();
     const user=u?.user;if(!user)return null;
-    const {data,error}=await sb.from('profiles').select('id,business_id,role,permissions').eq('id',user.id).maybeSingle();
+    const {data:found,error}=await sb.from('profiles').select('id,business_id,role,permissions').eq('id',user.id).maybeSingle();
     if(error)throw error;
+    let data=found;
+    // Si una cuenta Gmail nueva todavía no tiene perfil, créale/reutiliza
+    // exclusivamente su negocio antes de sincronizar el inventario.
+    if(!data?.business_id&&typeof window.vareliaEnsureAccount==='function'){
+      data=await window.vareliaEnsureAccount(user);
+    }
     profile=data;businessId=String(data?.business_id||'');role=String(data?.role||'');
     return profile;
   }
@@ -132,7 +138,7 @@
   }
 
   async function refreshCloud(){
-    if(!sb||!businessId)return false;
+    if(!sb)throw new Error('Supabase no está disponible.');\n    if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
     const [catsRes,prodRes]=await Promise.all([
       sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
       sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes').eq('business_id',businessId).order('created_at')
