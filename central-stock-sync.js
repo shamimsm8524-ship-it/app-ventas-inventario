@@ -562,6 +562,23 @@
     }
   }
 
-  // Reiniciar la sincronización cada vez que cambia la cuenta activa.\n  // Antes se ejecutaba una sola vez y, al cambiar de administrador, la vista podía seguir apuntando al negocio anterior.\n  window.addEventListener('varelia:business-scope-ready',()=>setTimeout(()=>init().catch(e=>console.error('Varelia cambio de cuenta',e)),80));
-  setTimeout(init,350);
+  // Reiniciar la sincronización cada vez que cambia la cuenta activa.\n  // Antes se ejecutaba una sola vez y, al cambiar de administrador, la vista podía seguir apuntando al negocio anterior.\n  // La sincronización central solo inicia después de que autenticación haya fijado el business_id.
+  // Así la pantalla de login no intenta sincronizar una cuenta que todavía no está activa.
+  let scopeReady=false;
+  window.addEventListener('varelia:business-scope-ready',()=>{
+    scopeReady=true;
+    setTimeout(()=>init().catch(e=>console.error('Varelia cambio de cuenta',e)),80);
+  });
+  // Recuperación para una sesión ya existente, sin mostrar falsos errores en login.
+  setTimeout(async()=>{
+    if(scopeReady)return;
+    try{
+      if(!sb)await waitClient();
+      const {data:u}=await sb.auth.getUser();
+      if(!u?.user)return;
+      const {data:p,error}=await sb.from('profiles').select('business_id').eq('id',u.user.id).maybeSingle();
+      if(error||!p?.business_id)return;
+      await init();
+    }catch(e){console.warn('Varelia central: esperando contexto de cuenta',e)}
+  },700);
 })();
