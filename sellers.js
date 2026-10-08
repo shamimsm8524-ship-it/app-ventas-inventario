@@ -245,5 +245,6 @@
 
     loadProfile();
     window.addEventListener('varelia:business-scope-ready',()=>setTimeout(loadProfile,120));
+  window.addEventListener('varelia:account-isolation-ready',()=>setTimeout(loadProfile,120));
   });
 })();
