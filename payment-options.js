@@ -166,7 +166,7 @@
     const legacyCheckout=document.getElementById('checkout');
     if(!bottom&&!legacyCheckout)return false;
 
-    document.querySelectorAll('.vposPaymentBar').forEach(x=>x.remove());
+    document.querySelectorAll('.vposPaymentBar,#vposPay').forEach(x=>x.remove());
     let existing=document.getElementById('vareliaPaymentPanel');
     if(!existing){
       existing=document.createElement('div');
@@ -188,6 +188,8 @@
       sel.value=previous;
     }
     sel.disabled=false;
+    // Evitar el panel de cobro antiguo de pos-sales.js: el panel VareliaPaymentPanel es la única fuente del monto recibido.
+    document.getElementById('vposPay')?.remove();
     sel.onchange=()=>{
       try{localStorage.setItem((window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_payment_method'):'varelia_last_payment_method__no_account'),sel.value)}catch{}
       ensureNativePaymentPicker(sel,methods);
@@ -417,6 +419,7 @@
   document.addEventListener('click',e=>{
     const target=e.target.closest?.('#vposCheckout,#checkout');
     if(!target)return;
+    try{window.vareliaSound?.('click')}catch{}
     // El POS principal ya valida el importe y guarda VareliaPaymentSnapshot.
     // Al disparar el botón legado, no volver a validar contra un segundo formulario.
     if(target.id==='checkout'&&window.VareliaPaymentSnapshot&&Date.now()-Number(window.VareliaPaymentSnapshot.at||0)<5000){
