@@ -195,7 +195,20 @@
         window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
       }
       overlay.querySelector('#vreceiptPrint').onclick=()=>currentReceipt&&printReceipt(currentReceipt);
-      overlay.querySelector('#vreceiptPdf').onclick=()=>currentReceipt&&savePDF(currentReceipt);
+      const receiptPdfButton=overlay.querySelector('#vreceiptPdf');
+      // Ejecutar la descarga al tocar el botón, antes del click global de cualquier
+      // módulo de Premium. Esto deja el comprobante básico disponible para todas
+      // las cuentas y no modifica las demás funciones Premium.
+      const startReceiptDownload=(e)=>{
+        if(!currentReceipt)return;
+        try{e.preventDefault();e.stopPropagation();}catch{}
+        if(window.__vareliaReceiptDownloadBusy)return;
+        window.__vareliaReceiptDownloadBusy=true;
+        Promise.resolve(savePDF(currentReceipt)).finally(()=>setTimeout(()=>{window.__vareliaReceiptDownloadBusy=false},900));
+      };
+      receiptPdfButton.addEventListener('pointerdown',startReceiptDownload,{passive:false});
+      receiptPdfButton.addEventListener('touchstart',startReceiptDownload,{passive:false});
+      receiptPdfButton.onclick=()=>{if(!window.__vareliaReceiptDownloadBusy&&currentReceipt)savePDF(currentReceipt)};
       overlay.querySelector('#vreceiptCloseAction').onclick=()=>overlay.classList.remove('show');
 
       // La descarga básica del comprobante no debe pasar por controles Premium globales.
