@@ -535,7 +535,7 @@ public class MainActivity extends AppCompatActivity {
 
                 // La impresión ya NO se dispara al cobrar. El comprobante se muestra en Varelia
                 // y el usuario decide entre Imprimir o Descargar PDF.
-                String nativePdfHookJs = "(function(){try{window.__vareliaNativePdfHookV2=true;}catch(e){}})();";
+                String nativePdfHookJs = "(function(){try{\nwindow.__vareliaNativePdfHookV2=true;window.__vareliaReceiptPremiumFreeV3=true;\nfunction f(){try{\nvar ov=document.querySelector('#vreceiptOverlay');\nif(!ov||!ov.classList.contains('show'))return;\nvar t=(document.body&&document.body.innerText||\"\");\nif(!/premium/i.test(t)||!/(S\\/?\\.?\\s*28|28\\s*soles|pagar|descargar)/i.test(t))return;\ndocument.querySelectorAll('body *').forEach(function(el){try{\nvar s=(el.innerText||\"\").trim();\nif(s.length>0&&s.length<700&&/premium/i.test(s)&&/(28\\s*soles|S\\/?\\.?\\s*28|pagar)/i.test(s)){\nvar q=el.closest('dialog,.modal,.overlay,[role=dialog]')||el;\nif(q&&q!==ov)q.style.setProperty('display','none','important');\n}}catch(e){}});\nif(typeof window.__vareliaDownloadCurrentReceipt==='function'){\nsetTimeout(function(){window.__vareliaDownloadCurrentReceipt();},60);\n}\n}catch(e){}}\nwindow.__vareliaReceiptPremiumFreeTimer=setInterval(f,220);f();\n}catch(e){}})();";
                 view.evaluateJavascript(nativePdfHookJs, null);
 
                 // Limpiar Service Workers heredados de versiones antiguas. Esto evita que una
