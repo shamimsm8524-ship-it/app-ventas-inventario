@@ -20,16 +20,8 @@ async function activateBusinessScope(user,profile){
   const scope=String(profile?.business_id||user.id);
   const safeScope=scope.replace(/[^a-zA-Z0-9_-]/g,'_');
 
-  // La información que existía antes de separar cuentas se conserva una sola vez
-  // para la primera cuenta que abra Varelia después de esta actualización.
-  if(!localStorage.getItem('varelia_legacy_migrated')){
-    for(const base of Object.values(BASE_KEYS)){
-      const target=scopedKey(base,safeScope);
-      if(localStorage.getItem(target)==null&&localStorage.getItem(base)!=null){
-        localStorage.setItem(target,localStorage.getItem(base));
-      }
-    }
-    localStorage.setItem('varelia_legacy_migrated',safeScope);
+  // No copiar datos locales compartidos a una cuenta Gmail nueva.
+  // Cada cuenta debe comenzar y mantenerse exclusivamente con su propio business_id.
   }
 
   localStorage.setItem('varelia_active_business_id',safeScope);
@@ -78,6 +70,7 @@ const side=document.querySelector('.side');if(side)side.insertBefore(userBar,sid
 const $=s=>document.querySelector(s),msg=(t,type='')=>{const m=$('#vaMsg');if(!m)return;m.textContent=t;m.className='va-msg '+type};
 function showAuth(){document.body.classList.add('varelia-auth-locked');auth.classList.add('show');userBar.style.display='none'}
 function showApp(user){document.body.classList.remove('varelia-auth-locked');auth.classList.remove('show');$('#vareliaUserEmail').textContent=user?.email||'';userBar.style.display='flex'}
+window.vareliaEnsureAccount=ensureAccount;
 async function ensureAccount(user){let {data:profile,error}=await sb.from('profiles').select('id,business_id,role').eq('id',user.id).maybeSingle();if(error)throw error;if(profile?.business_id)return profile;let pending={};try{pending=JSON.parse(localStorage.getItem('varelia_pending_account')||'{}')}catch{}const meta=user.user_metadata||{};const fullName=pending.fullName||meta.full_name||meta.name||user.email?.split('@')[0]||'Usuario';const businessName=pending.businessName||meta.business_name||('Negocio de '+fullName);
   // Si Google vuelve a ejecutar el callback antes de que exista el perfil, reutilizamos
   // el negocio ya creado para este usuario en vez de crear otro. Así cada Gmail conserva
