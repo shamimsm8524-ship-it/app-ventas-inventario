@@ -568,7 +568,8 @@
     }catch(e){
       console.error('Varelia central stock',e);
       window.dispatchEvent(new CustomEvent('varelia:business-scope-error',{detail:{error:e}}));
-      toast('No se pudo sincronizar con la nube. Tus datos locales se conservaron.','warn');
+      const msg=String(e?.message||e?.details||e?.hint||e||'Error desconocido');
+      toast('No se pudo sincronizar: '+msg.slice(0,180),'warn');
     }finally{
       initBusy=false;
     }
