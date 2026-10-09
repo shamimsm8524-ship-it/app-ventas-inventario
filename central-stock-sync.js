@@ -4,7 +4,7 @@
 
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const toast=(m,t='ok')=>window.vareliaToast?window.vareliaToast(m,t):console.log(m);
-  let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false,initBusy=false;
+  let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false,initBusy=false,initAgain=false;
 
   const localProducts=()=>{try{return Array.isArray(products)?products:[]}catch{return[]}};
   const localCategories=()=>{try{return Array.isArray(categories)?categories:[]}catch{return[]}};
@@ -536,11 +536,12 @@
   }
 
   async function init(){
-    if(initBusy)return;
+    if(initBusy){initAgain=true;return}
     initBusy=true;
     try{
       if(!await waitClient())return;
       // Siempre volver a leer el perfil: businessId/rol pueden haber cambiado al entrar con otra cuenta.
+      // Si la sesión todavía está terminando de abrirse, el evento de cuenta solicitará otro intento.
       if(!await loadProfile()||!businessId)return;
       if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
       // La sincronización no debe quedar bloqueada por un respaldo inicial fallido.
@@ -583,6 +584,11 @@
       toast('No se pudo sincronizar: '+msg.slice(0,180),'warn');
     }finally{
       initBusy=false;
+      // No perder un evento de inicio de sesión que llegue mientras la primera inicialización está activa.
+      if(initAgain){
+        initAgain=false;
+        setTimeout(()=>init().catch(e=>console.error('Varelia reintento de sincronización',e)),120);
+      }
     }
   }
 
