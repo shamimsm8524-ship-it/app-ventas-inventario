@@ -513,7 +513,7 @@ function renderPurchaseCart(){purchaseItems.innerHTML=purchaseCart.map(i=>`<div>
 addPurchaseItem.onclick=()=>{let p=products.find(x=>String(x.id).trim()===String(purchaseProduct.value).trim()),q=Math.floor(+purchaseQty.value),c=+purchaseCost.value;if(p&&q>0){purchaseCart.push({id:p.id,name:p.name,qty:q,cost:c,unit:p.unit});renderPurchaseCart()}};
 savePurchase.onclick=()=>{let s=suppliers.find(x=>String(x.id).trim()===String(purchaseSupplier.value).trim());if(!s||!purchaseCart.length)return;for(const i of purchaseCart){let p=products.find(x=>String(x.id).trim()===String(i.id).trim());if(p){p.stock=(+p.stock||0)+i.qty;syncProductToCloud(p);}}purchases.push({id:uid(),date:new Date().toISOString(),supplierName:s.name,items:purchaseCart,total:purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0)});purchaseDialog.close();save()};
 
-function persistSaleCart(){try{localStorage.setItem('varelia_active_sale_cart_v1',JSON.stringify(cart||[]))}catch{}}
+function persistSaleCart(){try{localStorage.setItem(__sk('varelia_active_sale_cart_v1'),JSON.stringify(cart||[]))}catch{}}
 function clearSaleCart(){cart=[];persistSaleCart();renderCart()}
 function openSale(resetCart=false){if(resetCart)clearSaleCart();renderCart();try{if(!saleDialog.open)saleDialog.showModal();saleDialog.scrollTop=0;setTimeout(()=>{try{renderCart()}catch{}},60)}catch(e){console.error('openSale',e)}}
 function addToCart(p, qtyToAdd=1){
