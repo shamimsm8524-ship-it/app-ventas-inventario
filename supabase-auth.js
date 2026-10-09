@@ -17,7 +17,7 @@ const scopedKey=(base,scope)=>base+'__'+String(scope).replace(/[^a-zA-Z0-9_-]/g,
 const readJson=(key,fallback)=>{try{const v=localStorage.getItem(key);return v==null?fallback:(JSON.parse(v)??fallback)}catch{return fallback}};
 
 async function activateBusinessScope(user,profile){
-  const scope=String(profile?.business_id||user.id);
+  const scope=String(user.id); // Aislar inventario por usuario autenticado, no por business_id compartible.
   const safeScope=scope.replace(/[^a-zA-Z0-9_-]/g,'_');
 
   // No copiar datos locales compartidos a una cuenta Gmail nueva.
