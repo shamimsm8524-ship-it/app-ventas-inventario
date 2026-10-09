@@ -1,6 +1,5 @@
 (()=>{
   if(window.__vareliaPosSales)return;
-  window.__vareliaPosSales=true;
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn();
   ready(()=>{
     const wait=setInterval(()=>{
@@ -466,6 +465,8 @@
 
       window.VareliaPOS={addProduct,startNew,sync,isActive:()=>salesSec.classList.contains('active'),focus:()=>input.focus()};
       renderPay();sync();setTimeout(sync,350);setTimeout(()=>salesSec.querySelectorAll(':scope > .flowRole').forEach(el=>el.remove()),1200);
+      // Marcar como inicializado solo después de montar toda la pantalla de ventas.
+      window.__vareliaPosSales=true;
     },120);
   });
 })();
