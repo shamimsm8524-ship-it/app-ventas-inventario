@@ -1,5 +1,5 @@
 (()=>{
-  if(window.__vareliaPosReceiptRestoredV101||window.__vareliaPosReceiptInitializing)return;
+  if(window.__vareliaPosReceiptRestoredV102||window.__vareliaPosReceiptInitializing)return;
   window.__vareliaPosReceiptInitializing=true;
   window.__vareliaPosReceipt=true;
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn();
@@ -7,7 +7,7 @@
     const wait=setInterval(()=>{
       const pos=document.getElementById('vareliaPosSales');
       const input=document.getElementById('vposInput');
-      const checkout=document.getElementById('checkout');
+      const checkout=document.getElementById('vposCheckout')||document.getElementById('checkout');
       if(!pos||!input||!checkout||!window.VareliaPOS)return;
       clearInterval(wait);
       window.__vareliaPosReceiptRestoredV101=true;
