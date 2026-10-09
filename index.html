@@ -296,11 +296,21 @@ function receiptDocument(s){
   return '<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Comprobante de venta</title><style>body{font:15px Arial,sans-serif;color:#111;margin:24px auto;max-width:760px;padding:16px}h1{text-align:center;font-size:24px}p{margin:7px 0}.head{text-align:center;border-bottom:1px solid #ccc;padding-bottom:12px}table{width:100%;border-collapse:collapse;margin:20px 0}th,td{text-align:left;padding:9px 5px;border-bottom:1px solid #ddd}th{background:#f4f4f4}.total{text-align:right;font-size:21px;font-weight:bold;margin-top:18px}.foot{text-align:center;margin-top:28px;color:#555}@media print{body{margin:0;max-width:none}}</style><div class="head"><h1>COMPROBANTE DE VENTA</h1><p>Varelia</p><p>'+escR(new Date(s.date).toLocaleString('es-PE'))+'</p><p>N.º '+escR(s.id||'')+'</p></div><table><thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Importe</th></tr></thead><tbody>'+rows+'</tbody></table><p>'+pay+'</p>'+(Number(s.amountReceived)>0?'<p>Recibido: '+money(s.amountReceived)+'</p>':'')+(Number(s.changeGiven)>0?'<p>Vuelto: '+money(s.changeGiven)+'</p>':'')+'<div class="total">TOTAL: '+money(s.total)+'</div><div class="foot">Gracias por su compra</div></html>';
 }
 function saleReceiptAction(action,id){
-  const s=sales.find(x=>String(x.id)===String(id));if(!s){alert('No se encontró la venta.');return}
-  const html=receiptDocument(s),blob=new Blob([html],{type:'text/html;charset=utf-8'}),url=URL.createObjectURL(blob);
-  if(action==='download'){const a=document.createElement('a');a.href=url;a.download='Comprobante-Varelia-'+String(s.id||'venta').replace(/[^a-z0-9_-]/gi,'')+'.html';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000);return}
-  if(action==='print'){const w=window.open(url,'_blank');if(!w){alert('Permite las ventanas emergentes para imprimir el comprobante.');URL.revokeObjectURL(url);return}setTimeout(()=>{try{w.addEventListener('load',()=>{w.focus();w.print()})}catch{}},400);return}
-  if(action==='whatsapp'){const lines=['COMPROBANTE DE VENTA - Varelia',new Date(s.date).toLocaleString('es-PE'),...(s.items||[]).map(i=>i.name+' x '+i.qty+' = '+money((Number(i.qty)||0)*(Number(i.price)||0))),'TOTAL: '+money(s.total),'Gracias por su compra'];window.open('https://wa.me/?text='+encodeURIComponent(lines.join('\n')),'_blank');return}
+  const original=sales.find(x=>String(x.id)===String(id));if(!original){alert('No se encontró la venta.');return}
+  // Las ventas antiguas pueden no tener datos de pago; normalizarlos antes de abrir el comprobante.
+  const s={...original},total=Math.max(0,Number(original.total)||0),method=String(original.paymentMethod||'Efectivo');
+  const received=method==='Fiado'?Math.max(0,Number(original.amountReceived)||0):Math.max(total,Number(original.amountReceived)||0);
+  const change=method==='Fiado'?0:Math.max(Number(original.changeGiven)||0,received-total);
+  s.amountReceived=received;s.changeGiven=change;
+  if(!s.paymentBreakdown||!Object.values(s.paymentBreakdown).some(v=>Number(v)>0))s.paymentBreakdown={[method]:Math.min(total,received)};
+  if(window.VareliaReceipt){
+    if(action==='download'){window.VareliaReceipt.pdf(s);return}
+    if(action==='print'){window.VareliaReceipt.show(s);setTimeout(()=>window.VareliaReceipt.print(s),180);return}
+    if(action==='whatsapp'){window.VareliaReceipt.share(s);return}
+  }
+  if(action==='download'){alert('El módulo de comprobantes todavía está cargando. Espera un momento y vuelve a pulsar Descargar PDF.');return}
+  if(action==='print'){alert('El módulo de comprobantes todavía está cargando. Espera un momento y vuelve a pulsar Imprimir.');return}
+  if(action==='whatsapp'){const lines=['COMPROBANTE DE VENTA - Varelia',new Date(s.date).toLocaleString('es-PE'),...(s.items||[]).map(i=>i.name+' x '+i.qty+' = '+money((Number(i.qty)||0)*(Number(i.price)||0))),'TOTAL: '+money(s.total),'Gracias por su compra'];window.open('https://wa.me/?text='+encodeURIComponent(lines.join('\n')),'_blank')}
 }
 function renderSales(){
   salesList.innerHTML=sales.length?[...sales].reverse().map(s=>`
