@@ -92,10 +92,15 @@
       let currentReceipt=null;
       const paymentDetailHTML=sale=>{
         const b=sale&&sale.paymentBreakdown&&typeof sale.paymentBreakdown==='object'?sale.paymentBreakdown:{};
-        const rows=Object.entries(b).filter(([,v])=>Number(v)>0).map(([k,v])=>`<div class="vreceiptLine"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('');
-        const received=Number.isFinite(Number(sale?.amountReceived))&&Number(sale?.amountReceived)>0?`<div class="vreceiptLine"><span>Recibido</span><b>${money(sale.amountReceived)}</b></div>`:'';
-        const change=Number.isFinite(Number(sale?.changeGiven))&&Number(sale?.changeGiven)>=0?`<div class="vreceiptLine"><span>Vuelto</span><b>${money(sale.changeGiven)}</b></div>`:'';
-        return rows||received||change?`<div class="vreceiptSep"></div>${rows}${received}${change}`:'';
+        const total=Math.max(0,Number(sale?.total)||0);
+        const method=String(sale?.paymentMethod||'Efectivo');
+        const receivedValue=method==='Fiado'?Math.max(0,Number(sale?.amountReceived)||0):(Math.max(0,Number(sale?.amountReceived)||0)||total);
+        const entries=Object.entries(b).filter(([,v])=>Number(v)>0);
+        const rows=(entries.length?entries:[[method,Math.min(total,receivedValue)]]).map(([k,v])=>`<div class="vreceiptLine"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('');
+        const received=receivedValue>0?`<div class="vreceiptLine"><span>${method==='Efectivo'?'Efectivo recibido':'Monto recibido'}</span><b>${money(receivedValue)}</b></div>`:'';
+        const changeValue=method==='Fiado'?0:Math.max(0,Number(sale?.changeGiven)||Math.max(0,receivedValue-total));
+        const change=`<div class="vreceiptLine"><span>Vuelto</span><b>${money(changeValue)}</b></div>`;
+        return `<div class="vreceiptSep"></div><div class="vreceiptLine"><span>DETALLE DE PAGO</span><b></b></div>${rows}${received}${change}`;
       };
 
       function receiptHTML(sale){
@@ -265,7 +270,7 @@
             if(Array.isArray(sales)&&sales.length>pending.before){
               const sale=sales[sales.length-1];
               if(!sale.receiptNumber)sale.receiptNumber='V-'+new Date(sale.date||Date.now()).toISOString().slice(0,10).replace(/-/g,'')+'-'+String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-6).toUpperCase();
-              sale.paymentMethod=pending.paymentMethod;const snap=window.VareliaPaymentSnapshot;if(snap&&Date.now()-Number(snap.at||0)<15000){sale.paymentMethod=snap.method||sale.paymentMethod;sale.paymentBreakdown=snap.breakdown||{};sale.amountReceived=Number(snap.received)||0;sale.changeGiven=Number(snap.change)||0;}const ex=pending.extras||{};const originalTotal=Number(sale.total)||0;sale.subtotal=originalTotal;sale.discount=Math.max(0,Math.min(originalTotal,Number(ex.discount)||0));sale.total=Math.max(0,originalTotal-sale.discount);sale.notes=String(ex.notes||'').trim();sale.customerName=String(ex.customerName||'').trim();if(sale.paymentMethod==='Fiado'&&!Number.isFinite(Number(sale.paidAmount)))sale.paidAmount=0;const vp=window.vareliaCurrentUserProfile||{};sale.sellerId=vp.id||window.vareliaSellerId||'';sale.sellerName=vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';sale.sellerRole=vp.role||window.vareliaSellerRole||'';sale.receiptIssuedAt=new Date().toISOString();
+              sale.paymentMethod=pending.paymentMethod;const snap=window.VareliaPaymentSnapshot;if(snap&&Date.now()-Number(snap.at||0)<15000){sale.paymentMethod=snap.method||sale.paymentMethod;const totalForPayment=Math.max(0,Number(sale.total)||Number(snap.total)||0);const snapReceived=Math.max(0,Number(snap.received)||0);const inputReceived=Math.max(0,Number(document.getElementById('vposAmountReceived')?.value)||Number(document.getElementById('vpayReceived')?.value)||Number(document.getElementById('vReceived')?.value)||Number(document.getElementById('vCash')?.value)||0);const actualReceived=sale.paymentMethod==='Fiado'?snapReceived:(snapReceived||inputReceived||totalForPayment);const actualChange=sale.paymentMethod==='Fiado'?0:Math.max(0,Number(snap.change)||Math.max(0,actualReceived-totalForPayment));const bd=snap.breakdown&&typeof snap.breakdown==='object'?snap.breakdown:{};sale.paymentBreakdown=Object.keys(bd).some(k=>Number(bd[k])>0)?bd:{[sale.paymentMethod]:Math.min(totalForPayment,actualReceived)};sale.amountReceived=Math.max(Number(sale.amountReceived)||0,actualReceived);sale.changeGiven=Math.max(Number(sale.changeGiven)||0,actualChange);}const ex=pending.extras||{};const originalTotal=Number(sale.total)||0;sale.subtotal=originalTotal;sale.discount=Math.max(0,Math.min(originalTotal,Number(ex.discount)||0));sale.total=Math.max(0,originalTotal-sale.discount);sale.notes=String(ex.notes||'').trim();sale.customerName=String(ex.customerName||'').trim();if(sale.paymentMethod==='Fiado'&&!Number.isFinite(Number(sale.paidAmount)))sale.paidAmount=0;const vp=window.vareliaCurrentUserProfile||{};sale.sellerId=vp.id||window.vareliaSellerId||'';sale.sellerName=vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';sale.sellerRole=vp.role||window.vareliaSellerRole||'';sale.receiptIssuedAt=new Date().toISOString();
               try{if(typeof save==='function')save()}catch{}
               pending=null;showReceipt(sale);window.vareliaSound?.('sale');return;
             }
