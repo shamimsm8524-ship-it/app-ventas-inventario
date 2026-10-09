@@ -138,7 +138,8 @@
   }
 
   async function refreshCloud(){
-    if(!sb)throw new Error('Supabase no está disponible.');\n    if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
+    if(!sb)throw new Error('Supabase no está disponible.');
+    if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
     const [catsRes,prodRes]=await Promise.all([
       sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
       sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes').eq('business_id',businessId).order('created_at')
@@ -539,7 +540,9 @@
     initBusy=true;
     try{
       if(!await waitClient())return;
-      // Siempre volver a leer el perfil: businessId/rol pueden haber cambiado al entrar con otra cuenta.\n      if(!await loadProfile()||!businessId)return;\n      if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
+      // Siempre volver a leer el perfil: businessId/rol pueden haber cambiado al entrar con otra cuenta.
+      if(!await loadProfile()||!businessId)return;
+      if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
       // La sincronización no debe quedar bloqueada por un respaldo inicial fallido.
       // Primero intentamos traer la cuenta desde la nube; si falla, reintentamos.
       try{ await seedIfNeeded(); }catch(seedErr){ console.warn('Respaldo inicial omitido:',seedErr); }
@@ -583,6 +586,29 @@
     }
   }
 
-  // Sincronización forzada: vuelve a validar la cuenta activa y trae inmediatamente\n  // inventario/categorías desde Supabase. No depende de realtime ni del temporizador.\n  window.vareliaForceSync=async function(){\n    if(!sb)await waitClient();\n    if(!sb)throw new Error('Supabase todavía no está disponible.');\n    const oldBusiness=String(businessId||'');\n    await loadProfile();\n    if(!businessId)throw new Error('La cuenta no tiene negocio activo.');\n    // Nunca borrar los datos locales durante una sincronización.\n    // Cada cuenta ya usa claves locales separadas por business_id.\n    if(oldBusiness&&oldBusiness!==String(businessId)){\n      console.info('Varelia: cambio de negocio detectado',oldBusiness,'->',businessId);\n    }\n    if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}\n    await refreshCloud();\n    await refreshPublicStock();\n    subscribe();\n    window.dispatchEvent(new CustomEvent('varelia:forced-sync-complete',{detail:{businessId:String(businessId)}}));\n    return {businessId:String(businessId),products:localProducts().length,categories:localCategories().length};\n  };\n\n  // Reiniciar la sincronización cada vez que cambia la cuenta activa.\n  // Antes se ejecutaba una sola vez y, al cambiar de administrador, la vista podía seguir apuntando al negocio anterior.\n  window.addEventListener('varelia:business-scope-ready',()=>setTimeout(()=>init().catch(e=>console.error('Varelia cambio de cuenta',e)),80));
+  // Sincronización forzada: vuelve a validar la cuenta activa y trae inmediatamente
+  // inventario/categorías desde Supabase. No depende de realtime ni del temporizador.
+  window.vareliaForceSync=async function(){
+    if(!sb)await waitClient();
+    if(!sb)throw new Error('Supabase todavía no está disponible.');
+    const oldBusiness=String(businessId||'');
+    await loadProfile();
+    if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
+    // Nunca borrar los datos locales durante una sincronización.
+    // Cada cuenta ya usa claves locales separadas por business_id.
+    if(oldBusiness&&oldBusiness!==String(businessId)){
+      console.info('Varelia: cambio de negocio detectado',oldBusiness,'->',businessId);
+    }
+    if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
+    await refreshCloud();
+    await refreshPublicStock();
+    subscribe();
+    window.dispatchEvent(new CustomEvent('varelia:forced-sync-complete',{detail:{businessId:String(businessId)}}));
+    return {businessId:String(businessId),products:localProducts().length,categories:localCategories().length};
+  };
+
+  // Reiniciar la sincronización cada vez que cambia la cuenta activa.
+  // Antes se ejecutaba una sola vez y, al cambiar de administrador, la vista podía seguir apuntando al negocio anterior.
+  window.addEventListener('varelia:business-scope-ready',()=>setTimeout(()=>init().catch(e=>console.error('Varelia cambio de cuenta',e)),80));
   setTimeout(init,350);
 })();
