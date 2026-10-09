@@ -363,7 +363,7 @@
         try{if(saleDialog.open)saleDialog.close()}catch{}document.body.classList.remove('vposReset');input.value='';hideSuggestions();sync();input.focus();window.vareliaToast?.(forceReset?'Nueva venta lista':'Carrito conservado','ok')
       }
       const posNew=root.querySelector('#vposNew');if(posNew)posNew.onclick=()=>startNew(true);
-      function showPaidReceipt(before,paymentSnap){
+      function showPaidReceipt(before,paymentSnap,checkoutState){
         let tries=0;
         const open=()=>{
           tries++;
@@ -377,8 +377,14 @@
             return;
           }
           try{
+            // Si el flujo antiguo guardó la venta sin sus líneas, recuperar los productos del carrito confirmado.
+            const checkoutRows=Array.isArray(checkoutState?.rows)?checkoutState.rows:[];
+            if((!Array.isArray(sale.items)||!sale.items.length)&&checkoutRows.length){
+              sale.items=checkoutRows.map(x=>({id:x.p?.id??x.item?.id??x.key,name:String(x.name||x.p?.name||'Producto'),qty:Number(x.qty)||1,price:Number(x.price)||0,subtotal:Number(x.subtotal)||((Number(x.qty)||1)*(Number(x.price)||0)),unit:x.item?.unit||x.p?.unit||'',saleType:x.item?.saleType||'',characteristics:Array.isArray(x.p?.characteristics)?x.p.characteristics:[]}));
+            }
+            if(!(Number(sale.total)>0)&&Number(checkoutState?.total)>0)sale.total=Number(checkoutState.total);
             sale.paymentMethod=paymentSnap.method||sale.paymentMethod||'Efectivo';
-            const saleTotal=Math.max(0,Number(sale.total)||Number(paymentSnap.total)||0);
+            const saleTotal=Math.max(0,Number(sale.total)||Number(paymentSnap.total)||Number(checkoutState?.total)||0);
             const snapReceived=Math.max(0,Number(paymentSnap.received)||0);
             const inputReceived=Math.max(0,Number(document.getElementById('vposAmountReceived')?.value)||Number(document.getElementById('vpayReceived')?.value)||Number(document.getElementById('vReceived')?.value)||Number(document.getElementById('vCash')?.value)||0);
             const actualReceived=sale.paymentMethod==='Fiado'?snapReceived:(snapReceived||inputReceived||saleTotal);
@@ -441,7 +447,7 @@
         try{before=Array.isArray(sales)?sales.length:0}catch{}
         try{
           legacyCheckout.click();
-          showPaidReceipt(before,p);
+          showPaidReceipt(before,p,state);
           setTimeout(()=>{
             try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}
             sync();renderPay();
