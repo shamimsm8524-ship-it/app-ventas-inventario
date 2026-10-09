@@ -211,7 +211,7 @@
       const clean=(value)=>String(value||'').replace(/\\s+/g,' ').trim();
       const normalizeQuantity=(value)=>{
         let q=clean(value);
-        q=q.replace(/^x\\s*/i,'').replace(/(\\d)\\s*(?:lt|ltr|litros?)\\b/ig,'$1 L').replace(/(\\d)\\s*(?:ml)\\b/ig,'$1 ml').replace(/(\\d)\\s*(?:kg|gr?)\\b/ig,'$1 $2');
+        q=q.replace(/^x\\s*/i,'').replace(/(\\d)\\s*(?:lt|ltr|litros?)\\b/ig,'$1 L').replace(/(\\d)\\s*(?:ml)\\b/ig,'$1 ml').replace(/(\\d)\\s*(kg|gr?)\\b/ig,'$1 $2');
         return q;
       };
       for(const url of sources){
