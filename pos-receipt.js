@@ -1,5 +1,5 @@
 (()=>{
-  if(window.__vareliaPosReceiptRestoredV100||window.__vareliaPosReceiptInitializing)return;
+  if(window.__vareliaPosReceiptRestoredV101||window.__vareliaPosReceiptInitializing)return;
   window.__vareliaPosReceiptInitializing=true;
   window.__vareliaPosReceipt=true;
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn();
@@ -10,7 +10,7 @@
       const checkout=document.getElementById('checkout');
       if(!pos||!input||!checkout||!window.VareliaPOS)return;
       clearInterval(wait);
-      window.__vareliaPosReceiptRestoredV100=true;
+      window.__vareliaPosReceiptRestoredV101=true;
       window.__vareliaPosReceiptInitializing=false;
 
       const style=document.createElement('style');
@@ -301,6 +301,6 @@
 
       window.VareliaReceipt={show:showReceipt,print:printReceipt,pdf:savePDF,share:shareReceipt};
     },120);
-    setTimeout(()=>{clearInterval(wait);if(!window.__vareliaPosReceiptRestoredV100)window.__vareliaPosReceiptInitializing=false},15000);
+    setTimeout(()=>{clearInterval(wait);if(!window.__vareliaPosReceiptRestoredV101)window.__vareliaPosReceiptInitializing=false},15000);
   });
 })();
