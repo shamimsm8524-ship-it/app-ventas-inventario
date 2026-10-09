@@ -191,7 +191,17 @@
     function digits(v){return String(v??'').replace(/\D/g,'')}
     function equivalent(a,b){a=norm(a);b=norm(b);if(!a||!b)return false;if(a===b)return true;const ad=digits(a),bd=digits(b);if(ad&&bd){if(ad===bd)return true;if(ad.replace(/^0+/,'')===bd.replace(/^0+/,''))return true;if(ad.length>=12&&bd.length>=12&&ad.slice(-12)===bd.slice(-12))return true}return false}
     function loadLib(){return new Promise((resolve,reject)=>{if(window.Html5Qrcode)return resolve();let existing=document.querySelector('script[data-varelia-html5qrcode]');if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return}const s=document.createElement('script');s.dataset.vareliaHtml5qrcode='1';s.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
-    function allStoredProducts(){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!k||!/product/i.test(k))continue;let v;try{v=JSON.parse(localStorage.getItem(k)||'null')}catch{continue}if(Array.isArray(v))v.forEach(x=>{if(x&&typeof x==='object'&&('barcode'in x||'name'in x))out.push(x)})}}catch{}return out}
+    function allStoredProducts(){
+      const out=[],seen=new Set();
+      const looksLikeProduct=x=>!!x&&typeof x==='object'&&!Array.isArray(x)&&(
+        ['barcode','barCode','bar_code','barcodeValue','barcode_value','ean','ean13','ean_13','upc','upcCode','codigoBarras','codigo_barras','productCode','product_code','sku','gtin','gtin13'].some(k=>x[k]!==undefined&&x[k]!==null&&String(x[k]).trim()!=='')||
+        (String(x.name||x.productName||'').trim()!==''&&('sellPrice'in x||'price'in x||'stock'in x||'category'in x))
+      );
+      const add=x=>{if(looksLikeProduct(x)){const key=String(x.id??x.barcode??x.barCode??x.codigoBarras??x.name??'');if(!seen.has(key)){seen.add(key);out.push(x)}}};
+      const walk=(v,depth=0)=>{if(!v||depth>3)return;if(Array.isArray(v)){v.forEach(x=>{add(x);if(x&&typeof x==='object')walk(x,depth+1)});return}if(typeof v==='object'){for(const [k,x] of Object.entries(v)){if(/products?|inventory|catalog|items|variants|data/i.test(k))walk(x,depth+1)}}};
+      try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);let v;try{v=JSON.parse(localStorage.getItem(k)||'null')}catch{continue}if(/product|inventory|catalog|varelia|data/i.test(String(k||'')))walk(v)}}catch{}
+      return out;
+    }
     async function lookupFactoryProduct(code){
       const sources=[
         'https://world.openfoodfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_es,brands,manufacturing_places,categories_tags,image_front_url',
@@ -207,7 +217,24 @@
       await sleep(120);const bc=document.getElementById('barcode'),nm=document.getElementById('productName'),ds=document.getElementById('description'),preview=document.getElementById('imagePreview');
       if(bc)bc.value=code;if(data){if(nm&&!nm.value)nm.value=data.name;const details=[data.brand&&'Marca: '+data.brand,data.maker&&'Fabricación: '+data.maker,'Datos encontrados en '+data.source].filter(Boolean).join(' · ');if(ds&&!ds.value)ds.value=details;if(preview&&data.image){preview.src=data.image;preview.hidden=false}window.vareliaToast?.('Producto identificado: '+data.name,'ok');}else{window.vareliaToast?.('Código leído. No figura en las bases públicas; completa el nombre manualmente.','warn')}
     }
-    function productCodes(x){if(!x||typeof x!=='object')return[];const keys=['barcode','barCode','bar_code','barcodeValue','barcode_value','ean','ean13','ean_13','upc','upcCode','code'];const out=[];for(const k of keys){const v=x[k];if(v!==undefined&&v!==null&&String(v).trim())out.push(String(v).trim())}if(Array.isArray(x.variants))for(const v of x.variants){if(v&&typeof v==='object')for(const k of keys){const n=v[k];if(n!==undefined&&n!==null&&String(n).trim())out.push(String(n).trim())}}return out}function findProduct(code){const pools=[];try{if(Array.isArray(products))pools.push(...products)}catch{}pools.push(...allStoredProducts());const cc=codeCandidates(code);const found=pools.find(x=>productCodes(x).some(v=>cc.some(c=>equivalent(v,c))));if(!found)return null;try{return products.find(x=>String(x.id)===String(found.id))||products.find(x=>productCodes(x).some(v=>equivalent(v,code)))||found}catch{return found}}
+    function productCodes(x){
+      if(!x||typeof x!=='object')return[];
+      const keys=['barcode','barCode','bar_code','barcodeValue','barcode_value','ean','ean13','ean_13','upc','upcCode','code','codigoBarras','codigo_barras','codigo','productCode','product_code','sku','gtin','gtin13','serial'];
+      const out=[];
+      const addFrom=obj=>{if(!obj||typeof obj!=='object')return;for(const k of keys){const v=obj[k];if(v!==undefined&&v!==null&&String(v).trim())out.push(String(v).trim())}};
+      addFrom(x);
+      for(const group of ['variants','variantCombinations','combinations','options'])if(Array.isArray(x[group]))x[group].forEach(addFrom);
+      return [...new Set(out)];
+    }
+    function findProduct(code){
+      const pools=[];
+      try{if(Array.isArray(products))pools.push(...products)}catch{}
+      pools.push(...allStoredProducts());
+      const cc=codeCandidates(code);
+      const found=pools.find(x=>productCodes(x).some(v=>codeCandidates(v).some(c=>cc.some(input=>equivalent(c,input)))));
+      if(!found)return null;
+      try{return products.find(x=>String(x.id)===String(found.id))||products.find(x=>productCodes(x).some(v=>equivalent(v,code)))||found}catch{return found}
+    }
     function persistProducts(){try{if(typeof save==='function')save();else if(typeof K!=='undefined'&&K.products)localStorage.setItem(K.products,JSON.stringify(products.map(p=>{const c={...p};delete c.image;return c})))}catch(e){console.warn(e)}}
     function selectedInventoryProduct(){try{return inventoryProductId?products.find(x=>String(x.id)===String(inventoryProductId))||null:null}catch{return null}}
     function resetUI(){const r=document.getElementById('vareliaReader'),res=document.getElementById('scannerProductResult'),manual=document.querySelector('.scannerManual'),info=document.getElementById('scannerInfo');if(r){r.style.display='block';r.innerHTML=''}if(res){res.hidden=true;res.innerHTML=''}if(manual)manual.style.display='flex';if(info){info.style.display='block';info.textContent=target==='sale'?'Modo caja: escanea productos uno tras otro. Cada lectura se agrega a la venta.':'Apunta la cámara al código de barras. La lectura será automática.'}const m=document.getElementById('scannerManualCode');if(m)m.value=''}
