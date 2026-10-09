@@ -90,16 +90,23 @@
       const ticketNo=sale=>sale.receiptNumber||('V-'+String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-10).toUpperCase());
       const dateText=sale=>new Date(sale.date||Date.now()).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'});
       let currentReceipt=null;
+      const receiptPaymentData=sale=>{
+        const total=Math.max(0,Number(sale?.total)||0),snap=window.VareliaPaymentSnapshot;
+        const fresh=!!(snap&&Date.now()-Number(snap.at||0)<60000&&Math.abs((Number(snap.total)||0)-total)<0.02);
+        const method=String((fresh&&snap.method)||sale?.paymentMethod||'Efectivo');
+        const rawReceived=fresh?Number(snap.received):Number(sale?.amountReceived);
+        const received=method==='Fiado'?Math.max(0,rawReceived||0):Math.max(total,Math.max(0,rawReceived||0));
+        const change=method==='Fiado'?0:Math.max(0,fresh?(Number(snap.change)||received-total):(Number(sale?.changeGiven)||received-total));
+        const sb=fresh&&snap.breakdown&&typeof snap.breakdown==='object'?snap.breakdown:null;
+        const breakdown=sb&&Object.values(sb).some(v=>Number(v)>0)?sb:(sale?.paymentBreakdown&&Object.values(sale.paymentBreakdown).some(v=>Number(v)>0)?sale.paymentBreakdown:{[method]:total});
+        return {method,received,change,breakdown};
+      };
       const paymentDetailHTML=sale=>{
-        const b=sale&&sale.paymentBreakdown&&typeof sale.paymentBreakdown==='object'?sale.paymentBreakdown:{};
-        const total=Math.max(0,Number(sale?.total)||0);
-        const method=String(sale?.paymentMethod||'Efectivo');
-        const receivedValue=method==='Fiado'?Math.max(0,Number(sale?.amountReceived)||0):(Math.max(0,Number(sale?.amountReceived)||0)||total);
+        const pay=receiptPaymentData(sale),b=pay.breakdown,total=Math.max(0,Number(sale?.total)||0),method=pay.method,receivedValue=pay.received;
         const entries=Object.entries(b).filter(([,v])=>Number(v)>0);
         const rows=(entries.length?entries:[[method,Math.min(total,receivedValue)]]).map(([k,v])=>`<div class="vreceiptLine"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join('');
         const received=receivedValue>0?`<div class="vreceiptLine"><span>${method==='Efectivo'?'Efectivo recibido':'Monto recibido'}</span><b>${money(receivedValue)}</b></div>`:'';
-        const changeValue=method==='Fiado'?0:Math.max(0,Number(sale?.changeGiven)||Math.max(0,receivedValue-total));
-        const change=`<div class="vreceiptLine"><span>Vuelto</span><b>${money(changeValue)}</b></div>`;
+        const change=`<div class="vreceiptLine"><span>Vuelto</span><b>${money(pay.change)}</b></div>`;
         return `<div class="vreceiptSep"></div><div class="vreceiptLine"><span>DETALLE DE PAGO</span><b></b></div>${rows}${received}${change}`;
       };
 
@@ -125,13 +132,13 @@
           thermalWidth:String(bs.thermalWidth||'80'),
           ticket:ticketNo(sale),
           date:dateText(sale),
-          method:String(sale?.paymentMethod||'Efectivo'),
+          method:receiptPaymentData(sale).method,
           seller:String(sale?.sellerName||''),
           customer:String(sale?.customerName||''),
           total:Number(sale?.total||0),
-          received:Number(sale?.amountReceived||0),
-          change:Number(sale?.changeGiven||0),
-          breakdown:(sale?.paymentBreakdown&&typeof sale.paymentBreakdown==='object')?sale.paymentBreakdown:{},
+          received:receiptPaymentData(sale).received,
+          change:receiptPaymentData(sale).change,
+          breakdown:receiptPaymentData(sale).breakdown,
           items:(Array.isArray(sale?.items)?sale.items:[]).map(i=>({name:String(i?.name||'Producto'),qty:Number(i?.qty||0),price:Number(i?.price||0),subtotal:Number(i?.qty||0)*Number(i?.price||0),saleType:String(i?.saleType||''),unit:String(i?.unit||''),byWeight:i?.byWeight===true,description:itemDescription(i)}))
         };
       }
