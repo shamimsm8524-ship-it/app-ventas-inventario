@@ -4,7 +4,7 @@
 
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const toast=(m,t='ok')=>window.vareliaToast?window.vareliaToast(m,t):console.log(m);
-  let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false,initBusy=false,initAgain=false;
+  let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false,initBusy=false,initAgain=false,retryTimer=null,retryDelay=2500;
 
   const localProducts=()=>{try{return Array.isArray(products)?products:[]}catch{return[]}};
   const localCategories=()=>{try{return Array.isArray(categories)?categories:[]}catch{return[]}};
@@ -563,6 +563,8 @@
       installCategoryDeleteBridge();
       installCheckoutBridge();
       subscribe();
+      clearTimeout(retryTimer);retryTimer=null;retryDelay=2500;
+      window.dispatchEvent(new CustomEvent('varelia:sync-connected',{detail:{businessId:String(businessId),products:localProducts().length}}));
 
       let tries=0;
       const timer=setInterval(()=>{
@@ -580,8 +582,13 @@
     }catch(e){
       console.error('Varelia central stock',e);
       window.dispatchEvent(new CustomEvent('varelia:business-scope-error',{detail:{error:e}}));
+      window.dispatchEvent(new CustomEvent('varelia:sync-error',{detail:{message:String(e?.message||e?.details||e?.hint||e||'Error desconocido')}}));
       const msg=String(e?.message||e?.details||e?.hint||e||'Error desconocido');
       toast('No se pudo sincronizar: '+msg.slice(0,180),'warn');
+      // Reintento automático real cuando falla la nube; nunca borra el inventario local.
+      clearTimeout(retryTimer);
+      retryTimer=setTimeout(()=>{if(navigator.onLine!==false)init().catch(err=>console.error('Reintento de nube',err))},retryDelay);
+      retryDelay=Math.min(retryDelay*2,20000);
     }finally{
       initBusy=false;
       // No perder un evento de inicio de sesión que llegue mientras la primera inicialización está activa.
