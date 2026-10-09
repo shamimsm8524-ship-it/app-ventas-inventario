@@ -271,7 +271,7 @@
         }).join('');
         const units=rows.reduce((a,x)=>a+x.qty,0),total=rows.reduce((a,x)=>a+x.subtotal,0);
         countEl.innerHTML=`<b>${rows.length}</b> ${rows.length===1?'producto':'productos'} en el carrito`;
-        totalEl.textContent='S/ '+total.toFixed(2);checkoutBtn.textContent=total>0?'💳 Cobrar S/ '+total.toFixed(2):'💳 Cobrar venta';checkoutBtn.disabled=!rows.length;updatePay();
+        totalEl.textContent='S/ '+total.toFixed(2);checkoutBtn.textContent='COBRAR';checkoutBtn.disabled=!rows.length;updatePay();
         return {rows,units,total};
       }
       new MutationObserver(()=>requestAnimationFrame(sync)).observe(legacyCart,{childList:true,subtree:true,characterData:true});
@@ -404,7 +404,7 @@
           if(!loader){
             loader=document.createElement('script');
             loader.id='vareliaReceiptEmergencyLoader';
-            loader.src='pos-receipt.js?v=20261004-104&ts='+Date.now();
+            loader.src='pos-receipt.js?v=20261009-receipt-recovery-v12&ts='+Date.now();
             loader.onload=()=>setTimeout(()=>{if(!show())window.vareliaToast?.('No se pudo abrir el comprobante.','warn')},80);
             loader.onerror=()=>window.vareliaToast?.('No se pudo cargar el comprobante.','warn');
             document.head.appendChild(loader);
