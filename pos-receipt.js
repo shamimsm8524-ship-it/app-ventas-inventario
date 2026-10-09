@@ -183,7 +183,7 @@
         // en JavaScript evita activar cualquier restricción del flujo nativo Premium.
         try{
           const jsPDF=await loadJsPDF(),items=Array.isArray(sale.items)?sale.items:[],bs=businessSettings();
-          const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[80,Math.max(150,120+items.length*16)]});
+          const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[80,Math.max(170,130+items.reduce((n,i)=>n+22+Math.ceil(String(itemDescription(i)||'').length/30)*3,0))]});
           let y=8;
           if(bs.logo){try{const logo=await pdfLogoData(bs.logo);if(logo){doc.addImage(logo,'JPEG',33,y,14,12,undefined,'FAST');y+=16}}catch{}}
           doc.setFont('courier','bold');doc.setFontSize(12);doc.text(businessName(),40,y,{align:'center'});y+=5;
@@ -193,7 +193,7 @@
           const lr=(l,r,b)=>{doc.setFont('courier',b?'bold':'normal');doc.setFontSize(7);doc.text(String(l),7,y);doc.text(String(r||''),73,y,{align:'right'});y+=4};
           lr('N.º',ticketNo(sale),true);lr('Fecha',dateText(sale));lr('Pago',sale.paymentMethod||'Efectivo');if(sale.sellerName)lr('Vendedor',sale.sellerName);
           doc.line(7,y,73,y);y+=5;
-          items.forEach(i=>{const q=Number(i.qty||0),p=Number(i.price||0),weighted=i.saleType==='weight'||i.unit==='kg'||i.byWeight===true||(!Number.isInteger(q)&&q>0);lr(i.name||'Producto',money(q*p),true);if(weighted){lr('Peso: '+(q<1?Math.round(q*1000)+' g':q+' kg'),'');lr('Precio por kilo: '+money(p),'')}else lr(q+' × '+money(p),'');});
+          items.forEach(i=>{const q=Number(i.qty||0),p=Number(i.price||0),weighted=i.saleType==='weight'||i.unit==='kg'||i.byWeight===true||(!Number.isInteger(q)&&q>0);lr(i.name||'Producto',money(q*p),true);const spec=String(itemDescription(i)||'').trim();if(spec){doc.setFont('courier','normal');doc.setFontSize(6);const lines=doc.splitTextToSize('Detalle: '+spec,62);lines.forEach(line=>{doc.text(line,7,y);y+=3;});}if(weighted){lr('Peso: '+(q<1?Math.round(q*1000)+' g':q+' kg'),'');lr('Precio por kilo: '+money(p),'')}else lr(q+' × '+money(p),'');});
           doc.line(7,y,73,y);y+=5;doc.setFont('courier','bold');doc.setFontSize(12);doc.text('TOTAL',7,y);doc.text(money(sale.total),73,y,{align:'right'});y+=6;doc.line(7,y,73,y);y+=5;
           const bd=sale.paymentBreakdown&&typeof sale.paymentBreakdown==='object'?sale.paymentBreakdown:{};Object.entries(bd).filter(([,v])=>Number(v)>0).forEach(([k,v])=>lr(k,money(v),false));
           if(Number(sale.amountReceived)>0)lr('Recibido',money(sale.amountReceived));lr('Vuelto',money(Number(sale.changeGiven)||0));
