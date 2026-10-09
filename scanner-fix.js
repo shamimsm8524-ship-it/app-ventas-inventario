@@ -227,13 +227,12 @@
       return [...new Set(out)];
     }
     function findProduct(code){
-      const pools=[];
-      try{if(Array.isArray(products))pools.push(...products)}catch{}
-      pools.push(...allStoredProducts());
+      // Buscar SOLO en el inventario cargado de la cuenta activa.
+      // No recorrer localStorage completo: allí pueden quedar datos antiguos de otras cuentas.
+      let current=[];
+      try{current=Array.isArray(products)?products:[]}catch{}
       const cc=codeCandidates(code);
-      const found=pools.find(x=>productCodes(x).some(v=>codeCandidates(v).some(c=>cc.some(input=>equivalent(c,input)))));
-      if(!found)return null;
-      try{return products.find(x=>String(x.id)===String(found.id))||products.find(x=>productCodes(x).some(v=>equivalent(v,code)))||found}catch{return found}
+      return current.find(x=>productCodes(x).some(v=>codeCandidates(v).some(c=>cc.some(input=>equivalent(c,input)))))||null;
     }
     function persistProducts(){try{if(typeof save==='function')save();else if(typeof K!=='undefined'&&K.products)localStorage.setItem(K.products,JSON.stringify(products.map(p=>{const c={...p};delete c.image;return c})))}catch(e){console.warn(e)}}
     function selectedInventoryProduct(){try{return inventoryProductId?products.find(x=>String(x.id)===String(inventoryProductId))||null:null}catch{return null}}
