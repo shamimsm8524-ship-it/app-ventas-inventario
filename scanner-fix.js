@@ -219,7 +219,7 @@
     }
     function productCodes(x){
       if(!x||typeof x!=='object')return[];
-      const keys=['barcode','barCode','bar_code','barcodeValue','barcode_value','ean','ean13','ean_13','upc','upcCode','code','codigoBarras','codigo_barras','codigo','productCode','product_code','sku','gtin','gtin13','serial'];
+      const keys=['barcode','barCode','bar_code','barcodeValue','barcode_value','ean','ean13','ean_13','upc','upcCode','codigoBarras','codigo_barras','gtin','gtin13'];
       const out=[];
       const addFrom=obj=>{if(!obj||typeof obj!=='object')return;for(const k of keys){const v=obj[k];if(v!==undefined&&v!==null&&String(v).trim())out.push(String(v).trim())}};
       addFrom(x);
