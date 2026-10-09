@@ -539,10 +539,12 @@
     if(initBusy){initAgain=true;return}
     initBusy=true;
     try{
-      if(!await waitClient())return;
+      if(!await waitClient())throw new Error('Supabase todavía no está listo. Se reintentará la conexión.');
       // Siempre volver a leer el perfil: businessId/rol pueden haber cambiado al entrar con otra cuenta.
-      // Si la sesión todavía está terminando de abrirse, el evento de cuenta solicitará otro intento.
-      if(!await loadProfile()||!businessId)return;
+      // No salir silenciosamente: un cliente o perfil ausente debe activar el reintento automático.
+      const activeProfile=await loadProfile();
+      if(!activeProfile)throw new Error('No se detectó una sesión activa. Se reintentará la conexión.');
+      if(!businessId)throw new Error('Esta cuenta no tiene un negocio vinculado. Se reintentará la conexión.');
       if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
       // La sincronización no debe quedar bloqueada por un respaldo inicial fallido.
       // Primero intentamos traer la cuenta desde la nube; si falla, reintentamos.
