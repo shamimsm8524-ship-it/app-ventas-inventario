@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: "varelia-pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
