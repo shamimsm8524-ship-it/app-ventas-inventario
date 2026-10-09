@@ -148,9 +148,14 @@ public class MainActivity extends AppCompatActivity {
                         } else {
                             meta = String.format(Locale.US, "%.3g × S/ %.2f", qty, price);
                         }
+                        String description = escHtml(it.optString("description", ""));
                         rows.append("<div class='item'><div><b>")
                                 .append(escHtml(it.optString("name", "Producto")))
-                                .append("</b><small>")
+                                .append("</b>");
+                        if (!description.isEmpty()) {
+                            rows.append("<small class='detail'>Detalle: ").append(description).append("</small>");
+                        }
+                        rows.append("<small>")
                                 .append(meta)
                                 .append("</small></div><b>S/ ")
                                 .append(String.format(Locale.US, "%.2f", subtotal))
@@ -192,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
                         + "body{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}"
                         + ".paper{width:76mm;max-width:100%;margin:0 auto;padding:3mm 2.5mm}.logo{text-align:center;margin:0 0 2mm}.logo img{display:block;margin:0 auto;max-width:26mm;max-height:18mm;width:auto;height:auto;object-fit:contain}"
                         + "h2{text-align:center;margin:0;font-size:17px}.center{text-align:center}.muted{color:#555;font-size:9px;line-height:1.3}.sep{border-top:1px dashed #777;margin:2.2mm 0}"
-                        + ".line,.item,.total{display:flex;justify-content:space-between;gap:2mm;margin:1.4mm 0;align-items:flex-start;font-size:10px}.item small{display:block;color:#555;margin-top:.7mm;font-size:9px}"
+                        + ".line,.item,.total{display:flex;justify-content:space-between;gap:2mm;margin:1.4mm 0;align-items:flex-start;font-size:10px}.item small{display:block;color:#555;margin-top:.7mm;font-size:9px}.item small.detail{font-size:8.5px;white-space:normal;overflow-wrap:anywhere}"
                         + ".total{font-size:17px;font-weight:900;margin-top:2mm}.note{text-align:center;font-size:8px;line-height:1.35;margin-top:3mm;color:#555}"
                         + "</style></head><body><div class='paper'>"
                         + logoHtml
@@ -244,7 +249,17 @@ public class MainActivity extends AppCompatActivity {
             JSONObject breakdown = data.optJSONObject("breakdown");
             int itemCount = items == null ? 0 : items.length();
             int paymentCount = breakdown == null ? 0 : breakdown.length();
-            int pageHeight = Math.max(842, 430 + itemCount * 58 + paymentCount * 34);
+            int detailLines = 0;
+            if (items != null) {
+                for (int i = 0; i < items.length(); i++) {
+                    JSONObject it = items.optJSONObject(i);
+                    if (it != null) {
+                        String detail = it.optString("description", "");
+                        if (!detail.isEmpty()) detailLines += Math.max(1, (detail.length() + 54) / 55);
+                    }
+                }
+            }
+            int pageHeight = Math.max(842, 430 + itemCount * 58 + detailLines * 18 + paymentCount * 34);
 
             PdfDocument document = new PdfDocument();
             PdfDocument.PageInfo info = new PdfDocument.PageInfo.Builder(595, pageHeight, 1).create();
@@ -308,6 +323,11 @@ public class MainActivity extends AppCompatActivity {
                     paint.setTextSize(14f);
                     y = drawPdfText(canvas, paint, it.optString("name", "Producto"), 40f, y, 360f, 18f);
                     paint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.NORMAL));
+                    paint.setTextSize(11f);
+                    String description = it.optString("description", "").trim();
+                    if (!description.isEmpty()) {
+                        y = drawPdfText(canvas, paint, "Detalle: " + description, 40f, y, 500f, 16f);
+                    }
                     paint.setTextSize(12f);
                     double qty = it.optDouble("qty", 0);
                     double price = it.optDouble("price", 0);
