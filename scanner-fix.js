@@ -227,17 +227,35 @@
       return [...new Set(out)];
     }
     function findProduct(code){
-      // Ventas: coincidencia exacta únicamente contra el inventario ya cargado
-      // para la sesión activa. Nunca consultar localStorage global ni bases públicas.
-      let current=[];
-      try{current=Array.isArray(products)?products:[]}catch{}
+      // Fuente de verdad: la clave K.products del usuario autenticado.
+      // Si aún no existe una sesión/ámbito activo, no permitir coincidencias.
       const raw=norm(code);
       const rawDigits=digits(raw);
       if(!raw) return null;
+      let scope='', storageKey='', current=[];
+      try{
+        scope=String(localStorage.getItem('varelia_active_business_id')||window.vareliaBusinessScope||'').trim();
+        if(!scope||scope==='no_account') return null;
+        storageKey=(typeof K!=='undefined'&&K&&K.products)?String(K.products):'';
+        if(!storageKey||!storageKey.endsWith('__'+scope.replace(/[^a-zA-Z0-9_-]/g,'_'))) return null;
+        const saved=localStorage.getItem(storageKey);
+        if(saved!==null){
+          const parsed=JSON.parse(saved);
+          if(!Array.isArray(parsed)) return null;
+          current=parsed;
+          // Mantener la lista global alineada con el inventario del usuario activo.
+          if(typeof products!=='undefined') products=current;
+          window.products=current;
+        }else{
+          // Si no hay datos persistidos, solo aceptar lista vacía; no usar memoria potencialmente vieja.
+          current=[];
+          if(typeof products!=='undefined') products=current;
+          window.products=current;
+        }
+      }catch(e){console.warn('No se pudo validar el inventario activo para escanear',e);return null}
       return current.find(x=>productCodes(x).some(v=>{
         const candidate=norm(v);
         if(!candidate) return false;
-        // No usar coincidencias parciales/sufijos: podrían asociar otro producto.
         if(candidate===raw) return true;
         const candidateDigits=digits(candidate);
         return !!rawDigits && !!candidateDigits && candidateDigits===rawDigits;
