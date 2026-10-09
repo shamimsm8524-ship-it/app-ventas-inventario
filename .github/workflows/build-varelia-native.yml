@@ -21,8 +21,9 @@ jobs:
           gradle-version: '8.9'
       - name: Prepare icon
         run: |
-          mkdir -p android-native/app/src/main/res/drawable
+          mkdir -p android-native/app/src/main/res/drawable android-native/app/src/main/res/mipmap-nodpi
           cp favicon-512.png android-native/app/src/main/res/drawable/varelia_icon.png
+          cp favicon-512.png android-native/app/src/main/res/mipmap-nodpi/varelia_icon.png
       - name: Build installable APK 1.0.33
         working-directory: android-native
         run: gradle :app:assembleDebug --no-daemon
