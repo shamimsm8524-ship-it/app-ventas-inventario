@@ -378,9 +378,15 @@
           }
           try{
             sale.paymentMethod=paymentSnap.method||sale.paymentMethod||'Efectivo';
-            sale.paymentBreakdown=paymentSnap.breakdown||sale.paymentBreakdown||{};
-            sale.amountReceived=Number(paymentSnap.received||0);
-            sale.changeGiven=Number(paymentSnap.change||0);
+            const saleTotal=Math.max(0,Number(sale.total)||Number(paymentSnap.total)||0);
+            const snapReceived=Math.max(0,Number(paymentSnap.received)||0);
+            const inputReceived=Math.max(0,Number(document.getElementById('vposAmountReceived')?.value)||Number(document.getElementById('vpayReceived')?.value)||Number(document.getElementById('vReceived')?.value)||Number(document.getElementById('vCash')?.value)||0);
+            const actualReceived=sale.paymentMethod==='Fiado'?snapReceived:(snapReceived||inputReceived||saleTotal);
+            const actualChange=sale.paymentMethod==='Fiado'?0:Math.max(0,Number(paymentSnap.change)||Math.max(0,actualReceived-saleTotal));
+            const snapBreakdown=paymentSnap.breakdown&&typeof paymentSnap.breakdown==='object'?paymentSnap.breakdown:{};
+            sale.paymentBreakdown=Object.keys(snapBreakdown).some(k=>Number(snapBreakdown[k])>0)?snapBreakdown:{[sale.paymentMethod]:Math.min(saleTotal,actualReceived)};
+            sale.amountReceived=actualReceived;
+            sale.changeGiven=actualChange;
             if(!sale.receiptNumber){
               const d=new Date(sale.date||Date.now()).toISOString().slice(0,10).replace(/-/g,'');
               const id=String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-6).toUpperCase();
