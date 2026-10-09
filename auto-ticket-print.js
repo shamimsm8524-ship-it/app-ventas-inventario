@@ -38,8 +38,10 @@
     const items=Array.isArray(sale.items)?sale.items:[];
     const pay=sale.paymentMethod||paymentMethod();
     const bd=sale.paymentBreakdown||{};
-    const payLines=Object.entries(bd).filter(([,v])=>Number(v)>0).map(([k,v])=>'<div class="line"><span>'+esc(k)+'</span><b>'+money(v)+'</b></div>').join('');
-    const received=Number(sale.amountReceived||0),change=Number(sale.changeGiven||0);
+    const received=pay==='Fiado'?Math.max(0,Number(sale.amountReceived)||0):(Math.max(0,Number(sale.amountReceived)||0)||Math.max(0,Number(sale.total)||0));
+    const change=pay==='Fiado'?0:Math.max(0,Number(sale.changeGiven)||Math.max(0,received-(Number(sale.total)||0)));
+    const paymentEntries=Object.entries(bd).filter(([,v])=>Number(v)>0);
+    const payLines=(paymentEntries.length?paymentEntries:[[pay,Math.min(Number(sale.total)||0,received)]]).map(([k,v])=>'<div class="line"><span>'+esc(k)+'</span><b>'+money(v)+'</b></div>').join('');
     const logo=s.logo?'<div class="c logo"><img src="'+esc(s.logo)+'" alt="Logo"></div>':'';
     const seller=sale.sellerName||sellerName();
     return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(ticketNo(sale))}</title><style>
@@ -65,7 +67,7 @@
       <div class="sep"></div>
       <div class="line total"><span>TOTAL</span><span>${money(sale.total)}</span></div>
       ${payLines?'<div class="sep"></div><b>DETALLE DE PAGO</b>'+payLines:''}
-      ${received?'<div class="line"><span>Total recibido</span><b>'+money(received)+'</b></div>':''}
+      ${received?'<div class="line"><span>'+(pay==='Efectivo'?'Efectivo recibido':'Monto recibido')+'</span><b>'+money(received)+'</b></div>':''}
       ${change?'<div class="line"><span>Vuelto</span><b>'+money(change)+'</b></div>':''}
       <p class="c small footer">${esc(s.ticketMessage||'Gracias por su compra.')}<br>Comprobante interno. No reemplaza boleta o factura SUNAT.</p>
     </div></body></html>`;
