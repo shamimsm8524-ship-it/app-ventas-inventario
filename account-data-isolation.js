@@ -36,7 +36,7 @@
     const {data:u}=await sb.auth.getUser();
     if(!u?.user)return false;
     const {data:p}=await sb.from('profiles').select('business_id').eq('id',u.user.id).maybeSingle();
-    const scope=clean(p?.business_id||u.user.id);if(!scope)return false; // Usar el mismo ámbito que supabase-auth.js para evitar que el escáner cargue un inventario distinto al de la sesión activa.
+    const scope=clean(u.user.id);if(!scope)return false; // Separar por usuario autenticado: dos Gmail nunca comparten inventario aunque coincida business_id.
     const migrated=migrateLegacy(scope);
     const prev=clean(localStorage.getItem('varelia_active_business_id')||'');
     localStorage.setItem('varelia_active_business_id',scope);
