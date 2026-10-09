@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const BID='c16b1eb0-ce53-46f5-acde-be72df266376';
+let BID='';
 const URL='https://onvdcaohnftrjunwdvjp.supabase.co';
 const KEY='sb_publishable_bz2z5uglf_EALJezqv4rCw_S73GMNrh';
 const list=()=>document.getElementById('catalogOrdersList');
@@ -15,7 +15,8 @@ function items(v){if(!Array.isArray(v))return'';return v.map(x=>'<div style="pad
 async function load(){
  const el=list();if(!el)return;el.innerHTML='<div class="empty">Cargando pedidos...</div>';
  try{
-  const rows=await req('public_catalog_orders?select=*&business_id=eq.'+BID+'&order=created_at.desc&limit=100');
+  const sb=window.vareliaSupabase;if(!sb)throw Error('Sesión no disponible');const {data:u}=await sb.auth.getUser();if(!u?.user?.id)throw Error('Inicia sesión');const {data:p,error:pe}=await sb.from('profiles').select('business_id').eq('id',u.user.id).maybeSingle();if(pe)throw pe;BID=String(p?.business_id||'');if(!BID)throw Error('No se encontró el negocio');
+  const rows=await req('public_catalog_orders?select=*&business_id=eq.'+encodeURIComponent(BID)+'&order=created_at.desc&limit=100');
   if(!rows.length){el.innerHTML='<div class="empty">Todavía no hay pedidos del catálogo.</div>';return}
   el.innerHTML=rows.map(o=>{const paid=String(o.payment_status||'').toLowerCase()==='paid';return '<div class="card" style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start"><div><b style="font-size:17px">'+esc(o.order_code||'Pedido')+'</b><div class="notice">'+esc(o.customer_name||'—')+' · '+esc(o.customer_phone||'—')+'</div></div><span class="badge" style="'+(paid?'background:#d1fae5;color:#047857':'background:#fef3c7;color:#92400e')+'">'+(paid?'PAGADO':'PAGO PENDIENTE')+'</span></div><div style="margin-top:10px"><b>Total: '+money(o.total)+'</b> · '+esc(o.payment_method||'—')+' · '+esc(o.delivery_label||o.delivery_type||'—')+'</div>'+items(o.items)+'<div style="display:flex;gap:8px;margin-top:12px">'+(paid?'<button class="btn ok" disabled>✓ Pago confirmado</button>':'<button class="btn primary" data-pay="'+esc(o.id)+'">✓ Confirmar pago</button>')+'</div></div>'}).join('');
  }catch(e){console.error(e);el.innerHTML='<div class="empty">No se pudieron cargar los pedidos. Pulsa Actualizar.</div>'}
@@ -23,13 +24,13 @@ async function load(){
 async function pay(id){
  if(!confirm('¿Confirmas que ya recibiste el pago? Al confirmar se descontará el stock de este pedido.'))return;
  try{
-  const rows=await req('public_catalog_orders?select=*&id=eq.'+encodeURIComponent(id)+'&business_id=eq.'+BID+'&limit=1');
+  const rows=await req('public_catalog_orders?select=*&id=eq.'+encodeURIComponent(id)+'&business_id=eq.'+encodeURIComponent(BID)+'&limit=1');
   const o=rows&&rows[0];if(!o)throw Error('Pedido no encontrado');
   if(String(o.payment_status||'').toLowerCase()==='paid'){await load();return}
   const its=Array.isArray(o.items)?o.items:[];
   for(const it of its){
    const name=String(it.name||'').trim();if(!name)continue;
-   const ps=await req('varelia_products?select=id,stock,characteristics,variant_combinations&business_id=eq.'+BID+'&name=eq.'+encodeURIComponent(name)+'&limit=1');
+   const ps=await req('varelia_products?select=id,stock,characteristics,variant_combinations&business_id=eq.'+encodeURIComponent(BID)+'&name=eq.'+encodeURIComponent(name)+'&limit=1');
    const p=ps&&ps[0];if(!p)continue;
    const qty=Math.max(0,Number(it.qty)||0);
    let combos=Array.isArray(p.variant_combinations)?p.variant_combinations:[];
