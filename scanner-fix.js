@@ -227,12 +227,21 @@
       return [...new Set(out)];
     }
     function findProduct(code){
-      // Buscar SOLO en el inventario cargado de la cuenta activa.
-      // No recorrer localStorage completo: allí pueden quedar datos antiguos de otras cuentas.
+      // Ventas: coincidencia exacta únicamente contra el inventario ya cargado
+      // para la sesión activa. Nunca consultar localStorage global ni bases públicas.
       let current=[];
       try{current=Array.isArray(products)?products:[]}catch{}
-      const cc=codeCandidates(code);
-      return current.find(x=>productCodes(x).some(v=>codeCandidates(v).some(c=>cc.some(input=>equivalent(c,input)))))||null;
+      const raw=norm(code);
+      const rawDigits=digits(raw);
+      if(!raw) return null;
+      return current.find(x=>productCodes(x).some(v=>{
+        const candidate=norm(v);
+        if(!candidate) return false;
+        // No usar coincidencias parciales/sufijos: podrían asociar otro producto.
+        if(candidate===raw) return true;
+        const candidateDigits=digits(candidate);
+        return !!rawDigits && !!candidateDigits && candidateDigits===rawDigits;
+      }))||null;
     }
     function persistProducts(){try{if(typeof save==='function')save();else if(typeof K!=='undefined'&&K.products)localStorage.setItem(K.products,JSON.stringify(products.map(p=>{const c={...p};delete c.image;return c})))}catch(e){console.warn(e)}}
     function selectedInventoryProduct(){try{return inventoryProductId?products.find(x=>String(x.id)===String(inventoryProductId))||null:null}catch{return null}}
