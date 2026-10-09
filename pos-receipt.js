@@ -2,7 +2,7 @@
   if(window.__vareliaPosReceiptRestoredV102)return;
   if(window.__vareliaPosReceiptInitializing){
     let attempts=0;
-    const retry=setInterval(()=>{attempts++;if(window.VareliaReceipt){clearInterval(retry);return}if(!window.__vareliaPosReceiptInitializing||attempts>=60){clearInterval(retry);window.__vareliaPosReceiptInitializing=false;window.__vareliaPosReceipt=false;const script=document.createElement('script');script.src='pos-receipt.js?v=20261009-receipt-retry-v15&retry='+Date.now();document.head.appendChild(script)}},100);
+    const retry=setInterval(()=>{attempts++;if(window.VareliaReceipt){clearInterval(retry);return}if(!window.__vareliaPosReceiptInitializing||attempts>=60){clearInterval(retry);window.__vareliaPosReceiptInitializing=false;window.__vareliaPosReceipt=false;const script=document.createElement('script');script.src='pos-receipt.js?v=20261009-receipt-fix-v16&retry='+Date.now();document.head.appendChild(script)}},100);
     return;
   }
   window.__vareliaPosReceiptInitializing=true;
@@ -222,74 +222,27 @@
       }
       overlay.querySelector('#vreceiptPrint').onclick=()=>currentReceipt&&printReceipt(currentReceipt);
       const receiptPdfButton=overlay.querySelector('#vreceiptPdf');
-      // Ejecutar la descarga al tocar el botón, antes del click global de cualquier
-      // módulo de Premium. Esto deja el comprobante básico disponible para todas
-      // las cuentas y no modifica las demás funciones Premium.
-      const startReceiptDownload=(e)=>{
-        if(!currentReceipt)return;
-        try{e.preventDefault();e.stopPropagation();}catch{}
-        if(window.__vareliaReceiptDownloadBusy)return;
+      // Un solo manejador evita que Android ejecute la descarga varias veces por toque.
+      receiptPdfButton.onclick=async (e)=>{
+        e.preventDefault();
+        e.stopPropagation();
+        if(!currentReceipt||window.__vareliaReceiptDownloadBusy)return;
         window.__vareliaReceiptDownloadBusy=true;
-        Promise.resolve(savePDF(currentReceipt)).finally(()=>setTimeout(()=>{window.__vareliaReceiptDownloadBusy=false},900));
+        receiptPdfButton.disabled=true;
+        const label=receiptPdfButton.textContent;
+        receiptPdfButton.textContent='Preparando PDF…';
+        try{await savePDF(currentReceipt)}
+        finally{
+          receiptPdfButton.disabled=false;
+          receiptPdfButton.textContent=label;
+          setTimeout(()=>{window.__vareliaReceiptDownloadBusy=false},350);
+        }
       };
-      receiptPdfButton.addEventListener('pointerdown',startReceiptDownload,{passive:false});
-      receiptPdfButton.addEventListener('touchstart',startReceiptDownload,{passive:false});
-      receiptPdfButton.onclick=()=>{if(!window.__vareliaReceiptDownloadBusy&&currentReceipt)savePDF(currentReceipt)};
       overlay.querySelector('#vreceiptWhatsApp').onclick=()=>currentReceipt&&shareReceipt(currentReceipt);
       overlay.querySelector('#vreceiptCloseAction').onclick=()=>overlay.classList.remove('show');
 
-      // Blindaje final: capturar desde WINDOW antes de cualquier listener global de Premium.
-      const forceFreeReceiptDownload=(e)=>{
-        const button=e.target&&e.target.closest&&e.target.closest('#vreceiptPdf');
-        if(!button||!currentReceipt)return;
-        try{e.preventDefault();e.stopImmediatePropagation();}catch{}
-        if(window.__vareliaReceiptDownloadBusy)return;
-        window.__vareliaReceiptDownloadBusy=true;
-        Promise.resolve(savePDF(currentReceipt)).finally(()=>setTimeout(()=>{window.__vareliaReceiptDownloadBusy=false},900));
-      };
-      window.addEventListener('pointerdown',forceFreeReceiptDownload,true);
-      window.addEventListener('touchstart',forceFreeReceiptDownload,true);
-      window.addEventListener('click',forceFreeReceiptDownload,true);
-
-      // La descarga básica del comprobante no debe pasar por controles Premium globales.
-      // Interceptar el clic antes de los manejadores delegados de otros módulos.
-      document.addEventListener('click',e=>{
-        const button=e.target&&e.target.closest&&e.target.closest('#vreceiptPdf');
-        if(!button)return;
-        e.preventDefault();
-        e.stopImmediatePropagation();
-        const sale=currentReceipt;
-        if(sale)savePDF(sale);
-      },true);
-
-      // Si otro módulo muestra el muro Premium encima del comprobante, quitar
-      // únicamente ese muro y completar la descarga gratuita del ticket.
-      const receiptPremiumGuard=()=>{
-        const receipt=document.getElementById('vreceiptOverlay');
-        if(!receipt||!receipt.classList.contains('show')||!currentReceipt)return;
-        const candidates=document.querySelectorAll('dialog,[role="dialog"],.modal,.overlay,[class*="premium"],[id*="premium"]');
-        let removed=false;
-        candidates.forEach(el=>{
-          if(!el||el===receipt||receipt.contains(el))return;
-          try{
-            const text=String(el.innerText||el.textContent||'').trim();
-            if(!text||text.length>1400||!/premium/i.test(text)||!/(S\\/?\\.?\\s*28|28\\s*soles|pagar|suscri)/i.test(text))return;
-            const css=getComputedStyle(el);
-            if(css.display==='none'||css.visibility==='hidden'||Number(css.opacity)===0)return;
-            el.style.setProperty('display','none','important');
-            el.style.setProperty('visibility','hidden','important');
-            removed=true;
-          }catch{}
-        });
-        if(removed&&!window.__vareliaReceiptPremiumRecoveryBusy){
-          window.__vareliaReceiptPremiumRecoveryBusy=true;
-          Promise.resolve(window.__vareliaDownloadCurrentReceipt?.()).finally(()=>setTimeout(()=>{window.__vareliaReceiptPremiumRecoveryBusy=false},1400));
-        }
-      };
-      try{
-        new MutationObserver(()=>receiptPremiumGuard()).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style','open']});
-        setInterval(receiptPremiumGuard,350);
-      }catch{}
+      // No registrar listeners globales duplicados: la descarga se ejecuta solo
+      // desde el botón del comprobante y no debe abrir muros Premium.
       let pending=null;
       document.addEventListener('click',e=>{
         const b=e.target.closest('#checkout');if(!b)return;
