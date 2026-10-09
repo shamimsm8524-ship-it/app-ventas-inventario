@@ -394,6 +394,12 @@
           const show=()=>{
             if(window.VareliaReceipt?.show){
               window.VareliaReceipt.show(sale);
+              // Al cobrar, abrir el comprobante y lanzar directamente la impresión.
+              // El usuario también conserva los botones PDF y WhatsApp en pantalla.
+              setTimeout(()=>{
+                try{if(window.VareliaReceipt?.print)window.VareliaReceipt.print(sale)}
+                catch(e){console.warn('Impresión automática del comprobante',e)}
+              },250);
               return true;
             }
             return false;
