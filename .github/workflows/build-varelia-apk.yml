@@ -52,3 +52,4 @@ jobs:
 
 # Build trigger: verify secure Varelia APK build
 # Receipt download fix: trigger APK rebuild
+# Rebuild receipt printing and free PDF download fix - 2026-10-09
