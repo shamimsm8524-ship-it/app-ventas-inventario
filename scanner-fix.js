@@ -392,7 +392,7 @@
       }
     };
     async function finish(raw){if(finishing)return;finishing=true;const code=norm(raw);if(!code){finishing=false;return}window.vareliaSound?.('scan');await stopCamera();let p=findProduct(code);
-      if(target==='product'){const el=document.getElementById('barcode');if(el){el.value=code;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));try{el.focus()}catch{}}await closeScanner();window.vareliaSound?.('success');window.vareliaToast?.('Código de barras colocado en el formulario. Ahora pulsa Guardar producto.','ok');return}
+      if(target==='product'){const el=document.getElementById('barcode');if(el){el.value=code;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));try{el.focus()}catch{}}await closeScanner();window.vareliaSound?.('scan');window.vareliaToast?.('Código leído y colocado en el formulario. El producto todavía NO está guardado; pulsa Guardar producto para registrarlo.','info');return}
       if(target==='inventory'){const el=document.getElementById('inventoryCode');if(el)el.value=code;if(!p){const selected=selectedInventoryProduct();if(selected){selected.barcode=code;persistProducts();try{await Promise.resolve(window.syncProductToCloud?.(selected));window.vareliaToast?.('Código guardado en el producto.','ok')}catch(e){console.error(e);window.vareliaToast?.('No se pudo guardar el código en la nube.','warn')}p=selected}}}
       if(target==='sale'){
         if(p){
