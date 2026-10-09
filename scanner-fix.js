@@ -204,18 +204,20 @@
     }
     async function lookupFactoryProduct(code){
       const sources=[
-        'https://world.openfoodfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_es,brands,manufacturing_places,categories_tags,image_front_url',
-        'https://world.openbeautyfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_es,brands,manufacturing_places,categories_tags,image_front_url',
-        'https://world.openproductsfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_es,brands,manufacturing_places,categories_tags,image_front_url'
+        'https://world.openfoodfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_es,brands,quantity',
+        'https://world.openbeautyfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_es,brands,quantity',
+        'https://world.openproductsfacts.org/api/v2/product/'+encodeURIComponent(code)+'.json?fields=product_name,product_name_es,brands,quantity'
       ];
-      for(const url of sources){try{const res=await fetch(url,{headers:{Accept:'application/json'}});if(!res.ok)continue;const j=await res.json();const x=j?.product;if(j?.status===1&&x){const name=String(x.product_name_es||x.product_name||'').trim(),brand=String(x.brands||'').trim(),maker=String(x.manufacturing_places||'').trim();if(name||brand)return {name:name||brand,brand,maker,image:x.image_front_url||'',source:url.includes('openbeauty')?'Open Beauty Facts':url.includes('openproducts')?'Open Products Facts':'Open Food Facts'};}}catch(e){console.warn('Consulta de producto',e)}}return null;
+      for(const url of sources){try{const res=await fetch(url,{headers:{Accept:'application/json'}});if(!res.ok)continue;const j=await res.json();const x=j?.product;if(j?.status===1&&x){const rawName=String(x.product_name_es||x.product_name||'').trim(),brand=String(x.brands||'').split(',')[0].trim(),quantity=String(x.quantity||'').trim();if(rawName||brand){let name=rawName||brand;if(brand&&!name.toLocaleLowerCase().startsWith(brand.toLocaleLowerCase()))name=brand+' '+name;if(quantity&&!name.toLocaleLowerCase().includes(quantity.toLocaleLowerCase()))name+=' '+quantity;return {name:name.replace(/\\s+/g,' ').trim(),source:url.includes('openbeauty')?'Open Beauty Facts':url.includes('openproducts')?'Open Products Facts':'Open Food Facts'};}}}catch(e){console.warn('Consulta de producto',e)}}return null;
     }
     async function offerNewProduct(code){
-      const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent='Buscando nombre y marca del producto…'}
+      const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent='Buscando el nombre comercial del producto…'}
       const data=await lookupFactoryProduct(code);await closeScanner();
       if(typeof openProduct==='function')openProduct();else try{document.getElementById('newProduct')?.click()}catch{}
-      await sleep(120);const bc=document.getElementById('barcode'),nm=document.getElementById('productName'),ds=document.getElementById('description'),preview=document.getElementById('imagePreview');
-      if(bc)bc.value=code;if(data){if(nm&&!nm.value)nm.value=data.name;const details=[data.brand&&'Marca: '+data.brand,data.maker&&'Fabricación: '+data.maker,'Datos encontrados en '+data.source].filter(Boolean).join(' · ');if(ds&&!ds.value)ds.value=details;if(preview&&data.image){preview.src=data.image;preview.hidden=false}window.vareliaToast?.('Producto identificado: '+data.name,'ok');}else{window.vareliaToast?.('Código leído. No figura en las bases públicas; completa el nombre manualmente.','warn')}
+      await sleep(160);const bc=document.getElementById('barcode'),nm=document.getElementById('productName');
+      if(bc)bc.value=code;
+      if(data){if(nm&&!String(nm.value||'').trim()) {nm.value=data.name;nm.dispatchEvent(new Event('input',{bubbles:true}));nm.dispatchEvent(new Event('change',{bubbles:true}));}window.vareliaToast?.('Nombre encontrado: '+data.name,'ok');}
+      else{window.vareliaToast?.('Código leído, pero no encontramos su nombre en las bases públicas. No se inventó el nombre; escríbelo manualmente.','warn')}
     }
     function productCodes(x){
       if(!x||typeof x!=='object')return[];
@@ -418,7 +420,7 @@
       }
     };
     async function finish(raw){if(finishing)return;finishing=true;const code=norm(raw);if(!code){finishing=false;return}window.vareliaSound?.('scan');await stopCamera();let p=findProduct(code);
-      if(target==='product'){const el=document.getElementById('barcode');if(el){el.value=code;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));try{el.focus()}catch{}}await closeScanner();window.vareliaSound?.('scan');window.vareliaToast?.('Código leído y colocado en el formulario. El producto todavía NO está guardado; pulsa Guardar producto para registrarlo.','info');return}
+      if(target==='product'){await offerNewProduct(code);finishing=false;return}
       if(target==='inventory'){const el=document.getElementById('inventoryCode');if(el){el.value=code;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}window.vareliaToast?.('Código leído; todavía NO está guardado. Pulsa Guardar para confirmar.','info');await closeScanner();return}
       if(target==='sale'){
         if(p){
