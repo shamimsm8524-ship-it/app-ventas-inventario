@@ -1,5 +1,10 @@
 (()=>{
-  if(window.__vareliaPosReceiptRestoredV102||window.__vareliaPosReceiptInitializing)return;
+  if(window.__vareliaPosReceiptRestoredV102)return;
+  if(window.__vareliaPosReceiptInitializing){
+    let attempts=0;
+    const retry=setInterval(()=>{attempts++;if(window.VareliaReceipt){clearInterval(retry);return}if(!window.__vareliaPosReceiptInitializing||attempts>=60){clearInterval(retry);window.__vareliaPosReceiptInitializing=false;window.__vareliaPosReceipt=false;const script=document.createElement('script');script.src='pos-receipt.js?v=20261009-receipt-retry-v15&retry='+Date.now();document.head.appendChild(script)}},100);
+    return;
+  }
   window.__vareliaPosReceiptInitializing=true;
   window.__vareliaPosReceipt=true;
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn();
@@ -8,8 +13,9 @@
       const pos=document.getElementById('vareliaPosSales');
       const input=document.getElementById('vposInput');
       const checkout=document.getElementById('vposCheckout')||document.getElementById('checkout');
-      if(!pos||!input||!checkout||!window.VareliaPOS)return;
+      if(!pos||!input||!checkout)return;
       clearInterval(wait);
+      window.__vareliaPosReceiptRestoredV102=true;
       window.__vareliaPosReceiptRestoredV101=true;
       window.__vareliaPosReceiptInitializing=false;
 
@@ -321,6 +327,6 @@
 
       window.VareliaReceipt={show:showReceipt,print:printReceipt,pdf:savePDF,share:shareReceipt};
     },120);
-    setTimeout(()=>{clearInterval(wait);if(!window.__vareliaPosReceiptRestoredV101)window.__vareliaPosReceiptInitializing=false},15000);
+    setTimeout(()=>{clearInterval(wait);if(!window.__vareliaPosReceiptRestoredV102)window.__vareliaPosReceiptInitializing=false},15000);
   });
 })();
