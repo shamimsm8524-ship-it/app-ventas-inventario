@@ -78,9 +78,30 @@ async function ensureAccount(user){let {data:profile,error}=await sb.from('profi
   let businessId=owned?.id||null;
   if(!businessId){const {data:biz,error:be}=await sb.from('businesses').insert({name:businessName,owner_id:user.id}).select('id').single();if(be){const retry=await sb.from('businesses').select('id').eq('owner_id',user.id).order('created_at',{ascending:false}).limit(1).maybeSingle();if(retry.error||!retry.data?.id)throw be;businessId=retry.data.id}else businessId=biz.id}
   const {data:pr,error:pe}=await sb.from('profiles').upsert({id:user.id,full_name:fullName,business_id:businessId,role:'owner'},{onConflict:'id'}).select('id,business_id,role').single();if(pe)throw pe;localStorage.removeItem('varelia_pending_account');return pr}
-async function enterWithSession(session){if(!session?.user){showAuth();return}try{const profile=await ensureAccount(session.user);await activateBusinessScope(session.user,profile);showApp(session.user)}catch(e){showAuth();msg('No se pudo cargar tu cuenta: '+(e.message||e),'error')}}
+let enteringSession=null;
+async function enterWithSession(session){
+  if(!session?.user){showAuth();return}
+  const userId=String(session.user.id||'');
+  if(enteringSession&&enteringSession.userId===userId)return enteringSession.promise;
+  const promise=(async()=>{
+    try{
+      const profile=await ensureAccount(session.user);
+      if(!profile?.business_id)throw new Error('Tu cuenta no tiene un negocio vinculado. Contacta al administrador.');
+      await activateBusinessScope(session.user,profile);
+      showApp(session.user);
+      msg('');
+    }catch(e){
+      console.error('Varelia: no se pudo activar la sesión',e);
+      showAuth();
+      msg('No se pudo cargar tu cuenta: '+(e?.message||String(e)),'error');
+      throw e;
+    }
+  })();
+  enteringSession={userId,promise};
+  try{return await promise}finally{if(enteringSession?.promise===promise)enteringSession=null}
+}
 auth.addEventListener('click',e=>{const b=e.target.closest('[data-va-tab]');if(!b)return;document.querySelectorAll('.va-tab').forEach(x=>x.classList.toggle('active',x===b));$('#vaLogin').classList.toggle('va-hide',b.dataset.vaTab!=='login');$('#vaRegister').classList.toggle('va-hide',b.dataset.vaTab!=='register');msg('')});
-$('#vaLogin').addEventListener('submit',async e=>{e.preventDefault();msg('Ingresando...');const {data,error}=await sb.auth.signInWithPassword({email:$('#vaLoginEmail').value.trim(),password:$('#vaLoginPass').value});if(error){msg(error.message,'error');return}await enterWithSession(data.session)});
+$('#vaLogin').addEventListener('submit',async e=>{e.preventDefault();const button=$('#vaLogin').querySelector('button[type="submit"]');if(button)button.disabled=true;msg('Ingresando...');try{const {data,error}=await sb.auth.signInWithPassword({email:$('#vaLoginEmail').value.trim(),password:$('#vaLoginPass').value});if(error)throw error;if(!data?.session)throw new Error('El servidor no devolvió una sesión. Comprueba la confirmación de tu correo e inténtalo otra vez.');await enterWithSession(data.session)}catch(err){console.error('Varelia: error al iniciar sesión',err);msg(err?.message||'No se pudo iniciar sesión. Comprueba tu conexión.','error')}finally{if(button)button.disabled=false}});
 $('#vaRegister').addEventListener('submit',async e=>{e.preventDefault();const fullName=$('#vaName').value.trim(),businessName=$('#vaBusiness').value.trim(),email=$('#vaEmail').value.trim(),password=$('#vaPass').value;localStorage.setItem('varelia_pending_account',JSON.stringify({fullName,businessName}));msg('Creando cuenta...');const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:fullName,business_name:businessName}}});if(error){msg(error.message,'error');return}if(data.session){await enterWithSession(data.session)}else{msg('Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.','ok')}});
 $('#vareliaLogout').addEventListener('click',async()=>{await sb.auth.signOut();localStorage.removeItem('varelia_active_business_id');showAuth();msg('Sesión cerrada.','ok')});
 sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(()=>enterWithSession(session).catch(e=>console.error('Varelia sesión',e)),0)});
