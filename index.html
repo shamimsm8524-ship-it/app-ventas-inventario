@@ -74,7 +74,7 @@
   if(lastError){window.vareliaSetCloudStatus('☁️ Error de carga: '+lastError,true);return}
   if(!window.vareliaSupabase){window.vareliaSetCloudStatus('☁️ Error: autenticación no inició',true);return}
   if(typeof window.vareliaForceSync!=='function'){window.vareliaSetCloudStatus('☁️ Error: sincronización no inició',true);return}
-  if(String(el.textContent||'').includes('Conectando'))window.vareliaSetCloudStatus('☁️ Esperando inventario · toca para reintentar',true);
+  if(String(el.textContent||'').includes('Conectando')){var sb=window.vareliaSupabase;Promise.resolve().then(function(){return sb.auth.getSession()}).then(function(res){if(window.__vareliaCloudStatus?.text==='☁️ Conectado')return;window.vareliaSetCloudStatus(res.error?'☁️ Error de sesión: '+String(res.error.message||'sin detalle').slice(0,65):!res.data?.session?'☁️ Sin sesión activa · inicia sesión':'☁️ Sesión activa, inventario no respondió · toca para reintentar',true)}).catch(function(e){window.vareliaSetCloudStatus('☁️ Error de conexión: '+String(e.message||e).slice(0,65),true)})}
  }
  setTimeout(inspect,18000);
  setInterval(inspect,30000);
