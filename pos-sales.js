@@ -179,8 +179,10 @@
           payFields.innerHTML='<div class="vposParts">'+PAY_METHODS.map(m=>'<label class="vposPart"><span>'+m+'</span><input type="number" min="0" step="0.10" inputmode="decimal" data-vpos-part="'+m+'" placeholder="S/ 0.00"></label>').join('')+'</div><div class="vposPayResult"><span id="vposPayStatus">Falta</span><strong id="vposPayDiff">S/ '+total.toFixed(2)+'</strong></div>';
           payFields.querySelectorAll('[data-vpos-part]').forEach(x=>x.oninput=updatePay);
         }else if(payMethod.value==='Efectivo'){
-          payFields.innerHTML='<label class="vposCashRow"><span>Me paga con</span><input id="vposAmountReceived" type="number" min="0" step="0.10" inputmode="decimal" placeholder="Ej. 50.00"></label><div class="vposPayResult"><span id="vposPayStatus">Vuelto</span><strong id="vposPayDiff">S/ 0.00</strong></div>';
-          root.querySelector('#vposAmountReceived').oninput=updatePay;
+          payFields.innerHTML='<label class="vposCashRow"><span>Me paga con</span><input id="vposAmountReceived" type="text" inputmode="decimal" autocomplete="off" placeholder="Ej. 50.00" aria-label="Monto recibido en soles"></label><div class="vposPayResult"><span id="vposPayStatus">Vuelto</span><strong id="vposPayDiff">S/ 0.00</strong></div>';
+          const receivedInput=root.querySelector('#vposAmountReceived');
+          receivedInput.addEventListener('input',updatePay);
+          receivedInput.addEventListener('change',()=>{receivedInput.value=receivedInput.value.replace(/,/g,'.').replace(/[^0-9.]/g,'');updatePay()});
         }else if(payMethod.value==='Yape'||payMethod.value==='Plin'){
           const info=paymentQrInfo(payMethod.value);
           const qrBox=info.qr
@@ -199,7 +201,7 @@
         if(mixedPay.checked){
           payFields.querySelectorAll('[data-vpos-part]').forEach(x=>{const n=Math.max(0,Number(x.value)||0);if(n){breakdown[x.dataset.vposPart]=n;received+=n}});
         }else{
-          received=Math.max(0,Number(root.querySelector('#vposAmountReceived')?.value)||0);
+          received=Math.max(0,Number(String(root.querySelector('#vposAmountReceived')?.value||'').replace(',','.'))||0);
           if(received)breakdown[payMethod.value]=received;
         }
         const missing=Math.max(0,total-received),change=Math.max(0,received-total);
