@@ -564,7 +564,9 @@
       // Siempre volver a leer el perfil: businessId/rol pueden haber cambiado al entrar con otra cuenta.
       // No salir silenciosamente: un cliente o perfil ausente debe activar el reintento automático.
       const activeProfile=await loadProfile();
-      if(!activeProfile)throw new Error('No se detectó una sesión activa. Se reintentará la conexión.');
+      // La pantalla de acceso aparece antes de iniciar sesión. No es un fallo de nube:
+      // esperar a SIGNED_IN/INITIAL_SESSION evita mostrar avisos falsos y reintentos inútiles.
+      if(!activeProfile){clearTimeout(retryTimer);retryTimer=null;return;}
       if(!businessId)throw new Error('Esta cuenta no tiene un negocio vinculado. Se reintentará la conexión.');
       if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
       // La sincronización no debe quedar bloqueada por un respaldo inicial fallido.
