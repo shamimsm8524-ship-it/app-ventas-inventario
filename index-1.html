@@ -221,30 +221,6 @@ let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.s
 products.forEach(p=>{if(!p.id)p.id=uid();p.id=String(p.id);if(p.reorderLevel==null)p.reorderLevel=5});window.products=products;window.sales=sales;
 let isRemoteSync=false;
 function setCloudStatus(txt,isError=false){const el=$('cloudStatus');if(!el)return;el.textContent=txt;el.style.color=isError?'#b91c1c':'var(--p)'}
-/* Estado visible de sincronización para la entrada móvil nativa. */
-window.addEventListener('varelia:sync-connected',()=>setCloudStatus('☁️ Conectado'));
-window.addEventListener('varelia:forced-sync-complete',()=>setCloudStatus('☁️ Conectado'));
-window.addEventListener('varelia:sync-error',e=>{
- const reason=String(e?.detail?.message||'Error de conexión').replace(/\s+/g,' ').slice(0,100);
- setCloudStatus('☁️ Error: '+reason+' · toca para reintentar',true);
-});
-$('cloudStatus')?.addEventListener('click',async()=>{
- const el=$('cloudStatus');if(el.dataset.syncing==='1')return;
- el.dataset.syncing='1';setCloudStatus('☁️ Reconectando...');
- try{
-  if(typeof window.vareliaForceSync==='function'){
-   await window.vareliaForceSync();
-   setCloudStatus('☁️ Conectado');
-  }else{
-   window.dispatchEvent(new CustomEvent('varelia:business-scope-ready'));
-   setCloudStatus('☁️ Reintentando...');
-  }
- }catch(err){
-  console.error('Reintento manual de sincronización',err);
-  const reason=String(err?.message||'Error de conexión').replace(/\s+/g,' ').slice(0,100);
-  setCloudStatus('☁️ Error: '+reason+' · toca para reintentar',true);
- }finally{el.dataset.syncing='0'}
-});
 function syncProductToCloud(){}
 function syncMetaToCloud(){}
 function save(){for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]])localStorage.setItem(k,JSON.stringify(v));window.products=products;render()}
@@ -1039,7 +1015,7 @@ if ('serviceWorker' in navigator) {
 })();
 </script>
 <script src="sale-sound.js?v=20260930-2"></script>
-<script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261010-sync-recovery-v15"></script>
+<script src="staff-stock-guard.js?v=20260930-6"></script>\n<script src="central-stock-sync.js?v=20261002-medicina-guardado-v78"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
 <script src="weight-sales.js?v=20261001-native-weight-v9"></script>\n<script src="characteristics.js?v=20261002-stock-combos-v54"></script>
 <script>window.__VARELIA_BUILD__='20261002-sale-cart-v24';</script>
