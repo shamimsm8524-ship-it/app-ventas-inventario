@@ -3,6 +3,7 @@
   window.__vareliaCentralStockSync=true;
 
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+  const withTimeout=(promise,ms,label)=>Promise.race([Promise.resolve(promise),new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' no respondió en '+Math.round(ms/1000)+' segundos. Se reintentará automáticamente.')),ms))]);
   const toast=(m,t='ok')=>window.vareliaToast?window.vareliaToast(m,t):console.log(m);
   let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false,initBusy=false,initAgain=false,retryTimer=null,retryDelay=2500;
 
@@ -18,9 +19,9 @@
 
   async function loadProfile(){
     if(!sb)return null;
-    const {data:u}=await sb.auth.getUser();
+    const {data:u}=await withTimeout(sb.auth.getUser(),12000,'La verificación de sesión');
     const user=u?.user;if(!user)return null;
-    const {data:found,error}=await sb.from('profiles').select('id,business_id,role,permissions').eq('id',user.id).maybeSingle();
+    const {data:found,error}=await withTimeout(sb.from('profiles').select('id,business_id,role,permissions').eq('id',user.id).maybeSingle(),12000,'La consulta del perfil');
     if(error)throw error;
     let data=found;
     // Si una cuenta Gmail nueva todavía no tiene perfil, créale/reutiliza
@@ -140,10 +141,10 @@
   async function refreshCloud(){
     if(!sb)throw new Error('Supabase no está disponible.');
     if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
-    const [catsRes,prodRes]=await Promise.all([
+    const [catsRes,prodRes]=await withTimeout(Promise.all([
       sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
       sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes').eq('business_id',businessId).order('created_at')
-    ]);
+    ]),15000,'La lectura del inventario en la nube');
     if(catsRes.error)throw catsRes.error;
     if(prodRes.error)throw prodRes.error;
     const rows=prodRes.data||[];
