@@ -27,21 +27,44 @@ async function activateBusinessScope(user,profile){
   try{legacyOwner=localStorage.getItem(ownerKey)||''}catch{}
   if(!legacyOwner||legacyOwner===safeScope){
     let migratedAny=false;
+    const identity=(item)=>{
+      if(item===null||item===undefined)return '';
+      if(typeof item!=='object')return String(item);
+      for(const k of ['id','uuid','saleId','receiptNumber','barcode','legacy_id']){
+        if(item[k]!==undefined&&item[k]!==null&&String(item[k])!=='')return k+':'+String(item[k]);
+      }
+      return 'json:'+JSON.stringify(item);
+    };
     for(const base of Object.values(BASE_KEYS)){
       try{
         const target=scopedKey(base,safeScope);
-        if(localStorage.getItem(target)!==null)continue;
         const source=localStorage.getItem(base);
         if(source===null)continue;
-        const parsed=JSON.parse(source);
-        const hasContent=Array.isArray(parsed)?parsed.length>0:(parsed!==null&&parsed!==undefined);
-        if(!hasContent)continue;
-        localStorage.setItem(target,source);
-        migratedAny=true;
+        const legacy=JSON.parse(source);
+        const currentRaw=localStorage.getItem(target);
+        if(currentRaw===null){
+          const hasContent=Array.isArray(legacy)?legacy.length>0:(legacy!==null&&legacy!==undefined);
+          if(!hasContent)continue;
+          localStorage.setItem(target,source);
+          migratedAny=true;
+          continue;
+        }
+        // Si ya existen datos nuevos en el espacio de la cuenta, fusionar los antiguos
+        // en vez de omitirlos. Se conserva el registro actual cuando coincide el ID.
+        if(Array.isArray(legacy)){
+          const current=JSON.parse(currentRaw);
+          if(!Array.isArray(current))continue;
+          const seen=new Set(current.map(identity));
+          const missing=legacy.filter(item=>{const k=identity(item);if(seen.has(k))return false;seen.add(k);return true;});
+          if(missing.length){
+            localStorage.setItem(target,JSON.stringify([...missing,...current]));
+            migratedAny=true;
+          }
+        }
       }catch(e){console.warn('Varelia: no se pudo recuperar '+base,e)}
     }
     if(migratedAny&&!legacyOwner){try{localStorage.setItem(ownerKey,safeScope)}catch{}}
-    if(migratedAny)console.info('Varelia: datos locales anteriores recuperados; se conservaron las copias originales');
+    if(migratedAny)console.info('Varelia: datos locales anteriores recuperados o fusionados; se conservaron las copias originales');
   }
 
   localStorage.setItem('varelia_active_business_id',safeScope);
