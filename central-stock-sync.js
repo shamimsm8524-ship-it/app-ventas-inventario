@@ -400,17 +400,36 @@
     if(saleBusy)return;
     let current=[];
     try{current=Array.isArray(cart)?cart.map(x=>({...x})):[]}catch{}
-    // El POS nuevo mantiene las filas visibles en su propio estado; recuperarlas antes de validar evita el falso carrito vacío.
+    // Recuperar primero el respaldo del escáner: en algunos WebView el flujo de cobro
+    // vacía el arreglo global antes de que el manejador central valide la venta.
+    if(!current.length){
+      try{
+        const saved=JSON.parse(localStorage.getItem('varelia_scanner_cart_backup_v1')||'[]');
+        if(Array.isArray(saved)&&saved.length){
+          current=saved.map(x=>({...x})).filter(x=>x.id!=null&&Number(x.qty)>0);
+          if(current.length&&Array.isArray(cart)){
+            cart.splice(0,cart.length,...current.map(x=>({...x})));
+            try{if(typeof renderCart==='function')renderCart()}catch{}
+            try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
+          }
+        }
+      }catch(e){console.warn('No se pudo recuperar el respaldo del carrito',e)}
+    }
+    // Si no hay respaldo, recuperar las filas del POS; normalizar ID/precio/cantidad.
     if(!current.length){
       try{
         const visible=window.VareliaPOS?.getCartItems?.();
         if(Array.isArray(visible)&&visible.length){
-          current=visible.map(x=>({...x,id:x.id,price:Number(x.price??x.sellPrice)||0,qty:Number(x.qty)||0})).filter(x=>x.id!=null&&x.qty>0);
-          if(current.length&&Array.isArray(cart)){cart.splice(0,cart.length,...current.map(x=>({...x})));try{if(typeof renderCart==='function')renderCart()}catch{}}
+          current=visible.map(x=>({...x,id:x.id??x.productId,price:Number(x.price??x.sellPrice)||0,qty:Number(x.qty)||0})).filter(x=>x.id!=null&&x.qty>0);
+          if(current.length&&Array.isArray(cart)){
+            cart.splice(0,cart.length,...current.map(x=>({...x})));
+            try{if(typeof renderCart==='function')renderCart()}catch{}
+            try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
+          }
         }
       }catch(e){console.warn('No se pudo recuperar el carrito visible',e)}
     }
-    if(!current.length)return alert('El carrito está vacío. Vuelve a agregar el producto antes de cobrar.');
+    if(!current.length)return alert('El carrito está vacío. Regresa a Ventas y agrega el producto nuevamente.');
 
     saleBusy=true;
     const legacy=document.getElementById('checkout');
