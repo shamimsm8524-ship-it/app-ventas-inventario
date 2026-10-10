@@ -11,7 +11,7 @@
  function statusNode(){
   var el=document.getElementById('cloudStatus');
   if(!el&&typeof window.vareliaSetCloudStatus==='function'){
-   window.vareliaSetCloudStatus('☁️ Conectando...');
+   window.vareliaSetCloudStatus(window.__vareliaCloudStatus?.text||'☁️ Conectando...',!!window.__vareliaCloudStatus?.isError);
    el=document.getElementById('cloudStatus');
   }
   return el;
@@ -44,7 +44,7 @@
   document.addEventListener('click',function(event){
    var target=event.target;
    var hit=target&&target.closest?target.closest('#cloudStatus'):null;
-   if(!hit||ok)return;
+   if(!hit||ok||typeof window.vareliaForceSync==='function')return;
    setStatus('☁️ Revisando conexión...',false);
    diagnose();
    window.dispatchEvent(new CustomEvent('varelia:business-scope-ready'));
@@ -309,7 +309,7 @@ function ensureCloudStatus(){
  m.dataset.nativeVersion='1';
  return el;
 }
-function setCloudStatus(txt,isError=false){const el=ensureCloudStatus();if(!el)return;el.textContent=txt;el.style.color=isError?'#b91c1c':'var(--p)'}window.vareliaSetCloudStatus=setCloudStatus;
+function setCloudStatus(txt,isError=false){window.__vareliaCloudStatus={text:String(txt),isError:!!isError};const el=ensureCloudStatus();if(!el)return;el.textContent=String(txt);el.style.color=isError?'#b91c1c':'var(--p)'}window.vareliaSetCloudStatus=setCloudStatus;
 function syncProductToCloud(){}
 function syncMetaToCloud(){}
 function save(){for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]])localStorage.setItem(k,JSON.stringify(v));window.products=products;render()}
