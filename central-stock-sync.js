@@ -19,8 +19,15 @@
 
   async function loadProfile(){
     if(!sb)return null;
-    const {data:u}=await withTimeout(sb.auth.getUser(),12000,'La verificación de sesión');
-    const user=u?.user;if(!user)return null;
+    // La sesión persistida puede estar disponible antes de que /auth/v1/user responda.
+    // RLS en Supabase sigue validando el JWT en todas las consultas.
+    const {data:stored}=await withTimeout(sb.auth.getSession(),12000,'La restauración de sesión');
+    let user=stored?.session?.user||null;
+    if(!user){
+      const {data:u}=await withTimeout(sb.auth.getUser(),12000,'La verificación de sesión');
+      user=u?.user||null;
+    }
+    if(!user)return null;
     const {data:found,error}=await withTimeout(sb.from('profiles').select('id,business_id,role,permissions').eq('id',user.id).maybeSingle(),12000,'La consulta del perfil');
     if(error)throw error;
     let data=found;
