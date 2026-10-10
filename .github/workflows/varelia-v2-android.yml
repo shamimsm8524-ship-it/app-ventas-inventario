@@ -29,8 +29,10 @@ jobs:
       - name: Build debug APK
         working-directory: varelia-v2/android
         run: gradle --no-daemon assembleDebug
+      - name: Rename APK to Varelia.apk
+        run: mv varelia-v2/android/app/build/outputs/apk/debug/app-debug.apk varelia-v2/android/app/build/outputs/apk/debug/Varelia.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: varelia-v2-prototype-debug-apk
-          path: varelia-v2/android/app/build/outputs/apk/debug/app-debug.apk
+          name: Varelia-APK-prototipo
+          path: varelia-v2/android/app/build/outputs/apk/debug/Varelia.apk
           if-no-files-found: error
