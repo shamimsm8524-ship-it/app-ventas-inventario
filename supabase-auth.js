@@ -20,30 +20,28 @@ async function activateBusinessScope(user,profile){
   const scope=String(user.id); // Aislar inventario por usuario autenticado, no por business_id compartible.
   const safeScope=scope.replace(/[^a-zA-Z0-9_-]/g,'_');
 
-  // Recuperación no destructiva de datos locales anteriores.
-  // Solo migrar si el espacio de esta cuenta aún no tiene datos y la clave antigua
-  // no está asignada a otra cuenta. Se conservan intactas las claves originales.
+  // Recuperación no destructiva por cada almacén: productos, categorías, ventas, caja...
+  // Nunca borra el origen y no copia datos si ya consta que pertenecen a otra cuenta.
   const ownerKey='varelia_legacy_owner_scope';
   let legacyOwner='';
   try{legacyOwner=localStorage.getItem(ownerKey)||''}catch{}
-  const scopedKeyFor=(base)=>scopedKey(base,safeScope);
-  if(!legacyOwner){
-    const hasLegacyData=Object.values(BASE_KEYS).some(base=>{
-      try{const raw=localStorage.getItem(base);if(raw==null)return false;const parsed=JSON.parse(raw);return Array.isArray(parsed)?parsed.length>0:parsed!=null}catch{return false}
-    });
-    const hasScopedData=Object.values(BASE_KEYS).some(base=>{
-      try{const raw=localStorage.getItem(scopedKeyFor(base));if(raw==null)return false;const parsed=JSON.parse(raw);return Array.isArray(parsed)?parsed.length>0:parsed!=null}catch{return false}
-    });
-    if(hasLegacyData&&!hasScopedData){
+  if(!legacyOwner||legacyOwner===safeScope){
+    let migratedAny=false;
+    for(const base of Object.values(BASE_KEYS)){
       try{
-        for(const base of Object.values(BASE_KEYS)){
-          const source=localStorage.getItem(base),target=scopedKeyFor(base);
-          if(source!==null&&localStorage.getItem(target)===null)localStorage.setItem(target,source);
-        }
-        localStorage.setItem(ownerKey,safeScope);
-        console.info('Varelia: datos locales antiguos recuperados sin borrar el origen');
-      }catch(e){console.warn('Varelia: no se pudieron recuperar todos los datos antiguos',e)}
+        const target=scopedKey(base,safeScope);
+        if(localStorage.getItem(target)!==null)continue;
+        const source=localStorage.getItem(base);
+        if(source===null)continue;
+        const parsed=JSON.parse(source);
+        const hasContent=Array.isArray(parsed)?parsed.length>0:(parsed!==null&&parsed!==undefined);
+        if(!hasContent)continue;
+        localStorage.setItem(target,source);
+        migratedAny=true;
+      }catch(e){console.warn('Varelia: no se pudo recuperar '+base,e)}
     }
+    if(migratedAny&&!legacyOwner){try{localStorage.setItem(ownerKey,safeScope)}catch{}}
+    if(migratedAny)console.info('Varelia: datos locales anteriores recuperados; se conservaron las copias originales');
   }
 
   localStorage.setItem('varelia_active_business_id',safeScope);
