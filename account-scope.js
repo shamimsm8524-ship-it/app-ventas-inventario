@@ -13,7 +13,7 @@
       }
       try{
         const {data:profile}=await sb.from('profiles').select('business_id').eq('id',session.user.id).maybeSingle();
-        const scope=String(profile?.business_id||session.user.id);
+        const scope=String(session.user.id); // Coincide con el ámbito local aislado que activa el inicio de sesión.
         const current=localStorage.getItem('varelia_active_business_id')||'';
         if(current!==scope){
           localStorage.setItem('varelia_active_business_id',scope);
