@@ -535,7 +535,7 @@ public class MainActivity extends AppCompatActivity {
                 String brandJs = "(function(){"
                         + "var l=document.querySelector('.logo');if(l){l.title='Varelia Store';}"
                         + "var h=document.querySelector('.brand h1');if(h){h.textContent='Varelia';h.id='vareliaAppName';}"
-                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';m.textContent=(m.textContent||'Ventas e inventario').replace(/\\s·\\sv\\d+(?:\\.\\d+){2}$/,'')+' · v1.0.50';}"
+                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';var v=document.createElement('span');v.id='vareliaNativeVersion';v.textContent='v1.0.50';v.style.display='block';m.appendChild(v);}"
                         + "document.title='Varelia Store';"
                         + "})();";
                 view.evaluateJavascript(brandJs, null);
