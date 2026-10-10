@@ -11,6 +11,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate inline JavaScript syntax
+        run: |
+          python3 - <<'PY'
+          import pathlib, re
+          html = pathlib.Path("index.html").read_text(encoding="utf-8")
+          out = pathlib.Path("/tmp/varelia-inline-js")
+          out.mkdir(parents=True, exist_ok=True)
+          count = 0
+          for i, m in enumerate(re.finditer(r"<script\\b([^>]*)>(.*?)</script>", html, re.I | re.S), 1):
+              attrs, code = m.group(1), m.group(2)
+              if re.search(r"\\bsrc\\s*=", attrs, re.I):
+                  continue
+              if re.search(r'type=["\\']application/ld\\+json["\\']', attrs, re.I):
+                  continue
+              count += 1
+              (out / f"inline-{i}.js").write_text(code, encoding="utf-8")
+          print(f"Checking {count} inline JavaScript blocks")
+          PY
+          for f in /tmp/varelia-inline-js/*.js; do
+            echo "Checking $f"
+            node --check "$f"
+          done
+
       - name: Java 17
         uses: actions/setup-java@v4
         with:
