@@ -472,7 +472,7 @@
       document.addEventListener('click',e=>{const b=e.target.closest('#newSaleTop,#newSaleFab');if(!b)return;e.preventDefault();e.stopImmediatePropagation();goSales()},true);
       document.addEventListener('click',e=>{const b=e.target.closest('.nav [data-view="sales"]');if(!b)return;setTimeout(()=>input.focus(),120)},true);
 
-      window.VareliaPOS={addProduct,startNew,sync,isActive:()=>salesSec.classList.contains('active'),focus:()=>input.focus()};
+      window.VareliaPOS={addProduct,startNew,sync,getCartItems:()=>{try{return sync().rows.map(r=>r.item).filter(Boolean).map(x=>({...x}))}catch(e){console.warn('No se pudo leer el carrito visible',e);return[]}},isActive:()=>salesSec.classList.contains('active'),focus:()=>input.focus()};
       renderPay();sync();setTimeout(sync,350);setTimeout(()=>salesSec.querySelectorAll(':scope > .flowRole').forEach(el=>el.remove()),1200);
     },120);
   });
