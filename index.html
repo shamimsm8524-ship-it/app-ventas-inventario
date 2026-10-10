@@ -63,7 +63,7 @@
 })();
 </script>
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261010-BOOT-WATCH-V20';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261010-BOOT-WATCH-V21';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <script>
 try{if(new URL(location.href).searchParams.has('native_app'))window.__vareliaNativePdfHookV2=true}catch{}
@@ -319,7 +319,7 @@ function vareliaEnsureSyncModule(){
  if(vareliaSyncRetrying)return;
  vareliaSyncRetrying=true;
  const s=document.createElement('script');
- s.src='central-stock-sync.js?v=20261010-auth-wait-v20';
+ s.src='central-stock-sync.js?v=20261010-category-render-v21';
  s.onload=()=>{setTimeout(()=>{if(typeof window.vareliaForceSync!=='function'){vareliaSyncRetrying=false;setCloudStatus('☁️ Módulo de sincronización no disponible',true)}},2500)};
  s.onerror=()=>{vareliaSyncRetrying=false;setCloudStatus('☁️ No se pudo cargar la sincronización',true)};
  document.body.appendChild(s);
@@ -647,7 +647,7 @@ function productActions(e){
 productGrid.onclick=productActions;
 search.oninput=renderProducts;
 categoryChips.onclick=e=>{if(e.target.dataset.cat){activeCategory=e.target.dataset.cat;renderProducts()}};
-addCategory.onclick=()=>{let n=newCategoryName.value.trim();if(n&&!categories.includes(n)){categories.push(n);newCategoryName.value='';save()}};
+addCategory.onclick=()=>{let n=newCategoryName.value.trim();if(!n){window.vareliaToast?.('Escribe el nombre de la categoría.','warn');return}if(categories.some(c=>String(c).toLowerCase()===n.toLowerCase())){window.vareliaToast?.('Esa categoría ya existe.','warn');return}categories.push(n);window.categories=categories;newCategoryName.value='';save();if(typeof renderCategories==='function')renderCategories();if(typeof fillCats==='function')fillCats();window.vareliaToast?.('Categoría guardada en este dispositivo.','ok')};
 function selectInv(p){inventoryProductId=p?.id||null;inventoryName.value=p?.name||'';inventoryCode.value=p?.barcode||'';inventoryNameResults.innerHTML='';renderInvSelected()}
 function renderInvSelected(){let p=products.find(x=>String(x.id).trim()===String(inventoryProductId).trim());inventorySelected.hidden=!p;if(p)inventorySelected.innerHTML=`<strong>${esc(p.name)}</strong><div class="big">${p.stock} ${esc(p.unit)}</div>`}
 inventoryName.oninput=()=>{let q=inventoryName.value.trim().toLowerCase();inventoryNameResults.innerHTML=q?products.filter(p=>p.name.toLowerCase().includes(q)).map(p=>`<button class="result" data-inv="${p.id}">${esc(p.name)}</button>`).join(''):''};
@@ -1204,7 +1204,7 @@ if ('serviceWorker' in navigator) {
 </script>
 <script src="sale-sound.js?v=20261008-cobro-sonido-v2"></script>
 <script src="staff-stock-guard.js?v=20260930-6"></script>
-<script src="central-stock-sync.js?v=20261010-auth-wait-v20"></script>
+<script src="central-stock-sync.js?v=20261010-category-render-v21"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
 <script src="weight-sales.js?v=20261001-native-weight-v9"></script>
 <script src="characteristics.js?v=20261009-size-color-options-v55"></script>
