@@ -251,7 +251,7 @@ function vareliaEnsureSyncModule(){
 }
 setTimeout(()=>{
  if(!vareliaSyncSeen && typeof window.vareliaForceSync!=='function')vareliaEnsureSyncModule();
- setTimeout(()=>{if(!vareliaSyncSeen && !vareliaSyncRetrying)setCloudStatus('☁️ Sin conexión · toca para reintentar',true)},12000);
+ setTimeout(()=>{if(!vareliaSyncSeen && !vareliaSyncRetrying)setCloudStatus('☁️ Sin conexión o sesión pendiente · toca para reintentar',true)},12000);
 },10000);
 window.addEventListener('online',()=>{vareliaSyncSeen=false;vareliaEnsureSyncModule()});
 $('cloudStatus')?.addEventListener('click',async()=>{
