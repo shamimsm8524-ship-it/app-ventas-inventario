@@ -130,8 +130,10 @@
   async function seedIfNeeded(){
     const countRes=await sb.from('varelia_products').select('id',{count:'exact',head:true}).eq('business_id',businessId);
     if(countRes.error)throw countRes.error;
-    if((countRes.count||0)>0)return true;
-    if(!isOwner())return false;
+    // No abandonar los datos locales cuando la nube ya tiene algunos productos.
+    // Un inventario remoto parcial (por ejemplo, solo una zanahoria) no debe
+    // provocar que se pierdan de la vista los productos que aún existen localmente.
+    if(!isOwner())return (countRes.count||0)>0;
 
     const ps=localProducts();
     if(!ps.length)return false;
