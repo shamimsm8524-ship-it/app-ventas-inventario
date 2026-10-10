@@ -8,55 +8,73 @@
 <meta http-equiv="Expires" content="0">
 <script id="vareliaEarlyConnectionGuard">
 (function(){
-  function boot(){
-    var el=document.getElementById('cloudStatus');
-    if(!el)return;
-    var ok=false,started=Date.now();
-    window.addEventListener('varelia:sync-connected',function(){ok=true});
-    window.addEventListener('varelia:forced-sync-complete',function(){ok=true});
-    function diagnose(){
-      if(ok || !el.isConnected)return;
-      var sb=window.vareliaSupabase;
-      if(!sb){el.textContent='☁️ Error: Supabase no inició';return}
-      if(typeof window.vareliaForceSync!=='function'){el.textContent='☁️ Error: módulo de inventario no inició';return}
-      var settled=false;
-      var timeout=setTimeout(function(){if(!settled&&!ok)el.textContent='☁️ Error: sesión sin respuesta'},7000);
-      Promise.resolve().then(function(){return sb.auth.getSession()}).then(function(res){
-        settled=true;clearTimeout(timeout);
-        if(ok)return;
-        el.textContent=res.error?'☁️ Error: '+String(res.error.message||'sesión').slice(0,65):
-          !res.data?.session?'☁️ Sin sesión: inicia sesión':
-          '☁️ Sin sincronización: toca para reintentar';
-      }).catch(function(e){settled=true;clearTimeout(timeout);if(!ok)el.textContent='☁️ Error: '+String(e.message||e).slice(0,65)});
-    }
-    setTimeout(diagnose,15000);
-    el.addEventListener('click',function(){
-      if(ok)return;
-      el.textContent='☁️ Revisando conexión...';
-      diagnose();
-      window.dispatchEvent(new CustomEvent('varelia:business-scope-ready'));
-    },true);
+ function statusNode(){
+  var el=document.getElementById('cloudStatus');
+  if(!el&&typeof window.vareliaSetCloudStatus==='function'){
+   window.vareliaSetCloudStatus('☁️ Conectando...');
+   el=document.getElementById('cloudStatus');
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
-  else boot();
+  return el;
+ }
+ function setStatus(text,isError){
+  if(typeof window.vareliaSetCloudStatus==='function')window.vareliaSetCloudStatus(text,!!isError);
+  else{var el=statusNode();if(el){el.textContent=text;el.style.color=isError?'#b91c1c':'var(--p)';}}
+ }
+ function boot(){
+  var ok=false;
+  window.addEventListener('varelia:sync-connected',function(){ok=true});
+  window.addEventListener('varelia:forced-sync-complete',function(){ok=true});
+  function diagnose(){
+   if(ok)return;
+   var el=statusNode();
+   if(!el)return;
+   var sb=window.vareliaSupabase;
+   if(!sb){setStatus('☁️ Error: Supabase no inició',true);return;}
+   if(typeof window.vareliaForceSync!=='function'){setStatus('☁️ Error: módulo de inventario no inició',true);return;}
+   var settled=false;
+   var timeout=setTimeout(function(){if(!settled&&!ok)setStatus('☁️ Error: sesión sin respuesta',true)},7000);
+   Promise.resolve().then(function(){return sb.auth.getSession()}).then(function(res){
+    settled=true;clearTimeout(timeout);if(ok)return;
+    setStatus(res.error?'☁️ Error: '+String(res.error.message||'sesión').slice(0,65):
+      !res.data?.session?'☁️ Sin sesión: inicia sesión':
+      '☁️ Sin sincronización: toca para reintentar',true);
+   }).catch(function(e){settled=true;clearTimeout(timeout);if(!ok)setStatus('☁️ Error: '+String(e.message||e).slice(0,65),true)});
+  }
+  setTimeout(diagnose,15000);
+  document.addEventListener('click',function(event){
+   var target=event.target;
+   var hit=target&&target.closest?target.closest('#cloudStatus'):null;
+   if(!hit||ok)return;
+   setStatus('☁️ Revisando conexión...',false);
+   diagnose();
+   window.dispatchEvent(new CustomEvent('varelia:business-scope-ready'));
+  },true);
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+ else boot();
 })();
 </script>
-<script id="vareliaBootWatchV19">
+<script id="vareliaBootWatchV20">
 (function(){
  var lastError='';
  window.addEventListener('error',function(e){
-   var target=e.target;
-   if(target&&target!==window&&target.tagName==='SCRIPT')lastError='No cargó '+String(target.src||'un módulo').split('/').pop().slice(0,65);
-   else if(e.message)lastError=String(e.message).slice(0,100);
+  var target=e.target;
+  if(target&&target!==window&&target.tagName==='SCRIPT')lastError='No cargó '+String(target.src||'un módulo').split('/').pop().slice(0,65);
+  else if(e.message)lastError=String(e.message).slice(0,100);
  },true);
  window.addEventListener('unhandledrejection',function(e){lastError=String(e.reason?.message||e.reason||'Promesa rechazada').slice(0,100)});
  function inspect(){
-  var el=document.getElementById('cloudStatus');if(!el)return;
-  if(String(el.textContent||'').includes('Conectado'))return;
-  if(lastError){el.textContent='☁️ Error de carga: '+lastError;return}
-  if(!window.vareliaSupabase){el.textContent='☁️ Error: autenticación no inició';return}
-  if(typeof window.vareliaForceSync!=='function'){el.textContent='☁️ Error: sincronización no inició';return}
-  if(String(el.textContent||'').includes('Conectando'))el.textContent='☁️ Esperando inventario · toca para reintentar';
+  var el=document.getElementById('cloudStatus');
+  if(!el&&typeof window.vareliaSetCloudStatus==='function'){
+   window.vareliaSetCloudStatus('☁️ Conectando...');
+   el=document.getElementById('cloudStatus');
+  }
+  if(!el)return;
+  if(String(el.textContent||'').includes('Conectado')&&!String(el.textContent||'').includes('Sin'))return;
+  if(lastError){window.vareliaSetCloudStatus('☁️ Error de carga: '+lastError,true);return}
+  if(!window.vareliaSupabase){window.vareliaSetCloudStatus('☁️ Error: autenticación no inició',true);return}
+  if(typeof window.vareliaForceSync!=='function'){window.vareliaSetCloudStatus('☁️ Error: sincronización no inició',true);return}
+  if(String(el.textContent||'').includes('Conectando'))window.vareliaSetCloudStatus('☁️ Esperando inventario · toca para reintentar',true);
  }
  setTimeout(inspect,18000);
  setInterval(inspect,30000);
@@ -276,7 +294,22 @@ function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{retur
 let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.sales,[]),closures=load(K.closures,[]),cashStart=load(K.cashStart,new Date().toISOString()),theme=load(K.theme,{color:'#be185d',dark:false,updatedAt:0}),movements=load(K.movements,[]),suppliers=load(K.suppliers,[]),purchases=load(K.purchases,[]),activeCategory='Todos',cart=load(__sk('varelia_active_sale_cart_v1'),[]),purchaseCart=[],inventoryProductId=null;
 products.forEach(p=>{if(!p.id)p.id=uid();p.id=String(p.id);if(p.reorderLevel==null)p.reorderLevel=5});window.products=products;window.sales=sales;
 let isRemoteSync=false;
-function setCloudStatus(txt,isError=false){const el=$('cloudStatus');if(!el)return;el.textContent=txt;el.style.color=isError?'#b91c1c':'var(--p)'}window.vareliaSetCloudStatus=setCloudStatus;
+function ensureCloudStatus(){
+ let el=$('cloudStatus');if(el)return el;
+ const m=document.querySelector('.brand .meta');if(!m)return null;
+ const current=String(m.textContent||'Ventas e inventario');
+ const vm=current.match(/v\\d+(?:\\.\\d+){2}\\s*$/);
+ const version=vm?vm[0].trim():'v1.0.50';
+ let label=current.replace(/\\s*·\\s*v\\d+(?:\\.\\d+){2}\\s*$/,'').replace(/\\s*☁️.*$/,'').trim();
+ if(!label)label='Ventas e inventario';
+ while(m.firstChild)m.removeChild(m.firstChild);
+ m.appendChild(document.createTextNode(label+' '));
+ el=document.createElement('span');el.id='cloudStatus';el.style.cssText='font-size:11px;color:var(--p);font-weight:800;margin-left:6px;cursor:pointer';el.textContent='☁️ Conectando...';m.appendChild(el);
+ const v=document.createElement('span');v.id='vareliaNativeVersion';v.style.display='block';v.textContent=version;m.appendChild(v);
+ m.dataset.nativeVersion='1';
+ return el;
+}
+function setCloudStatus(txt,isError=false){const el=ensureCloudStatus();if(!el)return;el.textContent=txt;el.style.color=isError?'#b91c1c':'var(--p)'}window.vareliaSetCloudStatus=setCloudStatus;
 function syncProductToCloud(){}
 function syncMetaToCloud(){}
 function save(){for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]])localStorage.setItem(k,JSON.stringify(v));window.products=products;render()}
@@ -329,8 +362,9 @@ setTimeout(()=>{
  setTimeout(()=>{if(!vareliaSyncSeen && !vareliaSyncRetrying)setCloudStatus('☁️ Sin conexión · toca para reintentar',true)},12000);
 },10000);
 window.addEventListener('online',()=>{vareliaSyncSeen=false;vareliaEnsureSyncModule()});
-$('cloudStatus')?.addEventListener('click',async()=>{
- const el=$('cloudStatus');if(el.dataset.syncing==='1')return;
+document.addEventListener('click',async(event)=>{
+ const target=event.target;const hit=target&&target.closest?target.closest('#cloudStatus'):null;if(!hit)return;
+ const el=$('cloudStatus');if(!el||el.dataset.syncing==='1')return;
  el.dataset.syncing='1';setCloudStatus('☁️ Reconectando...');
  try{
   if(typeof window.vareliaForceSync==='function'){
