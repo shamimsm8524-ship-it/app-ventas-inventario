@@ -66,7 +66,7 @@
  function inspect(){
   var el=document.getElementById('cloudStatus');
   if(!el&&typeof window.vareliaSetCloudStatus==='function'){
-   window.vareliaSetCloudStatus('☁️ Conectando...');
+   window.vareliaSetCloudStatus(window.__vareliaCloudStatus?.text||'☁️ Conectando...',!!window.__vareliaCloudStatus?.isError);
    el=document.getElementById('cloudStatus');
   }
   if(!el)return;
