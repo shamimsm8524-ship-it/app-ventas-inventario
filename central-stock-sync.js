@@ -23,6 +23,13 @@
     // RLS en Supabase sigue validando el JWT en todas las consultas.
     const {data:stored}=await withTimeout(sb.auth.getSession(),12000,'La restauración de sesión');
     let user=stored?.session?.user||null;
+    // La sesión almacenada no garantiza que el servidor acepte el JWT.
+    // Refrescar el token antes de consultar tablas protegidas por RLS.
+    if(stored?.session?.expires_at && stored.session.expires_at*1000 < Date.now()+60000){
+      const renewed=await withTimeout(sb.auth.refreshSession(),12000,'La renovación de sesión');
+      if(renewed.error)throw new Error('Tu sesión caducó: '+renewed.error.message);
+      user=renewed.data?.session?.user||null;
+    }
     if(!user){
       const {data:u}=await withTimeout(sb.auth.getUser(),12000,'La verificación de sesión');
       user=u?.user||null;
@@ -594,6 +601,7 @@
       window.dispatchEvent(new CustomEvent('varelia:business-scope-error',{detail:{error:e}}));
       window.dispatchEvent(new CustomEvent('varelia:sync-error',{detail:{message:String(e?.message||e?.details||e?.hint||e||'Error desconocido')}}));
       const msg=String(e?.message||e?.details||e?.hint||e||'Error desconocido');
+      try{if(typeof window.vareliaSetCloudStatus==='function')window.vareliaSetCloudStatus('☁️ Error de sincronización: '+msg.slice(0,110),true)}catch{}
       toast('No se pudo sincronizar: '+msg.slice(0,180),'warn');
       // Reintento automático real cuando falla la nube; nunca borra el inventario local.
       clearTimeout(retryTimer);
