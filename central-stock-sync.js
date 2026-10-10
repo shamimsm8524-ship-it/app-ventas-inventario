@@ -527,13 +527,38 @@
     return data||{};
   };
 
+  // Realtime is optional for the initial read, but a dropped channel must not
+  // silently leave other devices showing stale stock.
+  let realtimeRetryTimer=null;
   function subscribe(){
+    clearTimeout(realtimeRetryTimer);
+    realtimeRetryTimer=null;
     try{
-      if(channel)sb.removeChannel(channel);
-      channel=sb.channel('varelia-stock-'+businessId)
-        .on('postgres_changes',{event:'*',schema:'public',table:'varelia_products',filter:'business_id=eq.'+businessId},scheduleRefresh)
-        .subscribe();
-    }catch(e){console.warn('Realtime stock',e)}
+      if(channel){try{sb.removeChannel(channel)}catch{} channel=null;}
+      const scopedBusinessId=String(businessId);
+      const next=sb.channel('varelia-stock-'+scopedBusinessId)
+        .on('postgres_changes',{event:'*',schema:'public',table:'varelia_products',filter:'business_id=eq.'+scopedBusinessId},scheduleRefresh);
+      channel=next;
+      next.subscribe(status=>{
+        if(channel!==next || String(businessId)!==scopedBusinessId)return;
+        if(status==='SUBSCRIBED'){
+          scheduleRefresh(); // Catch changes missed while disconnected.
+          return;
+        }
+        if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+          console.warn('Varelia realtime:',status);
+          clearTimeout(realtimeRetryTimer);
+          realtimeRetryTimer=setTimeout(()=>{
+            if(channel!==next || String(businessId)!==scopedBusinessId || navigator.onLine===false)return;
+            subscribe();
+          },3000);
+        }
+      });
+    }catch(e){
+      console.warn('Realtime stock',e);
+      clearTimeout(realtimeRetryTimer);
+      realtimeRetryTimer=setTimeout(()=>{if(navigator.onLine!==false)subscribe()},3000);
+    }
   }
 
   async function init(){

@@ -225,6 +225,24 @@ function syncProductToCloud(){}
 function syncMetaToCloud(){}
 function save(){for(const [k,v] of [[K.products,products],[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases],[K.theme,theme]])localStorage.setItem(k,JSON.stringify(v));window.products=products;render()}
 setCloudStatus('☁️ Conectando...');
+// If startup stalls before the sync module can emit events, show an actionable
+// diagnostic instead of leaving the user indefinitely at "Conectando...".
+let vareliaSyncSettled=false;
+window.addEventListener('varelia:sync-connected',()=>{vareliaSyncSettled=true});
+window.addEventListener('varelia:forced-sync-complete',()=>{vareliaSyncSettled=true});
+window.addEventListener('varelia:sync-error',()=>{vareliaSyncSettled=true});
+setTimeout(()=>{
+ if(vareliaSyncSettled)return;
+ if(!window.supabase){
+   setCloudStatus('☁️ Error: biblioteca Supabase no cargó · revisa internet',true);
+ }else if(!window.vareliaSupabase){
+   setCloudStatus('☁️ Error: inicio de Supabase no disponible',true);
+ }else if(typeof window.vareliaForceSync!=='function'){
+   setCloudStatus('☁️ Error: módulo de inventario no cargó · toca para reintentar',true);
+ }else{
+   setCloudStatus('☁️ Esperando sesión o inventario · toca para reintentar',true);
+ }
+},18000);
 window.addEventListener('varelia:sync-connected',()=>setCloudStatus('☁️ Conectado'));
 window.addEventListener('varelia:forced-sync-complete',()=>setCloudStatus('☁️ Conectado'));
 window.addEventListener('varelia:sync-error',e=>{
@@ -251,7 +269,7 @@ function vareliaEnsureSyncModule(){
 }
 setTimeout(()=>{
  if(!vareliaSyncSeen && typeof window.vareliaForceSync!=='function')vareliaEnsureSyncModule();
- setTimeout(()=>{if(!vareliaSyncSeen && !vareliaSyncRetrying)setCloudStatus('☁️ Sin conexión · toca para reintentar',true)},12000);
+ setTimeout(()=>{if(!vareliaSyncSeen && !vareliaSyncRetrying)setCloudStatus('☁️ Sin conexión o sesión pendiente · toca para reintentar',true)},12000);
 },10000);
 window.addEventListener('online',()=>{vareliaSyncSeen=false;vareliaEnsureSyncModule()});
 $('cloudStatus')?.addEventListener('click',async()=>{
