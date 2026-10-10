@@ -623,8 +623,9 @@
       console.info('Varelia: cambio de negocio detectado',oldBusiness,'->',businessId);
     }
     if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
-    await refreshCloud();
-    await refreshPublicStock();
+    const cloudLoaded=await refreshCloud();
+    if(!cloudLoaded)throw new Error('No se recibió confirmación del inventario de Supabase.');
+    try{await withTimeout(refreshPublicStock(),8000,'La actualización del stock público')}catch(e){console.warn('Stock público pendiente',e)}
     subscribe();
     window.dispatchEvent(new CustomEvent('varelia:forced-sync-complete',{detail:{businessId:String(businessId)}}));
     return {businessId:String(businessId),products:localProducts().length,categories:localCategories().length};
