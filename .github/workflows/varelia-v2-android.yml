@@ -38,6 +38,15 @@ jobs:
       - name: Build debug APK
         working-directory: varelia-v2/android
         run: gradle --no-daemon assembleDebug
+      - name: Verify Android package and application label
+        run: |
+          APK=varelia-v2/android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          BADGING="$ANDROID_HOME/build-tools/35.0.0/aapt"
+          "$BADGING" dump badging "$APK" | tee /tmp/varelia-badging.txt
+          grep -q "package: name='tech.varelia.v2'" /tmp/varelia-badging.txt
+          grep -q "application-label:'Varelia'" /tmp/varelia-badging.txt
       - name: Rename APK to Varelia.apk
         run: mv varelia-v2/android/app/build/outputs/apk/debug/app-debug.apk varelia-v2/android/app/build/outputs/apk/debug/Varelia.apk
       - uses: actions/upload-artifact@v4
