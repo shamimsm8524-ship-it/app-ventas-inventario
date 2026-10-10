@@ -227,6 +227,13 @@ function save(){for(const [k,v] of [[K.products,products],[K.categories,categori
 setCloudStatus('☁️ Conectando...');
 window.addEventListener('varelia:sync-connected',()=>setCloudStatus('☁️ Conectado'));
 window.addEventListener('varelia:forced-sync-complete',()=>setCloudStatus('☁️ Conectado'));
+// Evitar un estado de conexión indefinido y ofrecer un reintento visible.
+setTimeout(()=>{
+ const status=document.getElementById('cloudStatus');
+ if(status&&status.textContent.includes('Conectando')){
+   setCloudStatus('☁️ Sin respuesta de sincronización · toca para reintentar',true);
+ }
+},25000);
 window.addEventListener('varelia:sync-error',e=>{
  const reason=String(e?.detail?.message||'Error de conexión').replace(/\\s+/g,' ').slice(0,100);
  setCloudStatus('☁️ Error: '+reason+' · toca para reintentar',true);
