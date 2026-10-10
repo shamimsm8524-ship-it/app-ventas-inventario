@@ -569,10 +569,14 @@
       // Siempre volver a leer el perfil: businessId/rol pueden haber cambiado al entrar con otra cuenta.
       // No salir silenciosamente: un cliente o perfil ausente debe activar el reintento automático.
       const activeProfile=await loadProfile();
-      // La pantalla de acceso aparece antes de iniciar sesión. No es un fallo de nube:
-      // esperar a SIGNED_IN/INITIAL_SESSION evita mostrar avisos falsos y reintentos inútiles.
-      if(!activeProfile){clearTimeout(retryTimer);retryTimer=null;return;}
-      if(!businessId)throw new Error('Esta cuenta no tiene un negocio vinculado. Se reintentará la conexión.');
+      // Nunca dejar el estado visual eternamente en "Conectando".
+      // Si no hay sesión, indicar la causa y esperar al evento real de autenticación.
+      if(!activeProfile){
+        clearTimeout(retryTimer);retryTimer=null;
+        if(typeof window.vareliaSetCloudStatus==='function')window.vareliaSetCloudStatus('☁️ Sin sesión activa · inicia sesión para sincronizar',true);
+        return;
+      }
+      if(!businessId)throw new Error('La cuenta no tiene un negocio vinculado. Abre Ajustes y vuelve a iniciar sesión.');
       if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
       // La sincronización no debe quedar bloqueada por un respaldo inicial fallido.
       // Primero intentamos traer la cuenta desde la nube; si falla, reintentamos.
