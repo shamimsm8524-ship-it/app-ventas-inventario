@@ -114,7 +114,38 @@ const $=s=>document.querySelector(s),msg=(t,type='')=>{const m=$('#vaMsg');if(!m
 function showAuth(){document.body.classList.add('varelia-auth-locked');auth.classList.add('show');userBar.style.display='none'}
 function showApp(user){document.body.classList.remove('varelia-auth-locked');auth.classList.remove('show');$('#vareliaUserEmail').textContent=user?.email||'';userBar.style.display='flex'}
 window.vareliaEnsureAccount=ensureAccount;
-async function ensureAccount(user){let {data:profile,error}=await sb.from('profiles').select('id,business_id,role').eq('id',user.id).maybeSingle();if(error)throw error;if(profile?.business_id)return profile;let pending={};try{pending=JSON.parse(localStorage.getItem('varelia_pending_account')||'{}')}catch{}const meta=user.user_metadata||{};const fullName=pending.fullName||meta.full_name||meta.name||user.email?.split('@')[0]||'Usuario';const businessName=pending.businessName||meta.business_name||('Negocio de '+fullName);
+async function ensureAccount(user){let {data:profile,error}=await sb.from('profiles').select('id,business_id,role').eq('id',user.id).maybeSingle();if(error)throw error;
+  // Reparación no destructiva: si el perfil apunta a un negocio vacío pero
+  // otro negocio del mismo usuario conserva el inventario, volver a vincular
+  // el perfil al negocio con datos. No elimina ni modifica productos/ventas.
+  if(profile?.business_id){
+    try{
+      const {data:ownedBusinesses,error:ownedError}=await sb.from('businesses').select('id,created_at').eq('owner_id',user.id).order('created_at',{ascending:false});
+      if(!ownedError&&Array.isArray(ownedBusinesses)&&ownedBusinesses.length>1){
+        const counts=[];
+        for(const biz of ownedBusinesses){
+          const {count,error:countError}=await sb.from('varelia_products').select('id',{count:'exact',head:true}).eq('business_id',biz.id);
+          if(countError)throw countError;
+          counts.push({id:String(biz.id),count:Number(count)||0});
+        }
+        const current=counts.find(x=>x.id===String(profile.business_id));
+        const recovered=counts.filter(x=>x.count>0).sort((a,b)=>b.count-a.count)[0];
+        if(current&&current.count===0&&recovered&&recovered.id!==current.id){
+          const {data:updated,error:updateError}=await sb.from('profiles').update({business_id:recovered.id}).eq('id',user.id).select('id,business_id,role').single();
+          if(updateError)throw updateError;
+          if(updated?.business_id){
+            console.warn('Varelia: perfil reparado para recuperar inventario existente; no se borraron datos.');
+            profile=updated;
+          }
+        }
+      }
+    }catch(recoveryError){
+      // Un error de diagnóstico no debe impedir el inicio de sesión ni tocar datos.
+      console.warn('Varelia: no se pudo comprobar otros negocios; se conserva el perfil actual.',recoveryError);
+    }
+    return profile;
+  }
+  let pending={};try{pending=JSON.parse(localStorage.getItem('varelia_pending_account')||'{}')}catch{}const meta=user.user_metadata||{};const fullName=pending.fullName||meta.full_name||meta.name||user.email?.split('@')[0]||'Usuario';const businessName=pending.businessName||meta.business_name||('Negocio de '+fullName);
   // Si Google vuelve a ejecutar el callback antes de que exista el perfil, reutilizamos
   // el negocio ya creado para este usuario en vez de crear otro. Así cada Gmail conserva
   // un único negocio y todos sus datos quedan ligados al mismo business_id.
