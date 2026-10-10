@@ -446,6 +446,12 @@
         let before=0;
         try{before=Array.isArray(sales)?sales.length:0}catch{}
         try{
+          // Sincronizar el carrito que cobra el módulo antiguo con las filas visibles del POS.
+          if(Array.isArray(cart)&&cart.length===0&&state.rows.length){
+            const recovered=state.rows.map(r=>r.item).filter(Boolean);
+            if(recovered.length){cart.push(...recovered);try{if(typeof renderCart==='function')renderCart()}catch(e){console.warn('No se pudo redibujar el carrito recuperado',e)}}
+          }
+          if(!Array.isArray(cart)||cart.length===0){window.vareliaToast?.('El carrito visible no coincide con el carrito de cobro. Vuelve a agregar el producto antes de cobrar.','warn');return}
           legacyCheckout.click();
           showPaidReceipt(before,p,state);
           setTimeout(()=>{
