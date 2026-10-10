@@ -298,9 +298,9 @@ function ensureCloudStatus(){
  let el=$('cloudStatus');if(el)return el;
  const m=document.querySelector('.brand .meta');if(!m)return null;
  const current=String(m.textContent||'Ventas e inventario');
- const vm=current.match(/v\\d+(?:\\.\\d+){2}\\s*$/);
+ const vm=current.match(/v\d+(?:\\.\d+){2}\s*$/);
  const version=vm?vm[0].trim():'v1.0.50';
- let label=current.replace(/\\s*·\\s*v\\d+(?:\\.\\d+){2}\\s*$/,'').replace(/\\s*☁️.*$/,'').trim();
+ let label=current.replace(/\s*·\s*v\d+(?:\\.\d+){2}\s*$/,'').replace(/\s*☁️.*$/,'').trim();
  if(!label)label='Ventas e inventario';
  while(m.firstChild)m.removeChild(m.firstChild);
  m.appendChild(document.createTextNode(label+' '));
