@@ -228,6 +228,30 @@ setCloudStatus('☁️ Conectando...');
 window.addEventListener('varelia:sync-connected',()=>setCloudStatus('☁️ Conectado'));
 window.addEventListener('varelia:forced-sync-complete',()=>setCloudStatus('☁️ Conectado'));
 window.addEventListener('varelia:sync-error',e=>setCloudStatus('☁️ Sin conexión · toca para reintentar',true));
+// Watchdog: no dejar la interfaz eternamente en «Conectando» si el WebView no cargó el módulo.
+let vareliaSyncSeen=false,vareliaSyncRetrying=false;
+window.addEventListener('varelia:sync-connected',()=>{vareliaSyncSeen=true;vareliaSyncRetrying=false});
+window.addEventListener('varelia:forced-sync-complete',()=>{vareliaSyncSeen=true;vareliaSyncRetrying=false});
+window.addEventListener('varelia:sync-error',()=>{vareliaSyncRetrying=false});
+function vareliaEnsureSyncModule(){
+ if(typeof window.vareliaForceSync==='function'){
+   window.dispatchEvent(new CustomEvent('varelia:business-scope-ready'));
+   return;
+ }
+ if(vareliaSyncRetrying)return;
+ vareliaSyncRetrying=true;
+ const s=document.createElement('script');
+ s.src='central-stock-sync.js?v=20261009-sync-watchdog-v12';
+ s.onload=()=>{setTimeout(()=>{if(typeof window.vareliaForceSync!=='function'){vareliaSyncRetrying=false;setCloudStatus('☁️ Módulo de sincronización no disponible',true)}},2500)};
+ s.onerror=()=>{vareliaSyncRetrying=false;setCloudStatus('☁️ No se pudo cargar la sincronización',true)};
+ document.body.appendChild(s);
+}
+setTimeout(()=>{
+ if(!vareliaSyncSeen && typeof window.vareliaForceSync!=='function')vareliaEnsureSyncModule();
+ setTimeout(()=>{if(!vareliaSyncSeen && !vareliaSyncRetrying)setCloudStatus('☁️ Sin conexión · toca para reintentar',true)},12000);
+},10000);
+window.addEventListener('online',()=>{vareliaSyncSeen=false;vareliaEnsureSyncModule()});
+
 $('cloudStatus')?.addEventListener('click',async()=>{
  const el=$('cloudStatus');if(el.dataset.syncing==='1')return;
  el.dataset.syncing='1';setCloudStatus('☁️ Reconectando...');
