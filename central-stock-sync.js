@@ -468,13 +468,18 @@
       btn.disabled=true;
       try{
         await ensureCategory(name);
-        if(!categories.some(c=>String(c)===name))categories.push(name);
+        // Confirmar la fila en la nube y reconstruir la lista visible desde Supabase.
+        // Si una lectura de sincronización anterior llega tarde, volver a incluir
+        // la categoría recién confirmada para que no desaparezca de la pantalla.
+        try{await refreshCloud()}catch(refreshErr){console.warn('Categoría guardada; actualización de lista pendiente:',refreshErr)}
+        if(!categories.some(c=>String(c).trim().toLowerCase()===name.toLowerCase()))categories.push(name);
         window.categories=categories;
         try{localStorage.setItem(K.categories,JSON.stringify(categories))}catch{}
         if(typeof renderCategories==='function')renderCategories();
         if(typeof fillCats==='function')fillCats();
+        if(typeof renderProducts==='function')renderProducts();
         input.value='';
-        toast('Categoría guardada.','ok');
+        toast('Categoría guardada y lista actualizada.','ok');
       }catch(e){
         console.error(e);
         toast('No se pudo guardar la categoría.','warn');
