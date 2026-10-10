@@ -352,7 +352,7 @@ function vareliaEnsureSyncModule(){
  if(vareliaSyncRetrying)return;
  vareliaSyncRetrying=true;
  const s=document.createElement('script');
- s.src='central-stock-sync.js?v=20261010-sync-diagnostic-v25';
+ s.src='central-stock-sync.js?v=20261010-checkout-cart-fix-v26';
  s.onload=()=>{setTimeout(()=>{if(typeof window.vareliaForceSync!=='function'){vareliaSyncRetrying=false;setCloudStatus('☁️ Módulo de sincronización no disponible',true)}},2500)};
  s.onerror=()=>{vareliaSyncRetrying=false;setCloudStatus('☁️ No se pudo cargar la sincronización',true)};
  document.body.appendChild(s);
