@@ -83,7 +83,7 @@ auth.addEventListener('click',e=>{const b=e.target.closest('[data-va-tab]');if(!
 $('#vaLogin').addEventListener('submit',async e=>{e.preventDefault();msg('Ingresando...');const {data,error}=await sb.auth.signInWithPassword({email:$('#vaLoginEmail').value.trim(),password:$('#vaLoginPass').value});if(error){msg(error.message,'error');return}await enterWithSession(data.session)});
 $('#vaRegister').addEventListener('submit',async e=>{e.preventDefault();const fullName=$('#vaName').value.trim(),businessName=$('#vaBusiness').value.trim(),email=$('#vaEmail').value.trim(),password=$('#vaPass').value;localStorage.setItem('varelia_pending_account',JSON.stringify({fullName,businessName}));msg('Creando cuenta...');const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:fullName,business_name:businessName}}});if(error){msg(error.message,'error');return}if(data.session){await enterWithSession(data.session)}else{msg('Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.','ok')}});
 $('#vareliaLogout').addEventListener('click',async()=>{await sb.auth.signOut();localStorage.removeItem('varelia_active_business_id');showAuth();msg('Sesión cerrada.','ok')});
-sb.auth.onAuthStateChange((_event,session)=>{if(session)enterWithSession(session)});
+sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(()=>enterWithSession(session).catch(e=>console.error('Varelia sesión',e)),0)});
 (async()=>{
   showAuth();
   const params=new URLSearchParams(location.search);
