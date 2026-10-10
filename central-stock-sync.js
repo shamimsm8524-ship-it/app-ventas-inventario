@@ -35,8 +35,14 @@
       user=u?.user||null;
     }
     if(!user)return null;
-    const {data:found,error}=await withTimeout(sb.from('profiles').select('id,business_id,role,permissions').eq('id',user.id).maybeSingle(),12000,'La consulta del perfil');
-    if(error)throw error;
+    // Compatibilidad con esquemas donde profiles todavía no tiene la columna opcional permissions.
+    // Un campo opcional ausente no debe bloquear toda la sincronización del inventario.
+    let profileQuery=await withTimeout(sb.from('profiles').select('id,business_id,role,permissions').eq('id',user.id).maybeSingle(),12000,'La consulta del perfil');
+    if(profileQuery.error && (profileQuery.error.code==='42703' || /permissions.*(column|field)|column.*permissions/i.test(String(profileQuery.error.message||'')))){
+      profileQuery=await withTimeout(sb.from('profiles').select('id,business_id,role').eq('id',user.id).maybeSingle(),12000,'La consulta compatible del perfil');
+    }
+    if(profileQuery.error)throw profileQuery.error;
+    const found=profileQuery.data;
     let data=found;
     // Si una cuenta Gmail nueva todavía no tiene perfil, créale/reutiliza
     // exclusivamente su negocio antes de sincronizar el inventario.
