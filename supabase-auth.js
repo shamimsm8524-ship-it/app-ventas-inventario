@@ -20,8 +20,31 @@ async function activateBusinessScope(user,profile){
   const scope=String(user.id); // Aislar inventario por usuario autenticado, no por business_id compartible.
   const safeScope=scope.replace(/[^a-zA-Z0-9_-]/g,'_');
 
-  // No copiar datos locales compartidos a una cuenta Gmail nueva.
-  // Cada cuenta debe comenzar y mantenerse exclusivamente con su propio business_id.
+  // Recuperación no destructiva de datos locales anteriores.
+  // Solo migrar si el espacio de esta cuenta aún no tiene datos y la clave antigua
+  // no está asignada a otra cuenta. Se conservan intactas las claves originales.
+  const ownerKey='varelia_legacy_owner_scope';
+  let legacyOwner='';
+  try{legacyOwner=localStorage.getItem(ownerKey)||''}catch{}
+  const scopedKeyFor=(base)=>scopedKey(base,safeScope);
+  if(!legacyOwner){
+    const hasLegacyData=Object.values(BASE_KEYS).some(base=>{
+      try{const raw=localStorage.getItem(base);if(raw==null)return false;const parsed=JSON.parse(raw);return Array.isArray(parsed)?parsed.length>0:parsed!=null}catch{return false}
+    });
+    const hasScopedData=Object.values(BASE_KEYS).some(base=>{
+      try{const raw=localStorage.getItem(scopedKeyFor(base));if(raw==null)return false;const parsed=JSON.parse(raw);return Array.isArray(parsed)?parsed.length>0:parsed!=null}catch{return false}
+    });
+    if(hasLegacyData&&!hasScopedData){
+      try{
+        for(const base of Object.values(BASE_KEYS)){
+          const source=localStorage.getItem(base),target=scopedKeyFor(base);
+          if(source!==null&&localStorage.getItem(target)===null)localStorage.setItem(target,source);
+        }
+        localStorage.setItem(ownerKey,safeScope);
+        console.info('Varelia: datos locales antiguos recuperados sin borrar el origen');
+      }catch(e){console.warn('Varelia: no se pudieron recuperar todos los datos antiguos',e)}
+    }
+  }
 
   localStorage.setItem('varelia_active_business_id',safeScope);
 
