@@ -572,8 +572,15 @@
       // Nunca dejar el estado visual eternamente en "Conectando".
       // Si no hay sesión, indicar la causa y esperar al evento real de autenticación.
       if(!activeProfile){
-        clearTimeout(retryTimer);retryTimer=null;
-        if(typeof window.vareliaSetCloudStatus==='function')window.vareliaSetCloudStatus('☁️ Sin sesión activa · inicia sesión para sincronizar',true);
+        if(typeof window.vareliaSetCloudStatus==='function')window.vareliaSetCloudStatus('☁️ Sin sesión activa · comprobando de nuevo automáticamente',true);
+        // En WebView la sesión puede restaurarse después del primer getSession().
+        // No cancelar el reintento aquí: esperar solo a onAuthStateChange deja la app
+        // bloqueada si el evento inicial ya ocurrió antes de registrar el listener.
+        clearTimeout(retryTimer);
+        retryTimer=setTimeout(()=>{
+          if(navigator.onLine!==false)init().catch(err=>console.error('Reintento de restauración de sesión',err));
+        },retryDelay);
+        retryDelay=Math.min(retryDelay*2,20000);
         return;
       }
       if(!businessId)throw new Error('La cuenta no tiene un negocio vinculado. Abre Ajustes y vuelve a iniciar sesión.');
