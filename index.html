@@ -319,7 +319,7 @@ function vareliaEnsureSyncModule(){
  if(vareliaSyncRetrying)return;
  vareliaSyncRetrying=true;
  const s=document.createElement('script');
- s.src='central-stock-sync.js?v=20261010-token-refresh-v18';
+ s.src='central-stock-sync.js?v=20261010-profile-fallback-v19';
  s.onload=()=>{setTimeout(()=>{if(typeof window.vareliaForceSync!=='function'){vareliaSyncRetrying=false;setCloudStatus('☁️ Módulo de sincronización no disponible',true)}},2500)};
  s.onerror=()=>{vareliaSyncRetrying=false;setCloudStatus('☁️ No se pudo cargar la sincronización',true)};
  document.body.appendChild(s);
@@ -1204,7 +1204,7 @@ if ('serviceWorker' in navigator) {
 </script>
 <script src="sale-sound.js?v=20261008-cobro-sonido-v2"></script>
 <script src="staff-stock-guard.js?v=20260930-6"></script>
-<script src="central-stock-sync.js?v=20261010-token-refresh-v18"></script>
+<script src="central-stock-sync.js?v=20261010-profile-fallback-v19"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
 <script src="weight-sales.js?v=20261001-native-weight-v9"></script>
 <script src="characteristics.js?v=20261009-size-color-options-v55"></script>
