@@ -19,11 +19,9 @@ jobs:
           out = pathlib.Path("/tmp/varelia-inline-js")
           out.mkdir(parents=True, exist_ok=True)
           count = 0
-          for i, m in enumerate(re.finditer(r"<script\\b([^>]*)>(.*?)</script>", html, re.I | re.S), 1):
+          for i, m in enumerate(re.finditer(r'<script\b([^>]*)>(.*?)</script>', html, re.I | re.S), 1):
               attrs, code = m.group(1), m.group(2)
-              if re.search(r"\\bsrc\\s*=", attrs, re.I):
-                  continue
-              if re.search(r'type=["\\']application/ld\\+json["\\']', attrs, re.I):
+              if re.search(r'\bsrc\s*=', attrs, re.I) or 'application/ld+json' in attrs.lower():
                   continue
               count += 1
               (out / f"inline-{i}.js").write_text(code, encoding="utf-8")
