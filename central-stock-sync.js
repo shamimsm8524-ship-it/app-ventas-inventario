@@ -400,7 +400,17 @@
     if(saleBusy)return;
     let current=[];
     try{current=Array.isArray(cart)?cart.map(x=>({...x})):[]}catch{}
-    if(!current.length)return alert('El carrito está vacío.');
+    // El POS nuevo mantiene las filas visibles en su propio estado; recuperarlas antes de validar evita el falso carrito vacío.
+    if(!current.length){
+      try{
+        const visible=window.VareliaPOS?.getCartItems?.();
+        if(Array.isArray(visible)&&visible.length){
+          current=visible.map(x=>({...x,id:x.id,price:Number(x.price??x.sellPrice)||0,qty:Number(x.qty)||0})).filter(x=>x.id!=null&&x.qty>0);
+          if(current.length&&Array.isArray(cart)){cart.splice(0,cart.length,...current.map(x=>({...x})));try{if(typeof renderCart==='function')renderCart()}catch{}}
+        }
+      }catch(e){console.warn('No se pudo recuperar el carrito visible',e)}
+    }
+    if(!current.length)return alert('El carrito está vacío. Vuelve a agregar el producto antes de cobrar.');
 
     saleBusy=true;
     const legacy=document.getElementById('checkout');
