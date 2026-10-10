@@ -121,7 +121,7 @@
       if(!session?.user)return;
       try{
         const {data:profile}=await sb.from('profiles').select('business_id').eq('id',session.user.id).maybeSingle();
-        const next=String(profile?.business_id||session.user.id);
+        const next=String(session.user.id);
         const current=localStorage.getItem('varelia_active_business_id')||'';
         if(current!==next){localStorage.setItem('varelia_active_business_id',next);location.reload()}
       }catch(e){console.warn('No se pudo resolver el negocio activo',e)}
