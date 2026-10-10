@@ -42,7 +42,7 @@
 })();
 </script>
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261010-CONFIRMED-CLOUD-V15';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261010-AUTH-CDN-FALLBACK-V16';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <script>
 try{if(new URL(location.href).searchParams.has('native_app'))window.__vareliaNativePdfHookV2=true}catch{}
@@ -910,7 +910,20 @@ render();
   checkUrlOrder();
 })();
 </script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" onerror="window.vareliaSupabaseCdnError=true"></script>
+<script>
+if(!window.supabase){
+ document.write('<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"><\\/script>');
+}
+</script>
+<script>
+if(!window.supabase){
+ window.addEventListener('DOMContentLoaded',function(){
+  var el=document.getElementById('cloudStatus');
+  if(el)el.textContent='☁️ Error: no se pudo cargar el inicio de sesión';
+ });
+}
+</script>
 <script src="account-data-isolation.js?v=20261009-gmail-isolation-v6"></script>
 <script src="supabase-auth.js?v=20261010-session-sync-v3"></script>
 <script src="auth-enhancements.js?v=20261006-google-button-v2"></script>
