@@ -26,6 +26,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
+      - name: Validate web JavaScript syntax
+        run: |
+          for file in varelia-v2/web/*.js; do node --check "$file"; done
+          test -s varelia-v2/web/index.html
+          test -s varelia-v2/web/styles.css
       - name: Copy web application assets
         run: |
           mkdir -p varelia-v2/android/app/src/main/assets
