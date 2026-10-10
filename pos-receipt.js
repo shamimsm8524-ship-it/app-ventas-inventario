@@ -236,6 +236,8 @@
         window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
       }
       overlay.querySelector('#vreceiptPrint').onclick=()=>currentReceipt&&printReceipt(currentReceipt);
+      // Interceptar en captura para impedir que un listener externo abra el muro Premium. El PDF es una función local y gratuita.
+      document.addEventListener('click',function(e){const b=e.target&&e.target.closest?e.target.closest('#vreceiptPdf'):null;if(!b||!currentReceipt)return;e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();if(window.__vareliaReceiptDownloadBusy)return;window.__vareliaReceiptDownloadBusy=true;const label=b.textContent;b.disabled=true;b.textContent='Preparando PDF…';Promise.resolve(window.__vareliaDownloadCurrentReceipt?window.__vareliaDownloadCurrentReceipt():window.VareliaReceipt?.pdf?.(currentReceipt)).catch(err=>{console.error(err);alert('No se pudo guardar el PDF. Usa Imprimir y elige Guardar como PDF.')}).finally(()=>{b.disabled=false;b.textContent=label;setTimeout(()=>{window.__vareliaReceiptDownloadBusy=false},350)});},true);
       const receiptPdfButton=overlay.querySelector('#vreceiptPdf');
       // Un solo manejador evita que Android ejecute la descarga varias veces por toque.
       receiptPdfButton.onclick=async (e)=>{
