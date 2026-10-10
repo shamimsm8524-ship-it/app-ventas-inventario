@@ -456,7 +456,7 @@ function saleReceiptAction(action,id){
   const fresh=!!(snap&&Date.now()-Number(snap.at||0)<60000&&Math.abs((Number(snap.total)||0)-total)<0.02);
   const method=String((fresh&&snap.method)||original.paymentMethod||'Efectivo');
   const storedReceived=Math.max(0,Number(original.amountReceived)||0);
-  const received=method==='Fiado'?Math.max(0,fresh?Number(snap.received)||0:storedReceived):Math.max(total,fresh?Number(snap.received)||0,storedReceived);
+  const received=method==='Fiado'?Math.max(0,fresh?Number(snap.received)||0:storedReceived):Math.max(total,fresh?Number(snap.received)||0:storedReceived);
   const change=method==='Fiado'?0:Math.max(fresh?Number(snap.change)||0:0,Number(original.changeGiven)||0,received-total);
   const snapBreakdown=fresh&&snap.breakdown&&typeof snap.breakdown==='object'?snap.breakdown:null;
   s.paymentMethod=method;s.amountReceived=received;s.changeGiven=change;
