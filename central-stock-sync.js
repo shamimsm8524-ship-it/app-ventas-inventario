@@ -626,5 +626,17 @@
   // Reiniciar la sincronización cada vez que cambia la cuenta activa.
   // Antes se ejecutaba una sola vez y, al cambiar de administrador, la vista podía seguir apuntando al negocio anterior.
   window.addEventListener('varelia:business-scope-ready',()=>setTimeout(()=>init().catch(e=>console.error('Varelia cambio de cuenta',e)),80));
+  // La sesión del WebView puede restaurarse después del primer intento de conexión.
+  // Volver a iniciar al recibir autenticación, sin borrar datos locales.
+  const authWait=setInterval(()=>{
+    const client=window.vareliaSupabase;
+    if(!client)return;
+    clearInterval(authWait);
+    client.auth.onAuthStateChange((event,session)=>{
+      if(session?.user&&(event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='TOKEN_REFRESHED')){
+        setTimeout(()=>init().catch(console.error),150);
+      }
+    });
+  },100);
   setTimeout(init,350);
 })();
