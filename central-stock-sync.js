@@ -549,7 +549,7 @@
       if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
       // La sincronización no debe quedar bloqueada por un respaldo inicial fallido.
       // Primero intentamos traer la cuenta desde la nube; si falla, reintentamos.
-      try{ await seedIfNeeded(); }catch(seedErr){ console.warn('Respaldo inicial omitido:',seedErr); }
+      try{ await withTimeout(seedIfNeeded(),15000,'El respaldo inicial del inventario'); }catch(seedErr){ console.warn('Respaldo inicial omitido o agotó el tiempo:',seedErr); }
       let cloudOk=false,lastErr=null;
       for(let attempt=1;attempt<=3&&!cloudOk;attempt++){
         try{
