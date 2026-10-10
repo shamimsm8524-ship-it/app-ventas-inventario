@@ -13,7 +13,7 @@
       }
       try{
         const {data:profile}=await sb.from('profiles').select('business_id').eq('id',session.user.id).maybeSingle();
-        const scope=String(profile?.business_id||session.user.id); // Debe coincidir con persistence-fix.js para evitar recargas infinitas.
+        const scope=String(session.user.id); // Usar el identificador de usuario en todos los módulos de almacenamiento aislado.
         const current=localStorage.getItem('varelia_active_business_id')||'';
         if(current!==scope){
           localStorage.setItem('varelia_active_business_id',scope);
