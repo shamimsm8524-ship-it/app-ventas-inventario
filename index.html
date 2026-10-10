@@ -227,7 +227,10 @@ function save(){for(const [k,v] of [[K.products,products],[K.categories,categori
 setCloudStatus('☁️ Conectando...');
 window.addEventListener('varelia:sync-connected',()=>setCloudStatus('☁️ Conectado'));
 window.addEventListener('varelia:forced-sync-complete',()=>setCloudStatus('☁️ Conectado'));
-window.addEventListener('varelia:sync-error',e=>setCloudStatus('☁️ Sin conexión · toca para reintentar',true));
+window.addEventListener('varelia:sync-error',e=>{
+ const reason=String(e?.detail?.message||'Error de conexión').replace(/\\s+/g,' ').slice(0,100);
+ setCloudStatus('☁️ Error: '+reason+' · toca para reintentar',true);
+});
 // Recuperación de sincronización: si el WebView no carga el módulo, intenta cargarlo otra vez.
 let vareliaSyncSeen=false,vareliaSyncRetrying=false;
 window.addEventListener('varelia:sync-connected',()=>{vareliaSyncSeen=true;vareliaSyncRetrying=false});
@@ -241,7 +244,7 @@ function vareliaEnsureSyncModule(){
  if(vareliaSyncRetrying)return;
  vareliaSyncRetrying=true;
  const s=document.createElement('script');
- s.src='central-stock-sync.js?v=20261009-sync-recovery-v13';
+ s.src='central-stock-sync.js?v=20261010-sync-error-detail-v14';
  s.onload=()=>{setTimeout(()=>{if(typeof window.vareliaForceSync!=='function'){vareliaSyncRetrying=false;setCloudStatus('☁️ Módulo de sincronización no disponible',true)}},2500)};
  s.onerror=()=>{vareliaSyncRetrying=false;setCloudStatus('☁️ No se pudo cargar la sincronización',true)};
  document.body.appendChild(s);
@@ -855,7 +858,7 @@ render();
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="account-data-isolation.js?v=20261009-gmail-isolation-v6"></script>
-<script src="supabase-auth.js?v=20261009-gmail-isolation-v4"></script>
+<script src="supabase-auth.js?v=20261010-sync-error-detail-v14"></script>
 <script src="auth-enhancements.js?v=20261006-google-button-v2"></script>
 
 <script src="product-view-20260930-17.js?v=20261009-sync-recovery-v13"></script>
