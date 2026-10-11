@@ -37,8 +37,8 @@
     const applyName=name=>{
       currentName=(name||'').trim()||'Mi Negocio';
       hiddenName.textContent=currentName;
-      title.textContent='Varelia';
-      document.title='Varelia Store';
+      title.textContent=currentName;
+      document.title=currentName+' · Varelia Store';
     };
     const toast=text=>window.vareliaToast?window.vareliaToast(text):alert(text);
 
