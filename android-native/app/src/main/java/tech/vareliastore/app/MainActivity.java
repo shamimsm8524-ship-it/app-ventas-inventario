@@ -124,6 +124,21 @@ public class MainActivity extends AppCompatActivity {
                 String customer = escHtml(data.optString("customer", ""));
                 String thermalWidth = data.optString("thermalWidth", "80");
                 double total = data.optDouble("total", 0);
+                if (total <= 0 && items != null) {
+                    double itemsTotal = 0;
+                    for (int i = 0; i < items.length(); i++) {
+                        JSONObject it = items.optJSONObject(i);
+                        if (it == null) continue;
+                        double qty = it.optDouble("qty", 0);
+                        double price = it.optDouble("price", 0);
+                        itemsTotal += it.has("subtotal") ? it.optDouble("subtotal", qty * price) : qty * price;
+                    }
+                    if (itemsTotal > 0) total = itemsTotal;
+                }
+                if (total <= 0 || items == null || items.length() == 0) {
+                    Toast.makeText(MainActivity.this, "No se imprimió: la venta llegó sin productos o con total S/ 0.00. Abre la venta guardada y genera el comprobante desde allí.", Toast.LENGTH_LONG).show();
+                    return;
+                }
                 double received = data.optDouble("received", 0);
                 double change = data.optDouble("change", 0);
 
