@@ -1431,31 +1431,74 @@ if(window.settingsMenu&&window.settingsGroup) settingsMenu.onclick=()=>settingsG
 </script>
 <style id="vareliaKeepBottomMenuOnly">@media(max-width:980px){#sidebar,#overlay,#menuBtn{display:none!important}body{padding-bottom:0!important}.vmobileNav{display:grid!important}}</style>
 <script src="/simple-mobile-nav.js?v=20261009-bottom-nav-final"></script>
-<script id="vareliaBusinessBrandSettingV1">
+<script id="vareliaBusinessBrandSettingV2">
 (function(){
  const KEY='varelia_business_display_name_v1';
- function clean(v){return String(v||'').trim().replace(/\s+/g,' ').slice(0,60)}
- function apply(){
-  let name='';try{name=clean(localStorage.getItem(KEY))}catch(e){}
-  const h=document.querySelector('.brand h1');
-  if(h)h.textContent=name||'Varelia';
+ const clean=v=>String(v||'').trim().replace(/\s+/g,' ').slice(0,60);
+ let businessId='',role='',cloudName='';
+ function sbClient(){return window.vareliaSupabase||window.supabaseClient||null}
+ function apply(name){
+  name=clean(name)||'Varelia';
+  const h=document.querySelector('.brand h1'); if(h)h.textContent=name;
   const input=document.getElementById('businessBrandInput');
-  if(input&&document.activeElement!==input)input.value=name;
+  if(input&&document.activeElement!==input)input.value=name==='Varelia'?'':name;
+  try{localStorage.setItem(KEY,name==='Varelia'?'':name)}catch(e){}
+  window.vareliaBusinessDisplayName=name;
+  window.dispatchEvent(new CustomEvent('varelia:business-name-changed',{detail:{businessId,name}}));
+ }
+ async function loadCloudName(){
+  for(let i=0;i<80&&!sbClient();i++)await new Promise(r=>setTimeout(r,150));
+  const sb=sbClient();if(!sb)return;
+  try{
+   const {data:s,error:se}=await sb.auth.getSession();if(se)throw se;
+   const user=s?.session?.user;if(!user)return;
+   const {data:p,error:pe}=await sb.from('profiles').select('business_id,role').eq('id',user.id).maybeSingle();if(pe)throw pe;
+   businessId=p?.business_id||'';role=p?.role||'';
+   if(!businessId)return;
+   const {data:b,error:be}=await sb.from('businesses').select('id,name').eq('id',businessId).maybeSingle();if(be)throw be;
+   cloudName=clean(b?.name);if(cloudName)apply(cloudName);
+  }catch(e){console.warn('No se pudo cargar el nombre guardado en la nube',e)}
  }
  function init(){
-  const input=document.getElementById('businessBrandInput');
-  const btn=document.getElementById('businessBrandSave');
-  const status=document.getElementById('businessBrandStatus');
+  const input=document.getElementById('businessBrandInput'),btn=document.getElementById('businessBrandSave'),status=document.getElementById('businessBrandStatus');
+  let local='';try{local=clean(localStorage.getItem(KEY))}catch(e){}
+  apply(local||'Varelia');
   if(btn&&!btn.dataset.bound){
    btn.dataset.bound='1';
-   btn.addEventListener('click',function(){
-    const name=clean(input&&input.value);
-    try{if(name)localStorage.setItem(KEY,name);else localStorage.removeItem(KEY)}catch(e){}
-    apply();
-    if(status)status.textContent=name?'Nombre del negocio guardado.':'Se mostrará Varelia como nombre predeterminado.';
+   btn.addEventListener('click',async()=>{
+    const name=clean(input?.value);
+    if(name.length===1){if(status)status.textContent='Escribe al menos 2 caracteres.';return}
+    if(name.length>60){if(status)status.textContent='El nombre puede tener hasta 60 caracteres.';return}
+    btn.disabled=true;
+    try{
+     const sb=sbClient();
+     if(sb){
+      const {data:s,error:se}=await sb.auth.getSession();if(se)throw se;
+      const user=s?.session?.user;
+      if(user){
+       const {data:p,error:pe}=await sb.from('profiles').select('business_id,role').eq('id',user.id).maybeSingle();if(pe)throw pe;
+       businessId=p?.business_id||'';role=p?.role||'';
+       if(businessId&&role==='owner'&&name){
+        const {error:be}=await sb.from('businesses').update({name}).eq('id',businessId);if(be)throw be;
+        const {error:ce}=await sb.from('public_catalogs').update({business_name:name}).eq('business_id',businessId);
+        if(ce)console.warn('El nombre se guardó, pero no se pudo actualizar el catálogo público',ce);
+        cloudName=name;
+       }else if(businessId&&role!=='owner'){
+        throw new Error('Solo la cuenta propietaria puede cambiar el nombre del negocio.');
+       }
+      }
+     }
+     apply(name||'Varelia');
+     if(status)status.textContent=name?'Nombre guardado'+(cloudName?' y sincronizado con la nube.': ' en este dispositivo.'):'Se restauró el nombre Varelia.';
+    }catch(e){
+     console.error('No se pudo guardar el nombre del negocio',e);
+     if(status)status.textContent='No se pudo guardar: '+String(e.message||e).slice(0,100);
+    }finally{btn.disabled=false}
    });
   }
-  apply();
+  loadCloudName();
+  const sb=sbClient();
+  if(sb?.auth?.onAuthStateChange)sb.auth.onAuthStateChange(()=>setTimeout(loadCloudName,100));
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
