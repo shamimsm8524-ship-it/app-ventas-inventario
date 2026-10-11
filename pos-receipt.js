@@ -1,4 +1,12 @@
 (()=>{
+  // The public catalog has its own order receipt and print/PDF actions.
+  // Never install the internal POS receipt module on that route: it can replace
+  // the public order data with an empty sale and print S/ 0.00.
+  try{
+    const path=String(location.pathname||'').toLowerCase();
+    const isPublicCatalog=path.includes('catalogo-publico')||path.startsWith('/catalogo/')||path.startsWith('/c/');
+    if(isPublicCatalog)return;
+  }catch{}
   if(window.__vareliaPosReceiptRestoredV102)return;
   if(window.__vareliaPosReceiptInitializing){
     let attempts=0;
