@@ -151,12 +151,14 @@
         };
       }
       function printReceipt(sale){
-        try{
-          if(window.VareliaAndroid&&typeof window.VareliaAndroid.printSaleReceipt==='function'){
-            window.VareliaAndroid.printSaleReceipt(JSON.stringify(nativeReceiptPayload(sale)));
-            return;
-          }
-        }catch(e){console.warn('Impresión nativa no disponible',e)}
+        const saleItems=Array.isArray(sale?.items)?sale.items:[];
+        let saleTotal=Number(sale?.total)||0;
+        if(saleTotal<=0) saleTotal=saleItems.reduce((sum,item)=>sum+(Number(item?.qty)||0)*(Number(item?.price)||0),0);
+        if(!saleItems.length||saleTotal<=0){
+          alert('No se imprimió el comprobante porque la venta no contiene productos o el total es S/ 0.00. Abre la venta guardada y vuelve a generar el comprobante.');
+          return;
+        }
+        if(Number(sale.total)!==saleTotal) sale={...sale,total:saleTotal};
         let w=null;
         try{w=window.open('','_blank','width=420,height=720')}catch{}
         // Android WebView suele bloquear window.open; usar un iframe imprimible como respaldo.
