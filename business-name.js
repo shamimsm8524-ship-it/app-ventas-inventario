@@ -60,7 +60,16 @@
     style.textContent=`
       .brand .logo{font-size:23px!important;font-weight:950!important;letter-spacing:-.06em;line-height:1}
       #vareliaAppName{max-width:min(52vw,420px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      @media(max-width:560px){.brand .logo{font-size:22px!important}#vareliaAppName{max-width:42vw}}
+      @media(max-width:560px){
+        .brand{align-items:center!important;gap:8px!important}
+        .brand .left{flex:1 1 auto!important;min-width:0!important;gap:8px!important}
+        .brand .left>div:last-child{flex:1 1 auto!important;min-width:0!important}
+        .brand .logo{flex:0 0 44px!important;font-size:22px!important}
+        #vareliaAppName{display:inline-block!important;max-width:100%!important;width:auto!important;font-size:clamp(15px,4.4vw,21px)!important;line-height:1.15!important;vertical-align:middle!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
+        #vareliaHeaderEditName{display:inline-block!important;margin-left:4px!important;padding:4px 6px!important;font-size:12px!important;vertical-align:middle!important}
+        .brand .meta{font-size:10px!important;line-height:1.35!important;margin-top:5px!important}
+        #newSaleTop{flex:0 0 auto!important;padding:12px 10px!important;font-size:12px!important;white-space:nowrap!important;border-radius:14px!important}
+      }
     `;
     document.head.appendChild(style);
 
