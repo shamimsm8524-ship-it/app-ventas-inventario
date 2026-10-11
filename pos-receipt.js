@@ -10,7 +10,7 @@
   if(window.__vareliaPosReceiptRestoredV102)return;
   if(window.__vareliaPosReceiptInitializing){
     let attempts=0;
-    const retry=setInterval(()=>{attempts++;if(window.VareliaReceipt){clearInterval(retry);return}if(!window.__vareliaPosReceiptInitializing||attempts>=60){clearInterval(retry);window.__vareliaPosReceiptInitializing=false;window.__vareliaPosReceipt=false;const script=document.createElement('script');script.src='pos-receipt.js?v=20261011-receipt-layout-v22&retry='+Date.now();document.head.appendChild(script)}},100);
+    const retry=setInterval(()=>{attempts++;if(window.VareliaReceipt){clearInterval(retry);return}if(!window.__vareliaPosReceiptInitializing||attempts>=60){clearInterval(retry);window.__vareliaPosReceiptInitializing=false;window.__vareliaPosReceipt=false;const script=document.createElement('script');script.src='pos-receipt.js?v=20261011-print-paper-fix-v24&retry='+Date.now();document.head.appendChild(script)}},100);
     return;
   }
   window.__vareliaPosReceiptInitializing=true;
