@@ -8,6 +8,37 @@
     if(!title)return;
     const logo=document.querySelector('.logo');
     if(logo){logo.textContent='VS';logo.title='Varelia Store';logo.setAttribute('aria-label','Varelia Store')}
+    const titleWrap=title.parentElement;
+    let visibleEdit=document.getElementById('vareliaHeaderEditName');
+    if(!visibleEdit&&titleWrap){
+      visibleEdit=document.createElement('button');
+      visibleEdit.type='button';visibleEdit.id='vareliaHeaderEditName';
+      visibleEdit.textContent='✏️';visibleEdit.title='Editar nombre del negocio';
+      visibleEdit.setAttribute('aria-label','Editar nombre del negocio');
+      visibleEdit.style.cssText='margin-left:6px;border:1px solid #bfdbfe;border-radius:9px;background:#eff6ff;color:#1d4ed8;padding:5px 8px;font-size:14px;vertical-align:middle;cursor:pointer';
+      title.insertAdjacentElement('afterend',visibleEdit);
+      visibleEdit.addEventListener('click',()=>{
+        const input=document.getElementById('businessBrandInput');
+        const save=document.getElementById('businessBrandSave');
+        if(input&&save){
+          const section=document.getElementById('appearance');
+          document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+          if(section)section.classList.add('active');
+          input.value=currentName==='Mi Negocio'?'':currentName;
+          input.focus();
+          section?.scrollIntoView({behavior:'smooth',block:'start'});
+          return;
+        }
+        const value=prompt('Nombre de tu negocio',currentName);
+        if(value===null)return;
+        const next=value.trim().replace(/\\s+/g,' ');
+        if(next.length<2||next.length>60){alert('Escribe un nombre de 2 a 60 caracteres.');return}
+        const input2=document.getElementById('businessBrandInput');
+        const save2=document.getElementById('businessBrandSave');
+        if(input2&&save2){input2.value=next;save2.click()}
+        else alert('No se encontró el formulario para guardar el nombre.');
+      });
+    }
     title.textContent='Varelia';
     title.id='vareliaAppName';
     document.title='Varelia Store';
