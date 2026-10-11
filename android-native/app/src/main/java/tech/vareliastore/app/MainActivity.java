@@ -208,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
 
                 String html = "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
                         + "<style>"
-                        + "@page{margin:3mm}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}"
+                        + "@page{size:80mm auto;margin:3mm}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}"
                         + "body{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}"
                         + ".paper{width:76mm;max-width:100%;margin:0 auto;padding:3mm 2.5mm}.logo{text-align:center;margin:0 0 2mm}.logo img{display:block;margin:0 auto;max-width:26mm;max-height:18mm;width:auto;height:auto;object-fit:contain}"
                         + "h2{text-align:center;margin:0;font-size:17px}.center{text-align:center}.muted{color:#555;font-size:9px;line-height:1.3}.sep{border-top:1px dashed #777;margin:2.2mm 0}"
