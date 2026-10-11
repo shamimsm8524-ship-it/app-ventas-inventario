@@ -94,7 +94,7 @@
       const money=v=>'S/ '+Number(v||0).toFixed(2);
       const businessSettings=()=>{try{return JSON.parse(localStorage.getItem(window.vareliaScopedLocalKey('varelia_video_settings_v1'))||'{}')}catch{return{}}};
       const businessName=()=>businessSettings().businessName||document.getElementById('vareliaBusinessName')?.textContent?.trim()||'Varelia Store';
-      const itemDescription=i=>{const d=String(i?.description||i?.detail||i?.details||'').trim();const c=Array.isArray(i?.characteristics)?i.characteristics.filter(Boolean).join(' · '):'';return d||c};
+      const itemDescription=i=>{const d=String(i?.description||i?.detail||i?.details||i?.specifications||i?.specification||'').trim();const raw=Array.isArray(i?.characteristics)?i.characteristics:[];const c=raw.map(x=>{if(typeof x==='string')return x.trim();if(x&&typeof x==='object')return [x.name,x.value??x.label].filter(Boolean).join(': ');return ''}).filter(Boolean).join(' · ');const variants=Array.isArray(i?.variants)?i.variants.map(x=>typeof x==='string'?x:[x?.name,x?.value??x?.label].filter(Boolean).join(': ')).filter(Boolean).join(' · '):'';return [d,c,variants].filter(Boolean).join(' · ')};
       const ticketNo=sale=>sale.receiptNumber||('V-'+String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-10).toUpperCase());
       const dateText=sale=>new Date(sale.date||Date.now()).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'});
       let currentReceipt=null;
