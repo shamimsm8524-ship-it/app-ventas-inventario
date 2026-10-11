@@ -88,7 +88,7 @@
       overlay.innerHTML='<div class="vreceiptCard"><div class="vreceiptHead"><h2>Comprobante de venta</h2><button type="button" class="vreceiptClose" aria-label="Cerrar">×</button></div><div id="vreceiptPreview"></div><div class="vreceiptActions"><button type="button" class="vreceiptPrimary" id="vreceiptPrint">🖨️ Imprimir</button><button type="button" class="vreceiptSecondary" id="vreceiptPdf">📄 Descargar PDF</button><button type="button" class="vreceiptSecondary" id="vreceiptWhatsApp">🟢 Enviar por WhatsApp</button><button type="button" class="vreceiptSecondary vreceiptCloseAction" id="vreceiptCloseAction">Cerrar</button></div></div>';
       document.body.appendChild(overlay);
       const preview=overlay.querySelector('#vreceiptPreview');
-      overlay.querySelector('.vreceiptClose').onclick=()=>overlay.classList.remove('show');
+      const closeReceipt=()=>{overlay.classList.remove('show');};overlay.querySelector('.vreceiptClose').onclick=closeReceipt;overlay.querySelector('#vreceiptCloseAction').onclick=closeReceipt;overlay.addEventListener('click',e=>{if(e.target===overlay)closeReceipt()});document.addEventListener('keydown',e=>{if(e.key==='Escape'&&overlay.classList.contains('show'))closeReceipt()});
       overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.classList.remove('show')});
       const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const money=v=>'S/ '+Number(v||0).toFixed(2);
@@ -269,7 +269,7 @@
       };
       overlay.querySelector('#vreceiptPrint').onclick=()=>currentReceipt&&printReceipt(currentReceipt);
       overlay.querySelector('#vreceiptWhatsApp').onclick=()=>currentReceipt&&shareReceipt(currentReceipt);
-      overlay.querySelector('#vreceiptCloseAction').onclick=()=>overlay.classList.remove('show');
+      
 
       // No registrar listeners globales duplicados: la descarga se ejecuta solo
       // desde el botón del comprobante y no debe abrir muros Premium.
