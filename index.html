@@ -1460,6 +1460,16 @@ if(window.settingsMenu&&window.settingsGroup) settingsMenu.onclick=()=>settingsG
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
 </script>
-</body></html>
+<style id="vareliaPrimaryBlueFixV2">
+/* Keep primary action buttons blue and consistent across desktop and mobile layouts. */
+:root{--p:#2563eb;--p2:#1d4ed8}
+button.primary,.btn.primary,.primary,#newProduct,#inventoryNewProduct,#newSaleTop,#businessBrandSave,
+#vmobileNav button.active,.vmobileNav button.active,.mobileNav button.active{
+ background:#2563eb!important;background-image:none!important;color:#fff!important;border-color:#2563eb!important;
+}
+button.primary:hover,.btn.primary:hover,.primary:hover,#newProduct:hover,#inventoryNewProduct:hover,#newSaleTop:hover,#businessBrandSave:hover{
+ background:#1d4ed8!important;border-color:#1d4ed8!important;
+}
+</style></body></html>
 
 <style id="vareliaBlueBrandV1">#newSaleTop{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important}#newSaleTop:hover{background:#1d4ed8!important;border-color:#1d4ed8!important}#newSaleTop:active{background:#1e40af!important}</style>
