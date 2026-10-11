@@ -85,7 +85,7 @@
       document.getElementById('vreceiptOverlay')?.remove();
       const overlay=document.createElement('div');
       overlay.className='vreceiptOverlay';overlay.id='vreceiptOverlay';
-      overlay.innerHTML='<div class="vreceiptCard"><div class="vreceiptHead"><h2>Comprobante de venta</h2><button type="button" class="vreceiptClose" aria-label="Cerrar">×</button></div><div id="vreceiptPreview"></div><div class="vreceiptActions"><button type="button" class="vreceiptPrimary" id="vreceiptPrint">🖨️ Imprimir</button><button type="button" class="vreceiptPrimary" id="vreceiptImage">🖼️ Descargar imagen</button><button type="button" class="vreceiptSecondary" id="vreceiptPdf">📄 Descargar PDF</button><button type="button" class="vreceiptSecondary" id="vreceiptWhatsApp">🟢 Enviar por WhatsApp</button><button type="button" class="vreceiptSecondary vreceiptCloseAction" id="vreceiptCloseAction">Cerrar</button></div></div>';
+      overlay.innerHTML='<div class="vreceiptCard"><div class="vreceiptHead"><h2>Comprobante de venta</h2><button type="button" class="vreceiptClose" aria-label="Cerrar">×</button></div><div id="vreceiptPreview"></div><div class="vreceiptActions"><button type="button" class="vreceiptPrimary" id="vreceiptPrint">🖨️ Imprimir</button><button type="button" class="vreceiptSecondary" id="vreceiptPdf">📄 Descargar PDF</button><button type="button" class="vreceiptSecondary" id="vreceiptWhatsApp">🟢 Enviar por WhatsApp</button><button type="button" class="vreceiptSecondary vreceiptCloseAction" id="vreceiptCloseAction">Cerrar</button></div></div>';
       document.body.appendChild(overlay);
       const preview=overlay.querySelector('#vreceiptPreview');
       overlay.querySelector('.vreceiptClose').onclick=()=>overlay.classList.remove('show');
