@@ -85,7 +85,7 @@
       document.getElementById('vreceiptOverlay')?.remove();
       const overlay=document.createElement('div');
       overlay.className='vreceiptOverlay';overlay.id='vreceiptOverlay';
-      overlay.innerHTML='<div class="vreceiptCard"><div class="vreceiptHead"><h2>Comprobante de venta</h2><button type="button" class="vreceiptClose" aria-label="Cerrar">×</button></div><div id="vreceiptPreview"></div><div class="vreceiptActions"><button type="button" class="vreceiptPrimary" id="vreceiptPrint">🖨️ Imprimir</button><button type="button" class="vreceiptSecondary" id="vreceiptPdf">📄 Descargar PDF</button><button type="button" class="vreceiptSecondary" id="vreceiptWhatsApp">🟢 Enviar por WhatsApp</button><button type="button" class="vreceiptSecondary vreceiptCloseAction" id="vreceiptCloseAction">Cerrar</button></div></div>';
+      overlay.innerHTML='<div class="vreceiptCard"><div class="vreceiptHead"><h2>Comprobante de venta</h2><button type="button" class="vreceiptClose" aria-label="Cerrar">×</button></div><div id="vreceiptPreview"></div><div class="vreceiptActions"><button type="button" class="vreceiptPrimary" id="vreceiptImage">🖼️ Descargar imagen</button><button type="button" class="vreceiptSecondary" id="vreceiptPdf">📄 Descargar PDF</button><button type="button" class="vreceiptSecondary" id="vreceiptWhatsApp">🟢 Enviar por WhatsApp</button><button type="button" class="vreceiptSecondary vreceiptCloseAction" id="vreceiptCloseAction">Cerrar</button></div></div>';
       document.body.appendChild(overlay);
       const preview=overlay.querySelector('#vreceiptPreview');
       overlay.querySelector('.vreceiptClose').onclick=()=>overlay.classList.remove('show');
@@ -245,7 +245,32 @@
         if(navigator.share){try{await navigator.share({title:'Comprobante '+ticketNo(sale),text});return}catch(e){if(e?.name==='AbortError')return}}
         window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
       }
-      overlay.querySelector('#vreceiptPrint').onclick=()=>currentReceipt&&printReceipt(currentReceipt);
+      overlay.querySelector('#vreceiptImage').onclick=async()=>{
+        if(!currentReceipt)return;
+        const b=overlay.querySelector('#vreceiptImage'),oldLabel=b.textContent;
+        b.disabled=true;b.textContent='Preparando imagen…';
+        try{
+          if(!window.html2canvas){
+            await new Promise((resolve,reject)=>{
+              const s=document.createElement('script');
+              s.src='https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+              s.onload=resolve;s.onerror=()=>reject(new Error('No se pudo cargar el generador de imágenes'));
+              document.head.appendChild(s);
+            });
+          }
+          const paper=preview.querySelector('.vreceiptPaper');
+          if(!paper)throw new Error('Comprobante no encontrado');
+          const canvas=await window.html2canvas(paper,{scale:3,backgroundColor:'#ffffff',useCORS:true});
+          const data=canvas.toDataURL('image/png');
+          const filename='comprobante-'+ticketNo(currentReceipt)+'.png';
+          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function'){
+            window.VareliaAndroid.saveDataUrl(data,filename);
+          }else{
+            const a=document.createElement('a');a.href=data;a.download=filename;a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();
+          }
+        }catch(err){console.error(err);alert('No se pudo descargar la imagen. Inténtalo otra vez.')}
+        finally{b.disabled=false;b.textContent=oldLabel}
+      };
       // Interceptar en captura para impedir que un listener externo abra el muro Premium. El PDF es una función local y gratuita.
       document.addEventListener('click',function(e){const b=e.target&&e.target.closest?e.target.closest('#vreceiptPdf'):null;if(!b||!currentReceipt)return;e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();if(window.__vareliaReceiptDownloadBusy)return;window.__vareliaReceiptDownloadBusy=true;const label=b.textContent;b.disabled=true;b.textContent='Preparando PDF…';Promise.resolve(window.__vareliaDownloadCurrentReceipt?window.__vareliaDownloadCurrentReceipt():window.VareliaReceipt?.pdf?.(currentReceipt)).catch(err=>{console.error(err);alert('No se pudo guardar el PDF. Usa Imprimir y elige Guardar como PDF.')}).finally(()=>{b.disabled=false;b.textContent=label;setTimeout(()=>{window.__vareliaReceiptDownloadBusy=false},350)});},true);
       const receiptPdfButton=overlay.querySelector('#vreceiptPdf');
