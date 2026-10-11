@@ -195,8 +195,15 @@
     };
     ensureNativePaymentPicker(sel,methods);
     const mt=document.getElementById('vpayMixedToggle');
-    if(mt&&!mt.dataset.bound){mt.dataset.bound='1';mt.onchange=renderPaymentDetail;}
-    renderPaymentDetail();
+    if(mt&&!mt.dataset.bound){mt.dataset.bound='1';mt.onchange=()=>{const detail=document.getElementById('vareliaPaymentDetail');if(detail)delete detail.dataset.renderState;renderPaymentDetail();};}
+    // Do not rebuild the payment input on every polling pass: the old behavior
+    // replaced the field repeatedly and made typing the received amount impossible.
+    const detail=document.getElementById('vareliaPaymentDetail');
+    const renderState=sel.value+'|'+!!mt?.checked;
+    if(detail&&detail.dataset.renderState!==renderState){
+      detail.dataset.renderState=renderState;
+      renderPaymentDetail();
+    }
     return true;
   }
 
