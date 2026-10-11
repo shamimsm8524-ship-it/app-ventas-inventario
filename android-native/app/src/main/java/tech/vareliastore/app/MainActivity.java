@@ -540,13 +540,19 @@ public class MainActivity extends AppCompatActivity {
                         + "})();";
                 view.evaluateJavascript(brandJs, null);
 
+                // Do not inject the internal POS receipt module into public catalog/order pages.
+                // Those pages own their order receipt; loading pos-receipt.js overwrites
+                // window.VareliaReceipt and can print an empty internal sale (S/ 0.00).
                 String receiptJs = "(function(){"
                         + "try{"
+                        + "var p=String(location.pathname||'').toLowerCase();"
+                        + "var publicOrderPage=p.includes('catalogo-publico')||p.startsWith('/catalogo/');"
+                        + "if(publicOrderPage)return;"
                         + "window.__vareliaAutoTicketPrintV1=true;"
                         + "if(!window.VareliaReceipt&&!document.getElementById('vareliaNativeReceiptLoader')){"
                         + "var s=document.createElement('script');"
                         + "s.id='vareliaNativeReceiptLoader';"
-                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261009-receipt-fix-v16&ts='+Date.now();"
+                        + "s.src='https://vareliastore.tech/pos-receipt.js?v=20261009-receipt-fix-v17&ts='+Date.now();"
                         + "document.head.appendChild(s);"
                         + "}"
                         + "}catch(e){console.error(e);}"
