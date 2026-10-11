@@ -1434,7 +1434,7 @@ if(window.settingsMenu&&window.settingsGroup) settingsMenu.onclick=()=>settingsG
 <script id="vareliaBusinessBrandSettingV1">
 (function(){
  const KEY='varelia_business_display_name_v1';
- function clean(v){return String(v||'').trim().replace(/\\s+/g,' ').slice(0,60)}
+ function clean(v){return String(v||'').trim().replace(/\s+/g,' ').slice(0,60)}
  function apply(){
   let name='';try{name=clean(localStorage.getItem(KEY))}catch(e){}
   const h=document.querySelector('.brand h1');
