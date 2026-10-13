@@ -579,7 +579,7 @@
       grid.appendChild(card);
     };
     metric('Total vendido',money(summary.revenue),false);
-    metric('Tickets generados',String(summary.count),false);
+    metric('Ventas realizadas',String(summary.count),false);
     box.appendChild(grid);
     const section=(label)=>{
       const h=line('h3',label,'font-size:19px;margin:23px 0 8px;font-weight:900;');
