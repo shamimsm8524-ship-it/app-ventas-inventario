@@ -1516,6 +1516,36 @@ button.primary:hover,.btn.primary:hover,.primary:hover,#newProduct:hover,#invent
  background:#1d4ed8!important;border-color:#1d4ed8!important;
 }
 </style><style id="vareliaBlueVSFix">.brand .logo{background:#2563eb!important;background-image:none!important;color:#fff!important;box-shadow:0 8px 20px rgba(37,99,235,.25)!important}</style>
+<script id="vareliaInteractionRecoveryV1">
+(()=>{if(window.__vareliaInteractionRecoveryV1)return;window.__vareliaInteractionRecoveryV1=true;
+const mobile=()=>matchMedia('(max-width: 980px)').matches;
+const interactive='button,a,input,select,textarea,[role="button"],[data-view],[data-mobile-tab]';
+function recoverAt(x,y,evt){
+ if(!mobile())return;
+ let stack=[];try{stack=document.elementsFromPoint(x,y)}catch{return}
+ if(stack.length<2)return;
+ const top=stack[0];if(!top||top.matches?.(interactive)||top.closest?.(interactive))return;
+ const cs=getComputedStyle(top),r=top.getBoundingClientRect();
+ if(cs.position!=='fixed'&&cs.position!=='absolute')return;
+ if(r.width<innerWidth*.65||r.height<innerHeight*.35)return;
+ if(top.closest?.('[role="dialog"],dialog,[aria-modal="true"]'))return;
+ const old=top.style.pointerEvents;top.style.pointerEvents='none';
+ let under=null;try{under=document.elementFromPoint(x,y)}catch{}
+ top.style.pointerEvents=old;
+ const target=under?.closest?.(interactive);
+ if(!target||target.disabled||target.getAttribute('aria-disabled')==='true')return;
+ if(evt){evt.preventDefault();evt.stopPropagation();if(evt.stopImmediatePropagation)evt.stopImmediatePropagation()}
+ try{target.click()}catch(err){console.warn('Varelia tap recovery',err)}
+}
+document.addEventListener('pointerdown',e=>{if(e.isPrimary!==false)recoverAt(e.clientX,e.clientY,e)},true);
+function mobileNavFix(){
+ if(!mobile())return;
+ const nav=document.getElementById('vmobileNav')||document.querySelector('.vmobileNav');
+ if(nav){nav.style.setProperty('z-index','2147483000','important');nav.style.setProperty('pointer-events','auto','important');nav.querySelectorAll('button').forEach(b=>{b.style.setProperty('pointer-events','auto','important');b.style.setProperty('touch-action','manipulation','important')})}
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mobileNavFix,{once:true});else mobileNavFix();
+window.addEventListener('resize',mobileNavFix);window.addEventListener('pageshow',mobileNavFix);
+})();</script>
 </body></html>
 
 <style id="vareliaBlueBrandV1">#newSaleTop{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important}#newSaleTop:hover{background:#1d4ed8!important;border-color:#1d4ed8!important}#newSaleTop:active{background:#1e40af!important}</style>
