@@ -81,7 +81,7 @@
 })();
 </script>
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261013-REPORT-TICKET-UNITS-V6-READER-POLL-FIX';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261013-REPORT-TICKET-UNITS-V7-BOTTOM-BAR-FIX';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <script>
 try{if(new URL(location.href).searchParams.has('native_app'))window.__vareliaNativePdfHookV2=true}catch{}
@@ -1435,6 +1435,16 @@ if(window.settingsMenu&&window.settingsGroup) settingsMenu.onclick=()=>settingsG
  window.addEventListener('focus',()=>{if(document.getElementById('profit')?.classList.contains('active'))renderProfit()});
 })();
 </script>
+<style id="vareliaBottomBarOverflowFixV1">
+@media(max-width:980px){
+  html body.varelia-simple-mobile #newSaleFab,
+  html body.varelia-simple-mobile .fab,
+  html body #newSaleFab{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important}
+  html body.varelia-simple-mobile main.content{padding-bottom:104px!important}
+  html body.varelia-simple-mobile .vmobileHub{padding-bottom:12px!important}
+  html body.varelia-simple-mobile #vmobileNav{bottom:0!important;inset-inline:0!important;transform:none!important;margin:0!important;border-radius:0!important}
+}
+</style>
 <style id="vareliaKeepBottomMenuOnly">@media(max-width:980px){#sidebar,#overlay,#menuBtn{display:none!important}body{padding-bottom:0!important}.vmobileNav{display:grid!important}}</style>
 <script src="/simple-mobile-nav.js?v=20261009-bottom-nav-final"></script>
 <script id="vareliaBusinessBrandSettingV2">
