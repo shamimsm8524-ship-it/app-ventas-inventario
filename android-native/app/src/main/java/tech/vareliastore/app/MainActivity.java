@@ -122,7 +122,9 @@ public class MainActivity extends AppCompatActivity {
                 String method = escHtml(data.optString("method", "Efectivo"));
                 String seller = escHtml(data.optString("seller", ""));
                 String customer = escHtml(data.optString("customer", ""));
-                String thermalWidth = data.optString("thermalWidth", "80");
+                String thermalWidth = "58".equals(data.optString("thermalWidth", "80")) ? "58" : "80";
+                int paperWidth = "58".equals(thermalWidth) ? 52 : 76;
+                int pageWidth = "58".equals(thermalWidth) ? 58 : 80;
                 double total = data.optDouble("total", 0);
                 if (total <= 0 && items != null) {
                     double itemsTotal = 0;
@@ -208,9 +210,9 @@ public class MainActivity extends AppCompatActivity {
 
                 String html = "<!doctype html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>"
                         + "<style>"
-                        + "@page{size:80mm auto;margin:3mm}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}"
+                        + "@page{size:" + pageWidth + "mm auto;margin:2mm}*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff}"
                         + "body{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}"
-                        + ".paper{width:76mm;max-width:100%;margin:0 auto;padding:3mm 2.5mm}.logo{text-align:center;margin:0 0 2mm}.logo img{display:block;margin:0 auto;max-width:26mm;max-height:18mm;width:auto;height:auto;object-fit:contain}"
+                        + ".paper{width:" + paperWidth + "mm;max-width:100%;margin:0 auto;padding:2mm 1.5mm}.logo{text-align:center;margin:0 0 2mm}.logo img{display:block;margin:0 auto;max-width:" + ("58".equals(thermalWidth) ? "20" : "26") + "mm;max-height:18mm;width:auto;height:auto;object-fit:contain}"
                         + "h2{text-align:center;margin:0;font-size:17px}.center{text-align:center}.muted{color:#555;font-size:9px;line-height:1.3}.sep{border-top:1px dashed #777;margin:2.2mm 0}"
                         + ".line,.item,.total{display:flex;justify-content:space-between;gap:2mm;margin:1.4mm 0;align-items:flex-start;font-size:10px}.item small{display:block;color:#555;margin-top:.7mm;font-size:9px}.item small.detail{font-size:8.5px;white-space:normal;overflow-wrap:anywhere}"
                         + ".total{font-size:17px;font-weight:900;margin-top:2mm}.note{text-align:center;font-size:8px;line-height:1.35;margin-top:3mm;color:#555}"
