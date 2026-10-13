@@ -443,7 +443,7 @@
   function reportHistorySummary(){
     const labels=[...document.querySelectorAll('small,span,p,div')].filter(x=>x.children.length===0);
     const match=labels.find(x=>/^(venta total acumulada|total vendido hoy|total vendido)$/i.test(x.textContent.trim()));
-    const tickets=labels.find(x=>/^(transacciones|tickets generados)$/i.test(x.textContent.trim()));
+    const tickets=labels.find(x=>/^(transacciones|ventas realizadas|tickets generados)$/i.test(x.textContent.trim()));
     const read=(el,pattern)=>{
       if(!el)return NaN;
       for(let e=el.parentElement,i=0;e&&i<4;e=e.parentElement,i++){
@@ -580,7 +580,6 @@
     };
     metric('Total vendido',money(summary.revenue),false);
     metric('Tickets generados',String(summary.count),false);
-    metric('Importe promedio por ticket',money(summary.average),true);
     box.appendChild(grid);
     const section=(label)=>{
       const h=line('h3',label,'font-size:19px;margin:23px 0 8px;font-weight:900;');
@@ -604,12 +603,41 @@
       box.appendChild(row);
     }
   }
+  // El usuario prefiere la cantidad de ventas, no el promedio monetario por ticket.
+  // Ocultar SOLO esa tarjeta del resumen principal; no tocar los datos de las ventas.
+  function simplifyHistoryTickets(){
+    const labels=[...document.querySelectorAll('small,span,p,div,label')].filter(el=>
+      el.childElementCount===0&&el.textContent.trim()==='Ticket promedio'&&
+      !el.closest('dialog,[role="dialog"],[data-report-synced],[data-report-original]'));
+    for(const label of labels){
+      let card=null;
+      for(let e=label.parentElement,steps=0;e&&e!==document.body&&steps<8;e=e.parentElement,steps++){
+        const content=String(e.textContent||'').trim();
+        if(/Venta total acumulada|Transacciones|Ventas realizadas|Fiado pendiente|Desglose por método de pago|Métodos de pago/i.test(content))break;
+        if(content.includes('Ticket promedio')&&/S\/\s*[\d.,]+/.test(content))card=e;
+      }
+      if(card&&card!==document.body&&card.dataset.vareliaAverageHidden!=='true'){
+        card.dataset.vareliaAverageHidden='true';
+        card.style.setProperty('display','none','important');
+      }
+    }
+    const counter=[...document.querySelectorAll('small,span,p,div,label')].filter(el=>
+      el.childElementCount===0&&el.textContent.trim()==='Transacciones'&&
+      !el.closest('dialog,[role="dialog"],[data-report-synced],[data-report-original]'));
+    for(const label of counter){
+      label.textContent='Ventas realizadas';
+    }
+  }
   function reportWatchPopup(){
     let scheduled=false;
     function update(){
       if(scheduled)return;
       scheduled=true;
-      requestAnimationFrame(()=>{scheduled=false;reportEnhancePopup()});
+      requestAnimationFrame(()=>{
+        scheduled=false;
+        simplifyHistoryTickets();
+        reportEnhancePopup();
+      });
     }
     const ob=new MutationObserver(update);
     ob.observe(document.body,{childList:true,subtree:true});
