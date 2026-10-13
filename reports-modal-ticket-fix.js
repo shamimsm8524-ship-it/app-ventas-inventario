@@ -1,7 +1,7 @@
 (function(){
   'use strict';
   if (window.__vareliaReportTicketFixV2) return;
-  window.__vareliaReportTicketFixV1 = true;
+  window.__vareliaReportTicketFixV2 = true;
 
   const normalize = value => String(value == null ? '' : value)
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -85,18 +85,20 @@
       (Array.isArray(sale.items) ? sale.items : []).forEach(item => {
         const productId = item.id != null ? item.id :
           (item.productId != null ? item.productId : item.product_id);
-        const product = products.find(p => productId != null && String(p.id) === String(productId));
+        const normalizedItemName = normalize(item.name || item.productName || item.product_name || '');
+        const product = products.find(p => productId != null && String(p.id) === String(productId)) ||
+          products.find(p => normalizedItemName && normalize(p.name || p.nombre || '') === normalizedItemName);
         const name = String(item.name || product?.name || 'Producto').trim();
         const rawQty = item.qty != null ? item.qty :
           (item.quantity != null ? item.quantity : (item.cantidad != null ? item.cantidad : 1));
         const qty = Number(rawQty) || 0;
-        const rawUnit = String(item.unit || item.saleUnit || item.sale_unit || item.unitType ||
+        const rawUnit = String(item.unit || item.saleUnit || item.sale_unit || item.unitType || item.unitLabel || item.unit_label || item.measure || item.medida ||
           item.measureUnit || item.measure_unit || item.quantityUnit || item.presentation ||
           item.saleUnitName || item.unitName || item.unidadMedida ||
           product?.unit || product?.saleUnit || product?.sale_unit || product?.unitType ||
           product?.measureUnit || product?.measure_unit || product?.quantityUnit ||
           product?.presentation || product?.unidad || product?.unidades ||
-          product?.saleUnitName || product?.unitName || product?.unidadMedida || '').trim();
+          product?.saleUnitName || product?.unitName || product?.unidadMedida || product?.unitLabel || product?.unit_label || product?.measure || product?.medida || '').trim();
         const unit = normalize(rawUnit).replace(/[.]/g, '');
         const unitAliases = {
           'kg':'kg','kilo':'kg','kilos':'kg','kilogramo':'kg','kilogramos':'kg',
