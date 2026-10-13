@@ -626,7 +626,10 @@
       const entries=breakdown&&typeof breakdown==='object'&&!Array.isArray(breakdown)
         ?Object.entries(breakdown).filter(([,value])=>Number.isFinite(Number(value))&&Number(value)>0):[];
       const method=String(sale.paymentMethod??sale.payment_method??'').trim();
-      if(entries.length){
+      if(method==='Fiado'){
+        // El crédito es venta, pero NO constituye un cobro.
+        // Los abonos se contabilizarán por separado al tener su método registrado.
+      }else if(entries.length){
         let paidCents=0;
         for(const [name,value] of entries){
           const partCents=cents(value);
