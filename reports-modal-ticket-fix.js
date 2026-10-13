@@ -129,8 +129,7 @@
   function displayProductQuantity(info) {
     const unit = normalize(info.unitKind || info.unit || 'unidad');
     if (unit === 'g' || unit === 'gramo' || unit === 'gramos') {
-      const grams = info.qty * (info.qty <= 100 ? 1000 : 1);
-      return numberText(grams) + ' g';
+      return numberText(info.qty) + ' g';
     }
     if (unit === 'kg' || info.weighted) {
       if (info.qty > 0 && info.qty < 1) return numberText(info.qty * 1000) + ' g';
