@@ -798,6 +798,14 @@
         reportEnhancePopup();
       });
     }
+    // La ventana de Reportes se genera una sola vez. Las ventas cambian en
+    // memoria después de cobrar, sin que el DOM cambie necesariamente.
+    // Mientras se visualiza, recalcular las cifras locales de esta cuenta.
+    const reportIsOpen=()=>{
+      const modal=document.getElementById('vareliaHistoryExtraModal');
+      return !!(modal&&modal.isConnected&&modal.querySelector('h2')?.textContent?.includes('Reportes'));
+    };
+    const refreshReport=()=>{if(reportIsOpen())update()};
     const ob=new MutationObserver(update);
     ob.observe(document.body,{childList:true,subtree:true});
     document.addEventListener('click',ev=>{
@@ -810,6 +818,26 @@
     document.addEventListener('change',ev=>{
       if(ev.target?.matches?.('input[type="date"]'))requestAnimationFrame(update);
     },true);
+    // Primera pasada al confirmar la venta, y otra cuando el ticket ya terminó
+    // de guardar el medio de pago (Yape, Plin, efectivo, etc.).
+    window.addEventListener('varelia:sale-recorded',()=>{
+      refreshReport();
+      setTimeout(refreshReport,160);
+      setTimeout(refreshReport,650);
+    });
+    window.addEventListener('storage',event=>{
+      if(String(event.key||'').includes('miNegocio_sales_v1'))refreshReport();
+    });
+    window.addEventListener('focus',refreshReport);
+    window.addEventListener('pageshow',refreshReport);
+    document.addEventListener('visibilitychange',()=>{
+      if(document.visibilityState==='visible')refreshReport();
+    });
+    // Respaldo para cobros que actualizan el arreglo de ventas sin emitir eventos.
+    // No llama a Supabase ni mezcla el historial de ninguna otra caja.
+    setInterval(()=>{
+      if(document.visibilityState==='visible')refreshReport();
+    },2000);
     update();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',reportWatchPopup);
