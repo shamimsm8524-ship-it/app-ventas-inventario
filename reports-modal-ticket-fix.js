@@ -205,7 +205,8 @@
       if (!sales.length) return;
       const tickets = generatedTicketSales(sales);
       const ticketCount = tickets.length || sales.length;
-      const totalSales = sales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
+      // Promedio real: sumar los importes de los tickets únicos, no filas duplicadas de ventas.
+      const totalSales = (tickets.length ? tickets : sales).reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
       if (ticketCount > 0) {
         setValueBesideLabel(modal, 'Ticket promedio', /^S\/\s*[\d,.]+$/i,
           money(totalSales / ticketCount));
