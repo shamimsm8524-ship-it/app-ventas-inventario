@@ -81,11 +81,48 @@
     return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
       !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
   }
-  function gainSalesPeriod(salesList,period,now=new Date()){
+  // Leer la fecha escogida en Historial, no la fecha de hoy ni la de un ticket.
+  function gainHistoryDate(){
+    const months=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const pattern=/^(?:📅\s*|🗓️\s*)?(\d{1,2})\s+de\s+([a-záéíóúñ]+)\s+de\s+(\d{4})$/i;
+    const valid=(year,month,day)=>{
+      const y=Number(year),m=Number(month),d=Number(day);
+      const dt=new Date(y,m-1,d);
+      return dt.getFullYear()===y&&dt.getMonth()===m-1&&dt.getDate()===d
+        ?[String(y),String(m).padStart(2,'0'),String(d).padStart(2,'0')].join('-'):'';
+    };
+    const elements=document.querySelectorAll('button,[role="button"],label,span,strong,div');
+    for(const element of elements){
+      if(element.closest('[data-gain-date-picker],[data-gain-period-buttons],[data-report-synced],[data-gain-per-product]'))continue;
+      const value=String(element.textContent||'').trim().replace(/\s+/g,' ');
+      if(value.length>56)continue;
+      const match=value.match(pattern);
+      if(!match)continue;
+      const index=months.indexOf(match[2].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,''));
+      if(index>=0){
+        const result=valid(match[3],index+1,match[1]);
+        if(result)return result;
+      }
+    }
+    // Cuando el botón muestra únicamente "Día", el calendario puede guardar
+    // la selección en un input o un atributo data-*.
+    for(const field of document.querySelectorAll('input[type="date"]')){
+      if(field.closest('[data-gain-date-picker],#profit,[data-report-synced]'))continue;
+      const value=String(field.value||'');
+      if(/^\d{4}-\d{2}-\d{2}$/.test(value)&&valid(...[value.slice(0,4),value.slice(5,7),value.slice(8,10)]))return value;
+    }
+    return '';
+  }
+  function gainSalesPeriod(salesList,period,now=new Date(),chosenDay=''){
     if(period==='all')return salesList;
     return salesList.filter(s=>{
       const date=new Date(s.date??s.created_at??s.createdAt??'');
       if(!Number.isFinite(date.getTime()))return false;
+      if(period==='day'){
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(chosenDay))return false;
+        const iso=[date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),String(date.getDate()).padStart(2,'0')].join('-');
+        return iso===chosenDay;
+      }
       if(date.getFullYear()!==now.getFullYear())return false;
       if(period==='month')return date.getMonth()===now.getMonth();
       return date.getMonth()===now.getMonth()&&date.getDate()===now.getDate();
@@ -222,7 +259,17 @@
         const gain=leaves.find(child=>child.textContent.trim()==='Ganancia estimada');
         if(rev&&gain){panel=e;revenueLabel=rev;gainLabel=gain;break}
       }
-      if(!panel||panel.querySelector('[data-gain-period-buttons]'))continue;
+      if(!panel)continue;
+      if(panel.querySelector('[data-gain-period-buttons]')){
+        const selected=reportHistoryFilter();
+        const day=selected.mode==='day'?(gainHistoryDate()||selected.date||''):'';
+        const marker=selected.mode+':'+day;
+        if(marker!==panel.dataset.gainHistoryMarker){
+          panel.dataset.gainHistoryMarker=marker;
+          if(typeof panel.__gainUseHistoryDate==='function')panel.__gainUseHistoryDate(selected,day);
+        }
+        continue;
+      }
       const findCard=(label,otherLabel)=>{
         for(let e=label.parentElement,depth=0;e&&e!==panel&&depth<6;e=e.parentElement,depth++){
           if(e.contains(otherLabel))return null;
@@ -238,9 +285,27 @@
         el.children.length===0&&/S\/\s*[\d.,]+/.test(el.textContent||''));
       const revValue=numberLeaf(revenueCard),gainValue=numberLeaf(gainCard);
       if(!revValue||!gainValue)continue;
+      const selectedHistory=reportHistoryFilter();
+      let chosenDay=selectedHistory.mode==='day'?(gainHistoryDate()||selectedHistory.date||''):'';
+      let activePeriod=selectedHistory.mode==='day'?'day':
+        selectedHistory.mode==='today'?'today':
+        selectedHistory.mode==='month'?'month':
+        selectedHistory.mode==='all'?'all':'today';
+      const dateBar=document.createElement('div');
+      dateBar.dataset.gainDatePicker='true';
+      dateBar.style.cssText='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:12px 0 7px;width:100%;box-sizing:border-box;min-width:0;';
+      const dateLabel=document.createElement('label');
+      dateLabel.textContent='📅 Día elegido';
+      dateLabel.style.cssText='font-size:13px;font-weight:800;color:#555;';
+      const dateInput=document.createElement('input');
+      dateInput.type='date';
+      dateInput.setAttribute('aria-label','Fecha para calcular ganancias');
+      dateInput.style.cssText='border:1px solid #ddd;border-radius:12px;padding:10px 8px;max-width:100%;min-width:0;background:#fff;color:#333;font-size:14px;box-sizing:border-box;';
+      dateInput.value=chosenDay||[new Date().getFullYear(),String(new Date().getMonth()+1).padStart(2,'0'),String(new Date().getDate()).padStart(2,'0')].join('-');
+      dateBar.append(dateLabel,dateInput);
       const selector=document.createElement('div');
       selector.dataset.gainPeriodButtons='true';
-      selector.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;width:100%;min-width:0;margin:12px 0 16px;box-sizing:border-box;';
+      selector.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;width:100%;min-width:0;margin:5px 0 16px;box-sizing:border-box;';
       const buttons=[['today','Hoy'],['month','Este mes'],['all','Todo']].map(([value,title])=>{
         const btn=document.createElement('button');
         btn.type='button';btn.dataset.gainPeriod=value;btn.textContent=title;
@@ -269,15 +334,16 @@
       const itemsBox=document.createElement('div');
       itemsBox.style.cssText='display:grid;gap:11px;max-height:350px;overflow-y:auto;min-width:0;';
       detail.append(title,itemsBox);
-      row.insertAdjacentElement('beforebegin',selector);
+      row.insertAdjacentElement('beforebegin',dateBar);
+      dateBar.insertAdjacentElement('afterend',selector);
       row.insertAdjacentElement('afterend',extras);
       extras.insertAdjacentElement('afterend',sourceNote);
       sourceNote.insertAdjacentElement('afterend',detail);
-      let activePeriod='all',lastRenderSource='';
+      panel.dataset.gainHistoryMarker=selectedHistory.mode+':'+(chosenDay||'');
       const draw=()=>{
         if(!document.contains(selector))return;
         const usingCloud=Array.isArray(gainCloud.sales);
-        const periodSales=gainSalesPeriod(usingCloud?gainCloud.sales:gainValidSales(),activePeriod);
+        const periodSales=gainSalesPeriod(usingCloud?gainCloud.sales:gainValidSales(),activePeriod,new Date(),chosenDay);
         const result=gainProductSummary(periodSales);
         const complete=result.missing===0;
         revValue.textContent=money(result.revenue);
@@ -288,11 +354,14 @@
         costCard.amount.textContent=complete?money(result.cost):'Sin datos';
         avgCard.caption.textContent='Costo promedio por venta'+suffix;
         avgCard.amount.textContent=!result.count?'—':(complete?money(result.cost/result.count):'Sin datos');
+        const dayBadge=activePeriod==='day'?(chosenDay?' · Fecha: '+chosenDay:' · Elige una fecha válida'):'';
         sourceNote.textContent=(usingCloud?'Costos históricos de Supabase':'Datos locales; esperando costos históricos de la nube')+
-          ' · '+result.count+' venta(s)'+
+          dayBadge+' · '+result.count+' venta(s)'+
           (result.missing?' · Faltan datos en '+result.missing+' línea(s)':'')+
           (estimated?' · '+result.estimated+' costo(s) estimado(s)':'')+
           (!usingCloud&&gainCloud.error?' · '+gainCloud.error:'');
+        dateBar.style.border=activePeriod==='day'?'1px solid #7c3aed':'1px solid transparent';
+        dateBar.style.borderRadius='12px';
         buttons.forEach(btn=>{
           const active=btn.dataset.gainPeriod===activePeriod;
           btn.style.background=active?'#7c3aed':'#fff';
@@ -340,9 +409,25 @@
           itemsBox.append(card);
         }
       };
+      dateInput.addEventListener('change',()=>{
+        chosenDay=dateInput.value;
+        activePeriod='day';
+        draw();
+        gainLoadCloud(draw);
+      });
       buttons.forEach(btn=>btn.addEventListener('click',()=>{
         activePeriod=btn.dataset.gainPeriod;draw();gainLoadCloud(draw);
       }));
+      panel.__gainUseHistoryDate=(selected,date)=>{
+        if(selected.mode==='day'){
+          chosenDay=date||'';
+          dateInput.value=chosenDay||dateInput.value;
+          activePeriod='day';
+        }else if(['today','month','all'].includes(selected.mode)){
+          activePeriod=selected.mode;
+        }
+        draw();gainLoadCloud(draw);
+      };
       draw();gainLoadCloud(draw);
     }
   }
@@ -404,7 +489,7 @@
     const parent=group[0]?.parentElement?.parentElement;
     const candidates=[...document.querySelectorAll('input[type="date"]')].filter(el=>
       (parent&&parent.contains(el))||el.offsetParent!==null);
-    let day=candidates.find(el=>el.value)?.value||'';
+    let day=gainHistoryDate()||candidates.find(el=>el.value&&!el.closest('[data-gain-date-picker]'))?.value||'';
     if(!day){
       const t=(parent?.textContent||'').toLowerCase();
       const months=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
