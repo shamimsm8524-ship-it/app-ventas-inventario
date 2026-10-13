@@ -21,17 +21,16 @@
       ['cancelled','canceled','voided','cancelada','cancelado','anulada','anulado'].includes(status);
   }
   function ticketKey(sale) {
-    const receipt = sale.receiptNumber || sale.ticketNumber || sale.ticket_number ||
-      sale.ticketNo || sale.ticket;
-    if (receipt != null && String(receipt).trim()) return String(receipt).trim().toUpperCase();
-    const id = sale.id != null ? sale.id : (sale.saleId != null ? sale.saleId : sale.sale_id);
-    if (id == null || !String(id).trim()) return '';
-    return 'V-' + String(id).replace(/[^a-z0-9]/gi, '').slice(-10).toUpperCase();
+    const receipt = sale.receiptNumber || sale.receipt_number || sale.receiptNo ||
+      sale.ticketNumber || sale.ticket_number || sale.ticketNo || sale.ticket;
+    return receipt != null && String(receipt).trim() ? String(receipt).trim().toUpperCase() : '';
   }
-  function generatedTicketSales() {
+  function validSaleRows() {
+    return arrayOf('sales').filter(sale => sale && !isCancelled(sale));
+  }
+  function generatedTicketSales(sales) {
     const unique = new Map();
-    arrayOf('sales').forEach(sale => {
-      if (!sale || isCancelled(sale)) return;
+    sales.forEach(sale => {
       const key = ticketKey(sale);
       if (!key) return;
       if (!unique.has(key)) unique.set(key, sale);
@@ -173,17 +172,14 @@
     try {
       const modal = findReportModal();
       if (!modal) return;
-      const tickets = generatedTicketSales();
+      const sales = validSaleRows();
+      if (!sales.length) return;
+      const tickets = generatedTicketSales(sales);
       if (!tickets.length) return;
-      const summary = summarize(tickets);
-      setValueBesideLabel(modal, 'Venta total', /^S\/\s*[\d,.]+$/i, money(summary.revenue));
-      setValueBesideLabel(modal, 'Transacciones', /^\d+$/, String(summary.count));
+      const totalSales = sales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
       setValueBesideLabel(modal, 'Ticket promedio', /^S\/\s*[\d,.]+$/i,
-        money(summary.count ? summary.revenue / summary.count : 0));
-      ['Yape','Plin','Transferencia','Efectivo','Tarjeta','Fiado'].forEach(method => {
-        setValueBesideLabel(modal, method, /^S\/\s*[\d,.]+$/i, money(summary.payments[method] || 0));
-      });
-      appendProductUnits(modal, productSummary(tickets));
+        money(totalSales / tickets.length));
+      appendProductUnits(modal, productSummary(sales));
     } catch (error) {
       console.warn('Varelia: no se pudo actualizar el resumen por tickets', error);
     }
