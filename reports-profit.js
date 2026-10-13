@@ -568,37 +568,52 @@
     return raw;
   }
   function reportSummary(salesList){
-    // Conservar SIEMPRE los cinco medios visibles, incluso si tienen S/ 0.00.
+    // Contabilizar en céntimos por ticket: S/ 0.015 cobrado se registra
+    // como S/ 0.02 (mismo redondeo que el ticket), no como 1.5 céntimos.
+    // Esto evita que 1.50 + 0.015 + 0.30 se muestre como S/ 1.81.
     const mainMethods=['Yape','Plin','Efectivo','Transferencia','Pago con tarjeta'];
     const methods=new Map(mainMethods.map(name=>[name,0]));
     const products=new Map();
-    let revenue=0,unverifiedAmount=0,unverifiedSales=0;
+    const cents=value=>{
+      const amount=Number(value);
+      return Number.isFinite(amount)?Math.round((amount+Number.EPSILON)*100):0;
+    };
+    let revenueCents=0,unverifiedCents=0,unverifiedSales=0,mismatchCents=0,mismatchSales=0;
     const catalog=arr('products');
-    const addPayment=(name,amount)=>{
-      if(!Number.isFinite(amount)||amount===0)return;
+    const addPayment=(name,amountCents)=>{
+      if(!Number.isFinite(amountCents)||amountCents===0)return;
       const label=reportPaymentLabel(name);
-      methods.set(label,(methods.get(label)||0)+amount);
+      methods.set(label,(methods.get(label)||0)+amountCents);
     };
     for(const sale of salesList){
-      const total=Number(sale.total)||0;
-      revenue+=total;
-      const payments=sale.paymentBreakdown??sale.payment_breakdown;
-      const hasBreakdown=payments&&typeof payments==='object'&&!Array.isArray(payments)&&Object.entries(payments).some(([,v])=>Number(v)>0);
-      const hasMethod=String(sale.paymentMethod??sale.payment_method??'').trim().length>0;
-      if(!hasBreakdown&&!hasMethod){unverifiedAmount+=total;unverifiedSales++;}
-      if(payments&&typeof payments==='object'&&!Array.isArray(payments)){
-        const entries=Object.entries(payments).filter(([,v])=>Number.isFinite(Number(v))&&Number(v)>0);
-        if(entries.length){
-          let accounted=0;
-          for(const [method,v] of entries){
-            const amount=Number(v);accounted+=amount;
-            addPayment(method,amount);
-          }
-          if(Math.abs(total-accounted)>0.011){
-            addPayment('Sin especificar',total-accounted);
-          }
-        }else addPayment(sale.paymentMethod??sale.payment_method,total);
-      }else addPayment(sale.paymentMethod??sale.payment_method,total);
+      const ticketCents=cents(sale.total);
+      revenueCents+=ticketCents;
+      const breakdown=sale.paymentBreakdown??sale.payment_breakdown;
+      const entries=breakdown&&typeof breakdown==='object'&&!Array.isArray(breakdown)
+        ?Object.entries(breakdown).filter(([,value])=>Number.isFinite(Number(value))&&Number(value)>0):[];
+      const method=String(sale.paymentMethod??sale.payment_method??'').trim();
+      if(entries.length){
+        let paidCents=0;
+        for(const [name,value] of entries){
+          const partCents=cents(value);
+          paidCents+=partCents;
+          addPayment(name,partCents);
+        }
+        const difference=ticketCents-paidCents;
+        if(difference!==0){
+          // Nunca asignar a Yape/Efectivo/etc. un céntimo sin identificar.
+          mismatchSales++;
+          mismatchCents+=difference;
+          addPayment('Diferencia por aclarar',difference);
+        }
+      }else if(method){
+        // Cobro con método único: usar el importe final del ticket.
+        addPayment(method,ticketCents);
+      }else{
+        unverifiedCents+=ticketCents;
+        unverifiedSales++;
+        addPayment('Sin especificar',ticketCents);
+      }
       for(const it of Array.isArray(sale.items)?sale.items:[]){
         const id=String(it.productId??it.product_id??it.id??'');
         const matched=catalog.find(p=>String(p.id)===id||String(p.legacy_id||'')===id)||
@@ -616,8 +631,11 @@
         existing.quantity+=quantity;products.set(key,existing);
       }
     }
-    return {count:salesList.length,revenue,unverifiedAmount,unverifiedSales,average:salesList.length?revenue/salesList.length:0,
-      methods:[...methods.entries()],
+    const revenue=revenueCents/100;
+    const unverifiedAmount=unverifiedCents/100;
+    return {count:salesList.length,revenue,unverifiedAmount,unverifiedSales,mismatchCents,mismatchSales,
+      average:salesList.length?revenue/salesList.length:0,
+      methods:[...methods.entries()].map(([name,value])=>[name,value/100]),
       products:[...products.values()].sort((a,b)=>b.quantity-a.quantity)};
   }
   function reportLocateModal(){
@@ -646,7 +664,7 @@
     // Solo mostramos indicadores del período seleccionado. La comparación
     // previa confundía los números del modal con los del Historial y generaba
     // una alerta falsa, incluso cuando ambos sumaban 4 ventas y S/ 11.00.
-    const signature=JSON.stringify([data.filter.mode,data.filter.date,summary.count,summary.revenue,summary.unverifiedAmount,summary.unverifiedSales,
+    const signature=JSON.stringify([data.filter.mode,data.filter.date,summary.count,summary.revenue,summary.unverifiedAmount,summary.unverifiedSales,summary.mismatchCents,summary.mismatchSales,
       summary.products.map(x=>[x.name,x.quantity]),summary.methods]);
     let box=panel.querySelector('[data-report-synced]');
     if(box&&box.dataset.reportSignature===signature)return;
@@ -688,10 +706,13 @@
       box.append(h);return h;
     };
     section('Total por medio de pago');
-    const confirmedPayments=summary.unverifiedSales===0;
+    const confirmedPayments=summary.unverifiedSales===0&&summary.mismatchSales===0;
+    const problems=[];
+    if(summary.unverifiedSales)problems.push(summary.unverifiedSales+' venta(s) sin medio registrado: '+money(summary.unverifiedAmount));
+    if(summary.mismatchSales)problems.push(summary.mismatchSales+' ticket(s) con diferencia por aclarar: '+money(summary.mismatchCents/100));
     box.appendChild(line('p',confirmedPayments
-      ?'Totales según los medios de pago registrados en los tickets del período.'
-      :'⚠️ Hay '+summary.unverifiedSales+' venta(s) sin medio de pago registrado (S/ '+summary.unverifiedAmount.toFixed(2)+'). Los importes por método son parciales; S/ 0.00 no significa que se haya confirmado ausencia de cobros.',
+      ?'Desglose de cobros registrado en los tickets, redondeado a céntimos por venta.'
+      :'⚠️ '+problems.join(' · ')+'. Los importes por método podrían ser parciales.',
       'font-size:12px;line-height:1.45;color:'+(confirmedPayments?'#64748b':'#a16207')+';margin:5px 0 12px;'));
     if(!summary.methods.length)box.appendChild(line('p','No hay pagos en este período.','font-size:13px;color:#64748b;'));
     for(const [method,amount] of summary.methods){
