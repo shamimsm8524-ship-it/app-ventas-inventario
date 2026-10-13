@@ -50,6 +50,9 @@
         payment_qr_plin:cfg.plinQr||null,
         payment_holder:cfg.yapeHolder||cfg.plinHolder||null,
         transfer_details:cfg.transferDetails||null,
+        // Compartir el logo oficial con los vendedores; nunca borrar uno guardado
+        // cuando este dispositivo todavía no tiene imagen.
+        ...(String(cfg.logo||'').startsWith('data:image/')?{logo_data:cfg.logo}:{}),
         updated_at:new Date().toISOString()
       };
       const {error}=await ctx.sb.from('varelia_business_settings').upsert(payload,{onConflict:'business_id'});
@@ -61,7 +64,7 @@
       cloudPaymentSyncPromise=(async()=>{
         const ctx=await cloudPaymentContext();if(!ctx)return false;
         const {data,error}=await ctx.sb.from('varelia_business_settings')
-          .select('yape_qr_data,plin_qr_data,payment_qr_yape,payment_qr_plin,payment_qr_data,payment_holder,transfer_details')
+          .select('yape_qr_data,plin_qr_data,payment_qr_yape,payment_qr_plin,payment_qr_data,payment_holder,transfer_details,logo_data')
           .eq('business_id',ctx.businessId).maybeSingle();
         if(error)throw error;
         const cloudYape=String(data?.yape_qr_data||data?.payment_qr_yape||'');
@@ -77,7 +80,15 @@
           if(!cfg.plinHolder)cfg.plinHolder=String(data.payment_holder);
         }
         if(data?.transfer_details)cfg.transferDetails=String(data.transfer_details);
+        // Las cajas usan exclusivamente el logo compartido del negocio.
+        // El propietario conserva su imagen local si todavía no se publicó.
+        const cloudLogo=String(data?.logo_data||'');
+        if(ctx.role!=='owner'){
+          cfg.logo=cloudLogo.startsWith('data:image/')?cloudLogo:'';
+          window.vareliaCloudBusinessLogo=cfg.logo;
+        }
         saveCfg();
+        window.dispatchEvent(new CustomEvent('varelia:business-settings-cloud-loaded',{detail:{businessId:ctx.businessId,hasLogo:!!cfg.logo}}));
         const y=document.getElementById('vYapePreview'),p=document.getElementById('vPlinPreview');
         if(y)y.src=cfg.yapeQr||'';if(p)p.src=cfg.plinQr||'';
         const yh=document.getElementById('vsetYapeHolder'),ph=document.getElementById('vsetPlinHolder'),td=document.getElementById('vsetTransferDetails');
@@ -86,10 +97,14 @@
         // Si el QR local falta en nube o es distinto, el QR elegido por el dueño en la APK gana y se sincroniza.
         if(ctx.role==='owner'&&(
           (hadLocalYape&&localYape!==cloudYape)||
-          (hadLocalPlin&&localPlin!==cloudPlin)
+          (hadLocalPlin&&localPlin!==cloudPlin)||
+          (!!cfg.logo&&!cloudLogo)
         ))await pushCloudPaymentSettings(ctx);
         return true;
       })().catch(err=>{console.warn('Varelia cloud payment sync',err);return false});
+      // Un intento demasiado temprano (sesión todavía cargando) no debe
+      // bloquear para siempre las siguientes sincronizaciones.
+      cloudPaymentSyncPromise.then(ok=>{if(!ok)cloudPaymentSyncPromise=null});
       return cloudPaymentSyncPromise;
     }
     const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -326,7 +341,22 @@
           <div class="vsettingsSection"><h3>Avanzado</h3><p>Opciones adicionales del catálogo.</p><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px"><input type="checkbox" id="vsetAutoBarcode" ${cfg.autoBarcode?'checked':''} style="width:18px">Generar código de barras automáticamente</label><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px;margin-top:10px"><input type="checkbox" id="vsetVariants" ${cfg.enableVariants?'checked':''} style="width:18px">Activar campo de tallas / colores / variantes</label></div>
           <button class="vsettingsAction primary" id="vsettingsSave">Guardar configuración</button>
         `;
-        sec.querySelector('#vsetLogo').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.logo=v;sec.querySelector('#vLogoPreview').src=v;saveCfg();window.dispatchEvent(new CustomEvent('varelia:business-settings-local-changed'));}};
+        sec.querySelector('#vsetLogo').onchange=async e=>{
+          const v=await readImage(e.target);
+          if(!v)return;
+          cfg.logo=v;
+          sec.querySelector('#vLogoPreview').src=v;
+          saveCfg();
+          window.dispatchEvent(new CustomEvent('varelia:business-settings-local-changed'));
+          try{
+            const ok=await pushCloudPaymentSettings();
+            if(ok)window.vareliaToast?.('Logo compartido con todas las cajas.','ok');
+            else window.vareliaToast?.('Logo guardado aquí. Inicia sesión como administrador para compartirlo.','warn');
+          }catch(err){
+            console.warn('Sincronización del logo del negocio',err);
+            window.vareliaToast?.('Logo guardado aquí; no se pudo sincronizar con las cajas.','warn');
+          }
+        };
         const persistQrNow=async(kind,v)=>{
           if(!v)return;
           if(kind==='yape'){cfg.yapeQr=v;localStorage.setItem(QR_YAPE_STORE,v)}
@@ -444,7 +474,7 @@
     }
 
     function init(){
-      pullCloudPaymentSettings();
+      window.vareliaCloudBusinessSettingsReady=pullCloudPaymentSettings();
       applyBusinessName();
       setupHistory();
       setupSettings();
