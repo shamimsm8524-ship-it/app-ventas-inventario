@@ -948,7 +948,20 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) webView.goBack();
-        else super.onBackPressed();
+        if (webView == null) {
+            super.onBackPressed();
+            return;
+        }
+        // Close an open internal-sale receipt before navigating away from the page.
+        webView.evaluateJavascript(
+                "(function(){var o=document.getElementById('vreceiptOverlay');" +
+                "if(o&&o.classList.contains('show')){var b=document.getElementById('vreceiptCloseAction');" +
+                "if(b){b.click();return 'receipt';}o.classList.remove('show');return 'receipt';}" +
+                "return 'page';})()",
+                value -> {
+                    if (value != null && value.contains("receipt")) return;
+                    if (webView != null && webView.canGoBack()) webView.goBack();
+                    else MainActivity.super.onBackPressed();
+                });
     }
 }
