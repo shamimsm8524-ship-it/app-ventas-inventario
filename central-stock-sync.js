@@ -472,19 +472,23 @@
         try{if(saleDialog?.open)saleDialog.close()}catch{}
       }catch(e){console.warn('Historial local',e)}
 
-      await refreshCloud();
-      try{if(typeof save==='function')save()}catch{}
-      // Notificar una vez que la venta fue confirmada y el ticket fue
-      // incorporado al historial local. Los informes escuchan este evento.
-      // No genera otra venta ni modifica inventario.
+      // La RPC ya confirmó el cobro en Supabase. Guardar y avisar a las
+      // pantallas AHORA: no esperar a que termine de consultar el inventario.
+      // Esta parte es solo una actualización de vistas y de la copia local.
       try{
-        if(typeof renderSales==='function')renderSales();
+        if(typeof save==='function')save();
+        else if(typeof renderSales==='function')renderSales();
+      }catch(err){console.warn('Actualizar ticket local tras cobro',err)}
+      try{
         window.dispatchEvent(new CustomEvent('varelia:sale-recorded',{
           detail:{saleId:String(data?.sale_id||''),source:'cloud-confirmed'}
         }));
-      }catch(err){console.warn('Actualizar historial tras venta',err)}
-      await refreshPublicStock();
-      toast('Venta registrada y stock actualizado.','ok');
+      }catch(err){console.warn('Notificación de venta confirmada',err)}
+      toast('Venta registrada. Actualizando historial y reportes.','ok');
+      // La sincronización de stock posterior NO debe bloquear ni deshacer
+      // una venta que Supabase ya confirmó, ni retrasar sus reportes.
+      try{await refreshCloud()}catch(err){console.warn('Inventario pendiente tras venta confirmada',err)}
+      try{await refreshPublicStock()}catch(err){console.warn('Stock público pendiente',err)}
       try{window.vareliaSound?.('sale')}catch{}
     }catch(e){
       console.error(e);
