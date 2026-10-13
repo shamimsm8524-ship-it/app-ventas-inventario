@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  if (window.__vareliaReportTicketFixV2) return;
+  if (window.__vareliaReportTicketFixV3) return;
   window.__vareliaReportTicketFixV2 = true;
 
   const normalize = value => String(value == null ? '' : value)
