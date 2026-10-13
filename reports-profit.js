@@ -358,6 +358,275 @@
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupGainPopupObserver);
   else setupGainPopupObserver();
+
+  // Reportes: aplicar siempre el período activo de Historial. Solo lectura.
+  function reportHistoryFilter(){
+    const words=['Hoy','Día','Semana','Mes','Todo'];
+    const norm=s=>String(s||'').replace(/[📅🗓️]/gu,'').trim().replace(/^[^a-záéíóú]+/i,'').trim().toLowerCase();
+    const buttons=[...document.querySelectorAll('button')].filter(b=>words.some(w=>norm(b.textContent)===w.toLowerCase()));
+    let group=null;
+    for(const btn of buttons){
+      for(let e=btn.parentElement,d=0;e&&e!==document.body&&d<5;e=e.parentElement,d++){
+        const opts=[...e.querySelectorAll('button')].filter(b=>words.some(w=>norm(b.textContent)===w.toLowerCase()));
+        if(opts.length===5){group=opts;break}
+      }
+      if(group)break;
+    }
+    if(!group)return {mode:'all',description:'Todo',known:false};
+    const chosen=group.find(b=>{
+      if(b.getAttribute('aria-pressed')==='true'||b.getAttribute('aria-selected')==='true')return true;
+      if(/\b(active|selected|is-active|is-selected)\b/.test(b.className||''))return true;
+      const bg=getComputedStyle(b).backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+      if(!bg)return false;
+      const r=Number(bg[1]),g=Number(bg[2]),bl=Number(bg[3]);
+      return bl>125&&r>55&&r<205&&g<130&&bl>r*1.17;
+    });
+    let mode=chosen?norm(chosen.textContent):'';
+    // Si el botón no expone su estado, el resumen numérico del Historial
+    // permitirá reconocer el período correcto sin inventar cifras.
+    const displayNames={hoy:'Hoy','día':'Día',semana:'Semana',mes:'Mes',todo:'Todo'};
+    if(!mode||!displayNames[mode]){
+      const totals=reportHistorySummary();
+      const ss=gainValidSales(),now=new Date();
+      for(const kind of ['today','week','month','all']){
+        const filtered=reportSalesFor(ss,{mode:kind},now);
+        const revenue=filtered.reduce((a,s)=>a+(Number(s.total)||0),0);
+        if(totals.count===filtered.length&&Math.abs(totals.revenue-revenue)<0.011){
+          return {mode:kind,description:({today:'Hoy',week:'Semana',month:'Mes',all:'Todo'})[kind],known:true};
+        }
+      }
+      return {mode:'all',description:'Todo',known:false};
+    }
+    if(mode==='hoy')return {mode:'today',description:'Hoy',known:true};
+    if(mode==='mes')return {mode:'month',description:'Mes',known:true};
+    if(mode==='todo')return {mode:'all',description:'Todo',known:true};
+    if(mode==='semana')return {mode:'week',description:'Semana',known:true};
+    const parent=group[0]?.parentElement?.parentElement;
+    const candidates=[...document.querySelectorAll('input[type="date"]')].filter(el=>
+      (parent&&parent.contains(el))||el.offsetParent!==null);
+    let day=candidates.find(el=>el.value)?.value||'';
+    if(!day){
+      const t=(parent?.textContent||'').toLowerCase();
+      const months=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+      const pattern=/\b(\d{1,2})\s+de\s+([a-zñ]+)\s+de\s+(\d{4})/g;
+      let match;while((match=pattern.exec(t))){
+        const month=months.indexOf(match[2]);
+        if(month>=0)day=match[3]+'-'+String(month+1).padStart(2,'0')+'-'+match[1].padStart(2,'0');
+      }
+    }
+    return {mode:'day',date:day,description:day?'Día '+day:'Día seleccionado',known:!!day};
+  }
+  function reportSalesFor(salesList,filter,now=new Date()){
+    const mode=filter?.mode||'all';
+    if(mode==='all')return salesList;
+    const mon=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    // La semana va de lunes a domingo. Si Historial usa 7 días móviles,
+    // se detecta por el resumen numérico visible y se usa la misma opción.
+    const monday=new Date(mon);monday.setDate(mon.getDate()-((mon.getDay()+6)%7));
+    const rolling=new Date(mon);rolling.setDate(mon.getDate()-6);
+    return salesList.filter(s=>{
+      const d=new Date(s.date??s.created_at??s.createdAt??'');
+      if(!Number.isFinite(d.getTime()))return false;
+      const dd=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+      if(mode==='today')return dd.getTime()===mon.getTime();
+      if(mode==='month')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();
+      if(mode==='week')return dd>=monday&&dd<=mon;
+      if(mode==='week-rolling')return dd>=rolling&&dd<=mon;
+      if(mode==='day'){
+        if(!filter?.date)return false;
+        const day=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        return day===filter.date;
+      }
+      return false;
+    });
+  }
+  function reportHistorySummary(){
+    const labels=[...document.querySelectorAll('small,span,p,div')].filter(x=>x.children.length===0);
+    const match=labels.find(x=>/^(venta total acumulada|total vendido hoy|total vendido)$/i.test(x.textContent.trim()));
+    const tickets=labels.find(x=>/^(transacciones|tickets generados)$/i.test(x.textContent.trim()));
+    const read=(el,pattern)=>{
+      if(!el)return NaN;
+      for(let e=el.parentElement,i=0;e&&i<4;e=e.parentElement,i++){
+        const m=(e.textContent||'').match(pattern);
+        if(m)return Number(m[1].replace(/,/g,''));
+      }
+      return NaN;
+    };
+    return {revenue:read(match,/S\/\s*([\d.,]+)/),count:read(tickets,/\b(\d+)\b/)};
+  }
+  function reportSelectSales(){
+    const sales=gainValidSales();
+    let filter=reportHistoryFilter();
+    const history=reportHistorySummary();
+    // Semana puede ser "semana actual" o "últimos 7 días". Igualar Historial.
+    if(filter.mode==='week'&&Number.isFinite(history.revenue)&&Number.isFinite(history.count)){
+      const a=reportSalesFor(sales,filter);
+      const va=a.reduce((n,s)=>n+(Number(s.total)||0),0);
+      if(a.length!==history.count||Math.abs(va-history.revenue)>0.011){
+        const other={mode:'week-rolling',description:'Semana (últimos 7 días)',known:true};
+        const b=reportSalesFor(sales,other);
+        const vb=b.reduce((n,s)=>n+(Number(s.total)||0),0);
+        if(b.length===history.count&&Math.abs(vb-history.revenue)<0.011)filter=other;
+      }
+    }
+    return {filter,sales:reportSalesFor(sales,filter)};
+  }
+  function reportSummary(salesList){
+    const methods=new Map(),products=new Map();
+    let revenue=0;
+    const catalog=arr('products');
+    for(const sale of salesList){
+      const total=Number(sale.total)||0;
+      revenue+=total;
+      const payments=sale.paymentBreakdown??sale.payment_breakdown;
+      if(payments&&typeof payments==='object'&&!Array.isArray(payments)){
+        const entries=Object.entries(payments).filter(([,v])=>Number(v)>0);
+        if(entries.length){
+          let accounted=0;
+          for(const [method,v] of entries){
+            const amount=Number(v)||0;accounted+=amount;
+            methods.set(method,(methods.get(method)||0)+amount);
+          }
+          if(Math.abs(total-accounted)>0.011)methods.set('Sin desglosar',(methods.get('Sin desglosar')||0)+total-accounted);
+        }else methods.set(String(sale.paymentMethod||sale.payment_method||'No registrado'),(methods.get(String(sale.paymentMethod||sale.payment_method||'No registrado'))||0)+total);
+      }else{
+        const method=String(sale.paymentMethod||sale.payment_method||'No registrado');
+        methods.set(method,(methods.get(method)||0)+total);
+      }
+      for(const it of Array.isArray(sale.items)?sale.items:[]){
+        const id=String(it.productId??it.product_id??it.id??'');
+        const matched=catalog.find(p=>String(p.id)===id||String(p.legacy_id||'')===id)||
+          catalog.find(p=>String(p.name||'').trim().toLowerCase()===String(it.name??it.productName??it.product_name??'').trim().toLowerCase());
+        const name=String(it.name??it.productName??it.product_name??matched?.name??'Producto').trim()||'Producto';
+        const unitRaw=String(it.sale_unit??it.saleUnit??it.unit??matched?.unit??'Unidad').trim().toLowerCase();
+        const unit=['kg','kilo','kilos','kilogramo','kilogramos','g','gr','gramo','gramos'].includes(unitRaw)?'kg':(unitRaw||'unidad');
+        const stock=it.stock_qty??it.stockQty;
+        const qtyRaw=Number(it.qty??it.quantity??1);
+        const quantity=(stock!==undefined&&stock!==null&&stock!==''&&Number.isFinite(Number(stock)))
+          ?Number(stock):(unitRaw==='g'||unitRaw==='gr'||unitRaw==='gramo'||unitRaw==='gramos'?qtyRaw/1000:qtyRaw);
+        if(!Number.isFinite(quantity))continue;
+        const key=id||name.toLowerCase()+'|'+unit;
+        const existing=products.get(key)||{name,unit,quantity:0};
+        existing.quantity+=quantity;products.set(key,existing);
+      }
+    }
+    return {count:salesList.length,revenue,average:salesList.length?revenue/salesList.length:0,
+      methods:[...methods.entries()].sort((a,b)=>b[1]-a[1]),
+      products:[...products.values()].sort((a,b)=>b.quantity-a.quantity)};
+  }
+  function reportLocateModal(){
+    const titles=[...document.querySelectorAll('h1,h2,h3,h4')].filter(el=>
+      /^(\s*📊\s*)?Reportes\s*$/i.test(el.textContent.trim()));
+    for(const title of titles){
+      for(let panel=title.parentElement,d=0;panel&&panel!==document.body&&d<9;panel=panel.parentElement,d++){
+        const content=panel.textContent||'';
+        if(!content.includes('Ticket promedio')||!content.includes('Productos más vendidos'))continue;
+        const close=[...panel.querySelectorAll('button')].find(b=>b.textContent.trim()==='Cerrar');
+        if(!close)continue;
+        const parts=[...panel.children];
+        const headerIndex=parts.findIndex(el=>el.contains(title));
+        const footerIndex=parts.findIndex(el=>el.contains(close));
+        if(headerIndex<0||footerIndex<=headerIndex||footerIndex-headerIndex<2)continue;
+        return {panel,title,parts,headerIndex,footerIndex};
+      }
+    }
+    return null;
+  }
+  function reportEnhancePopup(){
+    const found=reportLocateModal();
+    if(!found)return;
+    const {panel,parts,headerIndex,footerIndex}=found;
+    const data=reportSelectSales(),summary=reportSummary(data.sales);
+    // Los datos visibles en Historial son la comprobación del mismo filtro.
+    const hist=reportHistorySummary();
+    const outOfSync=Number.isFinite(hist.revenue)&&Number.isFinite(hist.count)&&
+      (Math.abs(summary.revenue-hist.revenue)>0.011||summary.count!==hist.count);
+    const signature=JSON.stringify([data.filter.mode,data.filter.date,summary.count,summary.revenue,
+      summary.products.map(x=>[x.name,x.quantity]),summary.methods,outOfSync]);
+    let box=panel.querySelector('[data-report-synced]');
+    if(box&&box.dataset.reportSignature===signature)return;
+    if(!box){
+      const mids=parts.slice(headerIndex+1,footerIndex);
+      // No tocar el encabezado ni el botón Cerrar; conservar el contenido original oculto.
+      if(!mids.length)return;
+      mids.forEach(el=>{el.style.display='none';el.dataset.reportOriginal='true'});
+      box=document.createElement('div');
+      box.dataset.reportSynced='true';
+      box.style.cssText='padding:4px 0 10px;width:100%;min-width:0;max-width:100%;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain;max-height:min(62vh,680px);';
+      panel.insertBefore(box,parts[footerIndex]);
+    }
+    box.dataset.reportSignature=signature;
+    box.replaceChildren();
+    const line=(tag,value,style)=>{const x=document.createElement(tag);x.textContent=value;if(style)x.style.cssText=style;return x};
+    const period=line('div','Período: '+data.filter.description,
+      'font-size:13px;font-weight:800;color:#7c3aed;margin:6px 0 14px;');
+    box.appendChild(period);
+    if(!data.filter.known){
+      box.appendChild(line('p','El período exacto no pudo reconocerse en Historial; se muestra Todo.',
+        'font-size:12px;color:#a16207;margin:0 0 10px;'));
+    }
+    if(outOfSync){
+      box.appendChild(line('p','⚠️ Reportes e Historial todavía no coinciden; revisa la sincronización de tickets.',
+        'font-size:12px;color:#a16207;margin:0 0 10px;'));
+    }
+    const grid=document.createElement('div');
+    grid.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;box-sizing:border-box;min-width:0;';
+    const metric=(label,value,full)=>{
+      const card=document.createElement('div');
+      card.style.cssText='min-width:0;border:1px solid #e5e5e5;border-radius:22px;padding:16px 13px;box-sizing:border-box;overflow-wrap:anywhere;'+(full?'grid-column:1/-1;':'');
+      card.append(line('div',label,'font-size:13px;color:#737782;line-height:1.35;'),
+        line('strong',value,'display:block;font-size:clamp(20px,5.8vw,32px);line-height:1.25;margin-top:8px;'));
+      grid.appendChild(card);
+    };
+    metric('Total vendido',money(summary.revenue),false);
+    metric('Tickets generados',String(summary.count),false);
+    metric('Importe promedio por ticket',money(summary.average),true);
+    box.appendChild(grid);
+    const section=(label)=>{
+      const h=line('h3',label,'font-size:19px;margin:23px 0 8px;font-weight:900;');
+      box.append(h);return h;
+    };
+    section('Métodos de pago');
+    if(!summary.methods.length)box.appendChild(line('p','No hay pagos en este período.','font-size:13px;color:#64748b;'));
+    for(const [method,amount] of summary.methods){
+      const row=document.createElement('div');row.style.cssText='display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #e5e5e5;align-items:center;';
+      row.append(line('span',method,'font-size:15px;overflow-wrap:anywhere;'),
+        line('strong',money(amount),'font-size:16px;white-space:nowrap;'));
+      box.appendChild(row);
+    }
+    section('Productos más vendidos');
+    if(!summary.products.length)box.appendChild(line('p','No hay productos vendidos en este período.','font-size:13px;color:#64748b;'));
+    for(const p of summary.products){
+      const formatted=Number(p.quantity.toFixed(3)).toLocaleString('es-PE',{maximumFractionDigits:3});
+      const row=document.createElement('div');row.style.cssText='display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #e5e5e5;align-items:center;';
+      row.append(line('span',p.name,'font-size:15px;overflow-wrap:anywhere;'),
+        line('strong',formatted+' '+p.unit,'font-size:16px;white-space:nowrap;'));
+      box.appendChild(row);
+    }
+  }
+  function reportWatchPopup(){
+    let scheduled=false;
+    function update(){
+      if(scheduled)return;
+      scheduled=true;
+      requestAnimationFrame(()=>{scheduled=false;reportEnhancePopup()});
+    }
+    const ob=new MutationObserver(update);
+    ob.observe(document.body,{childList:true,subtree:true});
+    document.addEventListener('click',ev=>{
+      const btn=ev.target?.closest?.('button');
+      if(!btn)return;
+      if(/Reportes|^(Hoy|Día|Semana|Mes|Todo)$/i.test(btn.textContent.trim().replace(/^[📅🗓️]\s*/u,''))){
+        requestAnimationFrame(update);
+      }
+    },true);
+    document.addEventListener('change',ev=>{
+      if(ev.target?.matches?.('input[type="date"]'))requestAnimationFrame(update);
+    },true);
+    update();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',reportWatchPopup);
+  else reportWatchPopup();
   function makeHelp(main){let sec=document.getElementById('help');if(!sec){sec=document.createElement('section');sec.id='help';sec.className='view vareliaExtraView';main.appendChild(sec)}sec.innerHTML=`<div class="extraHead"><div><h2>Ayuda</h2><p>Guía rápida de cada módulo de Varelia.</p></div></div><div class="extraHelpGrid"><div class="extraHelpItem"><b>Productos</b><span>Crear, editar y organizar el catálogo.</span></div><div class="extraHelpItem"><b>Inventario</b><span>Controlar stock y movimientos.</span></div><div class="extraHelpItem"><b>Compras</b><span>Gestionar proveedores e ingreso de mercadería.</span></div><div class="extraHelpItem"><b>Ventas</b><span>Registrar ventas y consultar operaciones.</span></div><div class="extraHelpItem"><b>Caja</b><span>Controlar apertura, movimientos y cierres.</span></div><div class="extraHelpItem"><b>Reportes</b><span>Analizar el negocio en conjunto.</span></div><div class="extraHelpItem"><b>Ganancias</b><span>Revisar utilidad, margen y detalle por producto en un solo lugar.</span></div><div class="extraHelpItem"><b>Ajustes</b><span>Personalizar apariencia y preferencias.</span></div></div>`;return sec}
   function removeDuplicateProfit(){document.querySelectorAll('[data-view="profits"]').forEach(el=>el.remove());document.getElementById('profits')?.remove()}
   function init(){style();removeDuplicateProfit();const main=document.querySelector('main.content'),r=document.querySelector('.premiumReportsItem'),g=document.querySelector('.premiumGainItem'),h=document.querySelector('.premiumHelpItem');if(!main||!r||!g||!h){setTimeout(init,350);return}makeReports(main);makeProfit(main);makeHelp(main);r.dataset.view='reports';g.dataset.view='profit';h.dataset.view='help';r.onclick=e=>{e.preventDefault();makeReports(main);show('reports')};g.onclick=e=>{e.preventDefault();makeProfit(main);show('profit')};h.onclick=e=>{e.preventDefault();makeHelp(main);show('help')};if(!window.__vareliaExtraNavBound){window.__vareliaExtraNavBound=true;document.addEventListener('click',e=>{const b=e.target&&e.target.closest?e.target.closest('.premiumReportsItem,.premiumGainItem,.premiumHelpItem'):null;if(!b)return;e.preventDefault();e.stopImmediatePropagation();const m=document.querySelector('main.content');if(!m)return;if(b.classList.contains('premiumReportsItem')){makeReports(m);show('reports')}else if(b.classList.contains('premiumGainItem')){makeProfit(m);show('profit')}else{makeHelp(m);show('help')}try{window.scrollTo(0,0)}catch{}},true)}window.vareliaShowExtraView=show;setTimeout(removeDuplicateProfit,1200)}
