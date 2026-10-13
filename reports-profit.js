@@ -75,51 +75,6 @@
     };
     render();return sec
   }
-  // Compatibilidad con las ventanas de Ganancias que muestran solo Ventas y Ganancia estimada.
-  // Se amplía su información en pantalla sin escribir ni alterar ventas o inventario.
-  function enhanceProfitDialog(){
-    const titles=[...document.querySelectorAll('h1,h2,h3')].filter(el=>/^(?:💰\s*)?Ganancias$/.test(el.textContent.trim()));
-    for(const title of titles){
-      let popup=title.closest('dialog,[role="dialog"],.modal,.modal-content,.popup,.dialog');
-      if(!popup){
-        for(let el=title.parentElement,n=0;el&&el!==document.body&&n<9;el=el.parentElement,n++){
-          if(getComputedStyle(el).position==='fixed'){popup=el;break}
-        }
-      }
-      if(!popup||popup.querySelector('[data-gain-costs]')||!popup.textContent.includes('Ganancia estimada'))continue;
-      const readLabel=(label)=>{
-        const el=[...popup.querySelectorAll('small,span,p,div,strong')].find(e=>e.children.length===0&&e.textContent.trim()===label);
-        if(!el)return NaN;
-        for(let parent=el.parentElement,n=0;parent&&parent!==popup&&n<4;parent=parent.parentElement,n++){
-          const match=parent.textContent.match(/S\/\s*([\d.,]+)/);
-          if(match){return Number(match[1].replace(/,/g,''))}
-        }
-        return NaN;
-      };
-      const revenue=readLabel('Ventas'),gain=readLabel('Ganancia estimada');
-      if(!Number.isFinite(revenue)||!Number.isFinite(gain))continue;
-      const cost=revenue-gain;
-      const salesList=arr('sales').filter(s=>!s.cancelled&&!s.canceled&&!s.voided&&!['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
-      const tickets=salesList.length;
-      const row=document.createElement('div');row.dataset.gainCosts='1';
-      row.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0;max-width:100%';
-      const card=(label,value)=>`<div style="min-width:0;padding:14px;border:1px solid #ddd;border-radius:17px"><div style="font-size:12px;color:#737782">${label}</div><strong style="display:block;font-size:23px;margin-top:8px;overflow-wrap:anywhere">${value}</strong></div>`;
-      row.innerHTML=card('Costo total de productos vendidos (estimado)',money(cost))+card('Costo promedio por venta (estimado)',tickets?money(cost/tickets):'No disponible');
-      const close=[...popup.querySelectorAll('button')].find(el=>el.textContent.trim()==='Cerrar');
-      if(close && close.parentElement!==popup)close.parentElement.before(row);else popup.appendChild(row);
-    }
-  }
-  function watchProfitDialog(){
-    let scheduled=false;
-    const observer=new MutationObserver(()=>{
-      if(scheduled)return;
-      scheduled=true;
-      requestAnimationFrame(()=>{scheduled=false;enhanceProfitDialog()});
-    });
-    observer.observe(document.body,{subtree:true,childList:true});
-    enhanceProfitDialog();
-  }
-  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',watchProfitDialog):watchProfitDialog();
   function makeHelp(main){let sec=document.getElementById('help');if(!sec){sec=document.createElement('section');sec.id='help';sec.className='view vareliaExtraView';main.appendChild(sec)}sec.innerHTML=`<div class="extraHead"><div><h2>Ayuda</h2><p>Guía rápida de cada módulo de Varelia.</p></div></div><div class="extraHelpGrid"><div class="extraHelpItem"><b>Productos</b><span>Crear, editar y organizar el catálogo.</span></div><div class="extraHelpItem"><b>Inventario</b><span>Controlar stock y movimientos.</span></div><div class="extraHelpItem"><b>Compras</b><span>Gestionar proveedores e ingreso de mercadería.</span></div><div class="extraHelpItem"><b>Ventas</b><span>Registrar ventas y consultar operaciones.</span></div><div class="extraHelpItem"><b>Caja</b><span>Controlar apertura, movimientos y cierres.</span></div><div class="extraHelpItem"><b>Reportes</b><span>Analizar el negocio en conjunto.</span></div><div class="extraHelpItem"><b>Ganancias</b><span>Revisar utilidad, margen y detalle por producto en un solo lugar.</span></div><div class="extraHelpItem"><b>Ajustes</b><span>Personalizar apariencia y preferencias.</span></div></div>`;return sec}
   function removeDuplicateProfit(){document.querySelectorAll('[data-view="profits"]').forEach(el=>el.remove());document.getElementById('profits')?.remove()}
   function init(){style();removeDuplicateProfit();const main=document.querySelector('main.content'),r=document.querySelector('.premiumReportsItem'),g=document.querySelector('.premiumGainItem'),h=document.querySelector('.premiumHelpItem');if(!main||!r||!g||!h){setTimeout(init,350);return}makeReports(main);makeProfit(main);makeHelp(main);r.dataset.view='reports';g.dataset.view='profit';h.dataset.view='help';r.onclick=e=>{e.preventDefault();makeReports(main);show('reports')};g.onclick=e=>{e.preventDefault();makeProfit(main);show('profit')};h.onclick=e=>{e.preventDefault();makeHelp(main);show('help')};if(!window.__vareliaExtraNavBound){window.__vareliaExtraNavBound=true;document.addEventListener('click',e=>{const b=e.target&&e.target.closest?e.target.closest('.premiumReportsItem,.premiumGainItem,.premiumHelpItem'):null;if(!b)return;e.preventDefault();e.stopImmediatePropagation();const m=document.querySelector('main.content');if(!m)return;if(b.classList.contains('premiumReportsItem')){makeReports(m);show('reports')}else if(b.classList.contains('premiumGainItem')){makeProfit(m);show('profit')}else{makeHelp(m);show('help')}try{window.scrollTo(0,0)}catch{}},true)}window.vareliaShowExtraView=show;setTimeout(removeDuplicateProfit,1200)}
