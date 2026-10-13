@@ -6,6 +6,7 @@
   const withTimeout=(promise,ms,label)=>Promise.race([Promise.resolve(promise),new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' no respondió en '+Math.round(ms/1000)+' segundos. Se reintentará automáticamente.')),ms))]);
   const toast=(m,t='ok')=>window.vareliaToast?window.vareliaToast(m,t):console.log(m);
   let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false,initBusy=false,initAgain=false,retryTimer=null,retryDelay=2500;
+  let stockSnapshot=null,stockPollTimer=null,stockPollBusy=false;
 
   const localProducts=()=>{try{return Array.isArray(products)?products:[]}catch{return[]}};
   const localCategories=()=>{try{return Array.isArray(categories)?categories:[]}catch{return[]}};
@@ -165,11 +166,12 @@
     if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
     const [catsRes,prodRes]=await withTimeout(Promise.all([
       sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
-      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes').eq('business_id',businessId).order('created_at')
+      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes,updated_at').eq('business_id',businessId).order('created_at')
     ]),15000,'La lectura del inventario en la nube');
     if(catsRes.error)throw catsRes.error;
     if(prodRes.error)throw prodRes.error;
     const rows=prodRes.data||[];
+    stockSnapshot=stockVersion(rows);
     // Las categorías deben sincronizarse aunque el negocio todavía no tenga productos.
     const catRows=catsRes.data||[];
     categories=catRows.map(x=>String(x.name||'')).filter(Boolean);
@@ -596,13 +598,47 @@
     return data||{};
   };
 
+  function stockVersion(rows){
+    return (rows||[]).map(p=>[String(p.id||''),String(p.stock??''),String(p.updated_at||'')].join(':')).sort().join('|');
+  }
+
+  // Respaldo liviano cuando Android suspende o pierde el canal Realtime.
+  // Solo consulta ID, stock y fecha de modificación: NO escribe inventario.
+  async function pollStockChanges(){
+    if(stockPollBusy||saleBusy||!sb||!businessId||
+       document.visibilityState==='hidden'||navigator.onLine===false)return;
+    stockPollBusy=true;
+    const requestedBusiness=businessId;
+    try{
+      const result=await withTimeout(
+        sb.from('varelia_products').select('id,stock,updated_at').eq('business_id',requestedBusiness),
+        10000,'Verificación de stock compartido');
+      if(result.error)throw result.error;
+      if(requestedBusiness!==businessId)return;
+      const remote=stockVersion(result.data||[]);
+      if(stockSnapshot!==null&&remote!==stockSnapshot)scheduleRefresh();
+    }catch(err){console.warn('Respaldo de stock en tiempo real',err)}
+    finally{stockPollBusy=false}
+  }
+  function startStockPoll(){
+    if(stockPollTimer)clearInterval(stockPollTimer);
+    stockPollTimer=setInterval(pollStockChanges,12000);
+  }
+
   function subscribe(){
     try{
       if(channel)sb.removeChannel(channel);
       channel=sb.channel('varelia-stock-'+businessId)
         .on('postgres_changes',{event:'*',schema:'public',table:'varelia_products',filter:'business_id=eq.'+businessId},scheduleRefresh)
-        .subscribe();
-    }catch(e){console.warn('Realtime stock',e)}
+        .subscribe(status=>{
+          if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED')
+            console.warn('Stock realtime:',status,'; respaldo automático activo');
+        });
+      startStockPoll();
+    }catch(e){
+      console.warn('Realtime stock; usando verificación automática',e);
+      startStockPoll();
+    }
   }
 
   async function init(){
