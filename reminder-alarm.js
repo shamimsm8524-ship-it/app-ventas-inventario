@@ -106,8 +106,10 @@
       alarmText.textContent=items.map(r=>`${String(r.event_time||'').slice(0,5)} · ${r.description}${r.supplier_name?`\nProveedor: ${r.supplier_name}`:''}`).join('\n\n');
       overlay.classList.add('show');
       showBrowserNotification(items);
-      if(ok){ringPattern();alarmTimer=setInterval(ringPattern,1800);stopTimer=setTimeout(stopAlarm,45000)}
+      if(ok){ringPattern();alarmTimer=setInterval(ringPattern,1800)}
       else status.textContent='Toca “Alarmas activadas” para permitir el sonido en este dispositivo.';
+      // Cerrar siempre el bloqueo visual, incluso si el navegador no permite audio.
+      stopTimer=setTimeout(stopAlarm,45000);
     }
 
     function scheduledAt(r){
