@@ -247,6 +247,24 @@
     }
     return gainCloud.pending.then(()=>{if(onDone)onDone();return gainCloud.sales});
   }
+  // La venta puede confirmarse mientras Ganancias o Reportes están abiertos.
+  // Invalidar la copia previa y repintar sin recargar la APK.
+  function gainInvalidateAndRefresh(){
+    gainCloud.sales=null;gainCloud.loadedAt=0;
+    if(document.querySelector('[data-gain-period-buttons]')){
+      gainLoadCloud(()=>{
+        const active=document.querySelector('[data-gain-period-buttons] [aria-pressed="true"]');
+        // Cambiar el filtro al mismo valor provoca el repintado completo.
+        if(active)active.click();
+      });
+    }
+    if(document.querySelector('[data-report-synced]')){
+      const box=document.querySelector('[data-report-synced]');
+      if(box)delete box.dataset.reportSignature;
+      reportEnhancePopup();
+    }
+  }
+  window.addEventListener('varelia:sale-recorded',gainInvalidateAndRefresh);
   function enhanceGainPopup(){
     const headings=[...document.querySelectorAll('h1,h2,h3,h4')].filter(
       el=>el.textContent.trim().endsWith('Ganancias')&&!el.textContent.includes(' y ')
