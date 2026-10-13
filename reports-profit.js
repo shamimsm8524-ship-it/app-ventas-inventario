@@ -487,7 +487,7 @@
     const mainMethods=['Yape','Plin','Efectivo','Transferencia','Pago con tarjeta'];
     const methods=new Map(mainMethods.map(name=>[name,0]));
     const products=new Map();
-    let revenue=0;
+    let revenue=0,unverifiedAmount=0,unverifiedSales=0;
     const catalog=arr('products');
     const addPayment=(name,amount)=>{
       if(!Number.isFinite(amount)||amount===0)return;
@@ -498,6 +498,9 @@
       const total=Number(sale.total)||0;
       revenue+=total;
       const payments=sale.paymentBreakdown??sale.payment_breakdown;
+      const hasBreakdown=payments&&typeof payments==='object'&&!Array.isArray(payments)&&Object.entries(payments).some(([,v])=>Number(v)>0);
+      const hasMethod=String(sale.paymentMethod??sale.payment_method??'').trim().length>0;
+      if(!hasBreakdown&&!hasMethod){unverifiedAmount+=total;unverifiedSales++;}
       if(payments&&typeof payments==='object'&&!Array.isArray(payments)){
         const entries=Object.entries(payments).filter(([,v])=>Number.isFinite(Number(v))&&Number(v)>0);
         if(entries.length){
@@ -528,7 +531,7 @@
         existing.quantity+=quantity;products.set(key,existing);
       }
     }
-    return {count:salesList.length,revenue,average:salesList.length?revenue/salesList.length:0,
+    return {count:salesList.length,revenue,unverifiedAmount,unverifiedSales,average:salesList.length?revenue/salesList.length:0,
       methods:[...methods.entries()],
       products:[...products.values()].sort((a,b)=>b.quantity-a.quantity)};
   }
@@ -558,7 +561,7 @@
     // Solo mostramos indicadores del período seleccionado. La comparación
     // previa confundía los números del modal con los del Historial y generaba
     // una alerta falsa, incluso cuando ambos sumaban 4 ventas y S/ 11.00.
-    const signature=JSON.stringify([data.filter.mode,data.filter.date,summary.count,summary.revenue,
+    const signature=JSON.stringify([data.filter.mode,data.filter.date,summary.count,summary.revenue,summary.unverifiedAmount,summary.unverifiedSales,
       summary.products.map(x=>[x.name,x.quantity]),summary.methods]);
     let box=panel.querySelector('[data-report-synced]');
     if(box&&box.dataset.reportSignature===signature)return;
@@ -600,6 +603,11 @@
       box.append(h);return h;
     };
     section('Total por medio de pago');
+    const confirmedPayments=summary.unverifiedSales===0;
+    box.appendChild(line('p',confirmedPayments
+      ?'Totales según los medios de pago registrados en los tickets del período.'
+      :'⚠️ Hay '+summary.unverifiedSales+' venta(s) sin medio de pago registrado (S/ '+summary.unverifiedAmount.toFixed(2)+'). Los importes por método son parciales; S/ 0.00 no significa que se haya confirmado ausencia de cobros.',
+      'font-size:12px;line-height:1.45;color:'+(confirmedPayments?'#64748b':'#a16207')+';margin:5px 0 12px;'));
     if(!summary.methods.length)box.appendChild(line('p','No hay pagos en este período.','font-size:13px;color:#64748b;'));
     for(const [method,amount] of summary.methods){
       const row=document.createElement('div');row.style.cssText='display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #e5e5e5;align-items:center;';
