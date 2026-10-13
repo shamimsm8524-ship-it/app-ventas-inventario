@@ -75,7 +75,8 @@
     };
     render();return sec
   }
-  // Resumen de ventas por fecha local del dispositivo, sin modificar registros.
+
+  // Costos, precios y ganancias por artículo. Solo lectura.
   function gainValidSales(){
     return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
       !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
@@ -90,29 +91,125 @@
       return date.getMonth()===now.getMonth()&&date.getDate()===now.getDate();
     });
   }
-  function gainPeriodTotals(salesList){
-    const products=arr('products');
-    let revenue=0,cost=0,estimated=0,missing=0;
+  function gainItemData(item,products){
+    const id=String(item.productId??item.product_id??item.id??'');
+    const name=String(item.name??item.product_name??item.productName??'').trim();
+    const match=products.find(p=>String(p.id)===id||String(p.legacy_id||'')===id)||
+      products.find(p=>String(p.name||'').trim().toLowerCase()===name.toLowerCase());
+    const title=name||String(match?.name||'Producto');
+    const rawUnit=String(item.sale_unit??item.saleUnit??item.unit??match?.unit??'Unidad').trim().toLowerCase();
+    const weighted=['kg','kilo','kilos','kilogramo','kilogramos','g','gr','gramo','gramos'].includes(rawUnit);
+    const unit=weighted?'kg':(rawUnit||'unidad');
+    const saleQty=Number(item.qty??item.quantity??1);
+    const stockQty=item.stock_qty??item.stockQty;
+    const stockNumber=stockQty==null||stockQty===''?NaN:Number(stockQty);
+    const qty=Number.isFinite(stockNumber)?stockNumber:((rawUnit==='g'||rawUnit==='gr'||rawUnit==='gramo'||rawUnit==='gramos')?saleQty/1000:saleQty);
+    const rawBuy=item.buyPriceAtSale??item.buy_price_at_sale??item.buyPrice??item.buy_price??item.costAtSale??item.cost;
+    const saved=rawBuy!=null&&rawBuy!==''&&Number.isFinite(Number(rawBuy));
+    const current=match?.buyPrice??match?.buy_price;
+    const buy=saved?Number(rawBuy):(current!=null&&current!==''&&Number.isFinite(Number(current))?Number(current):NaN);
+    const rawPrice=item.unit_price??item.unitPrice??item.sellPrice??item.price??match?.sellPrice??match?.sell_price;
+    const sell=rawPrice!=null&&rawPrice!==''&&Number.isFinite(Number(rawPrice))?Number(rawPrice):NaN;
+    const rawSubtotal=item.subtotal??item.lineTotal??item.line_total;
+    const subtotal=rawSubtotal!=null&&rawSubtotal!==''&&Number.isFinite(Number(rawSubtotal))?Number(rawSubtotal):saleQty*sell;
+    return {id:id||title.toLowerCase(),name:title,unit,qty,saleQty,buy,sell,subtotal,estimated:!saved};
+  }
+  function gainProductSummary(salesList){
+    const products=arr('products'),by=new Map();
+    let revenue=0,missing=0,estimated=0,cost=0,unallocated=0;
     for(const sale of salesList){
-      revenue+=Number(sale.total)||0;
-      const items=Array.isArray(sale.items)?sale.items:[];
+      const total=Number(sale.total)||0;
+      revenue+=total;
+      const items=(Array.isArray(sale.items)?sale.items:[]).map(it=>gainItemData(it,products));
       if(!items.length){missing++;continue}
-      for(const item of items){
-        const qty=Number(item.stockQty??item.stock_qty??item.qty??item.quantity??1);
-        if(!Number.isFinite(qty)){missing++;continue}
-        const savedCost=item.buyPriceAtSale??item.buy_price_at_sale??item.buyPrice??item.buy_price??item.costAtSale??item.cost;
-        const saved=savedCost!==null&&savedCost!==undefined&&savedCost!==''&&Number.isFinite(Number(savedCost));
-        const match=products.find(p=>String(p.id)===String(item.id??item.productId??item.product_id))||
-          products.find(p=>String(p.name||'').trim().toLowerCase()===String(item.name??item.productName??'').trim().toLowerCase());
-        const buy=saved?savedCost:(match?.buyPrice??match?.buy_price);
-        if(!saved)estimated++;
-        if(buy===null||buy===undefined||buy===''||!Number.isFinite(Number(buy))){missing++;continue}
-        cost+=Number(buy)*qty;
+      const preTotal=items.reduce((sum,it)=>sum+(Number.isFinite(it.subtotal)?Math.max(0,it.subtotal):0),0);
+      for(const it of items){
+        const key=it.id+'|'+it.unit;
+        if(!by.has(key))by.set(key,{name:it.name,unit:it.unit,qty:0,cost:0,revenue:0,buyWeighted:0,sellWeighted:0,buyQty:0,sellQty:0,minBuy:Infinity,maxBuy:-Infinity,minSell:Infinity,maxSell:-Infinity,estimated:0,missing:0});
+        const p=by.get(key);
+        const quantity=Number.isFinite(it.qty)?it.qty:0;
+        p.qty+=quantity;
+        let lineRevenue=NaN;
+        if(preTotal>0&&Number.isFinite(it.subtotal)){
+          lineRevenue=total*Math.max(0,it.subtotal)/preTotal;
+        }else if(items.length===1){
+          lineRevenue=total;
+        }
+        if(Number.isFinite(lineRevenue))p.revenue+=lineRevenue;
+        else {p.missing++;unallocated++}
+        if(!Number.isFinite(it.qty)||!Number.isFinite(it.buy)){missing++;p.missing++}
+        else{
+          const lineCost=it.qty*it.buy;
+          cost+=lineCost;p.cost+=lineCost;
+          p.buyWeighted+=lineCost;p.buyQty+=it.qty;
+          p.minBuy=Math.min(p.minBuy,it.buy);p.maxBuy=Math.max(p.maxBuy,it.buy);
+        }
+        if(Number.isFinite(it.sell)&&Number.isFinite(it.saleQty)&&it.saleQty>0){
+          p.sellWeighted+=it.sell*it.saleQty;p.sellQty+=it.saleQty;
+          p.minSell=Math.min(p.minSell,it.sell);p.maxSell=Math.max(p.maxSell,it.sell);
+        }else {p.missing++;missing++}
+        if(it.estimated){p.estimated++;estimated++}
       }
     }
-    return {revenue,cost,count:salesList.length,estimated,missing};
+    const list=[...by.values()].sort((a,b)=>b.revenue-a.revenue||a.name.localeCompare(b.name,'es'));
+    return {revenue,cost,count:salesList.length,estimated,missing,unallocated,list};
   }
-  // Añade el selector y las dos tarjetas dentro del mismo panel que ya mostraba Ventas.
+  function gainPeriodTotals(salesList){
+    const d=gainProductSummary(salesList);
+    return {revenue:d.revenue,cost:d.cost,count:d.count,estimated:d.estimated,missing:d.missing};
+  }
+
+  // Los costos históricos están en Supabase; se leen usando la sesión activa y RLS del negocio.
+  const gainCloud={sales:null,loadedAt:0,pending:null,error:''};
+  async function gainReadCloud(){
+    const sb=window.vareliaSupabase;
+    if(!sb||!sb.auth||!sb.from)throw new Error('Conexión a la nube no disponible');
+    const auth=await sb.auth.getUser();
+    const user=auth?.data?.user;
+    if(auth?.error||!user?.id)throw new Error('Sin sesión de nube');
+    const p=await sb.from('profiles').select('business_id').eq('id',user.id).maybeSingle();
+    const business=p?.data?.business_id;
+    if(p?.error||!business)throw new Error('Sin negocio vinculado');
+    async function paginated(table,fields){
+      let all=[],offset=0,step=500;
+      while(true){
+        const result=await sb.from(table).select(fields).eq('business_id',business).range(offset,offset+step-1);
+        if(result.error)throw result.error;
+        const batch=result.data||[];
+        all=all.concat(batch);
+        if(batch.length<step)return all;
+        offset+=step;
+        if(offset>=20000)throw new Error('El historial supera el límite de lectura del reporte');
+      }
+    }
+    const rows=await paginated('varelia_sales','id,total,created_at');
+    const details=await paginated('varelia_sale_items','sale_id,product_id,product_name,qty,stock_qty,sale_unit,unit_price,buy_price_at_sale');
+    const bySale=new Map();
+    for(const item of details){
+      const k=String(item.sale_id);
+      if(!bySale.has(k))bySale.set(k,[]);
+      bySale.get(k).push(item);
+    }
+    return rows.map(s=>({id:s.id,date:s.created_at,total:Number(s.total)||0,items:bySale.get(String(s.id))||[]}));
+  }
+  function gainLoadCloud(onDone){
+    if(gainCloud.sales&&Date.now()-gainCloud.loadedAt<45000){
+      if(onDone)onDone();
+      return Promise.resolve(gainCloud.sales);
+    }
+    if(!gainCloud.pending){
+      gainCloud.pending=gainReadCloud().then(sales=>{
+        gainCloud.sales=sales;gainCloud.loadedAt=Date.now();gainCloud.error='';
+        return sales;
+      }).catch(err=>{
+        gainCloud.error=String(err?.message||err||'Sin datos de nube');
+        // No mostrar los valores anteriores de otra cuenta ni un historial de nube obsoleto.
+        gainCloud.sales=null;gainCloud.loadedAt=0;
+        return null;
+      }).finally(()=>{gainCloud.pending=null});
+    }
+    return gainCloud.pending.then(()=>{if(onDone)onDone();return gainCloud.sales});
+  }
   function enhanceGainPopup(){
     const headings=[...document.querySelectorAll('h1,h2,h3,h4')].filter(
       el=>el.textContent.trim().endsWith('Ganancias')&&!el.textContent.includes(' y ')
@@ -141,66 +238,112 @@
         el.children.length===0&&/S\/\s*[\d.,]+/.test(el.textContent||''));
       const revValue=numberLeaf(revenueCard),gainValue=numberLeaf(gainCard);
       if(!revValue||!gainValue)continue;
-
       const selector=document.createElement('div');
       selector.dataset.gainPeriodButtons='true';
       selector.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;width:100%;min-width:0;margin:12px 0 16px;box-sizing:border-box;';
-      const options=[['today','Hoy'],['month','Este mes'],['all','Todo']];
-      const buttons=options.map(([value,title])=>{
-        const button=document.createElement('button');
-        button.type='button';
-        button.dataset.gainPeriod=value;
-        button.textContent=title;
-        button.style.cssText='min-width:0;padding:11px 4px;border-radius:12px;border:1px solid #ddd;background:#fff;color:#383838;font-weight:800;font-size:13px;cursor:pointer;box-sizing:border-box;';
-        selector.appendChild(button);
-        return button;
+      const buttons=[['today','Hoy'],['month','Este mes'],['all','Todo']].map(([value,title])=>{
+        const btn=document.createElement('button');
+        btn.type='button';btn.dataset.gainPeriod=value;btn.textContent=title;
+        btn.style.cssText='min-width:0;padding:11px 4px;border-radius:12px;border:1px solid #ddd;background:#fff;color:#383838;font-weight:800;font-size:13px;cursor:pointer;box-sizing:border-box;';
+        selector.append(btn);return btn;
       });
       const extras=document.createElement('div');
       extras.dataset.gainCosts='true';
-      extras.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;max-width:100%;min-width:0;margin:12px 0;box-sizing:border-box;';
-      function costCard(){
-        const card=document.createElement('div');
-        card.style.cssText='min-width:0;border:1px solid #ddd;border-radius:18px;padding:13px;box-sizing:border-box;overflow-wrap:anywhere;';
-        const label=document.createElement('div');
-        label.style.cssText='font-size:12px;color:#737782;line-height:1.35;';
-        const amount=document.createElement('strong');
-        amount.style.cssText='display:block;font-size:clamp(18px,4.5vw,27px);line-height:1.3;margin-top:8px;overflow-wrap:anywhere;';
-        card.append(label,amount);
-        extras.appendChild(card);
-        return {label,amount};
+      extras.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;min-width:0;margin:12px 0;box-sizing:border-box;';
+      function card(label){
+        const box=document.createElement('div');
+        box.style.cssText='min-width:0;border:1px solid #ddd;border-radius:18px;padding:13px;box-sizing:border-box;overflow-wrap:anywhere;';
+        const caption=document.createElement('div');caption.style.cssText='font-size:12px;color:#737782;line-height:1.35;';caption.textContent=label;
+        const amount=document.createElement('strong');amount.style.cssText='display:block;font-size:clamp(18px,4.5vw,27px);line-height:1.3;margin-top:8px;overflow-wrap:anywhere;';
+        box.append(caption,amount);extras.append(box);return {caption,amount};
       }
-      const totalCostCard=costCard(),averageCostCard=costCard();
-      const note=document.createElement('div');
-      note.dataset.gainPeriodNote='true';
-      note.style.cssText='font-size:12px;color:#64748b;line-height:1.4;margin:0 0 12px;';
+      const costCard=card('Costo total de productos vendidos'),avgCard=card('Costo promedio por venta');
+      const sourceNote=document.createElement('p');
+      sourceNote.style.cssText='font-size:12px;color:#64748b;line-height:1.4;margin:0 0 12px;';
+      sourceNote.dataset.gainPeriodNote='true';
+      const detail=document.createElement('section');
+      detail.dataset.gainPerProduct='true';
+      detail.style.cssText='width:100%;min-width:0;box-sizing:border-box;margin-top:12px;';
+      const title=document.createElement('h3');title.textContent='Ganancia por producto';
+      title.style.cssText='font-size:17px;margin:10px 0 12px;';
+      const itemsBox=document.createElement('div');
+      itemsBox.style.cssText='display:grid;gap:11px;max-height:350px;overflow-y:auto;min-width:0;';
+      detail.append(title,itemsBox);
       row.insertAdjacentElement('beforebegin',selector);
       row.insertAdjacentElement('afterend',extras);
-      extras.insertAdjacentElement('afterend',note);
-      const draw=(period)=>{
-        const selected=gainSalesPeriod(gainValidSales(),period);
-        const totals=gainPeriodTotals(selected);
-        const complete=totals.missing===0;
-        revValue.textContent=money(totals.revenue);
-        gainValue.textContent=complete?money(totals.revenue-totals.cost):'Sin datos';
-        const suffix=totals.estimated?' (estimado)':'';
-        totalCostCard.label.textContent='Costo total de productos vendidos'+suffix;
-        totalCostCard.amount.textContent=complete?money(totals.cost):'Sin datos';
-        averageCostCard.label.textContent='Costo promedio por venta'+suffix;
-        averageCostCard.amount.textContent=!selected.length?'—':(complete?money(totals.cost/selected.length):'Sin datos');
-        note.textContent=totals.missing
-          ?'⚠️ Faltan costos en '+totals.missing+' registro(s). No se muestran ganancias incompletas.'
-          :(totals.estimated?'⚠️ Cálculo estimado: '+totals.estimated+' producto(s) sin costo histórico; se usa el costo actual.'
-          :(!totals.count?'No hay ventas en este período.':'Ventas incluidas: '+totals.count+'.'));
+      extras.insertAdjacentElement('afterend',sourceNote);
+      sourceNote.insertAdjacentElement('afterend',detail);
+      let activePeriod='all',lastRenderSource='';
+      const draw=()=>{
+        if(!document.contains(selector))return;
+        const usingCloud=Array.isArray(gainCloud.sales);
+        const periodSales=gainSalesPeriod(usingCloud?gainCloud.sales:gainValidSales(),activePeriod);
+        const result=gainProductSummary(periodSales);
+        const complete=result.missing===0;
+        revValue.textContent=money(result.revenue);
+        gainValue.textContent=complete?money(result.revenue-result.cost):'Sin datos';
+        const estimated=result.estimated>0;
+        const suffix=estimated?' (estimado)':'';
+        costCard.caption.textContent='Costo total de productos vendidos'+suffix;
+        costCard.amount.textContent=complete?money(result.cost):'Sin datos';
+        avgCard.caption.textContent='Costo promedio por venta'+suffix;
+        avgCard.amount.textContent=!result.count?'—':(complete?money(result.cost/result.count):'Sin datos');
+        sourceNote.textContent=(usingCloud?'Costos históricos de Supabase':'Datos locales; esperando costos históricos de la nube')+
+          ' · '+result.count+' venta(s)'+
+          (result.missing?' · Faltan datos en '+result.missing+' línea(s)':'')+
+          (estimated?' · '+result.estimated+' costo(s) estimado(s)':'')+
+          (!usingCloud&&gainCloud.error?' · '+gainCloud.error:'');
         buttons.forEach(btn=>{
-          const active=btn.dataset.gainPeriod===period;
+          const active=btn.dataset.gainPeriod===activePeriod;
           btn.style.background=active?'#7c3aed':'#fff';
           btn.style.color=active?'#fff':'#383838';
           btn.style.borderColor=active?'#7c3aed':'#ddd';
           btn.setAttribute('aria-pressed',String(active));
         });
+        itemsBox.replaceChildren();
+        if(!result.list.length){
+          const empty=document.createElement('p');empty.textContent='No hay productos vendidos en este período.';
+          empty.style.cssText='color:#64748b;font-size:13px;margin:5px 0;';
+          itemsBox.append(empty);
+        }
+        function valueRow(container,label,value,highlight=false){
+          const el=document.createElement('div');el.style.cssText='min-width:0;';
+          const cap=document.createElement('div');cap.style.cssText='font-size:11px;color:#64748b;line-height:1.3;';cap.textContent=label;
+          const big=document.createElement('strong');big.style.cssText='font-size:15px;line-height:1.4;overflow-wrap:anywhere;color:'+(highlight?'#16803b':'inherit')+';';
+          big.textContent=value;el.append(cap,big);container.append(el);
+        }
+        for(const item of result.list){
+          const card=document.createElement('article');
+          card.style.cssText='border:1px solid #ddd;border-radius:17px;padding:13px;min-width:0;box-sizing:border-box;';
+          const name=document.createElement('h4');name.textContent=item.name;
+          name.style.cssText='font-size:15px;margin:0 0 11px;font-weight:900;overflow-wrap:anywhere;';
+          const grid=document.createElement('div');
+          grid.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0;';
+          const avgBuy=item.buyQty>0?item.buyWeighted/item.buyQty:NaN;
+          const avgSell=item.sellQty>0?item.sellWeighted/item.sellQty:NaN;
+          const profitUnit=avgSell-avgBuy;
+          const unitLabel=item.unit==='kg'?'kg':item.unit;
+          const valid=item.missing===0;
+          const buyLabel='Precio compra por '+unitLabel+(item.estimated?' (estimado)':'');
+          valueRow(grid,buyLabel,Number.isFinite(avgBuy)?money(avgBuy):'Sin datos');
+          valueRow(grid,'Precio venta por '+unitLabel,Number.isFinite(avgSell)?money(avgSell):'Sin datos');
+          valueRow(grid,'Ganancia por '+unitLabel,valid&&Number.isFinite(profitUnit)?money(profitUnit):'Sin datos',true);
+          valueRow(grid,'Cantidad vendida',Number(item.qty.toFixed(3))+' '+unitLabel);
+          valueRow(grid,'Costo total vendido',valid?money(item.cost):'Sin datos');
+          valueRow(grid,'Ganancia total',valid?money(item.revenue-item.cost):'Sin datos',true);
+          card.append(name,grid);
+          if((item.maxBuy-item.minBuy)>0.000001||(item.maxSell-item.minSell)>0.000001){
+            const note=document.createElement('div');note.style.cssText='font-size:11px;color:#64748b;margin-top:8px;';
+            note.textContent='Precios unitarios promedio ponderados del período.';
+            card.append(note);
+          }
+          itemsBox.append(card);
+        }
       };
-      buttons.forEach(btn=>btn.addEventListener('click',()=>draw(btn.dataset.gainPeriod)));
-      draw('all');
+      buttons.forEach(btn=>btn.addEventListener('click',()=>{
+        activePeriod=btn.dataset.gainPeriod;draw();gainLoadCloud(draw);
+      }));
+      draw();gainLoadCloud(draw);
     }
   }
   function setupGainPopupObserver(){
@@ -210,7 +353,7 @@
       scheduled=true;
       requestAnimationFrame(()=>{scheduled=false;enhanceGainPopup()});
     });
-    observer.observe(document.body,{subtree:true,childList:true});
+    observer.observe(document.body,{childList:true,subtree:true});
     enhanceGainPopup();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupGainPopupObserver);
