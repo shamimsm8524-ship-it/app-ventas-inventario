@@ -429,7 +429,10 @@
           valueRow(grid,'Precio venta por '+unitLabel,Number.isFinite(avgSell)?money(avgSell):'Sin datos');
           valueRow(grid,'Ganancia por '+unitLabel,valid&&Number.isFinite(profitUnit)?money(profitUnit):'Sin datos',true);
           valueRow(grid,'Cantidad vendida',Number(item.qty.toFixed(3))+' '+unitLabel);
-          valueRow(grid,'Costo total vendido',valid?money(item.cost):'Sin datos');
+          // Importe de la venta, no costo de compra:
+          // 1.5 kg a S/ 3 por kg = S/ 4.50 vendidos.
+          valueRow(grid,'Total vendido',money(item.revenue));
+          valueRow(grid,'Costo total de compra',valid?money(item.cost):'Sin datos');
           valueRow(grid,'Ganancia total',valid?money(item.revenue-item.cost):'Sin datos',true);
           card.append(name,grid);
           if((item.maxBuy-item.minBuy)>0.000001||(item.maxSell-item.minSell)>0.000001){
