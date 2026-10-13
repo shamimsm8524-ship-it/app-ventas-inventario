@@ -3,7 +3,7 @@
   window.__vareliaCatalogPaymentsSummary=true;
   const fields=['Yape','Plin','Efectivo','Transferencia','Tarjeta','Otros','Sin especificar'];
   let period='day',orders=null,role='',business='',error='',pending=null,lastFetch=0;
-  let selectedDay='',selectedMonth='',fromDate='',toDate='',dateError='';
+  let selectedDay='',selectedMonth='',fromDate='',toDate='',dateError='',dateBasis='order';
   const money=n=>'S/ '+(n/100).toFixed(2);
   const cents=n=>Math.max(0,Math.round((Number(n)||0)*100));
   const panels=()=>[...document.querySelectorAll('#orders,#catalogOrders')];
@@ -38,6 +38,8 @@
       el.addEventListener('click',e=>{
         const b=e.target.closest('[data-pay-period]');
         if(b){period=b.dataset.payPeriod;dateError='';draw()}
+        const basis=e.target.closest('[data-pay-date-basis]');
+        if(basis){dateBasis=basis.dataset.payDateBasis;dateError='';draw()}
         if(e.target.closest('[data-pay-apply]')){
           fromDate=el.querySelector('[data-pay-from]')?.value||'';
           toDate=el.querySelector('[data-pay-to]')?.value||'';
@@ -64,11 +66,11 @@
     const now=day(new Date()),month=now.slice(0,7);
     const picked=(orders||[]).filter(o=>{
       if(period==='all')return true;
-      const paidDay=day(o.paid_at);
-      if(!paidDay)return false;
-      if(period==='day')return paidDay===(selectedDay||now);
-      if(period==='month')return paidDay.slice(0,7)===(selectedMonth||month);
-      if(period==='range')return !!fromDate&&!!toDate&&fromDate<=toDate&&paidDay>=fromDate&&paidDay<=toDate;
+      const selectedDate=day(dateBasis==='order'?o.created_at:o.paid_at);
+      if(!selectedDate)return false;
+      if(period==='day')return selectedDate===(selectedDay||now);
+      if(period==='month')return selectedDate.slice(0,7)===(selectedMonth||month);
+      if(period==='range')return !!fromDate&&!!toDate&&fromDate<=toDate&&selectedDate>=fromDate&&selectedDate<=toDate;
       return false;
     });
     const amounts=Object.fromEntries(fields.map(k=>[k,0]));
@@ -95,7 +97,14 @@
         '<button type="button" data-pay-apply style="width:100%;padding:11px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:800;margin-bottom:11px">Aplicar rango</button>'+
         (dateError?'<p role="alert" style="color:#b91c1c;font-size:12px;margin:0 0 12px">'+dateError+'</p>':'')
       :'<p style="font-size:12px;color:var(--muted,#64748b);margin:0 0 12px">Todos los pagos confirmados, sin limitar fechas.</p>';
-    const unknownDates=period==='all'?picked.filter(o=>!day(o.paid_at)).length:0;
+    const unknownDates=period==='all'?picked.filter(o=>!day(dateBasis==='order'?o.created_at:o.paid_at)).length:0;
+    const dateBasisTabs='<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0 0 12px">'+
+      [['order','Fecha del pedido'],['payment','Fecha del cobro']].map(([value,label])=>
+        '<button type="button" data-pay-date-basis="'+value+'" aria-pressed="'+(dateBasis===value)+'" style="border:1px solid '+(dateBasis===value?'#2563eb':'#d1d5db')+';border-radius:10px;padding:10px 6px;font-size:12px;font-weight:800;background:'+(dateBasis===value?'#2563eb':'transparent')+';color:'+(dateBasis===value?'#fff':'inherit')+'">'+label+'</button>'
+      ).join('')+'</div>';
+    const basisNote=dateBasis==='order'
+      ?'Pedidos cuyo pago ya está confirmado, agrupados por la fecha en que el cliente hizo el pedido. El cobro pudo ocurrir otro día.'
+      :'Dinero cobrado en la fecha en que confirmaste el pago del pedido.';
     for(const p of panels()){
       const el=p.querySelector('[data-public-payments]');
       if(!el)continue;
@@ -103,13 +112,15 @@
       if(role!=='owner')continue;
       el.innerHTML='<h3 style="margin:0 0 5px;font-size:18px">Pagos del catálogo público</h3>'+
         '<p style="font-size:12px;color:var(--muted,#64748b);margin:0 0 12px">Solo pagos confirmados; ninguna venta de caja se suma aquí.</p>'+
+        dateBasisTabs+
+        '<p style="font-size:12px;color:var(--muted,#64748b);margin:0 0 12px">'+basisNote+'</p>'+
         '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:14px">'+tabs+'</div>'+dateFilter+
         (error?'<p style="color:#b91c1c">No se pudo consultar el resumen. Pulsa Actualizar.</p>':
         orders===null?'<p>Consultando pagos confirmados…</p>':
-        '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px"><div><small>Total cobrado</small><strong style="display:block;font-size:24px">'+money(total)+'</strong></div>'+
+        '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px"><div><small>'+(dateBasis==='order'?'Total de pedidos pagados':'Total cobrado')+'</small><strong style="display:block;font-size:24px">'+money(total)+'</strong></div>'+
         '<div><small>Pedidos pagados</small><strong style="display:block;font-size:24px">'+picked.length+'</strong></div></div>'+
         '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:14px;font-size:13px">'+lines+'</div>'+
-        (unknownDates?'<p style="font-size:12px">Hay '+unknownDates+' pago(s) sin fecha de confirmación. Solo aparecen en «Todo».</p>':'')+
+        (unknownDates?'<p style="font-size:12px">Hay '+unknownDates+' pedido(s) sin fecha de '+(dateBasis==='order'?'creación':'cobro')+'. Solo aparecen en «Todo».</p>':'')+
         '<p style="font-size:11px;color:var(--muted,#64748b);margin:12px 0 0">Incluye envío si corresponde. Pedidos pendientes excluidos.</p>')+
         '<button type="button" data-pay-refresh style="margin-top:12px;padding:9px;border-radius:10px;border:1px solid #d1d5db;background:transparent;color:inherit">↻ Actualizar</button>';
     }
@@ -133,7 +144,7 @@
         const all=[],size=500;
         for(let from=0;from<20000;from+=size){
           const r=await sb.from('public_catalog_orders')
-            .select('id,total,payment_method,paid_at')
+            .select('id,total,payment_method,created_at,paid_at')
             .eq('business_id',id).eq('payment_status','paid')
             .order('id',{ascending:true}).range(from,from+size-1);
           if(r.error)throw r.error;
