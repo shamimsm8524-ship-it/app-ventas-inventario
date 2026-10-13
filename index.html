@@ -354,61 +354,7 @@ function vareliaEnsureSyncModule(){
  if(vareliaSyncRetrying)return;
  vareliaSyncRetrying=true;
  const s=document.createElement('script');
- s.src='central-stock-sync.js?v=20261010-checkout-cart-fix-v26';
- s.onload=()=>{setTimeout(()=>{if(typeof window.vareliaForceSync!=='function'){vareliaSyncRetrying=false;setCloudStatus('☁️ Módulo de sincronización no disponible',true)}},2500)};
- s.onerror=()=>{vareliaSyncRetrying=false;setCloudStatus('☁️ No se pudo cargar la sincronización',true)};
- document.body.appendChild(s);
-}
-setTimeout(()=>{
- if(!vareliaSyncSeen && typeof window.vareliaForceSync!=='function')vareliaEnsureSyncModule();
- setTimeout(()=>{if(!vareliaSyncSeen && !vareliaSyncRetrying)setCloudStatus('☁️ Sin conexión · toca para reintentar',true)},12000);
-},10000);
-window.addEventListener('online',()=>{vareliaSyncSeen=false;vareliaEnsureSyncModule()});
-document.addEventListener('click',async(event)=>{
- const target=event.target;const hit=target&&target.closest?target.closest('#cloudStatus'):null;if(!hit)return;
- const el=$('cloudStatus');if(!el||el.dataset.syncing==='1')return;
- el.dataset.syncing='1';setCloudStatus('☁️ Reconectando...');
- try{
-  if(typeof window.vareliaForceSync==='function'){
-   await window.vareliaForceSync();
-   setCloudStatus('☁️ Conectado');
-  }else{
-   window.dispatchEvent(new CustomEvent('varelia:business-scope-ready'));
-   setCloudStatus('☁️ Reintentando...');
-  }
- }catch(err){
-  console.error('Reintento manual de sincronización',err);
-  setCloudStatus('☁️ Sin conexión · toca para reintentar',true);
- }finally{el.dataset.syncing='0'}
-});
-function shade(h,a=-28){let n=parseInt(h.slice(1),16),r=Math.max(0,Math.min(255,(n>>16)+a)),g=Math.max(0,Math.min(255,((n>>8)&255)+a)),b=Math.max(0,Math.min(255,(n&255)+a));return '#'+(b|g<<8|r<<16).toString(16).padStart(6,'0')}
-
-function applyTheme(){
-  if(!theme || !theme.color) theme = { color: '#2563eb', dark: false };
-  document.documentElement.style.setProperty('--p', theme.color);
-  document.documentElement.style.setProperty('--p2', shade(theme.color));
-  document.body.classList.toggle('dark', !!theme.dark);
-  if(window.themeMeta) themeMeta.content = theme.color;
-  document.querySelectorAll('.themeCard').forEach(b=>b.classList.toggle('active', (b.dataset.color||'').toLowerCase() === theme.color.toLowerCase()));
-  if(window.lightModeBtn) lightModeBtn.classList.toggle('active', !theme.dark);
-  if(window.darkModeBtn) darkModeBtn.classList.toggle('active', !!theme.dark);
-}
-
-function setThemeColor(c){
-  if(!/^#[0-9a-f]{6}$/i.test(c)) return false;
-  theme.color = c.toLowerCase();
-  theme.updatedAt = Date.now();
-  localStorage.setItem(K.theme, JSON.stringify(theme));
-  applyTheme();
-  save();
-  return true;
-}
-
-function activeSales(){return sales.filter(s=>new Date(s.date)>=new Date(cashStart))}
-function needsReorder(p){return (+p.stock||0)<=Math.max(0,+p.reorderLevel||0)}
-function addMovement(p,type,qty,before,after,source){movements.push({id:uid(),date:new Date().toISOString(),productId:p.id,name:p.name,category:p.category||'',unit:p.unit||'Unidad',type,qty:+qty,before:+before,after:+after,source})}
-function render(){renderProducts();renderInventory();renderCategories();renderSuppliers();renderPurchases();renderSales();renderCash();fillCats();fillPurchaseSelectors();renderInvSelected()}
-function card(p){return `<article class="product"><div class="photo">${p.image?`<img src="${p.image}">`:'Sin imagen'}</div><div class="pb"><h3 style="display:flex;align-items:center;gap:7px">${esc(p.name)} <button type="button" class="btn secondary" data-edit="${p.id}" title="Editar nombre" style="padding:3px 8px;font-size:12px">✏️</button></h3><div class="meta">${esc(p.category)}</div>${p.variants||p.specifications?`<div style="margin-top:4px;font-size:14px;font-weight:800;color:var(--ink)">${esc(p.variants||p.specifications)}</div>`:''}${p.barcode?`<div style="margin-top:5px;font-size:14px;font-weight:900;color:var(--ink);letter-spacing:.02em;line-height:1.3;word-break:break-all"><span style="color:var(--muted);font-weight:800">Código:</span> ${esc(p.barcode)}</div>`:''}<div class="price" style="font-family:Arial,system-ui,sans-serif!important;font-size:22px!important;font-weight:850!important;line-height:1.05!important;letter-spacing:-.02em!important;color:var(--p)!important;white-space:nowrap!important"><span class="catalogSalePriceText" style="font:inherit!important;color:inherit!important;letter-spacing:inherit!important;white-space:nowrap!important">S/&nbsp;${Number(p.sellPrice||0).toFixed(2)}</span></div><div class="actions"><button class="btn secondary" data-edit="${p.id}">Editar</button><button class="btn primary" data-add="${p.id}">Vender</button><button class="btn danger" data-delete="${p.id}">Eliminar</button></div></div></article>`}
+ s.src='central-stock-sync.js?v=20261013-live-sales-v26"product"><div class="photo">${p.image?`<img src="${p.image}">`:'Sin imagen'}</div><div class="pb"><h3 style="display:flex;align-items:center;gap:7px">${esc(p.name)} <button type="button" class="btn secondary" data-edit="${p.id}" title="Editar nombre" style="padding:3px 8px;font-size:12px">✏️</button></h3><div class="meta">${esc(p.category)}</div>${p.variants||p.specifications?`<div style="margin-top:4px;font-size:14px;font-weight:800;color:var(--ink)">${esc(p.variants||p.specifications)}</div>`:''}${p.barcode?`<div style="margin-top:5px;font-size:14px;font-weight:900;color:var(--ink);letter-spacing:.02em;line-height:1.3;word-break:break-all"><span style="color:var(--muted);font-weight:800">Código:</span> ${esc(p.barcode)}</div>`:''}<div class="price" style="font-family:Arial,system-ui,sans-serif!important;font-size:22px!important;font-weight:850!important;line-height:1.05!important;letter-spacing:-.02em!important;color:var(--p)!important;white-space:nowrap!important"><span class="catalogSalePriceText" style="font:inherit!important;color:inherit!important;letter-spacing:inherit!important;white-space:nowrap!important">S/&nbsp;${Number(p.sellPrice||0).toFixed(2)}</span></div><div class="actions"><button class="btn secondary" data-edit="${p.id}">Editar</button><button class="btn primary" data-add="${p.id}">Vender</button><button class="btn danger" data-delete="${p.id}">Eliminar</button></div></div></article>`}
 function renderProducts(){let q=search.value.trim().toLowerCase(),a=products.filter(p=>(activeCategory==='Todos'||p.category===activeCategory)&&(!q||[p.name,p.barcode,p.category].some(v=>String(v||'').toLowerCase().includes(q))));productGrid.innerHTML=a.length?a.map(card).join(''):'<div class="empty">No hay productos.</div>';categoryChips.innerHTML=['Todos',...categories].map(c=>`<button class="chip ${activeCategory===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
 function renderInventory(){const stockOf=p=>{const vs=Array.isArray(p.variantCombinations)?p.variantCombinations:[];const total=vs.reduce((a,v)=>a+(Number(v?.stock)||0),0);return vs.length&&total>0?total:(Number(p.stock)||0)};let low=products.filter(p=>stockOf(p)<=Math.max(0,+p.reorderLevel||0)).sort((a,b)=>stockOf(a)-stockOf(b));reorderList.innerHTML=low.length?low.map(p=>{const s=stockOf(p);return `<div class="alertrow"><div><strong>⚠️ ${esc(p.name)}</strong><div class="meta">${esc(p.category||'Sin sección')} · Stock actual: <b>${s} ${esc(p.unit)}</b></div></div><div style="text-align:right"><label style="font-size:11px">Alertar en</label><input data-reorder="${p.id}" type="number" min="0" value="${Math.max(0,+p.reorderLevel||0)}"></div></div>`}).join(''):'<div class="empty">✅ No hay productos por reponer.</div>';inventoryProductList.innerHTML=products.length?[...products].sort((a,b)=>(a.category||'').localeCompare(b.category||'')||(a.name||'').localeCompare(b.name||'')).map(p=>{const s=stockOf(p);const low=s<=Math.max(0,+p.reorderLevel||0);return `<div class="row" data-invrow="${p.id}"><div><strong>${esc(p.name)}${low?'<span class="warnbadge">⚠️ Reponer</span>':''}</strong><div><span class="badge">${esc(p.category||'Sin sección')}</span></div><div class="meta">Alerta configurada: ${Math.max(0,+p.reorderLevel||0)} ${esc(p.unit)}</div></div><div style="text-align:right"><strong>${s} ${esc(p.unit)}</strong><div style="display:flex;gap:5px;justify-content:flex-end;margin-top:7px"><button class="btn secondary" data-alertcfg="${p.id}" style="padding:6px 9px">⚙️</button><button class="btn danger" data-deleteinv="${p.id}" style="padding:6px 9px">🗑️</button></div></div></div>`}).join(''):'<div class="empty">Sin productos.</div>';let list=[...movements].reverse().slice(0,100);inventoryMovementList.innerHTML=list.length?list.map(m=>`<div class="row"><div><strong>${esc(m.name)}</strong><div class="meta">${new Date(m.date).toLocaleString('es-PE')} · ${esc(m.source||'')}</div><div class="meta">Stock ${m.before} → ${m.after}</div></div><div><strong>${m.qty}</strong></div></div>`).join(''):'<div class="empty">Sin movimientos.</div>'}
 
@@ -993,7 +939,7 @@ if(!window.supabase){
 <script src="admin-guard.js?v=20260902-1"></script>
 <script src="premium-admin-open-fix.js?v=20260902-1"></script>
 <script src="dashboard-premium-summary.js?v=20260902-1"></script>
-<script src="reports-profit.js?v=20261013-centavo-payments-v14"></script>
+<script src="reports-profit.js?v=20261013-live-sales-v15"></script>
 <script src="reminder-alarm.js?v=20261013-overlay-timeout-fix"></script>
 <script src="barcode-tools.js?v=20260819-5"></script>
 <script src="scanner-fix.js?v=20261009-product-name-v18"></script>
