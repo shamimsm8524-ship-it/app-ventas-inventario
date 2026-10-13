@@ -195,7 +195,7 @@
     async function loadSellers(){
       if(profile?.role!=='owner')return;
       const list=document.getElementById('vsellersList');if(list)list.innerHTML='<div class="vsellerEmpty">Cargando vendedores…</div>';
-      try{const data=await invoke({action:'list'});sellers=Array.isArray(data?.sellers)?data.sellers:[];renderList()}
+      try{const data=await invoke({action:'list'});sellers=Array.isArray(data?.sellers)?data.sellers.map(s=>({...s,name:String(s.full_name||s.name||'Vendedor')})):[];renderList()}
       catch(e){if(list)list.innerHTML='<div class="vsellerEmpty">No se pudieron cargar los vendedores.</div>';console.error(e)}
     }
     function renderList(){
