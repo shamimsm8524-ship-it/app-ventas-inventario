@@ -70,7 +70,7 @@
         const bottom=existingPos.querySelector('.vposBottom'),checkout=existingPos.querySelector('#vposCheckout');
         if(bottom&&checkout&&!existingPos.querySelector('#vposPay')){
           const pay=document.createElement('div');pay.className='vposPay';pay.id='vposPay';pay.style.cssText='grid-column:1/-1;border:1px solid var(--line);border-radius:16px;padding:13px;background:var(--bg);display:grid;gap:10px';
-          pay.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><b>💳 Forma de pago</b><select id="vposPayMethod" style="max-width:190px"><option>Efectivo</option><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta</option></select></div><label style="display:flex;gap:8px;align-items:center;font-weight:850"><input type="checkbox" id="vposMixed" style="width:18px;height:18px"> Pago mixto (combinar métodos)</label><div id="vposPayFields"></div>';
+          pay.innerHTML='<div style="display:flex;justify-content:space-between;gap:10px;align-items:center"><b>💳 Forma de pago</b><select id="vposPayMethod" style="max-width:190px"><option>Efectivo</option><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta</option><option>Fiado</option></select></div><label style="display:flex;gap:8px;align-items:center;font-weight:850"><input type="checkbox" id="vposMixed" style="width:18px;height:18px"> Pago mixto (combinar métodos)</label><div id="vposPayFields"></div>';
           bottom.insertBefore(pay,checkout);
           const total=()=>Number(String(existingPos.querySelector('#vposTotal')?.textContent||'').replace(/[^0-9.]/g,''))||0,method=pay.querySelector('#vposPayMethod'),mixed=pay.querySelector('#vposMixed'),fields=pay.querySelector('#vposPayFields'),methods=['Efectivo','Yape','Plin','Transferencia','Tarjeta'];
           const qrInfo=m=>{let legacy={};try{legacy=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}const live=window.vareliaVideoSettings||{};return m==='Yape'?{qr:String(localStorage.getItem('varelia_qr_yape_v2')||live.yapeQr||legacy.yapeQr||''),holder:String(localStorage.getItem('varelia_qr_yape_holder_v2')||live.yapeHolder||legacy.yapeHolder||'')}:m==='Plin'?{qr:String(localStorage.getItem('varelia_qr_plin_v2')||live.plinQr||legacy.plinQr||''),holder:String(localStorage.getItem('varelia_qr_plin_holder_v2')||live.plinHolder||legacy.plinHolder||'')}:{qr:'',holder:''}};
@@ -140,7 +140,7 @@
           <div class="vposTable"><div class="vposHead"><span>Producto</span><span>Precio</span><span>Cant.</span><span style="text-align:right">Subtotal</span></div><div id="vposItems"></div></div>
           <div class="vposBottom"><div class="vposCount" id="vposCount">0 productos</div><div class="vposTotal"><small>TOTAL A PAGAR</small><strong id="vposTotal">S/ 0.00</strong></div>
           <div class="vposPay" id="vposPay">
-            <div class="vposPayHead"><b>💳 Forma de pago</b><select id="vposPayMethod"><option>Efectivo</option><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta</option></select></div>
+            <div class="vposPayHead"><b>💳 Forma de pago</b><select id="vposPayMethod"><option>Efectivo</option><option>Yape</option><option>Plin</option><option>Transferencia</option><option>Tarjeta</option><option>Fiado</option></select></div>
             <label class="vposMixedLabel"><input type="checkbox" id="vposMixed"> Pago mixto (combinar métodos)</label>
             <div id="vposPayFields"></div>
           </div>
@@ -158,7 +158,7 @@
       const exactProduct=q=>{q=norm(q);if(!q)return null;return allProducts().find(p=>norm(p.barcode)===q)||allProducts().find(p=>norm(p.name)===q)||null};
       const matches=q=>{q=norm(q);const list=allProducts();if(!q)return [];return list.filter(p=>norm(p.barcode).includes(q)||norm(p.name).includes(q)||norm(p.category).includes(q)).slice(0,12)};
 
-      const PAY_METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta'];
+      const PAY_METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta']; // Fiado nunca es dinero cobrado.
       const paymentQrInfo=method=>{
         let legacy={};try{legacy=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')}catch{}
         const live=window.vareliaVideoSettings||{};
@@ -178,6 +178,8 @@
         if(mixedPay.checked){
           payFields.innerHTML='<div class="vposParts">'+PAY_METHODS.map(m=>'<label class="vposPart"><span>'+m+'</span><input type="number" min="0" step="0.10" inputmode="decimal" data-vpos-part="'+m+'" placeholder="S/ 0.00"></label>').join('')+'</div><div class="vposPayResult"><span id="vposPayStatus">Falta</span><strong id="vposPayDiff">S/ '+total.toFixed(2)+'</strong></div>';
           payFields.querySelectorAll('[data-vpos-part]').forEach(x=>x.oninput=updatePay);
+        }else if(payMethod.value==='Fiado'){
+          payFields.innerHTML='<div style="display:grid;gap:10px"><label style="display:grid;gap:6px;font-weight:850">Nombre del cliente<input id="vposCreditCustomer" maxlength="120" autocomplete="name" placeholder="¿A quién has fiado?" required></label><div style="padding:12px;border:1px solid #fbbf24;background:#fffbeb;color:#92400e;border-radius:12px"><b>Venta fiada · no cobrada</b><small style="display:block;margin-top:5px">Deuda pendiente: S/ '+total.toFixed(2)+'. Se registrará en Historial → Cuaderno de fiados.</small></div><div class="vposPayResult"><span id="vposPayStatus">Por cobrar</span><strong id="vposPayDiff">S/ '+total.toFixed(2)+'</strong></div></div>';
         }else if(payMethod.value==='Efectivo'){
           payFields.innerHTML='<label class="vposCashRow"><span>Me paga con</span><input id="vposAmountReceived" type="text" inputmode="decimal" autocomplete="off" placeholder="Ej. 50.00" aria-label="Monto recibido en soles"></label><div class="vposPayResult"><span id="vposPayStatus">Vuelto</span><strong id="vposPayDiff">S/ 0.00</strong></div>';
           const receivedInput=root.querySelector('#vposAmountReceived');
@@ -197,7 +199,12 @@
         updatePay();
       }
       function paySnapshot(){
-        const total=currentTotal();let breakdown={},received=0;
+        const total=currentTotal();
+        if(payMethod.value==='Fiado'&&!mixedPay.checked)return {
+          total,received:0,missing:0,change:0,breakdown:{},method:'Fiado',
+          balanceDue:total,customerName:String(root.querySelector('#vposCreditCustomer')?.value||'').trim()
+        };
+        let breakdown={},received=0;
         if(mixedPay.checked){
           payFields.querySelectorAll('[data-vpos-part]').forEach(x=>{const n=Math.max(0,Number(x.value)||0);if(n){breakdown[x.dataset.vposPart]=n;received+=n}});
         }else{
@@ -215,7 +222,8 @@
         if(mixedPay.checked){st.textContent=p.missing>0?'Falta':'Vuelto';df.textContent='S/ '+(p.missing>0?p.missing:p.change).toFixed(2);df.style.color=p.missing>0?'#b91c1c':'var(--p)'}
         else{st.textContent=p.missing>0?'Falta':'Vuelto';df.textContent='S/ '+(p.missing>0?p.missing:p.change).toFixed(2);df.style.color=p.missing>0?'#b91c1c':'var(--p)'}
       }
-      payMethod.onchange=renderPay;mixedPay.onchange=renderPay;
+      payMethod.onchange=()=>{if(payMethod.value==='Fiado')mixedPay.checked=false;renderPay();};
+      mixedPay.onchange=()=>{if(mixedPay.checked&&payMethod.value==='Fiado')payMethod.value='Efectivo';renderPay();};
       window.addEventListener('varelia:payment-settings-changed',()=>setTimeout(renderPay,0));
 
       function legacyRows(){
@@ -386,6 +394,12 @@
             }
             if(!(Number(sale.total)>0)&&Number(checkoutState?.total)>0)sale.total=Number(checkoutState.total);
             sale.paymentMethod=paymentSnap.method||sale.paymentMethod||'Efectivo';
+            if(sale.paymentMethod==='Fiado'){
+              sale.customerName=String(paymentSnap.customerName||'').trim();
+              sale.paidAmount=0;
+              sale.payments=[];
+              sale.paymentStatus='pending';
+            }
             const saleTotal=Math.max(0,Number(sale.total)||Number(paymentSnap.total)||Number(checkoutState?.total)||0);
             const snapReceived=Math.max(0,Number(paymentSnap.received)||0);
             const inputReceived=Math.max(0,Number(document.getElementById('vposAmountReceived')?.value)||Number(document.getElementById('vpayReceived')?.value)||Number(document.getElementById('vReceived')?.value)||Number(document.getElementById('vCash')?.value)||0);
@@ -441,6 +455,11 @@
         const state=sync();
         if(!state.rows.length)return;
         const p=paySnapshot();
+        if(p.method==='Fiado'&&!p.customerName){
+          root.querySelector('#vposCreditCustomer')?.focus();
+          window.vareliaToast?.('Escribe el nombre del cliente para registrar el fiado.','warn');
+          return;
+        }
         if(p.missing>.005){
           showPaymentDetail(p);
           window.vareliaToast?.('Faltan S/ '+p.missing.toFixed(2)+' para completar el pago','warn');
@@ -462,7 +481,7 @@
             try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}
             sync();renderPay();
             try{if(typeof renderSales==='function')renderSales()}catch{}
-            window.vareliaToast?.('Venta registrada','ok');
+            window.vareliaToast?.(p.method==='Fiado'?'Fiado registrado. Consulta la deuda en Historial.':'Venta registrada','ok');
           },160);
         }catch(e){
           console.error(e);
