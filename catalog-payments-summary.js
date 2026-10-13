@@ -3,6 +3,7 @@
   window.__vareliaCatalogPaymentsSummary=true;
   const fields=['Yape','Plin','Efectivo','Transferencia','Tarjeta','Otros','Sin especificar'];
   let period='today',orders=null,role='',business='',error='',pending=null,lastFetch=0;
+  let fromDate='',toDate='',dateError='';
   const money=n=>'S/ '+(n/100).toFixed(2);
   const cents=n=>Math.max(0,Math.round((Number(n)||0)*100));
   const panels=()=>[...document.querySelectorAll('#orders,#catalogOrders')];
@@ -36,7 +37,16 @@
       else p.prepend(el);
       el.addEventListener('click',e=>{
         const b=e.target.closest('[data-pay-period]');
-        if(b){period=b.dataset.payPeriod;draw()}
+        if(b){period=b.dataset.payPeriod;fromDate='';toDate='';dateError='';draw()}
+        if(e.target.closest('[data-pay-apply]')){
+          const start=el.querySelector('[data-pay-from]')?.value||'';
+          const end=el.querySelector('[data-pay-to]')?.value||'';
+          fromDate=start;toDate=end;dateError='';
+          if(!start&&!end){dateError='Selecciona al menos una fecha.'}
+          else if(start&&end&&start>end){dateError='La fecha Desde no puede ser posterior a Hasta.'}
+          else{period='custom'}
+          draw();
+        }
         if(e.target.closest('[data-pay-refresh]'))refresh(true);
       });
     }
@@ -47,7 +57,12 @@
     const picked=(orders||[]).filter(o=>{
       if(period==='all')return true;
       const paidDay=day(o.paid_at);
-      return !!paidDay&&(period==='month'?paidDay.slice(0,7)===month:paidDay===now);
+      if(!paidDay)return false;
+      if(period==='custom'){
+        const first=fromDate||toDate,last=toDate||fromDate;
+        return !!first&&paidDay>=first&&paidDay<=last;
+      }
+      return period==='month'?paidDay.slice(0,7)===month:paidDay===now;
     });
     const amounts=Object.fromEntries(fields.map(k=>[k,0]));
     let total=0;
@@ -60,6 +75,12 @@
       '<button type="button" data-pay-period="'+k+'" aria-pressed="'+(period===k)+'" style="flex:1;border:1px solid #d1d5db;border-radius:10px;padding:9px 4px;font-weight:800;background:'+(period===k?'#2563eb':'transparent')+';color:'+(period===k?'#fff':'inherit')+'">'+title+'</button>'
     ).join('');
     const lines=fields.map(k=>'<div style="display:flex;justify-content:space-between;gap:6px;padding:6px 0;border-bottom:1px solid #e5e7eb"><span>'+k+'</span><b>'+money(amounts[k])+'</b></div>').join('');
+    const dateFilter='<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 11px">'+
+      '<label style="min-width:0;display:grid;gap:5px;font-size:12px;font-weight:700">Desde<input data-pay-from type="date" value="'+fromDate+'" style="min-width:0;width:100%;box-sizing:border-box;padding:9px 5px;border:1px solid #d1d5db;border-radius:9px;background:var(--card,#fff);color:inherit"></label>'+
+      '<label style="min-width:0;display:grid;gap:5px;font-size:12px;font-weight:700">Hasta<input data-pay-to type="date" value="'+toDate+'" style="min-width:0;width:100%;box-sizing:border-box;padding:9px 5px;border:1px solid #d1d5db;border-radius:9px;background:var(--card,#fff);color:inherit"></label>'+
+      '</div><button type="button" data-pay-apply style="width:100%;padding:10px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-weight:800;margin-bottom:13px">Aplicar fechas</button>'+
+      (dateError?'<p role="alert" style="color:#b91c1c;font-size:12px;margin:0 0 12px">'+dateError+'</p>':'')+
+      (period==='custom'?'<p style="font-size:12px;font-weight:700;margin:0 0 12px">Periodo seleccionado: '+(fromDate||toDate)+' a '+(toDate||fromDate)+'</p>':'');
     const unknownDates=period==='all'?picked.filter(o=>!day(o.paid_at)).length:0;
     for(const p of panels()){
       const el=p.querySelector('[data-public-payments]');
@@ -68,7 +89,7 @@
       if(role!=='owner')continue;
       el.innerHTML='<h3 style="margin:0 0 5px;font-size:18px">Pagos del catálogo público</h3>'+
         '<p style="font-size:12px;color:var(--muted,#64748b);margin:0 0 12px">Solo pagos confirmados; ninguna venta de caja se suma aquí.</p>'+
-        '<div style="display:flex;gap:8px;margin-bottom:14px">'+tabs+'</div>'+
+        '<div style="display:flex;gap:8px;margin-bottom:14px">'+tabs+'</div>'+dateFilter+
         (error?'<p style="color:#b91c1c">No se pudo consultar el resumen. Pulsa Actualizar.</p>':
         orders===null?'<p>Consultando pagos confirmados…</p>':
         '<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:12px"><div><small>Total cobrado</small><strong style="display:block;font-size:24px">'+money(total)+'</strong></div>'+
