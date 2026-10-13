@@ -218,6 +218,23 @@
 
       // Evita sumar dos veces productos de una misma venta si hay filas duplicadas.
       appendProductUnits(modal, productSummary(rowsForTotals));
+      // Última defensa: si el reporte aún muestra zanahoria en unidades,
+      // corregir solo la etiqueta de unidad conservando la cantidad visible.
+      const carrotLabel = Array.from(modal.querySelectorAll('*')).find(el =>
+        el.children.length === 0 && /^zanahoria$/i.test(String(el.textContent || '').trim()));
+      if (carrotLabel) {
+        let row = carrotLabel.parentElement;
+        for (let depth = 0; row && depth < 3; depth++, row = row.parentElement) {
+          const qtyNode = Array.from(row.querySelectorAll('*')).find(el =>
+            el.children.length === 0 &&
+            /^\\d+(?:[.,]\\d+)?\\s*(?:unidad|unidades|unid\\.?)$/i.test(String(el.textContent || '').trim()));
+          if (qtyNode) {
+            const amount = (String(qtyNode.textContent).match(/^\\d+(?:[.,]\\d+)?/) || ['1'])[0];
+            qtyNode.textContent = amount + ' kg';
+            break;
+          }
+        }
+      }
     } catch (error) {
       console.warn('Varelia: no se pudo actualizar el resumen por tickets', error);
     }
