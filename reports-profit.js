@@ -75,6 +75,57 @@
     };
     render();return sec
   }
+  // Añadir los indicadores en el panel interno, nunca en la capa exterior del modal.
+  function enhanceGainPopup(){
+    const headings=[...document.querySelectorAll('h1,h2,h3,h4')].filter(el=>/^(?:💰\\s*)?Ganancias$/.test(el.textContent.trim()));
+    for(const heading of headings){
+      let panel=null;
+      for(let n=heading.parentElement,depth=0;n&&n!==document.body&&depth<8;n=n.parentElement,depth++){
+        const t=n.textContent||'';
+        if(t.includes('Ganancia estimada')&&t.includes('Ventas')&&[...n.querySelectorAll('button')].some(b=>b.textContent.trim()==='Cerrar')){panel=n;break}
+      }
+      if(!panel||panel.querySelector('[data-gain-costs]'))continue;
+      // La tarjeta debe ser un descendiente del panel, no un hermano del modal.
+      const labels=[...panel.querySelectorAll('small,span,p,div')].filter(e=>e.children.length===0);
+      const readMoney=label=>{
+        const e=labels.find(x=>x.textContent.trim()===label);
+        if(!e)return NaN;
+        for(let n=e.parentElement,depth=0;n&&n!==panel&&depth<3;n=n.parentElement,depth++){
+          const found=(n.textContent||'').match(/S\\/\\s*([\\d.,]+)/);
+          if(found)return Number(found[1].replace(/,/g,''));
+        }
+        return NaN;
+      };
+      const total=readMoney('Ventas'),profit=readMoney('Ganancia estimada');
+      if(!Number.isFinite(total)||!Number.isFinite(profit))continue;
+      const tickets=arr('sales').filter(s=>!s.cancelled&&!s.canceled&&!s.voided&&!['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase())).length;
+      const newSection=document.createElement('div');
+      newSection.dataset.gainCosts='true';
+      newSection.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;min-width:0;margin:16px 0;box-sizing:border-box;';
+      const item=(title,value)=>`<div style="min-width:0;border:1px solid #e2e2e2;border-radius:18px;padding:13px;box-sizing:border-box;overflow-wrap:anywhere"><div style="color:#6b7280;font-size:12px;line-height:1.35">${title}</div><strong style="display:block;font-size:clamp(17px,4vw,24px);line-height:1.3;margin-top:7px">${value}</strong></div>`;
+      const cost=total-profit;
+      newSection.innerHTML=item('Costo total de productos vendidos (estimado)',money(cost))+item('Costo promedio por venta (estimado)',tickets?money(cost/tickets):'Sin ventas');
+      const footer=[...panel.querySelectorAll('button')].find(b=>b.textContent.trim()==='Cerrar')?.parentElement;
+      if(footer&&footer!==panel&&footer.parentElement===panel)panel.insertBefore(newSection,footer);
+      else{
+        const warning=[...panel.querySelectorAll('p,div')].find(x=>x.children.length===0&&x.textContent.includes('Algunas ventas usan el precio de compra actual'));
+        if(warning&&warning.parentElement&&panel.contains(warning))warning.parentElement.insertAdjacentElement('afterend',newSection);
+        else panel.appendChild(newSection);
+      }
+    }
+  }
+  function setupGainPopupObserver(){
+    let busy=false;
+    const ob=new MutationObserver(()=>{
+      if(busy)return;
+      busy=true;
+      requestAnimationFrame(()=>{busy=false;enhanceGainPopup()});
+    });
+    ob.observe(document.body,{childList:true,subtree:true});
+    enhanceGainPopup();
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupGainPopupObserver);
+  else setupGainPopupObserver();
   function makeHelp(main){let sec=document.getElementById('help');if(!sec){sec=document.createElement('section');sec.id='help';sec.className='view vareliaExtraView';main.appendChild(sec)}sec.innerHTML=`<div class="extraHead"><div><h2>Ayuda</h2><p>Guía rápida de cada módulo de Varelia.</p></div></div><div class="extraHelpGrid"><div class="extraHelpItem"><b>Productos</b><span>Crear, editar y organizar el catálogo.</span></div><div class="extraHelpItem"><b>Inventario</b><span>Controlar stock y movimientos.</span></div><div class="extraHelpItem"><b>Compras</b><span>Gestionar proveedores e ingreso de mercadería.</span></div><div class="extraHelpItem"><b>Ventas</b><span>Registrar ventas y consultar operaciones.</span></div><div class="extraHelpItem"><b>Caja</b><span>Controlar apertura, movimientos y cierres.</span></div><div class="extraHelpItem"><b>Reportes</b><span>Analizar el negocio en conjunto.</span></div><div class="extraHelpItem"><b>Ganancias</b><span>Revisar utilidad, margen y detalle por producto en un solo lugar.</span></div><div class="extraHelpItem"><b>Ajustes</b><span>Personalizar apariencia y preferencias.</span></div></div>`;return sec}
   function removeDuplicateProfit(){document.querySelectorAll('[data-view="profits"]').forEach(el=>el.remove());document.getElementById('profits')?.remove()}
   function init(){style();removeDuplicateProfit();const main=document.querySelector('main.content'),r=document.querySelector('.premiumReportsItem'),g=document.querySelector('.premiumGainItem'),h=document.querySelector('.premiumHelpItem');if(!main||!r||!g||!h){setTimeout(init,350);return}makeReports(main);makeProfit(main);makeHelp(main);r.dataset.view='reports';g.dataset.view='profit';h.dataset.view='help';r.onclick=e=>{e.preventDefault();makeReports(main);show('reports')};g.onclick=e=>{e.preventDefault();makeProfit(main);show('profit')};h.onclick=e=>{e.preventDefault();makeHelp(main);show('help')};if(!window.__vareliaExtraNavBound){window.__vareliaExtraNavBound=true;document.addEventListener('click',e=>{const b=e.target&&e.target.closest?e.target.closest('.premiumReportsItem,.premiumGainItem,.premiumHelpItem'):null;if(!b)return;e.preventDefault();e.stopImmediatePropagation();const m=document.querySelector('main.content');if(!m)return;if(b.classList.contains('premiumReportsItem')){makeReports(m);show('reports')}else if(b.classList.contains('premiumGainItem')){makeProfit(m);show('profit')}else{makeHelp(m);show('help')}try{window.scrollTo(0,0)}catch{}},true)}window.vareliaShowExtraView=show;setTimeout(removeDuplicateProfit,1200)}
