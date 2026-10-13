@@ -274,7 +274,7 @@
       for(let e=heading.parentElement,depth=0;e&&e!==document.body&&depth<10;e=e.parentElement,depth++){
         const leaves=[...e.querySelectorAll('small,span,div,p,label')].filter(child=>child.children.length===0);
         const rev=leaves.find(child=>child.textContent.trim()==='Ventas');
-        const gain=leaves.find(child=>child.textContent.trim()==='Ganancia estimada');
+        const gain=leaves.find(child=>/^(Ganancia estimada|Ganancia bruta)$/.test(child.textContent.trim()));
         if(rev&&gain){panel=e;revenueLabel=rev;gainLabel=gain;break}
       }
       if(!panel)continue;
@@ -364,9 +364,25 @@
         const periodSales=gainSalesPeriod(usingCloud?gainCloud.sales:gainValidSales(),activePeriod,new Date(),chosenDay);
         const result=gainProductSummary(periodSales);
         const complete=result.missing===0;
+        const estimated=result.estimated>0;
+        const verifiedHistorical=usingCloud&&complete&&!estimated;
         revValue.textContent=money(result.revenue);
         gainValue.textContent=complete?money(result.revenue-result.cost):'Sin datos';
-        const estimated=result.estimated>0;
+        gainLabel.textContent=verifiedHistorical?'Ganancia bruta':'Ganancia estimada';
+        // El popup original siempre muestra un aviso genérico que es falso
+        // cuando todas las líneas de este período tienen costo histórico.
+        // Suprimirlo aquí; los avisos reales se generan con los datos del período.
+        const oldWarnings=[...panel.querySelectorAll('p,div,span,small,li')].filter(el=>{
+          if(el.closest('[data-gain-period-note],[data-gain-per-product],[data-gain-costs]'))return false;
+          const message=String(el.textContent||'').trim();
+          return message.length<360&&
+            /Algunas ventas usan el precio de compra actual del producto/i.test(message)&&
+            /costo hist[oó]rico/i.test(message);
+        }).sort((a,b)=>a.textContent.length-b.textContent.length);
+        if(oldWarnings.length){
+          const oldWarning=oldWarnings[0];
+          oldWarning.style.setProperty('display','none','important');
+        }
         const suffix=estimated?' (estimado)':'';
         costCard.caption.textContent='Costo total de productos vendidos'+suffix;
         costCard.amount.textContent=complete?money(result.cost):'Sin datos';
@@ -375,8 +391,8 @@
         const dayBadge=activePeriod==='day'?(chosenDay?' · Fecha: '+chosenDay:' · Elige una fecha válida'):'';
         sourceNote.textContent=(usingCloud?'Costos históricos de Supabase':'Datos locales; esperando costos históricos de la nube')+
           dayBadge+' · '+result.count+' venta(s)'+
-          (result.missing?' · Faltan datos en '+result.missing+' línea(s)':'')+
-          (estimated?' · '+result.estimated+' costo(s) estimado(s)':'')+
+          (result.missing?' · ⚠️ Faltan datos en '+result.missing+' línea(s)':'')+
+          (estimated?' · ⚠️ '+result.estimated+' costo(s) calculado(s) con precio actual':'')+
           (!usingCloud&&gainCloud.error?' · '+gainCloud.error:'');
         dateBar.style.border=activePeriod==='day'?'1px solid #7c3aed':'1px solid transparent';
         dateBar.style.borderRadius='12px';
