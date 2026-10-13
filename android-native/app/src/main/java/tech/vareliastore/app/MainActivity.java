@@ -581,16 +581,6 @@ public class MainActivity extends AppCompatActivity {
                 String nativePdfHookJs = "(function(){try{window.__vareliaNativePdfHookV2=false;if(window.__vareliaReceiptPremiumFreeTimer){clearInterval(window.__vareliaReceiptPremiumFreeTimer);window.__vareliaReceiptPremiumFreeTimer=null;}}catch(e){}})();";
                 view.evaluateJavascript(nativePdfHookJs, null);
 
-                // Cargar explícitamente el parche de reportes en la APK para evitar una copia antigua de la interfaz.
-                String reportFixJs = "(function(){try{"
-                        + "var p=String(location.pathname||'').toLowerCase();"
-                        + "if(p.includes('catalogo-publico')||p.startsWith('/catalogo/'))return;"
-                        + "var old=document.getElementById('vareliaNativeReportFixLoaderV2');if(old)old.remove();"
-                        + "var s=document.createElement('script');s.id='vareliaNativeReportFixLoaderV2';"
-                        + "s.src='https://vareliastore.tech/reports-modal-ticket-fix.js?v=20261013-ticket-count-v8&ts='+Date.now();"
-                        + "document.head.appendChild(s);"
-                        + "}catch(e){console.error('Varelia report fix load error',e);}})();";
-                view.evaluateJavascript(reportFixJs, null);
 
                 // Limpiar Service Workers heredados de versiones antiguas. Esto evita que una
                 // versión vieja de la interfaz quede atrapada aunque el WebView no use caché.
