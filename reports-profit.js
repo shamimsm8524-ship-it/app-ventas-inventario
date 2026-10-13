@@ -200,8 +200,9 @@
     const auth=await sb.auth.getUser();
     const user=auth?.data?.user;
     if(auth?.error||!user?.id)throw new Error('Sin sesión de nube');
-    const p=await sb.from('profiles').select('business_id').eq('id',user.id).maybeSingle();
+    const p=await sb.from('profiles').select('business_id,role').eq('id',user.id).maybeSingle();
     const business=p?.data?.business_id;
+    const isCashier=p?.data?.role!=='owner';
     if(p?.error||!business)throw new Error('Sin negocio vinculado');
     async function paginated(table,fields){
       let all=[],offset=0,step=500;
@@ -215,7 +216,9 @@
         if(offset>=20000)throw new Error('El historial supera el límite de lectura del reporte');
       }
     }
-    const rows=await paginated('varelia_sales','id,total,created_at');
+    const rows=await paginated('varelia_sales','id,total,created_at,created_by');
+    // RLS applies cashier ownership on the server. Repeat the ownership filter defensively.
+    const scopedRows=isCashier?rows.filter(s=>String(s.created_by)===String(user.id)):rows;
     const details=await paginated('varelia_sale_items','sale_id,product_id,product_name,qty,stock_qty,sale_unit,unit_price,buy_price_at_sale');
     const bySale=new Map();
     for(const item of details){
@@ -223,7 +226,7 @@
       if(!bySale.has(k))bySale.set(k,[]);
       bySale.get(k).push(item);
     }
-    return rows.map(s=>({id:s.id,date:s.created_at,total:Number(s.total)||0,items:bySale.get(String(s.id))||[]}));
+    return scopedRows.map(s=>({id:s.id,date:s.created_at,total:Number(s.total)||0,items:bySale.get(String(s.id))||[]}));
   }
   function gainLoadCloud(onDone){
     if(gainCloud.sales&&Date.now()-gainCloud.loadedAt<45000){
@@ -357,7 +360,7 @@
       const draw=()=>{
         if(!document.contains(selector))return;
         const usingCloud=Array.isArray(gainCloud.sales);
-        const periodSales=gainSalesPeriod(usingCloud?gainCloud.sales:gainValidSales(),activePeriod,new Date(),chosenDay);
+        const periodSales=gainSalesPeriod(usingCloud?gainCloud.sales:(window.vareliaCurrentUserProfile?.role==='owner'?gainValidSales():[]),activePeriod,new Date(),chosenDay);
         const result=gainProductSummary(periodSales);
         const complete=result.missing===0;
         const estimated=result.estimated>0;
