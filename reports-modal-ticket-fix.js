@@ -176,11 +176,15 @@
   }
   function appendProductUnits(root, productMap) {
     const numberWithOptionalUnit = /^-?\d+(?:[.,]\d+)?(?:\s*(?:kg|g|gr|gramos?|unidades?|unid\.?|cajas?|bl[ií]ster(?:es)?|paquetes?))?$/i;
-    productMap.forEach((info, key) => {
+    const protectedLabels = ['venta total','transacciones','ticket promedio','metodos de pago','productos mas vendidos'];
+    productMap.forEach(info => {
       const productLabel = leafWithText(root, info.name);
       if (!productLabel) return;
       let parent = productLabel.parentElement;
-      for (let depth = 0; parent && depth < 5; depth++, parent = parent.parentElement) {
+      for (let depth = 0; parent && depth < 3; depth++, parent = parent.parentElement) {
+        const rowText = normalize(parent.innerText || parent.textContent || '');
+        if (protectedLabels.some(label => rowText.includes(label))) continue;
+        if (rowText.length > 180) continue;
         const quantities = Array.from(parent.querySelectorAll('*')).filter(element =>
           element.children.length === 0 && element !== productLabel &&
           numberWithOptionalUnit.test(String(element.textContent || '').trim()));
@@ -200,10 +204,13 @@
       const sales = validSaleRows();
       if (!sales.length) return;
       const tickets = generatedTicketSales(sales);
-      if (!tickets.length) return;
+      const ticketCount = tickets.length || sales.length;
       const totalSales = sales.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
-      setValueBesideLabel(modal, 'Ticket promedio', /^S\/\s*[\d,.]+$/i,
-        money(totalSales / tickets.length));
+      if (ticketCount > 0) {
+        setValueBesideLabel(modal, 'Ticket promedio', /^S\/\s*[\d,.]+$/i,
+          money(totalSales / ticketCount));
+      }
+      // Never rewrite the Transacciones card: its count comes from the app's own report.
       appendProductUnits(modal, productSummary(sales));
     } catch (error) {
       console.warn('Varelia: no se pudo actualizar el resumen por tickets', error);
