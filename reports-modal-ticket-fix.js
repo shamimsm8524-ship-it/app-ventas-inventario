@@ -203,16 +203,19 @@
       if (!modal) return;
       const sales = validSaleRows();
       if (!sales.length) return;
-      const tickets = generatedTicketSales(sales);
-      const ticketCount = tickets.length || sales.length;
-      // Promedio real: sumar los importes de los tickets únicos, no filas duplicadas de ventas.
-      const totalSales = (tickets.length ? tickets : sales).reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
-      if (ticketCount > 0) {
-        setValueBesideLabel(modal, 'Ticket promedio', /^S\/\s*[\d,.]+$/i,
-          money(totalSales / ticketCount));
-      }
-      // Never rewrite the Transacciones card: its count comes from the app's own report.
-      appendProductUnits(modal, productSummary(sales));
+      const uniqueTickets = generatedTicketSales(sales);
+      const rowsForTotals = uniqueTickets.length ? uniqueTickets : sales;
+      const ticketCount = rowsForTotals.length;
+      const totalSales = rowsForTotals.reduce((sum, sale) => sum + (Number(sale.total) || 0), 0);
+
+      // Las tres métricas usan exactamente el mismo conjunto de tickets generados.
+      setValueBesideLabel(modal, 'Venta total', /^S\/\s*[\d,.]+$/i, money(totalSales));
+      setValueBesideLabel(modal, 'Transacciones', /^\d+$/, String(ticketCount));
+      setValueBesideLabel(modal, 'Ticket promedio', /^S\/\s*[\d,.]+$/i,
+        money(ticketCount ? totalSales / ticketCount : 0));
+
+      // Evita sumar dos veces productos de una misma venta si hay filas duplicadas.
+      appendProductUnits(modal, productSummary(rowsForTotals));
     } catch (error) {
       console.warn('Varelia: no se pudo actualizar el resumen por tickets', error);
     }
