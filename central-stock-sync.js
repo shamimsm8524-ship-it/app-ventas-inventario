@@ -445,10 +445,17 @@
         if(!p)throw new Error('Producto no encontrado: '+String(item.name||''));
         const cloudId=await ensureCloudProductId(p);
         if(!cloudId)throw new Error('Este producto aún no está sincronizado. Actualiza la página e inténtalo nuevamente.');
-        payload.push({product_id:cloudId,qty:Math.max(0.001,Number(item.qty)||0)});
+        const unit=String(item.medicineSaleUnit||item.sale_unit||item.saleUnit||'').trim();
+        payload.push({product_id:cloudId,qty:Math.max(0.001,Number(item.qty)||0),...(unit?{sale_unit:unit}:{})});
       }
 
-      const {data,error}=await sb.rpc('varelia_commit_sale',{p_items:payload,p_source:'Venta'});
+      const pay=window.VareliaPaymentSnapshot||{};
+      const fiado=pay.method==='Fiado'&&Date.now()-Number(pay.at||0)<15000;
+      const client=String(pay.customerName||'').trim();
+      if(fiado&&client.length<2)throw new Error('Escribe el nombre del cliente para el fiado.');
+      const {data,error}=fiado
+        ?await sb.rpc('varelia_commit_credit_sale',{p_items:payload,p_customer_name:client})
+        :await sb.rpc('varelia_commit_sale',{p_items:payload,p_source:'Venta'});
       if(error)throw error;
 
       const remoteItems=Array.isArray(data?.items)?data.items:[];
@@ -468,7 +475,10 @@
           cloudSaleId:String(data?.sale_id||''),
           date:new Date().toISOString(),
           items:soldItems,
-          total:Number(data?.total)||current.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0)
+          total:Number(data?.total)||current.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0),
+          ...(fiado?{paymentMethod:'Fiado',customerName:client,paidAmount:0,
+            payments:[],paymentStatus:'pending',cloudCreditId:String(data?.credit_sale_id||data?.sale_id||''),
+            paymentBreakdown:{},amountReceived:0,changeGiven:0}:{})
         });
         cart=[];
         try{if(saleDialog?.open)saleDialog.close()}catch{}
@@ -486,7 +496,7 @@
           detail:{saleId:String(data?.sale_id||''),source:'cloud-confirmed'}
         }));
       }catch(err){console.warn('Notificación de venta confirmada',err)}
-      toast('Venta registrada. Actualizando historial y reportes.','ok');
+      toast(fiado?'Fiado registrado en la nube a nombre de '+client+'.':'Venta registrada. Actualizando historial y reportes.','ok');
       // La sincronización de stock posterior NO debe bloquear ni deshacer
       // una venta que Supabase ya confirmó, ni retrasar sus reportes.
       try{await refreshCloud()}catch(err){console.warn('Inventario pendiente tras venta confirmada',err)}
