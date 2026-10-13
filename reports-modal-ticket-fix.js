@@ -1,7 +1,7 @@
 (function(){
   'use strict';
-  if (window.__vareliaReportTicketFixV4) return;
-  window.__vareliaReportTicketFixV2 = true;
+  if (window.__vareliaReportTicketFixV5) return;
+  window.__vareliaReportTicketFixV5 = true;
 
   const normalize = value => String(value == null ? '' : value)
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -199,10 +199,17 @@
       }
     });
   }
+  function renameTransactionsLabel(root) {
+    const label = leafWithText(root, 'Transacciones');
+    if (label && String(label.textContent || '').trim() !== 'Tickets generados') {
+      label.textContent = 'Tickets generados';
+    }
+  }
   function patchReport() {
     try {
       const modal = findReportModal();
       if (!modal) return;
+      renameTransactionsLabel(modal);
       const sales = validSaleRows();
       // Corregir la unidad visible aunque la APK no exponga el arreglo de ventas al script.
       const carrotLabel = Array.from(modal.querySelectorAll('*')).find(el =>
