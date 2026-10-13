@@ -75,53 +75,78 @@
     };
     render();return sec
   }
-  // Añadir los indicadores en el panel interno, nunca en la capa exterior del modal.
-  function enhanceGainPopup(){
-    const headings=[...document.querySelectorAll('h1,h2,h3,h4')].filter(el=>/^(?:💰\\s*)?Ganancias$/.test(el.textContent.trim()));
+  // Ampliar el modal histórico sin tocar sus capas, anchura ni sus datos.
+  function enhanceGainPopup() {
+    const headings=[...document.querySelectorAll('h1,h2,h3,h4')].filter(
+      el=>el.textContent.trim().endsWith('Ganancias') && !el.textContent.includes(' y ')
+    );
     for(const heading of headings){
-      let panel=null;
-      for(let n=heading.parentElement,depth=0;n&&n!==document.body&&depth<8;n=n.parentElement,depth++){
-        const t=n.textContent||'';
-        if(t.includes('Ganancia estimada')&&t.includes('Ventas')&&[...n.querySelectorAll('button')].some(b=>b.textContent.trim()==='Cerrar')){panel=n;break}
+      let panel=null, revenueLabel=null, gainLabel=null;
+      for(let element=heading.parentElement,depth=0;
+          element && element!==document.body && depth<10;
+          element=element.parentElement,depth++){
+        const leaves=[...element.querySelectorAll('small,span,div,p,label')].filter(
+          child=>child.children.length===0
+        );
+        const rev=leaves.find(child=>child.textContent.trim()==='Ventas');
+        const gain=leaves.find(child=>child.textContent.trim()==='Ganancia estimada');
+        if(rev && gain){panel=element;revenueLabel=rev;gainLabel=gain;break}
       }
-      if(!panel||panel.querySelector('[data-gain-costs]'))continue;
-      // La tarjeta debe ser un descendiente del panel, no un hermano del modal.
-      const labels=[...panel.querySelectorAll('small,span,p,div')].filter(e=>e.children.length===0);
-      const readMoney=label=>{
-        const e=labels.find(x=>x.textContent.trim()===label);
-        if(!e)return NaN;
-        for(let n=e.parentElement,depth=0;n&&n!==panel&&depth<3;n=n.parentElement,depth++){
-          const found=(n.textContent||'').match(/S\\/\\s*([\\d.,]+)/);
-          if(found)return Number(found[1].replace(/,/g,''));
+      if(!panel || panel.querySelector('[data-gain-costs="true"]'))continue;
+      function findCard(label,otherLabel){
+        let element=label.parentElement;
+        for(let depth=0;element && element!==panel && depth<6;element=element.parentElement,depth++){
+          if(element.contains(otherLabel))return null;
+          if(/S\/\s*[\d.,]+/.test(element.textContent || ''))return element;
         }
-        return NaN;
-      };
-      const total=readMoney('Ventas'),profit=readMoney('Ganancia estimada');
-      if(!Number.isFinite(total)||!Number.isFinite(profit))continue;
-      const tickets=arr('sales').filter(s=>!s.cancelled&&!s.canceled&&!s.voided&&!['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase())).length;
-      const newSection=document.createElement('div');
-      newSection.dataset.gainCosts='true';
-      newSection.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;min-width:0;margin:16px 0;box-sizing:border-box;';
-      const item=(title,value)=>`<div style="min-width:0;border:1px solid #e2e2e2;border-radius:18px;padding:13px;box-sizing:border-box;overflow-wrap:anywhere"><div style="color:#6b7280;font-size:12px;line-height:1.35">${title}</div><strong style="display:block;font-size:clamp(17px,4vw,24px);line-height:1.3;margin-top:7px">${value}</strong></div>`;
-      const cost=total-profit;
-      newSection.innerHTML=item('Costo total de productos vendidos (estimado)',money(cost))+item('Costo promedio por venta (estimado)',tickets?money(cost/tickets):'Sin ventas');
-      const footer=[...panel.querySelectorAll('button')].find(b=>b.textContent.trim()==='Cerrar')?.parentElement;
-      if(footer&&footer!==panel&&footer.parentElement===panel)panel.insertBefore(newSection,footer);
-      else{
-        const warning=[...panel.querySelectorAll('p,div')].find(x=>x.children.length===0&&x.textContent.includes('Algunas ventas usan el precio de compra actual'));
-        if(warning&&warning.parentElement&&panel.contains(warning))warning.parentElement.insertAdjacentElement('afterend',newSection);
-        else panel.appendChild(newSection);
+        return null;
       }
+      const revenueCard=findCard(revenueLabel,gainLabel);
+      const profitCard=findCard(gainLabel,revenueLabel);
+      if(!revenueCard || !profitCard)continue;
+      const row=revenueCard.parentElement;
+      // Es obligatorio insertar debajo de las dos tarjetas, dentro del cuadro blanco.
+      if(!row || row!==profitCard.parentElement || row.contains(heading))continue;
+      function cardValue(card){
+        const match=(card.textContent || '').match(/S\/\s*([\d.,]+)/);
+        return match ? Number(match[1].replace(/,/g,'')) : NaN;
+      }
+      const revenue=cardValue(revenueCard),profit=cardValue(profitCard);
+      if(!Number.isFinite(revenue)||!Number.isFinite(profit))continue;
+      const cost=revenue-profit;
+      const validSales=arr('sales').filter(s=>!s.cancelled&&!s.canceled&&!s.voided &&
+        !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
+      const count=validSales.length;
+      const extras=document.createElement('div');
+      extras.dataset.gainCosts='true';
+      extras.style.cssText='width:100%;max-width:100%;min-width:0;box-sizing:border-box;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0;';
+      function extraCard(label,value){
+        const card=document.createElement('div');
+        card.style.cssText='min-width:0;max-width:100%;box-sizing:border-box;border:1px solid #e2e2e2;border-radius:18px;padding:13px;background:transparent;overflow-wrap:anywhere;';
+        const caption=document.createElement('div');
+        caption.style.cssText='font-size:12px;color:#737782;line-height:1.3;overflow-wrap:anywhere;';
+        caption.textContent=label;
+        const amount=document.createElement('strong');
+        amount.style.cssText='display:block;font-size:clamp(18px,4.5vw,27px);line-height:1.35;margin-top:8px;overflow-wrap:anywhere;';
+        amount.textContent=value;
+        card.append(caption,amount);
+        return card;
+      }
+      extras.append(
+        extraCard('Costo total de productos vendidos (estimado)',money(cost)),
+        extraCard('Costo promedio por venta (estimado)',count?money(cost/count):'No disponible')
+      );
+      row.insertAdjacentElement('afterend',extras);
     }
   }
   function setupGainPopupObserver(){
-    let busy=false;
-    const ob=new MutationObserver(()=>{
-      if(busy)return;
-      busy=true;
-      requestAnimationFrame(()=>{busy=false;enhanceGainPopup()});
+    let scheduled=false;
+    const observer=new MutationObserver(()=>{
+      if(scheduled)return;
+      scheduled=true;
+      requestAnimationFrame(()=>{scheduled=false;enhanceGainPopup()});
     });
-    ob.observe(document.body,{childList:true,subtree:true});
+    observer.observe(document.body,{subtree:true,childList:true});
     enhanceGainPopup();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',setupGainPopupObserver);
