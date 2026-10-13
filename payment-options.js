@@ -2,7 +2,7 @@
   if(window.__vareliaPaymentOptionsV2)return;
   window.__vareliaPaymentOptionsV2=true;
 
-  const METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta'];
+  const METHODS=['Efectivo','Yape','Plin','Transferencia','Tarjeta','Fiado'];
   const QR_YAPE_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_yape_v2'):'varelia_qr_yape_v2__no_account';
   const QR_PLIN_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_plin_v2'):'varelia_qr_plin_v2__no_account';
   const QR_YAPE_HOLDER_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_yape_holder_v2'):'varelia_qr_yape_holder_v2__no_account';
@@ -242,6 +242,9 @@
         : String(settings?.generic_qr_data||settings?.payment_qr_other||settings?.payment_qr_data||'');
     const transfer=String(live.transferDetails||local.transferDetails||settings?.transfer_details||'').trim();
 
+    if(method==='Fiado'){
+      detail.innerHTML='<p style="font-weight:800;color:#92400e">Fiado · El cliente pagará después. El importe no entra como cobro en caja.</p>';return;
+    }
     if(method==='Efectivo'){
       const total=currentSaleTotal();
       detail.innerHTML='<div class="vpayCash"><label>Monto recibido (S/)</label><input id="vpayReceived" type="number" inputmode="decimal" min="0" step="0.10" placeholder="0.00"><div class="vpayChange"><span>Vuelto</span><strong id="vpayChange">S/ 0.00</strong></div><small id="vpayCashMsg" style="color:var(--muted)"></small></div>';
@@ -367,6 +370,7 @@
   function paymentSnapshot(){
     const total=currentSaleTotal();
     const mixed=!!document.getElementById('vpayMixedToggle')?.checked;
+    if(!mixed&&document.getElementById('vposPaymentMethod')?.value==='Fiado')return {total,mixed:false,breakdown:{},received:0,missing:0,change:0,method:'Fiado'};
     let breakdown={},received=0;
     if(mixed){
       document.querySelectorAll('.vpayMixedRow').forEach(r=>{const x=r.querySelector('.vpayPart'),m=r.querySelector('.vpayMixedMethod')?.value,n=Math.max(0,Number(x?.value)||0);if(n&&m){breakdown[m]=(breakdown[m]||0)+n;received+=n}});
@@ -398,6 +402,7 @@
         snap={total,received,missing,change,breakdown:received?{Efectivo:Math.min(received,total)}:{},method:'Efectivo'};
       }
     }
+    if(snap.method==='Fiado'&&!String(document.getElementById('vposCreditCustomer')?.value||'').trim()){toast('Escribe el nombre del cliente para fiar.');return false}
     if(snap.missing>.005){toast('Faltan S/ '+snap.missing.toFixed(2)+' para completar el pago.');return false}
     pendingSale={...snap,before,at:Date.now()};
     window.VareliaPaymentSnapshot={...snap,at:Date.now()};
