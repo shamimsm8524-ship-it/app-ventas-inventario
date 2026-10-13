@@ -37,6 +37,48 @@
       if(pe||!p?.business_id)return null;
       return {sb,businessId:String(p.business_id),role:String(p.role||'')};
     }
+    // Guardar el logo por separado evita alterar los métodos de pago o los QR.
+    // Una copia compacta cabe en el ticket térmico y es más fiable en Android.
+    function compressBusinessLogo(raw){
+      return new Promise((resolve,reject)=>{
+        const str=String(raw||'');
+        if(!/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(str)){
+          reject(new Error('Selecciona una imagen PNG, JPG o WEBP para el logo.'));
+          return;
+        }
+        const img=new Image();
+        img.onload=()=>{
+          try{
+            const scale=Math.min(1,640/Math.max(img.naturalWidth,1),360/Math.max(img.naturalHeight,1));
+            const canvas=document.createElement('canvas');
+            canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+            canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+            const context=canvas.getContext('2d');
+            if(!context)throw new Error('No se pudo preparar la imagen.');
+            context.fillStyle='#ffffff';
+            context.fillRect(0,0,canvas.width,canvas.height);
+            context.drawImage(img,0,0,canvas.width,canvas.height);
+            resolve(canvas.toDataURL('image/jpeg',0.82));
+          }catch(e){reject(e)}
+        };
+        img.onerror=()=>reject(new Error('No se pudo leer la imagen del logo.'));
+        img.src=str;
+      });
+    }
+    async function pushCloudBusinessLogo(context=null){
+      const ctx=context||await cloudPaymentContext();
+      if(!ctx||ctx.role!=='owner')throw new Error('Solo el administrador puede compartir el logo.');
+      if(!cfg.logo)throw new Error('Primero selecciona la imagen del logo del negocio.');
+      const compact=await compressBusinessLogo(cfg.logo);
+      const {data,error}=await ctx.sb.from('varelia_business_settings')
+        .update({logo_data:compact,updated_at:new Date().toISOString()})
+        .eq('business_id',ctx.businessId).select('business_id').maybeSingle();
+      if(error)throw error;
+      if(!data?.business_id)throw new Error('La configuración del negocio no está disponible.');
+      cfg.logo=compact;
+      saveCfg();
+      return true;
+    }
     async function pushCloudPaymentSettings(context=null){
       const ctx=context||await cloudPaymentContext();
       if(!ctx||ctx.role!=='owner')return false;
@@ -50,16 +92,14 @@
         payment_qr_plin:cfg.plinQr||null,
         payment_holder:cfg.yapeHolder||cfg.plinHolder||null,
         transfer_details:cfg.transferDetails||null,
-        // Compartir el logo oficial con los vendedores; nunca borrar uno guardado
-        // cuando este dispositivo todavía no tiene imagen.
-        ...(String(cfg.logo||'').startsWith('data:image/')?{logo_data:cfg.logo}:{}),
         updated_at:new Date().toISOString()
       };
       const {error}=await ctx.sb.from('varelia_business_settings').upsert(payload,{onConflict:'business_id'});
       if(error)throw error;
       return true;
     }
-    async function pullCloudPaymentSettings(){
+    async function pullCloudPaymentSettings(force=false){
+      if(force)cloudPaymentSyncPromise=null;
       if(cloudPaymentSyncPromise)return cloudPaymentSyncPromise;
       cloudPaymentSyncPromise=(async()=>{
         const ctx=await cloudPaymentContext();if(!ctx)return false;
@@ -98,8 +138,11 @@
         if(ctx.role==='owner'&&(
           (hadLocalYape&&localYape!==cloudYape)||
           (hadLocalPlin&&localPlin!==cloudPlin)||
-          (!!cfg.logo&&!cloudLogo)
+          false
         ))await pushCloudPaymentSettings(ctx);
+        if(ctx.role==='owner'&&cfg.logo&&!cloudLogo){
+          try{await pushCloudBusinessLogo(ctx)}catch(err){console.warn('Sincronizar logo guardado en este equipo',err)}
+        }
         return true;
       })().catch(err=>{console.warn('Varelia cloud payment sync',err);return false});
       // Un intento demasiado temprano (sesión todavía cargando) no debe
@@ -290,7 +333,7 @@
         cfg=loadSettings();
         sec.innerHTML=`
           <div class="vrefHead"><div><h2>Ajustes</h2><p>Configura tu negocio, pagos, tickets y equipo desde un solo lugar.</p></div></div>
-          <div class="vsettingsSection"><h3>Datos del negocio</h3><p>Estos datos pueden aparecer en tus comprobantes.</p><div class="vqrRow" style="margin-bottom:12px"><img class="vqrPreview" id="vLogoPreview" src="${cfg.logo||''}"><div><label>Logo del negocio<input type="file" accept="image/*" id="vsetLogo"></label><small style="color:var(--muted)">Se usará en la vista del ticket.</small></div></div><div class="vsettingsGrid">
+          <div class="vsettingsSection"><h3>Datos del negocio</h3><p>Estos datos pueden aparecer en tus comprobantes.</p><div class="vqrRow" style="margin-bottom:12px"><img class="vqrPreview" id="vLogoPreview" src="${cfg.logo||''}"><div><label>Logo del negocio<input type="file" accept="image/*" id="vsetLogo"></label><small style="color:var(--muted)">Se usará en la vista del ticket.</small><button type="button" class="vsettingsAction" id="vsetShareLogo" style="margin-top:8px">Compartir logo con todas las cajas</button><small id="vsetLogoStatus" style="display:block;margin-top:5px;color:var(--muted)">El logo se comparte desde la cuenta administradora.</small></div></div><div class="vsettingsGrid">
             <label class="full">Nombre del negocio<input id="vsetBusiness" value="${esc(cfg.businessName)}" placeholder="Varelia"></label>
             <label class="full">Lema del negocio <small style="color:var(--muted);font-weight:600">(opcional)</small><input id="vsetBusinessSlogan" value="${esc(cfg.businessSlogan||'')}" maxlength="120" placeholder="Ej.: Calidad y buenos precios para ti"></label>
             <label>RUC / Documento<input id="vsetRuc" value="${esc(cfg.ruc)}"></label>
@@ -341,6 +384,22 @@
           <div class="vsettingsSection"><h3>Avanzado</h3><p>Opciones adicionales del catálogo.</p><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px"><input type="checkbox" id="vsetAutoBarcode" ${cfg.autoBarcode?'checked':''} style="width:18px">Generar código de barras automáticamente</label><label style="display:flex;grid-template-columns:auto 1fr;align-items:center;gap:9px;margin-top:10px"><input type="checkbox" id="vsetVariants" ${cfg.enableVariants?'checked':''} style="width:18px">Activar campo de tallas / colores / variantes</label></div>
           <button class="vsettingsAction primary" id="vsettingsSave">Guardar configuración</button>
         `;
+        const uploadBusinessLogo=async()=>{
+          const status=sec.querySelector('#vsetLogoStatus');
+          const btn=sec.querySelector('#vsetShareLogo');
+          if(btn)btn.disabled=true;
+          if(status)status.textContent='Enviando el logo a las cajas…';
+          try{
+            await pushCloudBusinessLogo();
+            if(status)status.textContent='✓ Logo guardado en Supabase. Disponible para todas las cajas.';
+            window.vareliaToast?.('Logo compartido correctamente con las cajas.','ok');
+          }catch(err){
+            console.warn('No se pudo compartir el logo',err);
+            if(status)status.textContent='No se pudo compartir: '+String(err?.message||err);
+            window.vareliaToast?.('No se compartió el logo. Revisa el mensaje en Ajustes.','warn');
+          }finally{if(btn)btn.disabled=false}
+        };
+        sec.querySelector('#vsetShareLogo').onclick=uploadBusinessLogo;
         sec.querySelector('#vsetLogo').onchange=async e=>{
           const v=await readImage(e.target);
           if(!v)return;
@@ -348,14 +407,7 @@
           sec.querySelector('#vLogoPreview').src=v;
           saveCfg();
           window.dispatchEvent(new CustomEvent('varelia:business-settings-local-changed'));
-          try{
-            const ok=await pushCloudPaymentSettings();
-            if(ok)window.vareliaToast?.('Logo compartido con todas las cajas.','ok');
-            else window.vareliaToast?.('Logo guardado aquí. Inicia sesión como administrador para compartirlo.','warn');
-          }catch(err){
-            console.warn('Sincronización del logo del negocio',err);
-            window.vareliaToast?.('Logo guardado aquí; no se pudo sincronizar con las cajas.','warn');
-          }
+          await uploadBusinessLogo();
         };
         const persistQrNow=async(kind,v)=>{
           if(!v)return;
@@ -484,6 +536,8 @@
       setTimeout(()=>{setupHistory();setupSettings();setupSaleExtras();setupProductExtras();updateInventorySummary()},1200);
     }
     let tries=0;const t=setInterval(()=>{tries++;init();if(tries>30)clearInterval(t)},300);
+    // Cuando un vendedor vuelve a Varelia, consultar de nuevo el logo.
+    window.addEventListener('focus',()=>pullCloudPaymentSettings(true));
     window.addEventListener('focus',()=>{window.VareliaVideoHistory?.render?.();window.VareliaInventorySummary?.render?.()});
   });
 })();
