@@ -471,28 +471,46 @@
     }
     return {filter,sales:reportSalesFor(sales,filter)};
   }
+  function reportPaymentLabel(value){
+    const raw=String(value??'').trim();
+    const key=raw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+    if(key.includes('yape'))return 'Yape';
+    if(key.includes('plin'))return 'Plin';
+    if(key==='efectivo'||key==='cash'||key.includes('contado'))return 'Efectivo';
+    if(key.includes('transfer'))return 'Transferencia';
+    if(key.includes('tarjeta')||key.includes('card')||key.includes('visa')||key.includes('mastercard')||key==='debito'||key==='credito')return 'Pago con tarjeta';
+    if(!raw||key==='no registrado'||key==='no especificado'||key==='sin desglosar')return 'Sin especificar';
+    return raw;
+  }
   function reportSummary(salesList){
-    const methods=new Map(),products=new Map();
+    // Conservar SIEMPRE los cinco medios visibles, incluso si tienen S/ 0.00.
+    const mainMethods=['Yape','Plin','Efectivo','Transferencia','Pago con tarjeta'];
+    const methods=new Map(mainMethods.map(name=>[name,0]));
+    const products=new Map();
     let revenue=0;
     const catalog=arr('products');
+    const addPayment=(name,amount)=>{
+      if(!Number.isFinite(amount)||amount===0)return;
+      const label=reportPaymentLabel(name);
+      methods.set(label,(methods.get(label)||0)+amount);
+    };
     for(const sale of salesList){
       const total=Number(sale.total)||0;
       revenue+=total;
       const payments=sale.paymentBreakdown??sale.payment_breakdown;
       if(payments&&typeof payments==='object'&&!Array.isArray(payments)){
-        const entries=Object.entries(payments).filter(([,v])=>Number(v)>0);
+        const entries=Object.entries(payments).filter(([,v])=>Number.isFinite(Number(v))&&Number(v)>0);
         if(entries.length){
           let accounted=0;
           for(const [method,v] of entries){
-            const amount=Number(v)||0;accounted+=amount;
-            methods.set(method,(methods.get(method)||0)+amount);
+            const amount=Number(v);accounted+=amount;
+            addPayment(method,amount);
           }
-          if(Math.abs(total-accounted)>0.011)methods.set('Sin desglosar',(methods.get('Sin desglosar')||0)+total-accounted);
-        }else methods.set(String(sale.paymentMethod||sale.payment_method||'No registrado'),(methods.get(String(sale.paymentMethod||sale.payment_method||'No registrado'))||0)+total);
-      }else{
-        const method=String(sale.paymentMethod||sale.payment_method||'No registrado');
-        methods.set(method,(methods.get(method)||0)+total);
-      }
+          if(Math.abs(total-accounted)>0.011){
+            addPayment('Sin especificar',total-accounted);
+          }
+        }else addPayment(sale.paymentMethod??sale.payment_method,total);
+      }else addPayment(sale.paymentMethod??sale.payment_method,total);
       for(const it of Array.isArray(sale.items)?sale.items:[]){
         const id=String(it.productId??it.product_id??it.id??'');
         const matched=catalog.find(p=>String(p.id)===id||String(p.legacy_id||'')===id)||
@@ -511,7 +529,7 @@
       }
     }
     return {count:salesList.length,revenue,average:salesList.length?revenue/salesList.length:0,
-      methods:[...methods.entries()].sort((a,b)=>b[1]-a[1]),
+      methods:[...methods.entries()],
       products:[...products.values()].sort((a,b)=>b.quantity-a.quantity)};
   }
   function reportLocateModal(){
@@ -537,12 +555,11 @@
     if(!found)return;
     const {panel,parts,headerIndex,footerIndex}=found;
     const data=reportSelectSales(),summary=reportSummary(data.sales);
-    // Los datos visibles en Historial son la comprobación del mismo filtro.
-    const hist=reportHistorySummary();
-    const outOfSync=Number.isFinite(hist.revenue)&&Number.isFinite(hist.count)&&
-      (Math.abs(summary.revenue-hist.revenue)>0.011||summary.count!==hist.count);
+    // Solo mostramos indicadores del período seleccionado. La comparación
+    // previa confundía los números del modal con los del Historial y generaba
+    // una alerta falsa, incluso cuando ambos sumaban 4 ventas y S/ 11.00.
     const signature=JSON.stringify([data.filter.mode,data.filter.date,summary.count,summary.revenue,
-      summary.products.map(x=>[x.name,x.quantity]),summary.methods,outOfSync]);
+      summary.products.map(x=>[x.name,x.quantity]),summary.methods]);
     let box=panel.querySelector('[data-report-synced]');
     if(box&&box.dataset.reportSignature===signature)return;
     if(!box){
@@ -565,10 +582,7 @@
       box.appendChild(line('p','El período exacto no pudo reconocerse en Historial; se muestra Todo.',
         'font-size:12px;color:#a16207;margin:0 0 10px;'));
     }
-    if(outOfSync){
-      box.appendChild(line('p','⚠️ Reportes e Historial todavía no coinciden; revisa la sincronización de tickets.',
-        'font-size:12px;color:#a16207;margin:0 0 10px;'));
-    }
+
     const grid=document.createElement('div');
     grid.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;box-sizing:border-box;min-width:0;';
     const metric=(label,value,full)=>{
@@ -585,7 +599,7 @@
       const h=line('h3',label,'font-size:19px;margin:23px 0 8px;font-weight:900;');
       box.append(h);return h;
     };
-    section('Métodos de pago');
+    section('Total por medio de pago');
     if(!summary.methods.length)box.appendChild(line('p','No hay pagos en este período.','font-size:13px;color:#64748b;'));
     for(const [method,amount] of summary.methods){
       const row=document.createElement('div');row.style.cssText='display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #e5e5e5;align-items:center;';
