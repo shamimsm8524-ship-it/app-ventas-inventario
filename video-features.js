@@ -205,7 +205,7 @@
       const moneyFn=typeof money==='function'?money:(v=>'S/ '+Number(v||0).toFixed(2));
       const escFn=typeof esc==='function'?esc:(v=>String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])));
       const total=sales.reduce((a,s)=>a+(Number(s.total)||0),0),avg=sales.length?total/sales.length:0;
-      const payments={};sales.forEach(s=>{const k=s.paymentMethod||'No registrado';payments[k]=(payments[k]||0)+(Number(s.total)||0)});
+      const payments={};sales.forEach(s=>{const k=s.paymentMethod||'No registrado';if(k==='Fiado')return;payments[k]=(payments[k]||0)+(Number(s.total)||0)});
       const qty={};sales.forEach(s=>(s.items||[]).forEach(i=>{const k=i.name||'Producto';qty[k]=(qty[k]||0)+(Number(i.qty)||0)}));
       const top=Object.entries(qty).sort((a,b)=>b[1]-a[1]).slice(0,10);
       let profit=0,hasCost=false,estimatedCost=false;
@@ -245,7 +245,7 @@
       const render=()=>{
         const allSales=salesList();
         const ss=period==='day'?allSales.filter(s=>localDateKey(s.date)===selectedDate):periodSales(period),total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
-        const payments={};ss.forEach(s=>{const k=s.paymentMethod||'No registrado';payments[k]=(payments[k]||0)+(Number(s.total)||0)});
+        const payments={};ss.forEach(s=>{const k=s.paymentMethod||'No registrado';if(k==='Fiado')return;payments[k]=(payments[k]||0)+(Number(s.total)||0)});
         const fiados=salesList().filter(s=>(s.paymentMethod||'')==='Fiado'&&Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0))>0);
         sec.innerHTML=`
           <div class="vrefHead"><div><h2>Historial</h2><p>Tickets, fiados y resumen de ventas.</p></div></div>
