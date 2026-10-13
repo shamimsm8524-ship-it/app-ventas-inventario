@@ -81,7 +81,7 @@
 })();
 </script>
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261013-MOBILE-CLICK-BLOCKER-GUARD-V8';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261013-REMOVE-RECURSIVE-MUTATION-GUARD-V9';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <script>
 try{if(new URL(location.href).searchParams.has('native_app'))window.__vareliaNativePdfHookV2=true}catch{}
@@ -1561,42 +1561,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 window.addEventListener('resize',mobileNavFix);window.addEventListener('pageshow',mobileNavFix);
 })();</script>
 
-<script id="vareliaMobileBlockerGuardV8">
-(()=>{if(window.__vareliaMobileBlockerGuardV8)return;window.__vareliaMobileBlockerGuardV8=true;
-const mobile=()=>matchMedia('(max-width:980px)').matches;
-function clean(){
- if(!mobile()||!document.body.classList.contains('varelia-simple-mobile'))return;
- const nav=document.getElementById('vmobileNav');if(!nav)return;
- const nr=nav.getBoundingClientRect();
- document.querySelectorAll('body *').forEach(el=>{
-  if(el===nav||nav.contains(el)||el.closest('dialog,[role="dialog"],[aria-modal="true"],.modal'))return;
-  const cs=getComputedStyle(el),r=el.getBoundingClientRect();
-  if(cs.display==='none'||cs.visibility==='hidden'||Number(cs.opacity)===0)return;
-  if(cs.position!=='fixed'&&cs.position!=='absolute')return;
-  if(cs.pointerEvents==='none')return;
-  const bg=cs.backgroundColor||'',m=bg.match(/rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+(?:\s*,\s*([\d.]+))?\s*\)/i);
-  const dark=!!m&&(!m[1]||Number(m[1])>.12)&&(()=>{const n=bg.match(/\d+/g);return n&&Number(n[0])<55&&Number(n[1])<65&&Number(n[2])<90})();
-  const nearNav=r.bottom>=nr.top-38&&r.top<=nr.top+35;
-  if(dark&&nearNav&&r.width>=innerWidth*.38&&r.height<=90){
-   el.style.setProperty('display','none','important');
-   el.style.setProperty('pointer-events','none','important');
-   return;
-  }
-  const huge=r.width>=innerWidth*.65&&r.height>=innerHeight*.35;
-  const alpha=m&&m[1]!==undefined?Number(m[1]):1;
-  if(huge&&cs.zIndex!=='auto'&&Number(cs.zIndex)>=20&&alpha<.08&&!el.matches('#overlay')){
-   el.style.setProperty('pointer-events','none','important');
-  }
- });
- const overlay=document.getElementById('overlay'),sidebar=document.getElementById('sidebar');
- if(overlay?.classList.contains('show')&&!sidebar?.classList.contains('open'))overlay.classList.remove('show');
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',clean,{once:true});else clean();
-window.addEventListener('resize',clean);window.addEventListener('pageshow',clean);
-setInterval(clean,1200);
-new MutationObserver(()=>clean()).observe(document.documentElement,{childList:true,subtree:true,attributes:true,attributeFilter:['class','style']});
-})();
-</script>
+
 
 </body></html>
 
