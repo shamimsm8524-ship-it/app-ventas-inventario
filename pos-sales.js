@@ -403,6 +403,8 @@
             const vp=window.vareliaCurrentUserProfile||{};
             sale.sellerName=sale.sellerName||vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';
             try{if(typeof save==='function')save()}catch{}
+            // Refrescar los totales una vez guardado el MEDIO DE PAGO real.
+            try{window.dispatchEvent(new CustomEvent('varelia:sale-recorded',{detail:{saleId:String(sale.cloudSaleId||sale.id||''),source:'receipt-complete'}}))}catch{}
           }catch(e){console.warn('Preparar comprobante',e)}
 
           const show=()=>{
