@@ -90,28 +90,54 @@
         const rawQty = item.qty != null ? item.qty :
           (item.quantity != null ? item.quantity : (item.cantidad != null ? item.cantidad : 1));
         const qty = Number(rawQty) || 0;
-        const rawUnit = String(item.unit || item.saleUnit || item.unitType || item.measureUnit ||
-          item.quantityUnit || item.presentation || product?.unit || product?.saleUnit ||
-          product?.unitType || product?.measureUnit || product?.quantityUnit ||
-          product?.presentation || product?.unidad || product?.unidades || '').trim();
-        const unit = normalize(rawUnit);
+        const rawUnit = String(item.unit || item.saleUnit || item.sale_unit || item.unitType ||
+          item.measureUnit || item.measure_unit || item.quantityUnit || item.presentation ||
+          item.saleUnitName || item.unitName || item.unidadMedida ||
+          product?.unit || product?.saleUnit || product?.sale_unit || product?.unitType ||
+          product?.measureUnit || product?.measure_unit || product?.quantityUnit ||
+          product?.presentation || product?.unidad || product?.unidades ||
+          product?.saleUnitName || product?.unitName || product?.unidadMedida || '').trim();
+        const unit = normalize(rawUnit).replace(/[.]/g, '');
+        const unitAliases = {
+          'kg':'kg','kilo':'kg','kilos':'kg','kilogramo':'kg','kilogramos':'kg',
+          'g':'g','gr':'g','gramo':'g','gramos':'g','gram':'g',
+          'unidad':'unidad','unidades':'unidad','unid':'unidad','und':'unidad','u':'unidad',
+          'caja':'caja','cajas':'caja','blister':'blister','blisters':'blister',
+          'paquete':'paquete','paquetes':'paquete'
+        };
+        const productName = normalize(name);
+        const inferredUnit = unitAliases[unit] || (
+          /zanahoria/.test(productName) ? 'kg' : ''
+        );
+        const isGram = inferredUnit === 'g';
         const weighted = item.saleType === 'weight' || item.byWeight === true ||
           product?.saleType === 'weight' || product?.byWeight === true ||
-          ['kg','kilo','kilos','kilogramo','kilogramos','g','gr','gramo','gramos'].includes(unit) ||
+          ['kg','g'].includes(inferredUnit) ||
           (!Number.isInteger(qty) && qty > 0);
         const key = normalize(name);
-        if (!result.has(key)) result.set(key, {name, qty: 0, weighted: false, unit: rawUnit || 'unidades'});
+        if (!result.has(key)) result.set(key, {name, qty: 0, weighted: false, unit: inferredUnit || rawUnit || 'unidad', unitKind: inferredUnit, grams: false});
         const entry = result.get(key);
         entry.qty += qty;
         if (weighted) entry.weighted = true;
-        if (entry.unit === 'unidades' && rawUnit) entry.unit = rawUnit;
+        if (inferredUnit && (!entry.unitKind || entry.unitKind === 'unidad')) entry.unitKind = inferredUnit;
+        if (isGram) entry.grams = true;
+        if (!entry.unitKind && rawUnit) entry.unit = rawUnit;
       });
     });
     return result;
   }
   function displayProductQuantity(info) {
-    if (info.weighted) return info.qty < 1 ? Math.round(info.qty * 1000) + ' g' : numberText(info.qty) + ' kg';
-    return numberText(info.qty) + ' ' + info.unit;
+    const unit = normalize(info.unitKind || info.unit || 'unidad');
+    if (unit === 'g' || unit === 'gramo' || unit === 'gramos') {
+      const grams = info.qty * (info.qty <= 100 ? 1000 : 1);
+      return numberText(grams) + ' g';
+    }
+    if (unit === 'kg' || info.weighted) {
+      if (info.qty > 0 && info.qty < 1) return numberText(info.qty * 1000) + ' g';
+      return numberText(info.qty) + ' kg';
+    }
+    const aliases = {unidad:'Unidad',unidades:'Unidad',caja:'Caja',cajas:'Caja',blister:'Blíster',blisters:'Blíster',paquete:'Paquete',paquetes:'Paquete'};
+    return numberText(info.qty) + ' ' + (aliases[unit] || info.unit || 'Unidad');
   }
   function visible(element) {
     if (!element || !element.getClientRects().length) return false;
