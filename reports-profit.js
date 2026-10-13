@@ -41,12 +41,10 @@
       const ps=arr('products');
       const revenue=ss.reduce((a,s)=>a+(Number(s.total)||0),0);
       const summary=profitCostSummary(ss,ps);
-      const cost=summary.total,profit=revenue-cost,margin=revenue>0?profit/revenue*100:0;
-      const averageCost=ss.length?cost/ss.length:0;
+      const cost=summary.total,profit=revenue-cost;
       const isEstimate=summary.estimatedLines>0;
       const costLabel=isEstimate?' (estimado)':'';
       const costDisplay=summary.unknownLines?'No disponible':money(cost);
-      const avgDisplay=summary.unknownLines?'No disponible':money(averageCost);
       const by={};
       ss.forEach(s=>(s.items||[]).forEach(it=>{
         const id=String(it.id||it.productId||it.name||'');
@@ -63,11 +61,9 @@
         :(isEstimate?'<p class="notice">⚠️ Costo estimado: '+summary.estimatedLines+' línea(s) no guardaron su costo histórico; se usó el precio de compra actual.</p>':'<p class="notice">Costos calculados con los precios de compra guardados en las ventas.</p>');
       sec.innerHTML=`<div class="extraHead"><div><h2>Ganancias</h2><p>Rentabilidad del mes calculada con ventas y costo de compra.</p></div><div class="extraActions"><button class="extraBtn" id="refreshProfit">Actualizar</button></div></div>
       <div class="extraGrid">
-        <div class="extraCard"><small>Ingresos del mes</small><strong>${money(revenue)}</strong></div>
+        <div class="extraCard"><small>Ventas del mes</small><strong>${money(revenue)}</strong></div>
         <div class="extraCard"><small>Costo total de productos vendidos${costLabel}</small><strong>${costDisplay}</strong></div>
-        <div class="extraCard"><small>Costo promedio por venta${costLabel}</small><strong>${avgDisplay}</strong></div>
         <div class="extraCard"><small>Ganancia bruta${costLabel}</small><strong class="${profit>=0?'profitGood':'profitBad'}">${summary.unknownLines?'No disponible':money(profit)}</strong></div>
-        <div class="extraCard"><small>Margen</small><strong class="${margin>=0?'profitGood':'profitBad'}">${summary.unknownLines?'No disponible':margin.toFixed(1)+'%'}</strong></div>
       </div>
       ${note}
       <div class="extraPanel"><h3>Detalle por producto</h3>${tops.length?`<table class="extraTable"><thead><tr><th>Producto</th><th>Ganancia</th></tr></thead><tbody>${tops.map(([n,v])=>`<tr><td>${esc(n)}</td><td class="${v>=0?'profitGood':'profitBad'}">${money(v)}</td></tr>`).join('')}</tbody></table>`:'<div class="extraEmpty">Aún no hay datos suficientes para calcular ganancias por producto.</div>'}</div>`;
@@ -332,7 +328,7 @@
       });
       const extras=document.createElement('div');
       extras.dataset.gainCosts='true';
-      extras.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;min-width:0;margin:12px 0;box-sizing:border-box;';
+      extras.style.cssText='display:grid;grid-template-columns:minmax(0,1fr);gap:12px;width:100%;min-width:0;margin:12px 0;box-sizing:border-box;';
       function card(label){
         const box=document.createElement('div');
         box.style.cssText='min-width:0;border:1px solid #ddd;border-radius:18px;padding:13px;box-sizing:border-box;overflow-wrap:anywhere;';
@@ -340,7 +336,7 @@
         const amount=document.createElement('strong');amount.style.cssText='display:block;font-size:clamp(18px,4.5vw,27px);line-height:1.3;margin-top:8px;overflow-wrap:anywhere;';
         box.append(caption,amount);extras.append(box);return {caption,amount};
       }
-      const costCard=card('Costo total de productos vendidos'),avgCard=card('Costo promedio por venta');
+      const costCard=card('Costo total de productos vendidos');
       const sourceNote=document.createElement('p');
       sourceNote.style.cssText='font-size:12px;color:#64748b;line-height:1.4;margin:0 0 12px;';
       sourceNote.dataset.gainPeriodNote='true';
@@ -386,8 +382,6 @@
         const suffix=estimated?' (estimado)':'';
         costCard.caption.textContent='Costo total de productos vendidos'+suffix;
         costCard.amount.textContent=complete?money(result.cost):'Sin datos';
-        avgCard.caption.textContent='Costo promedio por venta'+suffix;
-        avgCard.amount.textContent=!result.count?'—':(complete?money(result.cost/result.count):'Sin datos');
         const dayBadge=activePeriod==='day'?(chosenDay?' · Fecha: '+chosenDay:' · Elige una fecha válida'):'';
         sourceNote.textContent=(usingCloud?'Costos históricos de Supabase':'Datos locales; esperando costos históricos de la nube')+
           dayBadge+' · '+result.count+' venta(s)'+
