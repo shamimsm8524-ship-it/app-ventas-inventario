@@ -75,68 +75,132 @@
     };
     render();return sec
   }
-  // Ampliar el modal histórico sin tocar sus capas, anchura ni sus datos.
-  function enhanceGainPopup() {
+  // Resumen de ventas por fecha local del dispositivo, sin modificar registros.
+  function gainValidSales(){
+    return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
+      !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
+  }
+  function gainSalesPeriod(salesList,period,now=new Date()){
+    if(period==='all')return salesList;
+    return salesList.filter(s=>{
+      const date=new Date(s.date??s.created_at??s.createdAt??'');
+      if(!Number.isFinite(date.getTime()))return false;
+      if(date.getFullYear()!==now.getFullYear())return false;
+      if(period==='month')return date.getMonth()===now.getMonth();
+      return date.getMonth()===now.getMonth()&&date.getDate()===now.getDate();
+    });
+  }
+  function gainPeriodTotals(salesList){
+    const products=arr('products');
+    let revenue=0,cost=0,estimated=0,missing=0;
+    for(const sale of salesList){
+      revenue+=Number(sale.total)||0;
+      const items=Array.isArray(sale.items)?sale.items:[];
+      if(!items.length){missing++;continue}
+      for(const item of items){
+        const qty=Number(item.stockQty??item.stock_qty??item.qty??item.quantity??1);
+        if(!Number.isFinite(qty)){missing++;continue}
+        const savedCost=item.buyPriceAtSale??item.buy_price_at_sale??item.buyPrice??item.buy_price??item.costAtSale??item.cost;
+        const saved=savedCost!==null&&savedCost!==undefined&&savedCost!==''&&Number.isFinite(Number(savedCost));
+        const match=products.find(p=>String(p.id)===String(item.id??item.productId??item.product_id))||
+          products.find(p=>String(p.name||'').trim().toLowerCase()===String(item.name??item.productName??'').trim().toLowerCase());
+        const buy=saved?savedCost:(match?.buyPrice??match?.buy_price);
+        if(!saved)estimated++;
+        if(buy===null||buy===undefined||buy===''||!Number.isFinite(Number(buy))){missing++;continue}
+        cost+=Number(buy)*qty;
+      }
+    }
+    return {revenue,cost,count:salesList.length,estimated,missing};
+  }
+  // Añade el selector y las dos tarjetas dentro del mismo panel que ya mostraba Ventas.
+  function enhanceGainPopup(){
     const headings=[...document.querySelectorAll('h1,h2,h3,h4')].filter(
-      el=>el.textContent.trim().endsWith('Ganancias') && !el.textContent.includes(' y ')
+      el=>el.textContent.trim().endsWith('Ganancias')&&!el.textContent.includes(' y ')
     );
     for(const heading of headings){
-      let panel=null, revenueLabel=null, gainLabel=null;
-      for(let element=heading.parentElement,depth=0;
-          element && element!==document.body && depth<10;
-          element=element.parentElement,depth++){
-        const leaves=[...element.querySelectorAll('small,span,div,p,label')].filter(
-          child=>child.children.length===0
-        );
+      let panel=null,revenueLabel=null,gainLabel=null;
+      for(let e=heading.parentElement,depth=0;e&&e!==document.body&&depth<10;e=e.parentElement,depth++){
+        const leaves=[...e.querySelectorAll('small,span,div,p,label')].filter(child=>child.children.length===0);
         const rev=leaves.find(child=>child.textContent.trim()==='Ventas');
         const gain=leaves.find(child=>child.textContent.trim()==='Ganancia estimada');
-        if(rev && gain){panel=element;revenueLabel=rev;gainLabel=gain;break}
+        if(rev&&gain){panel=e;revenueLabel=rev;gainLabel=gain;break}
       }
-      if(!panel || panel.querySelector('[data-gain-costs="true"]'))continue;
-      function findCard(label,otherLabel){
-        let element=label.parentElement;
-        for(let depth=0;element && element!==panel && depth<6;element=element.parentElement,depth++){
-          if(element.contains(otherLabel))return null;
-          if(/S\/\s*[\d.,]+/.test(element.textContent || ''))return element;
+      if(!panel||panel.querySelector('[data-gain-period-buttons]'))continue;
+      const findCard=(label,otherLabel)=>{
+        for(let e=label.parentElement,depth=0;e&&e!==panel&&depth<6;e=e.parentElement,depth++){
+          if(e.contains(otherLabel))return null;
+          if(/S\/\s*[\d.,]+/.test(e.textContent||''))return e;
         }
         return null;
-      }
-      const revenueCard=findCard(revenueLabel,gainLabel);
-      const profitCard=findCard(gainLabel,revenueLabel);
-      if(!revenueCard || !profitCard)continue;
+      };
+      const revenueCard=findCard(revenueLabel,gainLabel),gainCard=findCard(gainLabel,revenueLabel);
+      if(!revenueCard||!gainCard||revenueCard.parentElement!==gainCard.parentElement)continue;
       const row=revenueCard.parentElement;
-      // Es obligatorio insertar debajo de las dos tarjetas, dentro del cuadro blanco.
-      if(!row || row!==profitCard.parentElement || row.contains(heading))continue;
-      function cardValue(card){
-        const match=(card.textContent || '').match(/S\/\s*([\d.,]+)/);
-        return match ? Number(match[1].replace(/,/g,'')) : NaN;
-      }
-      const revenue=cardValue(revenueCard),profit=cardValue(profitCard);
-      if(!Number.isFinite(revenue)||!Number.isFinite(profit))continue;
-      const cost=revenue-profit;
-      const validSales=arr('sales').filter(s=>!s.cancelled&&!s.canceled&&!s.voided &&
-        !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
-      const count=validSales.length;
+      if(row.contains(heading))continue;
+      const numberLeaf=card=>[...card.querySelectorAll('strong,b,span,div')].find(el=>
+        el.children.length===0&&/S\/\s*[\d.,]+/.test(el.textContent||''));
+      const revValue=numberLeaf(revenueCard),gainValue=numberLeaf(gainCard);
+      if(!revValue||!gainValue)continue;
+
+      const selector=document.createElement('div');
+      selector.dataset.gainPeriodButtons='true';
+      selector.style.cssText='display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;width:100%;min-width:0;margin:12px 0 16px;box-sizing:border-box;';
+      const options=[['today','Hoy'],['month','Este mes'],['all','Todo']];
+      const buttons=options.map(([value,title])=>{
+        const button=document.createElement('button');
+        button.type='button';
+        button.dataset.gainPeriod=value;
+        button.textContent=title;
+        button.style.cssText='min-width:0;padding:11px 4px;border-radius:12px;border:1px solid #ddd;background:#fff;color:#383838;font-weight:800;font-size:13px;cursor:pointer;box-sizing:border-box;';
+        selector.appendChild(button);
+        return button;
+      });
       const extras=document.createElement('div');
       extras.dataset.gainCosts='true';
-      extras.style.cssText='width:100%;max-width:100%;min-width:0;box-sizing:border-box;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0;';
-      function extraCard(label,value){
+      extras.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;max-width:100%;min-width:0;margin:12px 0;box-sizing:border-box;';
+      function costCard(){
         const card=document.createElement('div');
-        card.style.cssText='min-width:0;max-width:100%;box-sizing:border-box;border:1px solid #e2e2e2;border-radius:18px;padding:13px;background:transparent;overflow-wrap:anywhere;';
-        const caption=document.createElement('div');
-        caption.style.cssText='font-size:12px;color:#737782;line-height:1.3;overflow-wrap:anywhere;';
-        caption.textContent=label;
+        card.style.cssText='min-width:0;border:1px solid #ddd;border-radius:18px;padding:13px;box-sizing:border-box;overflow-wrap:anywhere;';
+        const label=document.createElement('div');
+        label.style.cssText='font-size:12px;color:#737782;line-height:1.35;';
         const amount=document.createElement('strong');
-        amount.style.cssText='display:block;font-size:clamp(18px,4.5vw,27px);line-height:1.35;margin-top:8px;overflow-wrap:anywhere;';
-        amount.textContent=value;
-        card.append(caption,amount);
-        return card;
+        amount.style.cssText='display:block;font-size:clamp(18px,4.5vw,27px);line-height:1.3;margin-top:8px;overflow-wrap:anywhere;';
+        card.append(label,amount);
+        extras.appendChild(card);
+        return {label,amount};
       }
-      extras.append(
-        extraCard('Costo total de productos vendidos (estimado)',money(cost)),
-        extraCard('Costo promedio por venta (estimado)',count?money(cost/count):'No disponible')
-      );
+      const totalCostCard=costCard(),averageCostCard=costCard();
+      const note=document.createElement('div');
+      note.dataset.gainPeriodNote='true';
+      note.style.cssText='font-size:12px;color:#64748b;line-height:1.4;margin:0 0 12px;';
+      row.insertAdjacentElement('beforebegin',selector);
       row.insertAdjacentElement('afterend',extras);
+      extras.insertAdjacentElement('afterend',note);
+      const draw=(period)=>{
+        const selected=gainSalesPeriod(gainValidSales(),period);
+        const totals=gainPeriodTotals(selected);
+        const complete=totals.missing===0;
+        revValue.textContent=money(totals.revenue);
+        gainValue.textContent=complete?money(totals.revenue-totals.cost):'Sin datos';
+        const suffix=totals.estimated?' (estimado)':'';
+        totalCostCard.label.textContent='Costo total de productos vendidos'+suffix;
+        totalCostCard.amount.textContent=complete?money(totals.cost):'Sin datos';
+        averageCostCard.label.textContent='Costo promedio por venta'+suffix;
+        averageCostCard.amount.textContent=!selected.length?'—':(complete?money(totals.cost/selected.length):'Sin datos');
+        note.textContent=totals.missing
+          ?'⚠️ Faltan costos en '+totals.missing+' registro(s). No se muestran ganancias incompletas.'
+          :(totals.estimated?'⚠️ Cálculo estimado: '+totals.estimated+' producto(s) sin costo histórico; se usa el costo actual.'
+          :(!totals.count?'No hay ventas en este período.':'Ventas incluidas: '+totals.count+'.'));
+        buttons.forEach(btn=>{
+          const active=btn.dataset.gainPeriod===period;
+          btn.style.background=active?'#7c3aed':'#fff';
+          btn.style.color=active?'#fff':'#383838';
+          btn.style.borderColor=active?'#7c3aed':'#ddd';
+          btn.setAttribute('aria-pressed',String(active));
+        });
+      };
+      buttons.forEach(btn=>btn.addEventListener('click',()=>draw(btn.dataset.gainPeriod)));
+      draw('all');
     }
   }
   function setupGainPopupObserver(){
