@@ -161,6 +161,9 @@
           return;
         }
         if(Number(sale.total)!==saleTotal) sale={...sale,total:saleTotal};
+        if(window.VareliaAndroid&&typeof window.VareliaAndroid.printSaleReceipt==='function'){
+          try{window.VareliaAndroid.printSaleReceipt(JSON.stringify(nativeReceiptPayload(sale)));return;}catch(e){}
+        }
         let w=null;
         try{w=window.open('','_blank','width=420,height=720')}catch{}
         // Android WebView suele bloquear window.open; usar un iframe imprimible como respaldo.
