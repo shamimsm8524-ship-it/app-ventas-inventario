@@ -474,6 +474,15 @@
 
       await refreshCloud();
       try{if(typeof save==='function')save()}catch{}
+      // Notificar una vez que la venta fue confirmada y el ticket fue
+      // incorporado al historial local. Los informes escuchan este evento.
+      // No genera otra venta ni modifica inventario.
+      try{
+        if(typeof renderSales==='function')renderSales();
+        window.dispatchEvent(new CustomEvent('varelia:sale-recorded',{
+          detail:{saleId:String(data?.sale_id||''),source:'cloud-confirmed'}
+        }));
+      }catch(err){console.warn('Actualizar historial tras venta',err)}
       await refreshPublicStock();
       toast('Venta registrada y stock actualizado.','ok');
       try{window.vareliaSound?.('sale')}catch{}
