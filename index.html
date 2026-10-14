@@ -1300,7 +1300,10 @@ if ('serviceWorker' in navigator) {
   }
   window.vareliaButtonSound=beep;
   document.addEventListener('click',e=>{
-    const b=e.target.closest('button,[role="button"]');if(!b||b.disabled)return;
+    // Solo interacción humana: los .click() automáticos de la app no deben sonar.
+    if(!e.isTrusted)return;
+    const b=e.target?.closest?.('button,[role="button"]');
+    if(!b||b.disabled||b.getAttribute('aria-disabled')==='true')return;
     if(b.matches('[data-cart-plus],#scannerIncrease'))beep('plus');
     else if(b.matches('[data-cart-minus]'))beep('minus');
     else beep('click');
