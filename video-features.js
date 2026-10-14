@@ -247,6 +247,7 @@
         const ss=period==='day'?allSales.filter(s=>localDateKey(s.date)===selectedDate):periodSales(period),total=ss.reduce((a,s)=>a+(Number(s.total)||0),0),avg=ss.length?total/ss.length:0;
         const payments={};ss.forEach(s=>{const k=s.paymentMethod||'No registrado';if(k==='Fiado')return;payments[k]=(payments[k]||0)+(Number(s.total)||0)});
         const fiados=salesList().filter(s=>(s.paymentMethod||'')==='Fiado'&&Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0))>0);
+        const creditSummary=window.VareliaCreditBook?.totals?.();
         sec.innerHTML=`
           <div class="vrefHead"><div><h2>Historial</h2><p>Tickets, fiados y resumen de ventas.</p></div></div>
           <div class="vrefTabs">
@@ -257,7 +258,7 @@
             <div class="vrefStat"><small>Venta total acumulada</small><strong>${money(total)}</strong></div>
             <div class="vrefStat"><small>Ticket promedio</small><strong>${money(avg)}</strong></div>
             <div class="vrefStat"><small>Transacciones</small><strong>${ss.length}</strong></div>
-            <div class="vrefStat"><small>Fiado pendiente</small><strong>${money(fiados.reduce((a,s)=>a+Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0)),0))}</strong></div>
+            <div class="vrefStat"><small>Fiado pendiente</small><strong id="vareliaCreditPendingStat">${creditSummary?.loaded?money((creditSummary.pending||0)/100):money(fiados.reduce((a,s)=>a+Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0)),0))}</strong></div>
           </div>
           <div class="vrefPanel"><h3>Desglose por método de pago</h3><div class="vrefPayments">${Object.keys(payments).length?Object.entries(payments).map(([k,v])=>`<div class="vrefPayment"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join(''):'<div class="vrefPayment"><span>Sin ventas</span><b>${money(0)}</b></div>'}</div></div>
           <div class="vrefTabs" style="margin-top:12px;margin-bottom:0">
@@ -283,12 +284,8 @@
         if(dateInput)dateInput.addEventListener('change',()=>{selectedDate=dateInput.value||localDateKey(new Date());render()});
         const body=sec.querySelector('#vhistoryBody');
         if(mode==='credits'){
-          body.innerHTML='<h3>Cuaderno de fiados</h3>'+(
-            fiados.length?fiados.map(s=>{
-              const bal=Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0));
-              return `<div class="vrefCredit" data-credit-id="${esc(s.id)}"><div class="vrefCreditTop"><div><b>${esc(s.customerName||'Cliente sin nombre')}</b><small>${new Date(s.date).toLocaleString('es-PE')}</small></div><strong>${money(bal)}</strong></div><small>Vendido al crédito: ${money(s.total)} · Abonado: ${money(s.paidAmount||0)}</small><button type="button" data-credit-pay="${esc(s.id)}">Registrar abono</button></div>`
-            }).join(''):'<div class="empty">No hay fiados pendientes.</div>'
-          );
+          if(window.VareliaCreditBook)window.VareliaCreditBook.mount(body);
+          else body.innerHTML='<h3>Cuaderno de fiados</h3><p>Preparando el historial detallado del cliente…</p>';
         }else{
           const list=[...ss].reverse();
           body.innerHTML='<h3>Historial de tickets</h3>'+(
@@ -308,13 +305,6 @@
         const hm=e.target.closest('[data-hmode]');if(hm){mode=hm.dataset.hmode;render();return}
         const pr=e.target.closest('[data-period]');if(pr){period=pr.dataset.period;render();return}
         const op=e.target.closest('[data-open-existing]');if(op){openExisting(op.dataset.openExisting);return}
-        const pp=e.target.closest('[data-credit-pay]');if(pp){
-          const s=salesList().find(x=>String(x.id)===String(pp.dataset.creditPay));if(!s)return;
-          const bal=Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0));
-          const raw=prompt('Saldo pendiente: '+money(bal)+'\n¿Cuánto está abonando?',String(bal.toFixed(2)));if(raw===null)return;
-          const amount=Math.max(0,Math.min(bal,Number(String(raw).replace(',','.'))||0));if(!amount)return;
-          s.paidAmount=(Number(s.paidAmount)||0)+amount;s.payments=Array.isArray(s.payments)?s.payments:[];s.payments.push({amount,date:new Date().toISOString()});saveAll();render();window.vareliaToast?.('Abono registrado: '+money(amount),'ok');return
-        }
         const pi=e.target.closest('[data-ticket-print]');if(pi){const s=salesList().find(x=>String(x.id)===String(pi.dataset.ticketPrint));if(s)window.VareliaReceipt?.print?.(s);return}
         const sh=e.target.closest('[data-ticket-share]');if(sh){const s=salesList().find(x=>String(x.id)===String(sh.dataset.ticketShare));if(s)window.VareliaReceipt?.share?.(s);return}
       };
