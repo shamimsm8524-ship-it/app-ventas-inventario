@@ -72,13 +72,14 @@
               '<b style="font-size:15px;line-height:1.35">Compra fiada</b>'+
               '<div style="font-size:13px;line-height:1.35">Fecha: <strong>'+escape(creditDate(o.created_at))+'</strong></div>'+
               '<div style="font-size:13px;line-height:1.35">Hora: <strong>'+escape(creditTime(o.created_at))+'</strong></div>'+
+              '<div style="font-size:13px;line-height:1.35;font-weight:850">Estado: '+(orderBalance(o)>0?'PENDIENTE':'PAGADO')+'</div>'+
             '</div>'+
             '<div style="font-size:13px;font-weight:850;margin-top:12px;margin-bottom:3px">Productos fiados ('+(Array.isArray(o.items)?o.items.length:0)+')</div>'+
             orderLines(o)+
             '<div style="display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;padding:11px 0 6px;border-bottom:1px solid #e5e7eb;font-weight:850;font-size:14px">'+
               '<span>Total de la compra</span><strong style="white-space:nowrap">'+money(o.totalCents)+'</strong></div>'+
             (o.payments.length?'<div style="font-size:12px;margin-top:9px"><b>Abonos de esta compra</b>'+
-            o.payments.map(p=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0"><span>'+escape(fmt(p.created_at))+' · '+escape(p.method)+'</span><b>−'+money(cents(p.amount))+'</b></div>').join('')+'</div>':'<p style="font-size:12px;margin-bottom:0">Sin abonos</p>')+
+            paymentsOf(o).map(p=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0"><span>Fecha: '+escape(creditDate(p.date))+' · Hora: '+escape(creditTime(p.date))+'<br>Medio: '+escape(p.method||'No indicado')+'</span><b>−'+money(p.amount)+'</b></div>').join('')+'</div>':'<p style="font-size:12px;margin-bottom:0">Sin abonos</p>')+
             '<p style="font-size:12px;font-weight:850;margin:8px 0 0">Saldo de la compra: '+money(Math.max(0,o.totalCents-o.paidCents))+'</p></section>').join('')+
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:10px;margin-top:14px">'+
           (balance?'<button type="button" data-credit-pay="'+i+'" style="width:100%;min-width:0;padding:13px 11px;border:0;border-radius:10px;color:#fff;background:#2563eb;font-weight:850;box-sizing:border-box;font-size:14px">+ Registrar abono</button>':'')+
@@ -203,6 +204,22 @@
     }).catch(err=>{creditPdfLoader=null;throw err});
     return creditPdfLoader;
   }
+  const orderBalance=o=>Math.max(0,o.totalCents-o.paidCents);
+  function paymentsOf(order){
+    const map=new Map();
+    for(const p of order.payments||[]){
+      const key=String(p.payment_group||p.id||p.created_at);
+      if(!map.has(key))map.set(key,{date:p.created_at,method:p.method,amount:0});
+      map.get(key).amount+=cents(p.amount);
+    }
+    return [...map.values()].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  }
+  function orderSections(g){
+    const pending=[],paid=[];
+    for(const o of g.orders)(orderBalance(o)>0?pending:paid).push(o);
+    const sort=(a,b)=>String(a.created_at).localeCompare(String(b.created_at));
+    return [{title:'COMPRAS PENDIENTES',orders:pending.sort(sort)},{title:'COMPRAS PAGADAS',orders:paid.sort(sort)}];
+  }
   async function saveCreditPdf(g){
     const JsPDF=await creditPdfClass();
     const doc=new JsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -231,36 +248,39 @@
     line('Caja: '+(staff[g.cashier]||g.cashier.slice(0,8)));
     line('Emitido: '+fmt(new Date()));
     separator();
-    line('DETALLE DE PRODUCTOS FIADOS',{bold:true,size:12,after:4});
-    for(const order of g.orders){
-      needSpace(30);
-      line('Compra: '+fmt(order.created_at),{bold:true,after:1});
-      const its=Array.isArray(order.items)?order.items:[];
-      for(const item of its){
-        line(String(item.name||'Producto'),{bold:true,size:10,indent:3,after:0});
-        line('Cantidad: '+qtyLabel(item)+'  |  Precio: S/ '+Number(item.unit_price||0).toFixed(2),{size:9,indent:3,after:0});
-        line('Subtotal: '+money(cents(item.subtotal??((Number(item.qty)||0)*(Number(item.unit_price)||0)))),{size:9,indent:3,after:2});
-      }
-      if(!its.length)line('Sin productos detallados en el registro',{size:9,indent:3});
-      line('Total de la compra: '+money(order.totalCents),{bold:true,indent:3});
-      line('Saldo de esta compra: '+money(Math.max(0,order.totalCents-order.paidCents)),{indent:3});
-      separator();
-    }
-    line('HISTORIAL DE ABONOS',{bold:true,size:12,after:4});
-    const merged=new Map();
-    for(const p of g.orders.flatMap(o=>o.payments)){
-      const key=String(p.payment_group||p.id||p.created_at);
-      if(!merged.has(key))merged.set(key,{date:p.created_at,method:p.method,amount:0});
-      merged.get(key).amount+=cents(p.amount);
-    }
-    const allPayments=[...merged.values()].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
-    if(!allPayments.length)line('Sin abonos registrados',{size:10});
-    for(const p of allPayments)line(fmt(p.date)+'  |  '+p.method+'  |  '+money(p.amount),{size:10});
+    line('DEUDA ACTUAL: '+money(due(g)),{bold:true,size:14,after:4});
     separator();
-    line('TOTAL FIADO: '+money(g.total),{bold:true,size:12});
-    line('TOTAL ABONADO: '+money(g.paid),{bold:true,size:12});
-    line('SALDO PENDIENTE: '+money(due(g)),{bold:true,size:14});
-    line('ESTADO: '+state(g),{bold:true,size:11});
+    for(const section of orderSections(g)){
+      if(!section.orders.length)continue;
+      line(section.title,{bold:true,size:12,after:4});
+      for(const order of section.orders){
+        needSpace(36);
+        line('Compra: '+creditDate(order.created_at)+' | Hora: '+creditTime(order.created_at),{bold:true,after:1});
+        line('ESTADO: '+(orderBalance(order)>0?'PENDIENTE':'PAGADO'),{bold:true,size:10,after:3});
+        const its=Array.isArray(order.items)?order.items:[];
+        for(const item of its){
+          line(String(item.name||'Producto'),{bold:true,size:10,indent:3,after:0});
+          line('Cantidad: '+qtyLabel(item)+' | Precio: S/ '+Number(item.unit_price||0).toFixed(2),{size:9,indent:3,after:0});
+          line('Subtotal: '+money(cents(item.subtotal??((Number(item.qty)||0)*(Number(item.unit_price)||0)))),{size:9,indent:3,after:2});
+        }
+        if(!its.length)line('Sin productos detallados en el registro',{size:9,indent:3});
+        line('Total de la compra: '+money(order.totalCents),{bold:true,indent:3});
+        line('ABONOS DE ESTA COMPRA',{bold:true,size:10,indent:3,after:2});
+        const allocated=paymentsOf(order);
+        if(!allocated.length)line('Sin abonos registrados',{size:9,indent:3});
+        for(const p of allocated){
+          line('Fecha del abono: '+creditDate(p.date)+' | Hora: '+creditTime(p.date),{size:9,indent:3,after:0});
+          line('Medio: '+String(p.method||'No indicado')+' | Monto: '+money(p.amount),{size:9,indent:3,after:3});
+        }
+        line('Saldo de esta compra: '+money(orderBalance(order)),{bold:true,indent:3});
+        separator();
+      }
+    }
+    line('RESUMEN DE LA CUENTA',{bold:true,size:12,after:4});
+    line('TOTAL HISTORICO FIADO: '+money(g.total),{bold:true,size:11});
+    line('TOTAL ABONADO: '+money(g.paid),{bold:true,size:11});
+    line('DEUDA ACTUAL: '+money(due(g)),{bold:true,size:14});
+    line('ESTADO GENERAL: '+state(g),{bold:true,size:11});
     const safe=String(g.name||'cliente').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_-]+/gi,'-').slice(0,55);
     const filename='Fiado-'+(safe||'cliente')+'.pdf';
     if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function'){
@@ -272,21 +292,24 @@
     window.vareliaToast?.('PDF generado. Abrelo para imprimir o guardar.','ok');
   }
   function printStatement(g){
-    const rows=g.orders.map(o=>'<h3>Compra '+escape(fmt(o.created_at))+' · '+money(o.totalCents)+'</h3><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>'+
-      (Array.isArray(o.items)?o.items:[]).map(i=>'<tr><td>'+escape(i.name||'Producto')+'</td><td>'+escape(qtyLabel(i))+'</td><td>S/ '+Number(i.unit_price||0).toFixed(2)+'</td><td>'+money(cents(i.subtotal??((Number(i.qty)||0)*(Number(i.unit_price)||0))))+'</td></tr>').join('')+'</tbody></table>').join('');
-    const merged=new Map();
-    for(const p of g.orders.flatMap(o=>o.payments)){
-      const k=String(p.payment_group||p.id);
-      if(!merged.has(k))merged.set(k,{at:p.created_at,method:p.method,amount:0});
-      merged.get(k).amount+=cents(p.amount);
-    }
-    const payRows=[...merged.values()].sort((a,b)=>String(a.at).localeCompare(String(b.at))).map(p=>'<tr><td>'+escape(fmt(p.at))+'</td><td>'+escape(p.method)+'</td><td>'+money(p.amount)+'</td></tr>').join('');
+    const rows=orderSections(g).map(section=>!section.orders.length?'':'<h2>'+escape(section.title)+'</h2>'+
+      section.orders.map(o=>{
+        const pays=paymentsOf(o);
+        return '<section><h3>Compra: '+escape(creditDate(o.created_at))+' · Hora: '+escape(creditTime(o.created_at))+
+          ' · '+(orderBalance(o)>0?'PENDIENTE':'PAGADO')+'</h3>'+
+          '<table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>'+
+          (Array.isArray(o.items)?o.items:[]).map(i=>'<tr><td>'+escape(i.name||'Producto')+'</td><td>'+escape(qtyLabel(i))+'</td><td>S/ '+Number(i.unit_price||0).toFixed(2)+'</td><td>'+money(cents(i.subtotal??((Number(i.qty)||0)*(Number(i.unit_price)||0))))+'</td></tr>').join('')+
+          '</tbody></table><p><b>Total de la compra:</b> '+money(o.totalCents)+'</p>'+
+          '<h4>Abonos de esta compra</h4><table><thead><tr><th>Fecha del abono</th><th>Hora</th><th>Medio</th><th>Monto</th></tr></thead><tbody>'+
+          (pays.length?pays.map(p=>'<tr><td>'+escape(creditDate(p.date))+'</td><td>'+escape(creditTime(p.date))+'</td><td>'+escape(p.method||'No indicado')+'</td><td>'+money(p.amount)+'</td></tr>').join(''):'<tr><td colspan="4">Sin abonos</td></tr>')+
+          '</tbody></table><p><b>Saldo de esta compra:</b> '+money(orderBalance(o))+'</p></section>';
+      }).join('')).join('');
     const html='<!doctype html><html lang="es"><head><meta charset="UTF-8"><title>Fiados de '+escape(g.name)+'</title>'+
-      '<style>@page{size:A4;margin:14mm}body{font:13px Arial,sans-serif;color:#111}h1{font-size:21px}h3{font-size:13px;background:#eee;padding:8px}table{width:100%;border-collapse:collapse;margin-bottom:15px}td,th{border-bottom:1px solid #ddd;padding:6px;text-align:left}th{background:#f3f4f6}.total{font-size:15px;font-weight:750;padding:6px 0;border-bottom:1px solid #ddd}</style></head><body>'+
+      '<style>@page{size:A4;margin:14mm}body{font:13px Arial,sans-serif;color:#111}h1{font-size:21px}h2{margin-top:20px;font-size:17px}h3{font-size:13px;background:#eee;padding:8px}h4{font-size:12px;margin-bottom:4px}section{break-inside:avoid;border-bottom:1px solid #bbb;padding-bottom:12px}table{width:100%;border-collapse:collapse;margin-bottom:12px}td,th{border-bottom:1px solid #ddd;padding:6px;text-align:left}th{background:#f3f4f6}.total{font-size:15px;font-weight:750;padding:6px 0;border-bottom:1px solid #ddd}.due{font-size:19px;font-weight:800}</style></head><body>'+
       '<h1>Estado de cuenta · Fiados</h1><p><b>Cliente:</b> '+escape(g.name)+'</p><p><b>Caja:</b> '+escape(staff[g.cashier]||g.cashier.slice(0,8))+'</p><p><b>Emitido:</b> '+escape(fmt(new Date()))+'</p>'+
-      '<h2>Detalle de compras</h2>'+rows+'<h2>Historial de abonos</h2><table><tr><th>Fecha</th><th>Medio</th><th>Abonado</th></tr>'+payRows+'</table>'+
-      '<p class="total">Total fiado: '+money(g.total)+'</p><p class="total">Total abonado: '+money(g.paid)+'</p>'+
-      '<p class="total">SALDO PENDIENTE: '+money(due(g))+' · '+state(g)+'</p></body></html>';
+      '<p class="due">DEUDA ACTUAL: '+money(due(g))+'</p>'+rows+
+      '<h2>Resumen de la cuenta</h2><p class="total">Total histórico fiado: '+money(g.total)+'</p><p class="total">Total abonado: '+money(g.paid)+'</p>'+
+      '<p class="due">DEUDA ACTUAL: '+money(due(g))+' · '+state(g)+'</p></body></html>';
     const native=window.VareliaAndroid;
     // La impresion de un iframe invisible no abre el gestor Android WebView.
     // Las APK nuevas usan el gestor de impresion nativo con este HTML completo.
