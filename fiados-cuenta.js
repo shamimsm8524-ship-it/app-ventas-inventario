@@ -82,7 +82,7 @@
             '<p style="font-size:12px;font-weight:850;margin:8px 0 0">Saldo de la compra: '+money(Math.max(0,o.totalCents-o.paidCents))+'</p></section>').join('')+
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:10px;margin-top:14px">'+
           (balance?'<button type="button" data-credit-pay="'+i+'" style="width:100%;min-width:0;padding:13px 11px;border:0;border-radius:10px;color:#fff;background:#2563eb;font-weight:850;box-sizing:border-box;font-size:14px">+ Registrar abono</button>':'')+
-          '<button type="button" data-credit-print="'+i+'" style="width:100%;min-width:0;padding:13px 11px;border:1px solid #d1d5db;border-radius:10px;color:inherit;background:transparent;font-weight:850;box-sizing:border-box;font-size:14px">🖨️ Imprimir / PDF</button></div></div></div>';
+          '<button type="button" data-credit-print="'+i+'" style="width:100%;min-width:0;padding:13px 11px;border:1px solid #d1d5db;border-radius:10px;color:inherit;background:transparent;font-weight:850;box-sizing:border-box;font-size:14px">⬇️ Descargar PDF</button></div></div></div>';
       }).join(''):'<p class="empty">No hay fiados registrados todavía.</p>');
   }
   async function queryAll(sb,table,select){
