@@ -37,9 +37,9 @@
   };
   const orderLines=o=>{
     const items=Array.isArray(o.items)?o.items:[];
-    return items.length?items.map(i=>'<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #e5e7eb"><div><b>'+escape(i.name||'Producto')+
+    return items.length?items.map(i=>'<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;padding:10px 0;border-bottom:1px solid #e5e7eb;align-items:start"><div style="min-width:0;overflow-wrap:anywhere"><b style="display:block;line-height:1.3">'+escape(i.name||'Producto')+
       '</b><div style="font-size:12px">'+escape(qtyLabel(i))+' × S/ '+Number(i.unit_price||0).toFixed(2)+'</div></div>'+
-      '<strong>'+money(cents(i.subtotal??((Number(i.qty)||0)*(Number(i.unit_price)||0))))+'</strong></div>').join(''):
+      '<strong style="white-space:nowrap;line-height:1.3">'+money(cents(i.subtotal??((Number(i.qty)||0)*(Number(i.unit_price)||0))))+'</strong></div>').join(''):
       '<p style="font-size:12px">No hay detalle del producto en este registro.</p>';
   };
   function render(){
@@ -64,14 +64,14 @@
           '<div data-credit-detail style="display:'+(open?'block':'none')+';margin:12px 0 0;padding-top:12px;border-top:1px solid #e5e7eb">'+
           '<p style="font-size:13px;margin:0 0 12px">Total fiado: <b>'+money(g.total)+'</b> · Abonado: <b>'+money(g.paid)+'</b></p>'+
           g.orders.map(o=>'<section style="border:1px solid #d1d5db;border-radius:12px;padding:10px;margin-bottom:9px">'+
-            '<div style="display:flex;justify-content:space-between;gap:10px"><b>Compra '+escape(fmt(o.created_at))+'</b><b>'+money(o.totalCents)+'</b></div>'+
+            '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;padding-bottom:10px;border-bottom:1px solid #e5e7eb"><div style="min-width:0"><b style="display:block;font-size:14px;line-height:1.4">Compra del '+escape(new Date(o.created_at).toLocaleDateString('es-PE',{timeZone:'America/Lima'}))+'</b><small style="display:block;color:var(--muted,#64748b);margin-top:3px">'+escape(new Date(o.created_at).toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'numeric',minute:'2-digit'}))+'</small></div><b style="white-space:nowrap;font-size:16px">'+money(o.totalCents)+'</b></div>'+
             orderLines(o)+
             (o.payments.length?'<div style="font-size:12px;margin-top:9px"><b>Abonos de esta compra</b>'+
             o.payments.map(p=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0"><span>'+escape(fmt(p.created_at))+' · '+escape(p.method)+'</span><b>−'+money(cents(p.amount))+'</b></div>').join('')+'</div>':'<p style="font-size:12px;margin-bottom:0">Sin abonos</p>')+
             '<p style="font-size:12px;font-weight:850;margin:8px 0 0">Saldo de la compra: '+money(Math.max(0,o.totalCents-o.paidCents))+'</p></section>').join('')+
-          '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
-          (balance?'<button type="button" data-credit-pay="'+i+'" style="padding:11px 12px;border:0;border-radius:10px;color:#fff;background:#2563eb;font-weight:850">+ Registrar abono</button>':'')+
-          '<button type="button" data-credit-print="'+i+'" style="padding:11px 12px;border:1px solid #d1d5db;border-radius:10px;color:inherit;background:transparent;font-weight:850">🖨️ Imprimir detalle</button></div></div></div>';
+          '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:10px;margin-top:14px">'+
+          (balance?'<button type="button" data-credit-pay="'+i+'" style="width:100%;min-width:0;padding:13px 11px;border:0;border-radius:10px;color:#fff;background:#2563eb;font-weight:850;box-sizing:border-box;font-size:14px">+ Registrar abono</button>':'')+
+          '<button type="button" data-credit-print="'+i+'" style="width:100%;min-width:0;padding:13px 11px;border:1px solid #d1d5db;border-radius:10px;color:inherit;background:transparent;font-weight:850;box-sizing:border-box;font-size:14px">🖨️ Imprimir detalle</button></div></div></div>';
       }).join(''):'<p class="empty">No hay fiados registrados todavía.</p>');
   }
   async function queryAll(sb,table,select){
