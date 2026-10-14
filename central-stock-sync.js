@@ -501,10 +501,25 @@
         if(typeof save==='function')save();
         else if(typeof renderSales==='function')renderSales();
       }catch(err){console.warn('Actualizar ticket local tras cobro',err)}
-      // La venta ya fue confirmada por Supabase: emitir el comprobante con el registro real.
+      // La venta ya fue confirmada por Supabase: abrir el comprobante real.
+      // El evento por sí solo no basta si algún flujo antiguo del POS no instaló
+      // su listener; por eso comprobamos que el modal se haya abierto y llamamos
+      // directamente al módulo de comprobantes como respaldo.
       if(committedSale){
         window.__vareliaLastReceipt=committedSale;
-        try{window.dispatchEvent(new CustomEvent('varelia:checkout-confirmed',{detail:{sale:committedSale}}))}catch(err){console.warn('No se pudo avisar al comprobante',err)}
+        try{window.dispatchEvent(new CustomEvent('varelia:checkout-confirmed',{detail:{sale:committedSale}}))}
+        catch(err){console.warn('No se pudo avisar al comprobante',err)}
+        try{
+          const receiptPanel=document.getElementById('vreceiptOverlay');
+          const emergencyPanel=document.getElementById('vareliaEmergencyReceipt');
+          const isReceiptOpen=()=>!!document.getElementById('vreceiptOverlay')?.classList.contains('show')||!!document.getElementById('vareliaEmergencyReceipt');
+          if(!isReceiptOpen() && typeof window.VareliaReceipt?.show==='function'){
+            window.VareliaReceipt.show(committedSale);
+          }
+          if(!isReceiptOpen() && !receiptPanel && !emergencyPanel){
+            console.warn('El módulo de comprobantes no está listo; se conserva la venta confirmada para reintentar');
+          }
+        }catch(err){console.warn('No se pudo abrir directamente el comprobante',err)}
       }
       try{
         window.dispatchEvent(new CustomEvent('varelia:sale-recorded',{
