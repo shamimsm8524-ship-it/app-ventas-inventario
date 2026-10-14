@@ -5,6 +5,9 @@
   const money=n=>'S/ '+(n/100).toFixed(2);
   const fmt=d=>{const date=new Date(d);return Number.isFinite(date.getTime())?date.toLocaleString('es-PE',{timeZone:'America/Lima'}):String(d||'')};
   const keyOf=s=>String(s||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('es-PE');
+  const creditDate=d=>{const x=new Date(d);return Number.isFinite(x.getTime())?x.toLocaleDateString('es-PE',{timeZone:'America/Lima',day:'2-digit',month:'2-digit',year:'numeric'}):'Sin fecha'};
+  const creditTime=d=>{const x=new Date(d);return Number.isFinite(x.getTime())?x.toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'2-digit',minute:'2-digit',hour12:false}):'Sin hora'};
+
   let scope='',userId='',role='',credits=[],payments=[],staff={},loaded=false,lastLoaded=0,working=null,error='',root=null,submitting=false;
   // Mantener la ficha de cada cliente abierta entre actualizaciones del historial.
   const expandedAccounts=new Set();
@@ -64,7 +67,12 @@
           '<div data-credit-detail style="display:'+(open?'block':'none')+';margin:12px 0 0;padding-top:12px;border-top:1px solid #e5e7eb">'+
           '<p style="font-size:13px;margin:0 0 12px">Total fiado: <b>'+money(g.total)+'</b> · Abonado: <b>'+money(g.paid)+'</b></p>'+
           g.orders.map(o=>'<section style="border:1px solid #d1d5db;border-radius:12px;padding:10px;margin-bottom:9px">'+
-            '<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;padding-bottom:10px;border-bottom:1px solid #e5e7eb"><div style="min-width:0"><b style="display:block;font-size:14px;line-height:1.4">Compra del '+escape(new Date(o.created_at).toLocaleDateString('es-PE',{timeZone:'America/Lima'}))+'</b><small style="display:block;color:var(--muted,#64748b);margin-top:3px">'+escape(new Date(o.created_at).toLocaleTimeString('es-PE',{timeZone:'America/Lima',hour:'numeric',minute:'2-digit'}))+'</small></div><b style="white-space:nowrap;font-size:16px">'+money(o.totalCents)+'</b></div>'+
+            '<div style="display:grid;grid-template-columns:minmax(0,1fr);gap:6px;padding-bottom:10px;border-bottom:1px solid #e5e7eb;min-width:0">'+
+              '<b style="font-size:15px;line-height:1.35">Compra fiada</b>'+
+              '<div style="font-size:13px;line-height:1.35">Fecha: <strong>'+escape(creditDate(o.created_at))+'</strong></div>'+
+              '<div style="font-size:13px;line-height:1.35">Hora: <strong>'+escape(creditTime(o.created_at))+'</strong></div>'+
+              '<div style="font-size:14px;line-height:1.35;margin-top:4px">Total de compra: <strong style="white-space:nowrap">'+money(o.totalCents)+'</strong></div>'+
+            '</div>'+
             orderLines(o)+
             (o.payments.length?'<div style="font-size:12px;margin-top:9px"><b>Abonos de esta compra</b>'+
             o.payments.map(p=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0"><span>'+escape(fmt(p.created_at))+' · '+escape(p.method)+'</span><b>−'+money(cents(p.amount))+'</b></div>').join('')+'</div>':'<p style="font-size:12px;margin-bottom:0">Sin abonos</p>')+
