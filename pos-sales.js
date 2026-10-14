@@ -447,6 +447,22 @@
         }catch(e){console.error('Comprobante de respaldo',e);window.vareliaToast?.('No se pudo mostrar el comprobante.','warn')}
       }
 
+      // El comprobante se abre cuando el registro central confirma el cobro.
+      // Así se usa la venta real guardada, no un ticket provisional.
+      window.addEventListener('varelia:checkout-confirmed',event=>{
+        const sale=event.detail?.sale;
+        if(!sale)return;
+        window.__vareliaLastReceipt=sale;
+        try{
+          if(typeof window.VareliaReceipt?.show==='function'){
+            window.VareliaReceipt.show(sale);
+            const panel=document.getElementById('vreceiptOverlay');
+            if(panel?.classList.contains('show'))return;
+          }
+        }catch(err){console.warn('El comprobante principal no se pudo abrir; usando respaldo',err)}
+        showEmergencyReceipt(sale);
+      });
+
       function showPaidReceipt(before,paymentSnap,checkoutState){
         let tries=0;
         const open=()=>{
@@ -610,12 +626,16 @@
           receiptSale.changeGiven=Number(p.change)||receiptSale.changeGiven||0;
           receiptSale.paymentBreakdown=p.breakdown||receiptSale.paymentBreakdown||{};
           window.__vareliaLastReceipt=receiptSale;
-          showEmergencyReceipt(receiptSale);
+          // Si el puente central está instalado, esperar su confirmación real.
+          // En el flujo local antiguo, abrir el comprobante de respaldo aquí.
+          if(legacyCheckout.dataset.centralStock!=='1')showEmergencyReceipt(receiptSale);
           setTimeout(()=>{
             try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}
             try{sync();renderPay()}catch{}
             try{if(typeof renderSales==='function')renderSales()}catch{}
-            window.vareliaToast?.(p.method==='Fiado'?'Fiado registrado. Consulta la deuda en Historial.':'Venta registrada. Abriendo comprobante.','ok');
+            if(legacyCheckout.dataset.centralStock!=='1'){
+              window.vareliaToast?.(p.method==='Fiado'?'Fiado registrado. Consulta la deuda en Historial.':'Venta registrada. Abriendo comprobante.','ok');
+            }
             finish(1200);
           },160);
         }catch(err){
