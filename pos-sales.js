@@ -397,7 +397,7 @@
             // Si el flujo antiguo guardó la venta sin sus líneas, recuperar los productos del carrito confirmado.
             const checkoutRows=Array.isArray(checkoutState?.rows)?checkoutState.rows:[];
             if((!Array.isArray(sale.items)||!sale.items.length)&&checkoutRows.length){
-              sale.items=checkoutRows.map(x=>({id:x.p?.id??x.item?.id??x.key,name:String(x.name||x.p?.name||'Producto'),qty:Number(x.qty)||1,price:Number(x.price)||0,subtotal:Number(x.subtotal)||((Number(x.qty)||1)*(Number(x.price)||0)),unit:x.item?.unit||x.p?.unit||'',saleType:x.item?.saleType||'',characteristics:Array.isArray(x.p?.characteristics)?x.p.characteristics:[]}));
+              sale.items=checkoutRows.map(x=>({id:x.p?.id??x.item?.id??x.key,name:String(x.name||x.p?.name||'Producto'),qty:Number(x.qty)||1,price:Number(x.price)||0,subtotal:Number(x.subtotal)||((Number(x.qty)||1)*(Number(x.price)||0)),unit:x.item?.unit||x.p?.unit||'',medicineSaleUnit:x.medicineSaleUnit||x.item?.medicineSaleUnit||'',medicineMultiplier:Number(x.medicineMultiplier||x.item?.medicineMultiplier||1),saleType:x.item?.saleType||'',characteristics:Array.isArray(x.p?.characteristics)?x.p.characteristics:[]}));
             }
             if(!(Number(sale.total)>0)&&Number(checkoutState?.total)>0)sale.total=Number(checkoutState.total);
             sale.paymentMethod=paymentSnap.method||sale.paymentMethod||'Efectivo';
@@ -447,7 +447,7 @@
           if(!loader){
             loader=document.createElement('script');
             loader.id='vareliaReceiptEmergencyLoader';
-            loader.src='pos-receipt.js?v=20261009-receipt-recovery-v14&ts='+Date.now();
+            loader.src='pos-receipt.js?v=20261014-medicine-sale-unit-v30&ts='+Date.now();
             loader.onload=()=>setTimeout(()=>{if(!show())window.vareliaToast?.('No se pudo abrir el comprobante.','warn')},80);
             loader.onerror=()=>window.vareliaToast?.('No se pudo cargar el comprobante.','warn');
             document.head.appendChild(loader);
