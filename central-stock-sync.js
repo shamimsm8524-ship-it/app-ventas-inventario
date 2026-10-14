@@ -470,17 +470,26 @@
         };
       });
 
+      let committedSale=null;
       try{
-        sales.push({
-          id:(typeof uid==='function'?uid():String(Date.now())),
+        const committedTotal=Number(data?.total)||current.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0);
+        const committedDate=new Date().toISOString();
+        const committedId=(typeof uid==='function'?uid():String(Date.now()));
+        committedSale={
+          id:committedId,
+          receiptNumber:'V-'+committedDate.slice(0,10).replace(/-/g,'')+'-'+String(committedId).replace(/[^a-z0-9]/gi,'').slice(-6).toUpperCase(),
           cloudSaleId:String(data?.sale_id||''),
-          date:new Date().toISOString(),
+          date:committedDate,
           items:soldItems,
-          total:Number(data?.total)||current.reduce((a,i)=>a+(Number(i.price)||0)*(Number(i.qty)||0),0),
-          ...(fiado?{paymentMethod:'Fiado',customerName:client,paidAmount:0,
-            payments:[],paymentStatus:'pending',cloudCreditId:String(data?.credit_sale_id||data?.sale_id||''),
-            paymentBreakdown:{},amountReceived:0,changeGiven:0}:{})
-        });
+          total:committedTotal,
+          paymentMethod:fiado?'Fiado':(pay.method||'Efectivo'),
+          paymentBreakdown:fiado?{}:(pay.breakdown||{}),
+          amountReceived:fiado?0:Math.max(0,Number(pay.received)||committedTotal),
+          changeGiven:fiado?0:Math.max(0,Number(pay.change)||0),
+          ...(fiado?{customerName:client,paidAmount:0,
+            payments:[],paymentStatus:'pending',cloudCreditId:String(data?.credit_sale_id||data?.sale_id||'')}:{}),
+        };
+        sales.push(committedSale);
         cart=[];
         try{if(saleDialog?.open)saleDialog.close()}catch{}
       }catch(e){console.warn('Historial local',e)}
@@ -492,9 +501,14 @@
         if(typeof save==='function')save();
         else if(typeof renderSales==='function')renderSales();
       }catch(err){console.warn('Actualizar ticket local tras cobro',err)}
+      // La venta ya fue confirmada por Supabase: emitir el comprobante con el registro real.
+      if(committedSale){
+        window.__vareliaLastReceipt=committedSale;
+        try{window.dispatchEvent(new CustomEvent('varelia:checkout-confirmed',{detail:{sale:committedSale}}))}catch(err){console.warn('No se pudo avisar al comprobante',err)}
+      }
       try{
         window.dispatchEvent(new CustomEvent('varelia:sale-recorded',{
-          detail:{saleId:String(data?.sale_id||''),source:'cloud-confirmed'}
+          detail:{saleId:String(data?.sale_id||''),source:'cloud-confirmed',sale:committedSale}
         }));
       }catch(err){console.warn('Notificación de venta confirmada',err)}
       toast(fiado?'Fiado registrado en la nube a nombre de '+client+'.':'Venta registrada. Actualizando historial y reportes.','ok');
