@@ -254,7 +254,40 @@
         w.document.write(`<html><head><meta charset="utf-8"><title>${esc(ticketNo(sale))}</title><style>@page{size:${width}mm auto;margin:2mm}*{box-sizing:border-box}html,body{margin:0!important;padding:0!important;background:#fff;width:100%} @media print{html,body{width:${paper}mm!important;margin:0!important;padding:0!important}.paper{width:${paper}mm!important;margin:0 auto!important;page-break-after:avoid;break-after:avoid}} @media screen{body{background:#fff}}body{font-family:monospace;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}.paper{width:${paper}mm;margin:0 auto}.c{text-align:center}.logoWrap{margin:0 0 2mm}.logoWrap img{display:block;margin:0 auto;max-width:${logoMaxW}mm;max-height:${logoMaxH}mm;width:auto;height:auto;object-fit:contain}.sep{border-top:1px dashed #777;margin:2mm 0}.line{display:flex;justify-content:space-between;gap:2mm;margin:1mm 0;align-items:flex-start}.line span:first-child{min-width:0;overflow-wrap:anywhere}.line span:last-child,.line b:last-child{text-align:right;overflow-wrap:anywhere}.small{font-size:10px;color:#444;line-height:1.25}.total{font-size:18px;font-weight:900}.item{margin:1.8mm 0}h2{font-size:17px;margin:0 0 1mm}.footer{margin-top:3mm}</style></head><body><div class="paper">${logoHtml}<h2 class="c">${esc(businessName())}</h2><div class="c small">COMPROBANTE INTERNO DE VENTA</div>${businessInfo}<div class="sep"></div><div class="line"><span>N.º</span><b>${esc(ticketNo(sale))}</b></div><div class="line"><span>Fecha</span><span>${esc(dateText(sale))}</span></div><div class="line"><span>Pago</span><span>${esc(sale.paymentMethod||'Efectivo')}</span></div>${customerInfo}<div class="sep"></div>${(sale.items||[]).map(i=>{const q=Number(i.qty||0),p=Number(i.price||0),weighted=isWeightItem(i),unit=String(receiptUnit(i)||'unidades').toLowerCase();return `<div class="item"><b>${esc(i.name||'Producto')}</b>${itemDescription(i)?`<div class="small">${esc(itemDescription(i))}</div>`:''}${weighted?`<div class="small">Peso: ${esc(weightLabel(q))}</div><div class="small">Precio por kilo: ${money(p)}</div>`:''}<div class="line small"><span>${weighted?'Importe':'Cantidad: '+q+' '+unit+' × '+money(p)}</span><b>${money(q*p)}</b></div></div>`}).join('')}<div class="sep"></div><div class="line total"><span>TOTAL</span><span>${money(sale.total)}</span></div>${payHtml}<p class="c small footer">${footer}<br>Comprobante interno. No reemplaza boleta o factura SUNAT.</p></div><script>(()=>{let done=false;const go=()=>{if(done)return;done=true;setTimeout(()=>{try{focus()}catch{}try{print()}catch(e){console.error('Error al abrir impresión',e)}setTimeout(()=>{try{if(window.frameElement)window.frameElement.style.display='none'}catch{}try{close()}catch{}},1200)},250)};const img=document.getElementById('ticketLogo');if(img&&!img.complete){img.onload=go;img.onerror=go;setTimeout(go,1800)}else go()})()<\/script></body></html>`);
         w.document.close();
       }
-      function loadJsPDF(){return new Promise((resolve,reject)=>{if(window.jspdf?.jsPDF)return resolve(window.jspdf.jsPDF);const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';s.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject(new Error('jsPDF no disponible'));s.onerror=reject;document.head.appendChild(s)})}
+      function loadJsPDF(){
+        if(window.jspdf?.jsPDF)return Promise.resolve(window.jspdf.jsPDF);
+        if(window.__vareliaJsPdfLoader)return window.__vareliaJsPdfLoader;
+        window.__vareliaJsPdfLoader=new Promise((resolve,reject)=>{
+          const sources=[
+            'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+            'https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js'
+          ];
+          let index=0,script=null,timer=null,lastError=null,done=false;
+          const finish=(error,ctor)=>{
+            if(done)return;done=true;clearTimeout(timer);script?.remove();
+            if(ctor){window.__vareliaJsPdfLoader=null;resolve(ctor)}
+            else{window.__vareliaJsPdfLoader=null;reject(error||new Error('No se pudo cargar el generador de PDF'))}
+          };
+          const attempt=()=>{
+            if(window.jspdf?.jsPDF)return finish(null,window.jspdf.jsPDF);
+            if(index>=sources.length)return finish(lastError||new Error('No se pudo cargar el generador de PDF'));
+            script=document.createElement('script');
+            const src=sources[index++];
+            script.async=true;
+            script.onload=()=>{
+              clearTimeout(timer);
+              if(window.jspdf?.jsPDF)finish(null,window.jspdf.jsPDF);
+              else{lastError=new Error('La biblioteca PDF no respondió');attempt()}
+            };
+            script.onerror=()=>{lastError=new Error('No se pudo descargar la biblioteca PDF');clearTimeout(timer);attempt()};
+            timer=setTimeout(()=>{lastError=new Error('Tiempo agotado al cargar la biblioteca PDF');attempt()},8000);
+            script.src=src;document.head.appendChild(script);
+          };
+          attempt();
+        });
+        return window.__vareliaJsPdfLoader;
+      }
       const pdfLogoData=data=>new Promise(resolve=>{
         if(!data)return resolve('');
         try{
