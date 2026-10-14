@@ -259,6 +259,50 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    // Imprimir estados de cuenta de fiados usando el servicio nativo de Android.
+    private void printHtmlDocumentNative(String requestedName, String html) {
+        runOnUiThread(() -> {
+            try {
+                String activeUrl=webView==null?"":webView.getUrl();
+                Uri active=Uri.parse(activeUrl==null?"":activeUrl);
+                if (!"https".equalsIgnoreCase(active.getScheme()) ||
+                        !"vareliastore.tech".equalsIgnoreCase(active.getHost())) {
+                    Toast.makeText(MainActivity.this,"Impresion solo disponible en Varelia",Toast.LENGTH_LONG).show();
+                    return;
+                }
+                if (html==null || html.length()<80 || html.length()>1000000) {
+                    Toast.makeText(MainActivity.this,"Detalle no disponible para imprimir",Toast.LENGTH_LONG).show();
+                    return;
+                }
+                String title=requestedName==null?"Fiado":requestedName.replaceAll("[^\\p{L}\\p{N} ._-]","").trim();
+                if(title.isEmpty())title="Estado de cuenta fiado";
+                final String printTitle=title.length()>80?title.substring(0,80):title;
+                printWebView=new WebView(MainActivity.this);
+                WebView docView=printWebView;
+                docView.getSettings().setJavaScriptEnabled(false);
+                docView.setWebViewClient(new WebViewClient(){
+                    boolean printed=false;
+                    @Override
+                    public void onPageFinished(WebView view,String url){
+                        if(printed || isFinishing())return;
+                        printed=true;
+                        try{
+                            PrintManager pm=(PrintManager)getSystemService(Context.PRINT_SERVICE);
+                            if(pm==null)throw new IllegalStateException("Servicio de impresion no disponible");
+                            PrintDocumentAdapter adapter=view.createPrintDocumentAdapter(printTitle);
+                            pm.print(printTitle,adapter,new PrintAttributes.Builder().build());
+                        }catch(Exception error){
+                            Toast.makeText(MainActivity.this,"Error al abrir impresion",Toast.LENGTH_LONG).show();
+                        }
+                    }
+                });
+                docView.loadDataWithBaseURL(null,html,"text/html","UTF-8",null);
+            }catch(Exception e){
+                Toast.makeText(MainActivity.this,"No se pudo preparar el fiado",Toast.LENGTH_LONG).show();
+            }
+        });
+    }
+
     private void saveSalePdfNative(String saleJson) {
         try {
             JSONObject data = new JSONObject(saleJson == null ? "{}" : saleJson);
@@ -575,6 +619,9 @@ public class MainActivity extends AppCompatActivity {
                         + "}catch(e){console.error(e);}"
                         + "})();";
                 view.evaluateJavascript(receiptJs, null);
+                // El boton Imprimir detalle usa ahora el servicio nativo de Android.
+                String creditPrintJs="(function(){\n  if(window.__vareliaFiadoPrintBridgeV1)return;\n  if(location.protocol!=='https:'||location.hostname!=='vareliastore.tech')return;\n  window.__vareliaFiadoPrintBridgeV1=true;\n  document.addEventListener('click',function(e){\n    var button=e.target&&e.target.closest?e.target.closest('[data-credit-print]'):null;\n    if(!button)return;\n    var native=window.VareliaAndroid;\n    if(!native||typeof native.printHtmlDocument!=='function')return;\n    var card=button.closest('[data-credit-account]');\n    if(!card)return;\n    e.preventDefault();e.stopImmediatePropagation();\n    try{\n      var clone=card.cloneNode(true);\n      clone.querySelectorAll('button').forEach(function(b){\n        if(b.matches('[data-credit-toggle]')){\n          var label=document.createElement('div');label.innerHTML=b.innerHTML;b.replaceWith(label);\n        }else b.remove();\n      });\n      clone.querySelectorAll('[data-credit-chevron]').forEach(function(el){el.remove()});\n      clone.querySelectorAll('[data-credit-detail]').forEach(function(el){el.style.display='block'});\n      var name=String(card.querySelector('[data-credit-toggle]')?.textContent||'Cliente').trim();\n      var nameHtml=document.createElement('div');nameHtml.textContent=String(document.getElementById('vareliaBusinessName')?.textContent||'Varelia');\n      var print='<html lang=\"es\"><head><meta charset=\"UTF-8\"><style>'+\n        '@page{size:A4;margin:13mm}html,body{background:#fff;color:#111;font:13px Arial,sans-serif}'+\n        '*,*:before,*:after{box-sizing:border-box}body{margin:0}.company{text-align:center;font-size:19px;font-weight:bold;margin-bottom:15px}'+\n        '[data-credit-detail]{display:block!important}button{display:none!important}div{overflow-wrap:anywhere}'+\n        'section{break-inside:avoid;border-bottom:1px solid #bbb;margin:9px 0;padding:8px 0}'+\n        '</style></head><body><div class=\"company\">'+nameHtml.innerHTML+'</div>'+\n        '<h2>Estado de cuenta - Fiados</h2>'+clone.outerHTML+'</body></html>';\n      native.printHtmlDocument('Fiados '+name,print);\n    }catch(error){alert('No se pudo preparar la impresion del fiado');}\n  },true);\n})();";
+                view.evaluateJavascript(creditPrintJs, null);
 
                 // La impresión ya NO se dispara al cobrar. El comprobante se muestra en Varelia
                 // y el usuario decide entre Imprimir o Descargar PDF.
@@ -593,6 +640,7 @@ public class MainActivity extends AppCompatActivity {
                     if (!isFinishing()) {
                         view.evaluateJavascript(brandJs, null);
                         view.evaluateJavascript(receiptJs, null);
+                        view.evaluateJavascript(creditPrintJs, null);
                         view.evaluateJavascript(nativePdfHookJs, null);
                     }
                 }, 700);
@@ -825,6 +873,11 @@ public class MainActivity extends AppCompatActivity {
         @JavascriptInterface
         public void printSaleReceipt(String saleJson) {
             printSaleReceiptNative(saleJson);
+        }
+
+        @JavascriptInterface
+        public void printHtmlDocument(String documentName,String html) {
+            printHtmlDocumentNative(documentName,html);
         }
 
         @JavascriptInterface
