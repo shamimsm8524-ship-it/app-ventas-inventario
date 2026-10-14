@@ -82,7 +82,7 @@
             '<p style="font-size:12px;font-weight:850;margin:8px 0 0">Saldo de la compra: '+money(Math.max(0,o.totalCents-o.paidCents))+'</p></section>').join('')+
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:10px;margin-top:14px">'+
           (balance?'<button type="button" data-credit-pay="'+i+'" style="width:100%;min-width:0;padding:13px 11px;border:0;border-radius:10px;color:#fff;background:#2563eb;font-weight:850;box-sizing:border-box;font-size:14px">+ Registrar abono</button>':'')+
-          '<button type="button" data-credit-print="'+i+'" style="width:100%;min-width:0;padding:13px 11px;border:1px solid #d1d5db;border-radius:10px;color:inherit;background:transparent;font-weight:850;box-sizing:border-box;font-size:14px">🖨️ Imprimir detalle</button></div></div></div>';
+          '<button type="button" data-credit-print="'+i+'" style="width:100%;min-width:0;padding:13px 11px;border:1px solid #d1d5db;border-radius:10px;color:inherit;background:transparent;font-weight:850;box-sizing:border-box;font-size:14px">🖨️ Imprimir / PDF</button></div></div></div>';
       }).join(''):'<p class="empty">No hay fiados registrados todavía.</p>');
   }
   async function queryAll(sb,table,select){
@@ -190,6 +190,87 @@
       finally{submitting=false}
     };
   }
+  let creditPdfLoader=null;
+  function creditPdfClass(){
+    if(window.jspdf?.jsPDF)return Promise.resolve(window.jspdf.jsPDF);
+    if(creditPdfLoader)return creditPdfLoader;
+    creditPdfLoader=new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src='https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js';
+      script.onload=()=>window.jspdf?.jsPDF?resolve(window.jspdf.jsPDF):reject(new Error('Biblioteca PDF no disponible'));
+      script.onerror=()=>reject(new Error('No se pudo cargar el generador PDF'));
+      document.head.appendChild(script);
+    }).catch(err=>{creditPdfLoader=null;throw err});
+    return creditPdfLoader;
+  }
+  async function saveCreditPdf(g){
+    const JsPDF=await creditPdfClass();
+    const doc=new JsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const margin=16,usableWidth=178;
+    let y=18;
+    function needSpace(mm){
+      if(y+mm<=281)return;
+      doc.addPage();
+      y=18;
+    }
+    function line(value,{bold=false,size=10,indent=0,after=2}={}){
+      const text=String(value??'');
+      doc.setFont('helvetica',bold?'bold':'normal');
+      doc.setFontSize(size);
+      const lines=doc.splitTextToSize(text,usableWidth-indent);
+      const height=lines.length*(size*0.42+1);
+      needSpace(height+after);
+      doc.text(lines,margin+indent,y);
+      y+=height+after;
+    }
+    function separator(){needSpace(5);doc.setDrawColor(180);doc.line(margin,y,194,y);y+=5}
+    const company=String(document.getElementById('vareliaBusinessName')?.textContent||'Varelia').trim();
+    line(company,{bold:true,size:15});
+    line('ESTADO DE CUENTA - FIADOS',{bold:true,size:13,after:5});
+    line('Cliente: '+g.name,{bold:true});
+    line('Caja: '+(staff[g.cashier]||g.cashier.slice(0,8)));
+    line('Emitido: '+fmt(new Date()));
+    separator();
+    line('DETALLE DE PRODUCTOS FIADOS',{bold:true,size:12,after:4});
+    for(const order of g.orders){
+      needSpace(30);
+      line('Compra: '+fmt(order.created_at),{bold:true,after:1});
+      const its=Array.isArray(order.items)?order.items:[];
+      for(const item of its){
+        line(String(item.name||'Producto'),{bold:true,size:10,indent:3,after:0});
+        line('Cantidad: '+qtyLabel(item)+'  |  Precio: S/ '+Number(item.unit_price||0).toFixed(2),{size:9,indent:3,after:0});
+        line('Subtotal: '+money(cents(item.subtotal??((Number(item.qty)||0)*(Number(item.unit_price)||0)))),{size:9,indent:3,after:2});
+      }
+      if(!its.length)line('Sin productos detallados en el registro',{size:9,indent:3});
+      line('Total de la compra: '+money(order.totalCents),{bold:true,indent:3});
+      line('Saldo de esta compra: '+money(Math.max(0,order.totalCents-order.paidCents)),{indent:3});
+      separator();
+    }
+    line('HISTORIAL DE ABONOS',{bold:true,size:12,after:4});
+    const merged=new Map();
+    for(const p of g.orders.flatMap(o=>o.payments)){
+      const key=String(p.payment_group||p.id||p.created_at);
+      if(!merged.has(key))merged.set(key,{date:p.created_at,method:p.method,amount:0});
+      merged.get(key).amount+=cents(p.amount);
+    }
+    const allPayments=[...merged.values()].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+    if(!allPayments.length)line('Sin abonos registrados',{size:10});
+    for(const p of allPayments)line(fmt(p.date)+'  |  '+p.method+'  |  '+money(p.amount),{size:10});
+    separator();
+    line('TOTAL FIADO: '+money(g.total),{bold:true,size:12});
+    line('TOTAL ABONADO: '+money(g.paid),{bold:true,size:12});
+    line('SALDO PENDIENTE: '+money(due(g)),{bold:true,size:14});
+    line('ESTADO: '+state(g),{bold:true,size:11});
+    const safe=String(g.name||'cliente').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_-]+/gi,'-').slice(0,55);
+    const filename='Fiado-'+(safe||'cliente')+'.pdf';
+    if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function'){
+      window.VareliaAndroid.saveDataUrl(doc.output('datauristring'),filename);
+      window.vareliaToast?.('Se enviara el PDF a Descargas/Varelia. Abrelo para imprimir.','ok');
+      return;
+    }
+    doc.save(filename);
+    window.vareliaToast?.('PDF generado. Abrelo para imprimir o guardar.','ok');
+  }
   function printStatement(g){
     const rows=g.orders.map(o=>'<h3>Compra '+escape(fmt(o.created_at))+' · '+money(o.totalCents)+'</h3><table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>'+
       (Array.isArray(o.items)?o.items:[]).map(i=>'<tr><td>'+escape(i.name||'Producto')+'</td><td>'+escape(qtyLabel(i))+'</td><td>S/ '+Number(i.unit_price||0).toFixed(2)+'</td><td>'+money(cents(i.subtotal??((Number(i.qty)||0)*(Number(i.unit_price)||0))))+'</td></tr>').join('')+'</tbody></table>').join('');
@@ -206,11 +287,22 @@
       '<h2>Detalle de compras</h2>'+rows+'<h2>Historial de abonos</h2><table><tr><th>Fecha</th><th>Medio</th><th>Abonado</th></tr>'+payRows+'</table>'+
       '<p class="total">Total fiado: '+money(g.total)+'</p><p class="total">Total abonado: '+money(g.paid)+'</p>'+
       '<p class="total">SALDO PENDIENTE: '+money(due(g))+' · '+state(g)+'</p></body></html>';
-    const frame=document.createElement('iframe');frame.style.cssText='position:fixed;width:1px;height:1px;opacity:0;pointer-events:none';document.body.appendChild(frame);
-    try{
-      const doc=frame.contentDocument;doc.open();doc.write(html);doc.close();
-      setTimeout(()=>{try{frame.contentWindow?.focus();frame.contentWindow?.print()}catch(e){console.warn(e)}setTimeout(()=>frame.remove(),3000)},300);
-    }catch(e){frame.remove();window.vareliaToast?.('No se pudo preparar el estado de cuenta.','warn')}
+    const native=window.VareliaAndroid;
+    // La impresion de un iframe invisible no abre el gestor Android WebView.
+    // Las APK nuevas usan el gestor de impresion nativo con este HTML completo.
+    if(native&&typeof native.printHtmlDocument==='function'){
+      try{
+        native.printHtmlDocument('Fiados - '+String(g.name||'Cliente').slice(0,80),html);
+        return;
+      }catch(err){console.warn('Impresion nativa de estado de cuenta',err)}
+    }
+    // APK instalada sin el nuevo puente: guardar un PDF real que Android
+    // pueda abrir/imprimir desde Descargas/Varelia. No generar recibos de venta
+    // falsos porque el estado de cuenta incluye varias compras y abonos.
+    saveCreditPdf(g).catch(err=>{
+      console.error('Guardar PDF de fiados',err);
+      window.vareliaToast?.('No se pudo crear el PDF del fiado. Comprueba tu conexion e intenta otra vez.','warn');
+    });
   }
   window.VareliaCreditBook={mount,render,refresh,customerNames,totals:()=>({pending:groups().reduce((a,g)=>a+due(g),0),loaded})};
   window.addEventListener('varelia:sale-recorded',()=>setTimeout(()=>refresh(true),700));
