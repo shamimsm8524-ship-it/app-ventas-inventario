@@ -29,7 +29,9 @@
     return [...grouped.values()].sort((a,b)=>b.last.localeCompare(a.last));
   }
   const due=g=>Math.max(0,g.total-g.paid);
-  const state=g=>due(g)<=0?'CANCELADO':'PENDIENTE';
+  const state=g=>due(g)<=0?'PAGADO':'PENDIENTE';
+  const statusColor=paid=>paid?[21,128,61]:[220,38,38];
+  const statusBadge=paid=>'<span style="display:inline-block;vertical-align:middle;white-space:nowrap;padding:4px 9px;border-radius:7px;border:1px solid '+(paid?'#86efac':'#fca5a5')+';background:'+(paid?'#dcfce7':'#fee2e2')+';color:'+(paid?'#15803d':'#dc2626')+';font-weight:850;font-size:12px;line-height:1.3;-webkit-print-color-adjust:exact;print-color-adjust:exact">'+(paid?'PAGADO':'PENDIENTE')+'</span>';
   const qtyLabel=item=>{
     let n=Number(item.qty)||0,u=String(item.unit||item.sale_unit||'unidad').trim().toLowerCase();
     if(['kg','kilo','kilos','kilogramo','kilogramos'].includes(u)){
@@ -58,13 +60,13 @@
       (error?'<p role="alert" style="color:#b91c1c">Error de sincronización: '+escape(error)+'</p>':'')+
       '<button type="button" data-credit-refresh style="border:1px solid var(--line,#ddd);padding:9px 12px;border-radius:10px;background:transparent;color:inherit;margin-bottom:14px">↻ Actualizar</button>'+
       (list.length?list.map((g,i)=>{
-        const balance=due(g),paid=state(g)==='CANCELADO';
+        const balance=due(g),paid=balance<=0;
         const open=expandedAccounts.has(accountCode(g));
         return '<div data-credit-account="'+i+'" style="border:1px solid var(--line,#ddd);padding:13px;margin:10px 0;border-radius:15px;background:var(--card,#fff)">'+
           '<button type="button" data-credit-toggle="'+i+'" aria-expanded="'+String(open)+'" style="width:100%;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;padding:0;font:inherit;display:block"><b><span data-credit-chevron>'+(open?'▼':'▶')+'</span> '+escape(g.name)+'</b>'+
           (role==='owner'?'<div style="font-size:12px;color:var(--muted,#64748b)">Caja: '+escape(staff[g.cashier]||g.cashier.slice(0,8))+'</div>':'')+
           '<div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px"><strong style="font-size:22px">'+money(balance)+'</strong>'+
-          '<b style="color:'+(paid?'#047857':'#b45309')+'">'+state(g)+'</b></div></button>'+
+          statusBadge(paid)+'</div></button>'+
           '<div data-credit-detail style="display:'+(open?'block':'none')+';margin:12px 0 0;padding-top:12px;border-top:1px solid #e5e7eb">'+
           '<p style="font-size:13px;margin:0 0 12px">Total fiado: <b>'+money(g.total)+'</b> · Abonado: <b>'+money(g.paid)+'</b></p>'+
           g.orders.map(o=>'<section style="border:1px solid #d1d5db;border-radius:12px;padding:10px;margin-bottom:9px">'+
@@ -72,7 +74,7 @@
               '<b style="font-size:15px;line-height:1.35">Compra fiada</b>'+
               '<div style="font-size:13px;line-height:1.35">Fecha: <strong>'+escape(creditDate(o.created_at))+'</strong></div>'+
               '<div style="font-size:13px;line-height:1.35">Hora: <strong>'+escape(creditTime(o.created_at))+'</strong></div>'+
-              '<div style="font-size:13px;line-height:1.35;font-weight:850">Estado: '+(orderBalance(o)>0?'PENDIENTE':'PAGADO')+'</div>'+
+              '<div style="font-size:13px;line-height:1.35;font-weight:850">Estado: '+statusBadge(orderBalance(o)<=0)+'</div>'+
             '</div>'+
             '<div style="font-size:13px;font-weight:850;margin-top:12px;margin-bottom:3px">Productos fiados ('+(Array.isArray(o.items)?o.items.length:0)+')</div>'+
             orderLines(o)+
@@ -230,10 +232,11 @@
       doc.addPage();
       y=18;
     }
-    function line(value,{bold=false,size=10,indent=0,after=2}={}){
+    function line(value,{bold=false,size=10,indent=0,after=2,color=null}={}){
       const text=String(value??'');
       doc.setFont('helvetica',bold?'bold':'normal');
       doc.setFontSize(size);
+      doc.setTextColor(...(color||[17,24,39]));
       const lines=doc.splitTextToSize(text,usableWidth-indent);
       const height=lines.length*(size*0.42+1);
       needSpace(height+after);
@@ -252,11 +255,11 @@
     separator();
     for(const section of orderSections(g)){
       if(!section.orders.length)continue;
-      line(section.title,{bold:true,size:12,after:4});
+      line(section.title,{bold:true,size:12,after:4,color:section.title.includes('PENDIENTES')?statusColor(false):statusColor(true)});
       for(const order of section.orders){
         needSpace(36);
         line('Compra: '+creditDate(order.created_at)+' | Hora: '+creditTime(order.created_at),{bold:true,after:1});
-        line('ESTADO: '+(orderBalance(order)>0?'PENDIENTE':'PAGADO'),{bold:true,size:10,after:3});
+        line('ESTADO: '+(orderBalance(order)>0?'PENDIENTE':'PAGADO'),{bold:true,size:10,after:3,color:statusColor(orderBalance(order)<=0)});
         const its=Array.isArray(order.items)?order.items:[];
         for(const item of its){
           line(String(item.name||'Producto'),{bold:true,size:10,indent:3,after:0});
@@ -280,7 +283,7 @@
     line('TOTAL HISTORICO FIADO: '+money(g.total),{bold:true,size:11});
     line('TOTAL ABONADO: '+money(g.paid),{bold:true,size:11});
     line('DEUDA ACTUAL: '+money(due(g)),{bold:true,size:14});
-    line('ESTADO GENERAL: '+state(g),{bold:true,size:11});
+    line('ESTADO GENERAL: '+state(g),{bold:true,size:11,color:statusColor(due(g)<=0)});
     const safe=String(g.name||'cliente').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9_-]+/gi,'-').slice(0,55);
     const filename='Fiado-'+(safe||'cliente')+'.pdf';
     if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function'){
@@ -296,7 +299,7 @@
       section.orders.map(o=>{
         const pays=paymentsOf(o);
         return '<section><h3>Compra: '+escape(creditDate(o.created_at))+' · Hora: '+escape(creditTime(o.created_at))+
-          ' · '+(orderBalance(o)>0?'PENDIENTE':'PAGADO')+'</h3>'+
+          ' · '+statusBadge(orderBalance(o)<=0)+'</h3>'+
           '<table><thead><tr><th>Producto</th><th>Cantidad</th><th>Precio</th><th>Subtotal</th></tr></thead><tbody>'+
           (Array.isArray(o.items)?o.items:[]).map(i=>'<tr><td>'+escape(i.name||'Producto')+'</td><td>'+escape(qtyLabel(i))+'</td><td>S/ '+Number(i.unit_price||0).toFixed(2)+'</td><td>'+money(cents(i.subtotal??((Number(i.qty)||0)*(Number(i.unit_price)||0))))+'</td></tr>').join('')+
           '</tbody></table><p><b>Total de la compra:</b> '+money(o.totalCents)+'</p>'+
@@ -309,7 +312,7 @@
       '<h1>Estado de cuenta · Fiados</h1><p><b>Cliente:</b> '+escape(g.name)+'</p><p><b>Caja:</b> '+escape(staff[g.cashier]||g.cashier.slice(0,8))+'</p><p><b>Emitido:</b> '+escape(fmt(new Date()))+'</p>'+
       '<p class="due">DEUDA ACTUAL: '+money(due(g))+'</p>'+rows+
       '<h2>Resumen de la cuenta</h2><p class="total">Total histórico fiado: '+money(g.total)+'</p><p class="total">Total abonado: '+money(g.paid)+'</p>'+
-      '<p class="due">DEUDA ACTUAL: '+money(due(g))+' · '+state(g)+'</p></body></html>';
+      '<p class="due">DEUDA ACTUAL: '+money(due(g))+' · '+statusBadge(due(g)<=0)+'</p></body></html>';
     const native=window.VareliaAndroid;
     // La impresion de un iframe invisible no abre el gestor Android WebView.
     // Las APK nuevas usan el gestor de impresion nativo con este HTML completo.
