@@ -1299,14 +1299,29 @@ if ('serviceWorker' in navigator) {
     }catch{}
   }
   window.vareliaButtonSound=beep;
-  document.addEventListener('click',e=>{
-    // Solo interacción humana: los .click() automáticos de la app no deben sonar.
-    if(!e.isTrusted)return;
+  // Android WebView puede emitir un click sintetico tras un toque real.
+  // Escuchar el toque fisico evita silenciarlo; .click() por codigo no genera estos eventos.
+  let lastPlayedAt=0,lastPlayedButton=null;
+  function playOnPhysicalPress(e){
+    if(e.type==='mousedown'&&e.button!==0)return;
+    if(e.type==='pointerdown'&&e.button!==undefined&&e.button!==0)return;
+    if(e.type==='touchstart'&&e.touches&&e.touches.length!==1)return;
     const b=e.target?.closest?.('button,[role="button"]');
     if(!b||b.disabled||b.getAttribute('aria-disabled')==='true')return;
+    const now=Date.now();
+    // Evita sonido doble: en Android un toque genera touchstart y pointerdown.
+    if(b===lastPlayedButton&&now-lastPlayedAt<140)return;
+    lastPlayedButton=b;lastPlayedAt=now;
     if(b.matches('[data-cart-plus],#scannerIncrease'))beep('plus');
     else if(b.matches('[data-cart-minus]'))beep('minus');
     else beep('click');
+  }
+  document.addEventListener('pointerdown',playOnPhysicalPress,{capture:true,passive:true});
+  document.addEventListener('touchstart',playOnPhysicalPress,{capture:true,passive:true});
+  document.addEventListener('mousedown',playOnPhysicalPress,{capture:true,passive:true});
+  // Accesibilidad: Enter y barra espaciadora generan click sin toque.
+  document.addEventListener('click',e=>{
+    if(e.isTrusted&&e.detail===0)playOnPhysicalPress(e);
   },true);
 })();
 
