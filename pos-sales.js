@@ -401,6 +401,29 @@
         resetPaymentInputs(true,true);input.focus();window.vareliaToast?.(forceReset?'Nueva venta lista':'Carrito conservado','ok')
       }
       const posNew=root.querySelector('#vposNew');if(posNew)posNew.onclick=()=>startNew(true);
+      function showEmergencyReceipt(sale){
+        try{
+          let box=document.getElementById('vareliaEmergencyReceipt');
+          const escReceipt=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+          const moneyReceipt=v=>'S/ '+(Number(v)||0).toFixed(2);
+          const items=Array.isArray(sale?.items)?sale.items:[];
+          if(!box){
+            box=document.createElement('div');
+            box.id='vareliaEmergencyReceipt';
+            box.style.cssText='position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:14px;background:rgba(15,23,42,.68);overflow:auto';
+            document.body.appendChild(box);
+          }
+          box.innerHTML='<div style="width:min(96vw,520px);max-height:92vh;overflow:auto;background:#fff;color:#111827;border-radius:22px;padding:18px;box-shadow:0 20px 60px #0005"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 style="margin:0;font-size:21px">Comprobante de venta</h2><button type="button" data-er-close style="border:0;background:#f1f5f9;border-radius:10px;padding:9px 13px;font-size:20px">×</button></div><div style="font-family:monospace;border:1px dashed #94a3b8;border-radius:12px;margin-top:14px;padding:15px"><h3 style="text-align:center;margin:0 0 5px">'+escReceipt(window.vareliaBusinessDisplayName||document.querySelector('.brand h1')?.textContent||'Varelia')+'</h3><div style="text-align:center;color:#64748b;font-size:12px">COMPROBANTE INTERNO DE VENTA</div><hr style="border:0;border-top:1px dashed #94a3b8;margin:12px 0"><div style="display:flex;justify-content:space-between;gap:8px"><span>N.º</span><b>'+escReceipt(sale.receiptNumber||sale.id||'Venta')+'</b></div><div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px"><span>Fecha</span><span>'+escReceipt(new Date(sale.date||Date.now()).toLocaleString('es-PE'))+'</span></div><div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px"><span>Pago</span><span>'+escReceipt(sale.paymentMethod||'Efectivo')+'</span></div><hr style="border:0;border-top:1px dashed #94a3b8;margin:12px 0">'+items.map(i=>'<div style="display:flex;justify-content:space-between;gap:10px;margin:10px 0"><div style="min-width:0"><b>'+escReceipt(i.name||'Producto')+'</b><div style="font-size:12px;color:#475569;margin-top:3px">Cantidad: '+escReceipt(i.qty||1)+' · Precio: '+moneyReceipt(i.price)+'</div></div><b style="white-space:nowrap">'+moneyReceipt(Number(i.qty||0)*Number(i.price||0))+'</b></div>').join('')+'<hr style="border:0;border-top:1px dashed #94a3b8;margin:12px 0"><div style="display:flex;justify-content:space-between;gap:10px;font-size:20px;font-weight:900"><span>TOTAL</span><span>'+moneyReceipt(sale.total)+'</span></div>'+((Number(sale.amountReceived)||Number(sale.changeGiven))?'<div style="margin-top:10px;font-size:13px">Recibido: '+moneyReceipt(sale.amountReceived)+'<br>Vuelto: '+moneyReceipt(sale.changeGiven)+'</div>':'')+'<div style="text-align:center;color:#64748b;font-size:11px;margin-top:14px">Gracias por su compra. Comprobante interno; no reemplaza boleta o factura electrónica SUNAT.</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px"><button type="button" data-er-print style="min-height:48px;border:0;border-radius:12px;background:#2563eb;color:white;font-weight:900">🖨️ Imprimir</button><button type="button" data-er-pdf style="min-height:48px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#111827;font-weight:900">📄 Descargar PDF</button><button type="button" data-er-wa style="grid-column:1/-1;min-height:48px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#111827;font-weight:900">Enviar por WhatsApp</button><button type="button" data-er-close style="grid-column:1/-1;min-height:48px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#111827;font-weight:900">Cerrar</button></div></div>';
+          box.onclick=e=>{
+            const b=e.target.closest('button');if(!b)return;
+            if(b.hasAttribute('data-er-close')){box.remove();return}
+            if(b.hasAttribute('data-er-print')){if(window.VareliaReceipt?.print){window.VareliaReceipt.print(sale)}else{window.print()}return}
+            if(b.hasAttribute('data-er-pdf')){if(window.VareliaReceipt?.pdf){window.VareliaReceipt.pdf(sale)}else{alert('El PDF aún no está disponible. Pulsa Imprimir y elige Guardar como PDF.')}return}
+            if(b.hasAttribute('data-er-wa')){if(window.VareliaReceipt?.share){window.VareliaReceipt.share(sale)}else{const text=[sale.receiptNumber||sale.id||'Comprobante',...(items.map(i=>String(i.qty||1)+' x '+String(i.name||'Producto')+' — '+moneyReceipt(Number(i.qty||0)*Number(i.price||0)))), 'TOTAL: '+moneyReceipt(sale.total)].join('\n');window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank')}return}
+          };
+        }catch(e){console.error('Comprobante de respaldo',e);window.vareliaToast?.('No se pudo mostrar el comprobante.','warn')}
+      }
+
       function showPaidReceipt(before,paymentSnap,checkoutState){
         let tries=0;
         const open=()=>{
@@ -461,28 +484,25 @@
           const show=()=>{
             if(window.VareliaReceipt?.show){
               window.VareliaReceipt.show(sale);
-              // Al cobrar, abrir el comprobante y lanzar directamente la impresión.
-              // El usuario también conserva los botones PDF y WhatsApp en pantalla.
-              setTimeout(()=>{
-                try{if(window.VareliaReceipt?.print)window.VareliaReceipt.print(sale)}
-                catch(e){console.warn('Impresión automática del comprobante',e)}
-              },250);
+              // Mostrar el comprobante en pantalla; imprimir solo si el usuario pulsa Imprimir.
               return true;
             }
             return false;
           };
           if(show())return;
 
+          // El comprobante no debe depender de que el módulo externo termine de iniciar.
           let loader=document.getElementById('vareliaReceiptEmergencyLoader');
           if(!loader){
             loader=document.createElement('script');
             loader.id='vareliaReceiptEmergencyLoader';
             loader.src='pos-receipt.js?v=20261014-medicine-sale-unit-v31&ts='+Date.now();
-            loader.onload=()=>setTimeout(()=>{if(!show())window.vareliaToast?.('No se pudo abrir el comprobante.','warn')},80);
-            loader.onerror=()=>window.vareliaToast?.('No se pudo cargar el comprobante.','warn');
+            loader.onload=()=>setTimeout(()=>{if(!show())showEmergencyReceipt(sale)},400);
+            loader.onerror=()=>showEmergencyReceipt(sale);
             document.head.appendChild(loader);
+            setTimeout(()=>{if(!document.getElementById('vareliaEmergencyReceipt')&&!window.VareliaReceipt?.show)showEmergencyReceipt(sale)},900);
           }else{
-            setTimeout(()=>{if(!show()&&tries<30)setTimeout(open,100)},100);
+            setTimeout(()=>{if(!show())showEmergencyReceipt(sale)},500);
           }
         };
         setTimeout(open,40);
