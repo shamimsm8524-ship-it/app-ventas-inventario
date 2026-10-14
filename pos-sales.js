@@ -200,24 +200,47 @@
       }
       function paySnapshot(){
         const total=currentTotal();
-        const visibleMethod=document.getElementById('vposPaymentMethod')?.value||payMethod.value;
-        const visibleMixed=!!document.getElementById('vpayMixedToggle')?.checked;
-        if(visibleMethod==='Fiado'&&!visibleMixed)return {
+        const visibleMethod=document.getElementById('vposPaymentMethod')?.value||payMethod.value||'Efectivo';
+        const visibleMixedToggle=document.getElementById('vpayMixedToggle');
+        const usingVisibleMixed=visibleMixedToggle?!!visibleMixedToggle.checked:!!mixedPay.checked;
+        if(visibleMethod==='Fiado'&&!usingVisibleMixed)return {
           total,received:0,missing:0,change:0,breakdown:{},method:'Fiado',
-          balanceDue:total,customerName:String(document.getElementById('vposCreditCustomer')?.value||'').trim()
+          balanceDue:total,customerName:String(document.getElementById('vposCreditCustomer')?.value||root.querySelector('#vposCreditCustomer')?.value||'').trim()
         };
         let breakdown={},received=0;
-        if(mixedPay.checked){
-          payFields.querySelectorAll('[data-vpos-part]').forEach(x=>{const n=Math.max(0,Number(x.value)||0);if(n){breakdown[x.dataset.vposPart]=n;received+=n}});
+        if(usingVisibleMixed){
+          const visibleRows=[...document.querySelectorAll('#vpayMixedRows .vpayMixedRow')];
+          if(visibleRows.length){
+            visibleRows.forEach(row=>{
+              const amount=Math.max(0,Number(row.querySelector('.vpayPart')?.value)||0);
+              const method=String(row.querySelector('.vpayMixedMethod')?.value||'').trim();
+              if(amount&&method){breakdown[method]=(breakdown[method]||0)+amount;received+=amount;}
+            });
+          }else{
+            payFields.querySelectorAll('[data-vpos-part]').forEach(x=>{const amount=Math.max(0,Number(x.value)||0);if(amount){breakdown[x.dataset.vposPart]=amount;received+=amount}});
+          }
         }else{
-          received=Math.max(0,Number(String(root.querySelector('#vposAmountReceived')?.value||'').replace(',','.'))||0);
-          if(received)breakdown[payMethod.value]=received;
+          // Leer primero el campo visible del panel de cobro; el campo del POS legado puede estar oculto y vacío.
+          const cashCandidates=[
+            document.getElementById('vpayReceived')?.value,
+            root.querySelector('#vposAmountReceived')?.value,
+            document.getElementById('vReceived')?.value,
+            document.getElementById('vCash')?.value
+          ];
+          const raw=cashCandidates.find(v=>String(v??'').trim()!=='');
+          received=Math.max(0,Number(String(raw??'').replace(',','.'))||0);
+          if(visibleMethod==='Efectivo'){
+            if(received)breakdown.Efectivo=received;
+          }else if(visibleMethod!=='Fiado'){
+            received=total;
+            if(total)breakdown[visibleMethod]=total;
+          }
         }
         const missing=Math.max(0,total-received),change=Math.max(0,received-total);
-        if(!mixedPay.checked&&breakdown[payMethod.value])breakdown[payMethod.value]=Math.min(total,received);
+        if(!usingVisibleMixed&&breakdown[visibleMethod])breakdown[visibleMethod]=Math.min(total,received);
         else if(change&&breakdown.Efectivo)breakdown.Efectivo=Math.max(0,breakdown.Efectivo-change);
         const entries=Object.entries(breakdown).filter(([,v])=>v>0);
-        return {total,received,missing,change,breakdown:Object.fromEntries(entries),method:entries.length>1?'Pago mixto':(entries[0]?.[0]||payMethod.value)};
+        return {total,received,missing,change,breakdown:Object.fromEntries(entries),method:entries.length>1?'Pago mixto':(entries[0]?.[0]||visibleMethod)};
       }
       function updatePay(){
         const p=paySnapshot(),st=root.querySelector('#vposPayStatus'),df=root.querySelector('#vposPayDiff');if(!st||!df)return;
