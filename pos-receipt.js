@@ -210,7 +210,7 @@
           ticket:ticketNo(sale),
           date:dateText(sale),
           method:receiptPaymentData(sale).method,
-          seller:String(sale?.sellerName||''),
+          seller:receiptSeller(sale),
           customer:String(sale?.customerName||''),
           total:Number(sale?.total||0),
           received:receiptPaymentData(sale).received,
@@ -278,6 +278,16 @@
         // Descargar el comprobante es una función básica y gratuita: generar el PDF
         // en JavaScript evita activar cualquier restricción del flujo nativo Premium.
         try{
+          // En la APK usar el generador PDF nativo de Android. Evita depender de
+          // que jsPDF cargue desde un CDN externo dentro del WebView.
+          if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveSalePdf==='function'){
+            try{
+              window.VareliaAndroid.saveSalePdf(JSON.stringify(nativeReceiptPayload(sale)));
+              return;
+            }catch(nativeError){
+              console.warn('No se pudo generar el PDF con Android; intentando alternativa web',nativeError);
+            }
+          }
           const jsPDF=await loadJsPDF(),items=Array.isArray(sale.items)?sale.items:[],bs=businessSettings();
           const pay=receiptPaymentData(sale);
           const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[80,Math.max(190,155+items.reduce((n,i)=>n+22+Math.ceil(String(itemDescription(i)||'').length/30)*3,0))]});
