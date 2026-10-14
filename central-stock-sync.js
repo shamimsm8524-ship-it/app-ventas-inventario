@@ -400,6 +400,11 @@
 
   async function centralCheckout(){
     if(saleBusy)return;
+    // Congelar el método elegido ANTES de cualquier espera de red.
+    const pay={...(window.VareliaPaymentSnapshot||{})};
+    const fiado=pay.method==='Fiado'&&Date.now()-Number(pay.at||0)<30000;
+    const client=String(pay.customerName||'').trim();
+    if(fiado&&client.length<2){toast('Escribe el nombre del cliente antes de fiar.','warn');return}
     let current=[];
     try{current=Array.isArray(cart)?cart.map(x=>({...x})):[]}catch{}
     // Recuperar primero el respaldo del escáner: en algunos WebView el flujo de cobro
@@ -449,10 +454,6 @@
         payload.push({product_id:cloudId,qty:Math.max(0.001,Number(item.qty)||0),...(unit?{sale_unit:unit}:{})});
       }
 
-      const pay=window.VareliaPaymentSnapshot||{};
-      const fiado=pay.method==='Fiado'&&Date.now()-Number(pay.at||0)<15000;
-      const client=String(pay.customerName||'').trim();
-      if(fiado&&client.length<2)throw new Error('Escribe el nombre del cliente para el fiado.');
       const {data,error}=fiado
         ?await sb.rpc('varelia_commit_credit_sale',{p_items:payload,p_customer_name:client})
         :await sb.rpc('varelia_commit_sale',{p_items:payload,p_source:'Venta'});
