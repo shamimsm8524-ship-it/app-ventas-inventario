@@ -507,9 +507,7 @@
           showPaidReceipt(before,p,state);
           setTimeout(()=>{
             try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}
-            sync();renderPay();resetPaymentInputs(false,true);
-            try{window.dispatchEvent(new CustomEvent('varelia:payment-settings-changed'))}catch{}
-            resetPaymentInputs(false,true);
+            sync();renderPay();
             try{if(typeof renderSales==='function')renderSales()}catch{}
             window.vareliaToast?.(p.method==='Fiado'?'Fiado registrado. Consulta la deuda en Historial.':'Venta registrada','ok');
           },160);
