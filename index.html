@@ -1284,35 +1284,45 @@ if ('serviceWorker' in navigator) {
 })();
 
 
-// Sonidos de interacción para botones y controles de cantidad
+// Sonido inmediato en cada pulsación de botón (Android/WebView y navegador)
 (()=>{
-  let ctx=null;
-  async function beep(kind='click'){
-    try{
-      ctx=ctx||(window.AudioContext||window.webkitAudioContext)&&new (window.AudioContext||window.webkitAudioContext)();
-      if(!ctx)return;
-      if(ctx.state!=='running'){try{await ctx.resume()}catch{}}
-      if(ctx.state!=='running')return;
-      const o=ctx.createOscillator(),g=ctx.createGain(),now=ctx.currentTime;
-      const freq=kind==='plus'?820:kind==='minus'?420:660;
-      o.type='sine';o.frequency.setValueAtTime(freq,now);
-      g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.11,now+.01);g.gain.exponentialRampToValueAtTime(.0001,now+.09);
-      o.connect(g);g.connect(ctx.destination);o.start(now);o.stop(now+.10);
-    }catch{}
+  let ctx=null,lastPlayedAt=0,lastPlayedButton=null;
+  function getAudio(){
+    if(ctx)return ctx;
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return null;
+    try{ctx=new AC()}catch(e){return null}
+    return ctx;
+  }
+  function beep(kind='click'){
+    const c=getAudio();
+    if(!c)return;
+    const play=()=>{
+      if(c.state!=='running')return;
+      try{
+        const o=c.createOscillator(),g=c.createGain(),now=c.currentTime;
+        const freq=kind==='plus'?880:kind==='minus'?440:740;
+        o.type='sine';o.frequency.setValueAtTime(freq,now);
+        g.gain.setValueAtTime(0.0001,now);
+        g.gain.exponentialRampToValueAtTime(0.16,now+0.008);
+        g.gain.exponentialRampToValueAtTime(0.0001,now+0.12);
+        o.connect(g);g.connect(c.destination);o.start(now);o.stop(now+0.13);
+      }catch(e){console.warn('Varelia button sound',e)}
+    };
+    // Invocar resume directamente durante el gesto físico del usuario.
+    if(c.state!=='running'){
+      try{const p=c.resume();if(p&&typeof p.then==='function')p.then(play).catch(()=>{});else play()}catch(e){}
+    }else play();
   }
   window.vareliaButtonSound=beep;
-  // Android WebView puede emitir un click sintetico tras un toque real.
-  // Escuchar el toque fisico evita silenciarlo; .click() por codigo no genera estos eventos.
-  let lastPlayedAt=0,lastPlayedButton=null;
   function playOnPhysicalPress(e){
     if(e.type==='mousedown'&&e.button!==0)return;
     if(e.type==='pointerdown'&&e.button!==undefined&&e.button!==0)return;
     if(e.type==='touchstart'&&e.touches&&e.touches.length!==1)return;
-    const b=e.target?.closest?.('button,[role="button"]');
+    const b=e.target?.closest?.('button,[role="button"],input[type="button"],input[type="submit"]');
     if(!b||b.disabled||b.getAttribute('aria-disabled')==='true')return;
     const now=Date.now();
-    // Evita sonido doble: en Android un toque genera touchstart y pointerdown.
-    if(b===lastPlayedButton&&now-lastPlayedAt<140)return;
+    if(b===lastPlayedButton&&now-lastPlayedAt<180)return;
     lastPlayedButton=b;lastPlayedAt=now;
     if(b.matches('[data-cart-plus],#scannerIncrease'))beep('plus');
     else if(b.matches('[data-cart-minus]'))beep('minus');
@@ -1321,10 +1331,7 @@ if ('serviceWorker' in navigator) {
   document.addEventListener('pointerdown',playOnPhysicalPress,{capture:true,passive:true});
   document.addEventListener('touchstart',playOnPhysicalPress,{capture:true,passive:true});
   document.addEventListener('mousedown',playOnPhysicalPress,{capture:true,passive:true});
-  // Accesibilidad: Enter y barra espaciadora generan click sin toque.
-  document.addEventListener('click',e=>{
-    if(e.isTrusted&&e.detail===0)playOnPhysicalPress(e);
-  },true);
+  document.addEventListener('click',e=>{if(e.isTrusted&&e.detail===0)playOnPhysicalPress(e)},true);
 })();
 
 // Orden móvil Varelia inspirado en el flujo POS de referencia
