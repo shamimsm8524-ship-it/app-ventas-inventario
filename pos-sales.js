@@ -577,7 +577,40 @@
             finish(100);return;
           }
           legacyCheckout.click();
-          showPaidReceipt(before,p,state);
+          // Abrir el comprobante en el mismo flujo del botón, sin esperar módulos externos.
+          // Si el registro ya aparece, usarlo; si no, construir el ticket con la venta visible.
+          let receiptSale=null;
+          try{if(Array.isArray(sales)&&sales.length>before)receiptSale=sales[sales.length-1]}catch{}
+          if(!receiptSale){
+            const receiptRows=Array.isArray(state.rows)?state.rows:[];
+            receiptSale={
+              id:'V-'+Date.now(),
+              receiptNumber:'V-'+new Date().toISOString().slice(0,10).replace(/-/g,'')+'-'+String(Date.now()).slice(-6),
+              date:new Date().toISOString(),
+              items:receiptRows.map(row=>({
+                id:row.p?.id??row.item?.id??row.key,
+                name:String(row.name||row.p?.name||row.item?.name||'Producto'),
+                qty:Number(row.qty)||1,
+                price:Number(row.price)||0,
+                subtotal:Number(row.subtotal)||((Number(row.qty)||1)*(Number(row.price)||0)),
+                unit:row.item?.unit||row.p?.unit||'',
+                medicineSaleUnit:row.medicineSaleUnit||row.item?.medicineSaleUnit||'',
+                medicineMultiplier:Number(row.medicineMultiplier||row.item?.medicineMultiplier||1),
+                saleType:row.item?.saleType||''
+              })),
+              total:Number(state.total)||Number(p.total)||0,
+              paymentMethod:p.method||'Efectivo',
+              amountReceived:Number(p.received)||0,
+              changeGiven:Number(p.change)||0,
+              paymentBreakdown:p.breakdown||{}
+            };
+          }
+          receiptSale.paymentMethod=p.method||receiptSale.paymentMethod||'Efectivo';
+          receiptSale.amountReceived=Number(p.received)||receiptSale.amountReceived||0;
+          receiptSale.changeGiven=Number(p.change)||receiptSale.changeGiven||0;
+          receiptSale.paymentBreakdown=p.breakdown||receiptSale.paymentBreakdown||{};
+          window.__vareliaLastReceipt=receiptSale;
+          showEmergencyReceipt(receiptSale);
           setTimeout(()=>{
             try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}
             try{sync();renderPay()}catch{}
