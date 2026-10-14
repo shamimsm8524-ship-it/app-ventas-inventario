@@ -92,21 +92,33 @@
       const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
       const money=v=>'S/ '+Number(v||0).toFixed(2);
       const businessSettings=()=>{
-        let scoped={},live=window.vareliaVideoSettings||{},legacy={};
+        let scoped={},live=window.vareliaVideoSettings||{},legacy={},businessScoped={};
         try{
           const key=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_video_settings_v1'):'varelia_video_settings_v1__no_account';
           scoped=JSON.parse(localStorage.getItem(key)||'{}')||{};
         }catch{}
-        // Compatibilidad con los datos guardados antes de usar claves separadas por negocio.
-        // Solo se usa como último recurso: los valores de la sesión y del negocio actual prevalecen.
         try{legacy=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')||{}}catch{}
-        const s={...legacy,...live,...scoped};
+        try{
+          const businessId=String(localStorage.getItem('varelia_active_business_id')||'').trim();
+          if(businessId)businessScoped=JSON.parse(localStorage.getItem('varelia_video_settings_v1__'+businessId.replace(/[^a-zA-Z0-9_-]/g,''))||'{}')||{};
+        }catch{}
+        const s={...businessScoped,...legacy,...scoped,...live};
         for(const key of ['logo','businessName','phone','ruc','address','ticketMessage','thermalWidth']){
-          if(!String(s[key]||'').trim())s[key]=live[key]||scoped[key]||legacy[key]||'';
+          if(!String(s[key]||'').trim())s[key]=live[key]||scoped[key]||businessScoped[key]||legacy[key]||'';
         }
-        const profile=window.vareliaCurrentUserProfile;
-        if(profile?.role&&profile.role!=='owner')s.logo=window.vareliaCloudBusinessLogo||live.logo||scoped.logo||'';
+        const cloudLogo=String(window.vareliaCloudBusinessLogo||'');
+        if(cloudLogo.startsWith('data:image/'))s.logo=cloudLogo;
+        else if(!String(s.logo||'').startsWith('data:image/')){
+          const candidates=[live.logo,scoped.logo,businessScoped.logo,legacy.logo].map(x=>String(x||''));
+          s.logo=candidates.find(x=>x.startsWith('data:image/'))||'';
+        }
         return s;
+      };
+      const receiptSeller=sale=>{
+        const profile=window.vareliaCurrentUserProfile||{};
+        const domName=document.getElementById('vareliaUserName')?.textContent?.trim()||'';
+        const email=document.getElementById('vareliaUserEmail')?.textContent?.trim()||'';
+        return String(sale?.sellerName||sale?.seller_name||profile.full_name||profile.name||window.vareliaSellerName||domName||email.split('@')[0]||'').trim();
       };
       const businessName=()=>businessSettings().businessName||document.getElementById('vareliaBusinessName')?.textContent?.trim()||'Varelia Store';
       const itemDescription=i=>{const d=String(i?.description||i?.detail||i?.details||i?.specifications||i?.specification||'').trim();const raw=Array.isArray(i?.characteristics)?i.characteristics:[];const c=raw.map(x=>{if(typeof x==='string')return x.trim();if(x&&typeof x==='object')return [x.name,x.value??x.label].filter(Boolean).join(': ');return ''}).filter(Boolean).join(' · ');const variants=Array.isArray(i?.variants)?i.variants.map(x=>typeof x==='string'?x:[x?.name,x?.value??x?.label].filter(Boolean).join(': ')).filter(Boolean).join(' · '):'';return [d,c,variants].filter(Boolean).join(' · ')};
@@ -139,7 +151,7 @@
 
       function receiptHTML(sale){
         const items=Array.isArray(sale.items)?sale.items:[],bs=businessSettings(),subtotal=Number(sale.subtotal??((Number(sale.total)||0)+(Number(sale.discount)||0)));
-        return `<div class="vreceiptPaper">${bs.logo?`<div class="center"><img src="${bs.logo}" alt="" style="max-width:74px;max-height:50px;object-fit:contain;margin-bottom:6px"></div>`:''}<h3>${esc(businessName())}</h3><div class="center muted">COMPROBANTE INTERNO DE VENTA</div>${bs.phone?`<div class="center muted">Tel: ${esc(bs.phone)}</div>`:''}${bs.address?`<div class="center muted">${esc(bs.address)}</div>`:''}${bs.ruc?`<div class="center muted">RUC/Doc: ${esc(bs.ruc)}</div>`:''}<div class="vreceiptSep"></div><div class="vreceiptLine"><span>N.º</span><b>${esc(ticketNo(sale))}</b></div><div class="vreceiptLine"><span>Fecha</span><span>${esc(dateText(sale))}</span></div><div class="vreceiptLine"><span>Pago</span><span>${esc(sale.paymentMethod||'Efectivo')}</span></div>${sale.customerName?`<div class="vreceiptLine"><span>Cliente</span><span>${esc(sale.customerName)}</span></div>`:''}${sale.sellerName?`<div class="vreceiptLine"><span>Vendedor</span><span>${esc(sale.sellerName)}</span></div>`:''}<div class="vreceiptSep"></div>${items.map(i=>{const q=Number(i.qty||0),p=Number(i.price||0),weighted=isWeightItem(i);const unit=String(receiptUnit(i)||'unidades').toLowerCase(),priceUnit=unit==='unidades'?'unidad':unit;const meta=weighted?`Peso: ${weightLabel(q)}<br>Precio por kilo: ${money(p)}`:`Cantidad: ${q} ${unit}<br>Precio por ${priceUnit}: ${money(p)}`;return `<div class="vreceiptLine"><div><div class="vreceiptItemName">${esc(i.name||'Producto')}</div>${itemDescription(i)?`<div class="vreceiptItemMeta">${esc(itemDescription(i))}</div>`:''}<div class="vreceiptItemMeta">${meta}</div></div><b>${money(q*p)}</b></div>`}).join('')}${Number(sale.discount)>0?`<div class="vreceiptSep"></div><div class="vreceiptLine"><span>Subtotal</span><span>${money(subtotal)}</span></div><div class="vreceiptLine"><span>Descuento</span><span>-${money(sale.discount)}</span></div>`:''}<div class="vreceiptSep"></div><div class="vreceiptTotal"><span>TOTAL</span><span>${money(sale.total)}</span></div>${paymentDetailHTML(sale)}${sale.paymentMethod==='Fiado'?`<div class="center muted" style="margin-top:8px">Venta al crédito · Saldo: ${money(Math.max(0,(Number(sale.total)||0)-(Number(sale.paidAmount)||0)))}</div>`:''}${sale.notes?`<div class="center muted" style="margin-top:8px">Nota: ${esc(sale.notes)}</div>`:''}<div class="vreceiptDisclaimer">${esc(bs.ticketMessage||'Gracias por su compra.')}<br>Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.</div></div>`;
+        return `<div class="vreceiptPaper">${bs.logo?`<div class="center"><img src="${bs.logo}" alt="" style="max-width:74px;max-height:50px;object-fit:contain;margin-bottom:6px"></div>`:''}<h3>${esc(businessName())}</h3><div class="center muted">COMPROBANTE INTERNO DE VENTA</div>${bs.phone?`<div class="center muted">Tel: ${esc(bs.phone)}</div>`:''}${bs.address?`<div class="center muted">${esc(bs.address)}</div>`:''}${bs.ruc?`<div class="center muted">RUC/Doc: ${esc(bs.ruc)}</div>`:''}<div class="vreceiptSep"></div><div class="vreceiptLine"><span>N.º</span><b>${esc(ticketNo(sale))}</b></div><div class="vreceiptLine"><span>Fecha</span><span>${esc(dateText(sale))}</span></div><div class="vreceiptLine"><span>Pago</span><span>${esc(sale.paymentMethod||'Efectivo')}</span></div>${sale.customerName?`<div class="vreceiptLine"><span>Cliente</span><span>${esc(sale.customerName)}</span></div>`:''}${receiptSeller(sale)?`<div class="vreceiptLine"><span>Vendedor</span><span>${esc(receiptSeller(sale))}</span></div>`:''}<div class="vreceiptSep"></div>${items.map(i=>{const q=Number(i.qty||0),p=Number(i.price||0),weighted=isWeightItem(i);const unit=String(receiptUnit(i)||'unidades').toLowerCase(),priceUnit=unit==='unidades'?'unidad':unit;const meta=weighted?`Peso: ${weightLabel(q)}<br>Precio por kilo: ${money(p)}`:`Cantidad: ${q} ${unit}<br>Precio por ${priceUnit}: ${money(p)}`;return `<div class="vreceiptLine"><div><div class="vreceiptItemName">${esc(i.name||'Producto')}</div>${itemDescription(i)?`<div class="vreceiptItemMeta">${esc(itemDescription(i))}</div>`:''}<div class="vreceiptItemMeta">${meta}</div></div><b>${money(q*p)}</b></div>`}).join('')}${Number(sale.discount)>0?`<div class="vreceiptSep"></div><div class="vreceiptLine"><span>Subtotal</span><span>${money(subtotal)}</span></div><div class="vreceiptLine"><span>Descuento</span><span>-${money(sale.discount)}</span></div>`:''}<div class="vreceiptSep"></div><div class="vreceiptTotal"><span>TOTAL</span><span>${money(sale.total)}</span></div>${paymentDetailHTML(sale)}${sale.paymentMethod==='Fiado'?`<div class="center muted" style="margin-top:8px">Venta al crédito · Saldo: ${money(Math.max(0,(Number(sale.total)||0)-(Number(sale.paidAmount)||0)))}</div>`:''}${sale.notes?`<div class="center muted" style="margin-top:8px">Nota: ${esc(sale.notes)}</div>`:''}<div class="vreceiptDisclaimer">${esc(bs.ticketMessage||'Gracias por su compra.')}<br>Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.</div></div>`;
       }
       function showReceipt(sale){currentReceipt=sale;window.__vareliaCurrentReceiptSale=sale;window.__vareliaDownloadCurrentReceipt=()=>{if(currentReceipt)savePDF(currentReceipt)};preview.innerHTML=receiptHTML(sale);if(!overlay.classList.contains('show')){try{history.pushState({vareliaReceipt:true},'',location.href);receiptBackState=true}catch{receiptBackState=false}}overlay.classList.add('show')}
       function receiptText(sale){
@@ -238,7 +250,7 @@
           if(bs.ruc){doc.text('RUC/Doc: '+bs.ruc,40,y,{align:'center'});y+=4} if(bs.phone){doc.text('Tel: '+bs.phone,40,y,{align:'center'});y+=4} if(bs.address){doc.text(String(bs.address),40,y,{align:'center'});y+=4}
           doc.setLineDashPattern([1,1],0);doc.line(7,y,73,y);y+=5;
           const lr=(l,r,b)=>{doc.setFont('courier',b?'bold':'normal');doc.setFontSize(7);doc.text(String(l),7,y);doc.text(String(r||''),73,y,{align:'right'});y+=4};
-          lr('N.º',ticketNo(sale),true);lr('Fecha',dateText(sale));lr('Pago',sale.paymentMethod||'Efectivo');if(sale.sellerName)lr('Vendedor',sale.sellerName);
+          lr('N.º',ticketNo(sale),true);lr('Fecha',dateText(sale));lr('Pago',sale.paymentMethod||'Efectivo');if(receiptSeller(sale))lr('Vendedor',receiptSeller(sale));
           doc.line(7,y,73,y);y+=5;
           items.forEach(i=>{const q=Number(i.qty||0),p=Number(i.price||0),weighted=isWeightItem(i);lr(i.name||'Producto',money(q*p),true);const spec=String(itemDescription(i)||'').trim();if(spec){doc.setFont('courier','normal');doc.setFontSize(6);const lines=doc.splitTextToSize('Detalle: '+spec,62);lines.forEach(line=>{doc.text(line,7,y);y+=3;});}if(weighted){lr('Peso: '+(weightLabel(q)),'');lr('Precio por kilo: '+money(p),'')}else{const u=String(receiptUnit(i)||'unidades').toLowerCase(),pu=u==='unidades'?'unidad':u;lr('Cantidad: '+q+' '+u,'');lr('Precio por '+pu,money(p));}});
           doc.line(7,y,73,y);y+=5;doc.setFont('courier','bold');doc.setFontSize(12);doc.text('TOTAL',7,y);doc.text(money(sale.total),73,y,{align:'right'});y+=6;doc.line(7,y,73,y);y+=5;
