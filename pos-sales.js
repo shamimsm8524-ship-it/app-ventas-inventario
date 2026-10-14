@@ -200,9 +200,11 @@
       }
       function paySnapshot(){
         const total=currentTotal();
-        if(payMethod.value==='Fiado'&&!mixedPay.checked)return {
+        const visibleMethod=document.getElementById('vposPaymentMethod')?.value||payMethod.value;
+        const visibleMixed=!!document.getElementById('vpayMixedToggle')?.checked;
+        if(visibleMethod==='Fiado'&&!visibleMixed)return {
           total,received:0,missing:0,change:0,breakdown:{},method:'Fiado',
-          balanceDue:total,customerName:String(root.querySelector('#vposCreditCustomer')?.value||'').trim()
+          balanceDue:total,customerName:String(document.getElementById('vposCreditCustomer')?.value||'').trim()
         };
         let breakdown={},received=0;
         if(mixedPay.checked){
@@ -223,6 +225,11 @@
         else{st.textContent=p.missing>0?'Falta':'Vuelto';df.textContent='S/ '+(p.missing>0?p.missing:p.change).toFixed(2);df.style.color=p.missing>0?'#b91c1c':'var(--p)'}
       }
       payMethod.onchange=()=>{if(payMethod.value==='Fiado')mixedPay.checked=false;renderPay();};
+      document.getElementById('vposPaymentMethod')?.addEventListener('change',()=>{
+        const chosen=document.getElementById('vposPaymentMethod')?.value;
+        if(chosen==='Fiado'){payMethod.value='Fiado';mixedPay.checked=false}
+        else if(chosen&&[...payMethod.options].some(o=>o.value===chosen))payMethod.value=chosen;
+      });
       mixedPay.onchange=()=>{if(mixedPay.checked&&payMethod.value==='Fiado')payMethod.value='Efectivo';renderPay();};
       window.addEventListener('varelia:payment-settings-changed',()=>setTimeout(renderPay,0));
 
@@ -455,7 +462,7 @@
         const state=sync();
         if(!state.rows.length)return;
         const p=paySnapshot();
-        if(p.method==='Fiado'&&!p.customerName){
+        if(p.method==='Fiado'&&String(p.customerName||'').length<2){
           root.querySelector('#vposCreditCustomer')?.focus();
           window.vareliaToast?.('Escribe el nombre del cliente para registrar el fiado.','warn');
           return;
