@@ -190,16 +190,33 @@
     sel.disabled=false;
     sel.onchange=()=>{
       try{localStorage.setItem((window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_last_payment_method'):'varelia_last_payment_method__no_account'),sel.value)}catch{}
+      const mixed=document.getElementById('vpayMixedToggle');
+      if(sel.value==='Fiado'&&mixed)mixed.checked=false;
       ensureNativePaymentPicker(sel,methods);
       renderPaymentDetail();
     };
     ensureNativePaymentPicker(sel,methods);
     const mt=document.getElementById('vpayMixedToggle');
-    if(mt&&!mt.dataset.bound){mt.dataset.bound='1';mt.onchange=()=>{const detail=document.getElementById('vareliaPaymentDetail');if(detail)delete detail.dataset.renderState;renderPaymentDetail();};}
+    if(mt&&!mt.dataset.bound){mt.dataset.bound='1';mt.onchange=()=>{
+      if(mt.checked&&sel.value==='Fiado'){mt.checked=false;toast('Fiado se registra por separado, sin pago mixto.','warn')}
+      const detail=document.getElementById('vareliaPaymentDetail');if(detail)delete detail.dataset.renderState;
+      renderPaymentDetail();
+    };}
     // Do not rebuild the payment input on every polling pass: the old behavior
     // replaced the field repeatedly and made typing the received amount impossible.
     const detail=document.getElementById('vareliaPaymentDetail');
     const renderState=sel.value+'|'+!!mt?.checked;
+    const checkout=document.getElementById('vposCheckout');
+    if(checkout){
+      const credit=sel.value==='Fiado'&&!mt?.checked;
+      if(credit){
+        checkout.textContent='📝 Registrar fiado';
+        checkout.setAttribute('aria-label','Registrar venta fiada');
+      }else if(checkout.getAttribute('aria-label')==='Registrar venta fiada'){
+        checkout.textContent='💳 Cobrar venta';
+        checkout.removeAttribute('aria-label');
+      }
+    }
     if(detail&&detail.dataset.renderState!==renderState){
       detail.dataset.renderState=renderState;
       renderPaymentDetail();
@@ -214,7 +231,7 @@
     const method=sel.value;
     const mixed=document.getElementById('vpayMixedToggle')?.checked;
     if(mixed){
-      const total=currentSaleTotal(),methods=methodList();
+      const total=currentSaleTotal(),methods=methodList().filter(m=>m!=='Fiado');
       const options=methods.map(m=>'<option value="'+esc(m)+'">'+esc(m)+'</option>').join('');
       detail.innerHTML='<div class="vpayCash"><small style="color:var(--muted)">Elige el método y escribe cuánto paga. Puedes combinar dos o más.</small><div id="vpayMixedRows"></div><button type="button" class="btn secondary" id="vpayAddMixed" style="width:100%;margin-top:2px">+ Agregar otro pago</button><div class="vpayChange"><span id="vpayMixedLabel">Falta</span><strong id="vpayMixedResult">S/ '+total.toFixed(2)+'</strong></div><small id="vpayMixedTotal" style="color:var(--muted)">Recibido: S/ 0.00 · Total: S/ '+total.toFixed(2)+'</small></div>';
       const rows=document.getElementById('vpayMixedRows');
@@ -243,7 +260,16 @@
     const transfer=String(live.transferDetails||local.transferDetails||settings?.transfer_details||'').trim();
 
     if(method==='Fiado'){
-      detail.innerHTML='<p style="font-weight:800;color:#92400e">Fiado · El cliente pagará después. El importe no entra como cobro en caja.</p>';return;
+      const remembered=detail.querySelector('#vposCreditCustomer')?.value||'';
+      const suggestions=window.VareliaCreditBook?.customerNames?.()||[];
+      detail.innerHTML='<div style="display:grid;gap:10px">'+
+        '<label style="display:grid;gap:6px;font-weight:850">Nombre del cliente al que se fía'+
+        '<input id="vposCreditCustomer" type="text" list="vareliaCreditNames" required minlength="2" maxlength="120" autocomplete="name" placeholder="Ej. María López" style="width:100%;box-sizing:border-box;padding:14px;border:1px solid var(--line,#d1d5db);border-radius:12px;background:var(--card,#fff);color:var(--ink,#111);font-size:16px">'+
+        '<datalist id="vareliaCreditNames">'+suggestions.map(n=>'<option value="'+esc(n)+'"></option>').join('')+'</datalist></label>'+
+        '<div style="padding:12px;border:1px solid #fbbf24;background:#fffbeb;color:#92400e;border-radius:12px;font-size:13px"><b>Venta fiada · no cobrada</b>'+
+        '<p style="margin:5px 0">El producto se entrega ahora, pero los S/ '+currentSaleTotal().toFixed(2)+' quedan como deuda. El abono se registra luego en Historial → Cuaderno de fiados.</p></div></div>';
+      const input=detail.querySelector('#vposCreditCustomer');input.value=remembered;
+      return;
     }
     if(method==='Efectivo'){
       const total=currentSaleTotal();
@@ -370,7 +396,10 @@
   function paymentSnapshot(){
     const total=currentSaleTotal();
     const mixed=!!document.getElementById('vpayMixedToggle')?.checked;
-    if(!mixed&&document.getElementById('vposPaymentMethod')?.value==='Fiado')return {total,mixed:false,breakdown:{},received:0,missing:0,change:0,method:'Fiado'};
+    if(!mixed&&document.getElementById('vposPaymentMethod')?.value==='Fiado')return {
+      total,mixed:false,breakdown:{},received:0,missing:0,change:0,method:'Fiado',
+      balanceDue:total,customerName:String(document.getElementById('vposCreditCustomer')?.value||'').trim()
+    };
     let breakdown={},received=0;
     if(mixed){
       document.querySelectorAll('.vpayMixedRow').forEach(r=>{const x=r.querySelector('.vpayPart'),m=r.querySelector('.vpayMixedMethod')?.value,n=Math.max(0,Number(x?.value)||0);if(n&&m){breakdown[m]=(breakdown[m]||0)+n;received+=n}});
@@ -402,7 +431,11 @@
         snap={total,received,missing,change,breakdown:received?{Efectivo:Math.min(received,total)}:{},method:'Efectivo'};
       }
     }
-    if(snap.method==='Fiado'&&!String(document.getElementById('vposCreditCustomer')?.value||'').trim()){toast('Escribe el nombre del cliente para fiar.');return false}
+    if(snap.method==='Fiado'&&String(snap.customerName||'').length<2){
+      document.getElementById('vposCreditCustomer')?.focus();
+      toast('Escribe el nombre del cliente (mínimo 2 letras) para registrar el fiado.');
+      return false;
+    }
     if(snap.missing>.005){toast('Faltan S/ '+snap.missing.toFixed(2)+' para completar el pago.');return false}
     pendingSale={...snap,before,at:Date.now()};
     window.VareliaPaymentSnapshot={...snap,at:Date.now()};
