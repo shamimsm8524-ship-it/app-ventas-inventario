@@ -410,9 +410,18 @@
             if(Array.isArray(sales)&&sales.length>before)sale=sales[sales.length-1];
           }catch{}
           if(!sale){
-            if(tries<30)setTimeout(open,60);
-            else window.vareliaToast?.('La venta se registró, pero no se pudo abrir el comprobante.','warn');
-            return;
+            if(tries<12){setTimeout(open,60);return;}
+            // Respaldo visual: abrir el comprobante con las filas y el total ya confirmados,
+            // aunque el historial de ventas tarde en actualizarse.
+            const rows=Array.isArray(checkoutState?.rows)?checkoutState.rows:[];
+            if(!rows.length){window.vareliaToast?.('La venta se registró, pero no se pudo abrir el comprobante.','warn');return;}
+            sale={
+              id:'pending-'+Date.now(),
+              date:new Date().toISOString(),
+              items:rows.map(x=>({id:x.p?.id??x.item?.id??x.key,name:String(x.name||x.p?.name||'Producto'),qty:Number(x.qty)||1,price:Number(x.price)||0,subtotal:Number(x.subtotal)||((Number(x.qty)||1)*(Number(x.price)||0)),unit:x.item?.unit||x.p?.unit||'',medicineSaleUnit:x.medicineSaleUnit||x.item?.medicineSaleUnit||'',medicineMultiplier:Number(x.medicineMultiplier||x.item?.medicineMultiplier||1),saleType:x.item?.saleType||'',characteristics:Array.isArray(x.p?.characteristics)?x.p.characteristics:[]})),
+              total:Number(checkoutState?.total)||Number(paymentSnap?.total)||rows.reduce((sum,x)=>sum+(Number(x.subtotal)||((Number(x.qty)||1)*(Number(x.price)||0))),0),
+              paymentMethod:paymentSnap?.method||'Efectivo'
+            };
           }
           try{
             // Si el flujo antiguo guardó la venta sin sus líneas, recuperar los productos del carrito confirmado.
