@@ -6,6 +6,9 @@
   const fmt=d=>{const date=new Date(d);return Number.isFinite(date.getTime())?date.toLocaleString('es-PE',{timeZone:'America/Lima'}):String(d||'')};
   const keyOf=s=>String(s||'').trim().replace(/\s+/g,' ').toLocaleLowerCase('es-PE');
   let scope='',userId='',role='',credits=[],payments=[],staff={},loaded=false,lastLoaded=0,working=null,error='',root=null,submitting=false;
+  // Mantener la ficha de cada cliente abierta entre actualizaciones del historial.
+  const expandedAccounts=new Set();
+  const accountCode=g=>String(g.cashier)+'|'+String(g.key);
   const id=s=>String(s.sale_id||'');
   function groups(){
     const bySale=new Map();
@@ -52,12 +55,13 @@
       '<button type="button" data-credit-refresh style="border:1px solid var(--line,#ddd);padding:9px 12px;border-radius:10px;background:transparent;color:inherit;margin-bottom:14px">↻ Actualizar</button>'+
       (list.length?list.map((g,i)=>{
         const balance=due(g),paid=state(g)==='CANCELADO';
-        return '<details style="border:1px solid var(--line,#ddd);padding:13px;margin:10px 0;border-radius:15px;background:var(--card,#fff)">'+
-          '<summary style="cursor:pointer"><b>'+escape(g.name)+'</b>'+
+        const open=expandedAccounts.has(accountCode(g));
+        return '<div data-credit-account="'+i+'" style="border:1px solid var(--line,#ddd);padding:13px;margin:10px 0;border-radius:15px;background:var(--card,#fff)">'+
+          '<button type="button" data-credit-toggle="'+i+'" aria-expanded="'+String(open)+'" style="width:100%;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;padding:0;font:inherit;display:block"><b><span data-credit-chevron>'+(open?'▼':'▶')+'</span> '+escape(g.name)+'</b>'+
           (role==='owner'?'<div style="font-size:12px;color:var(--muted,#64748b)">Caja: '+escape(staff[g.cashier]||g.cashier.slice(0,8))+'</div>':'')+
           '<div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px"><strong style="font-size:22px">'+money(balance)+'</strong>'+
-          '<b style="color:'+(paid?'#047857':'#b45309')+'">'+state(g)+'</b></div></summary>'+
-          '<div style="margin:12px 0 0;padding-top:12px;border-top:1px solid #e5e7eb">'+
+          '<b style="color:'+(paid?'#047857':'#b45309')+'">'+state(g)+'</b></div></button>'+
+          '<div data-credit-detail style="display:'+(open?'block':'none')+';margin:12px 0 0;padding-top:12px;border-top:1px solid #e5e7eb">'+
           '<p style="font-size:13px;margin:0 0 12px">Total fiado: <b>'+money(g.total)+'</b> · Abonado: <b>'+money(g.paid)+'</b></p>'+
           g.orders.map(o=>'<section style="border:1px solid #d1d5db;border-radius:12px;padding:10px;margin-bottom:9px">'+
             '<div style="display:flex;justify-content:space-between;gap:10px"><b>Compra '+escape(fmt(o.created_at))+'</b><b>'+money(o.totalCents)+'</b></div>'+
@@ -67,7 +71,7 @@
             '<p style="font-size:12px;font-weight:850;margin:8px 0 0">Saldo de la compra: '+money(Math.max(0,o.totalCents-o.paidCents))+'</p></section>').join('')+
           '<div style="display:flex;gap:8px;flex-wrap:wrap">'+
           (balance?'<button type="button" data-credit-pay="'+i+'" style="padding:11px 12px;border:0;border-radius:10px;color:#fff;background:#2563eb;font-weight:850">+ Registrar abono</button>':'')+
-          '<button type="button" data-credit-print="'+i+'" style="padding:11px 12px;border:1px solid #d1d5db;border-radius:10px;color:inherit;background:transparent;font-weight:850">🖨️ Imprimir detalle</button></div></div></details>';
+          '<button type="button" data-credit-print="'+i+'" style="padding:11px 12px;border:1px solid #d1d5db;border-radius:10px;color:inherit;background:transparent;font-weight:850">🖨️ Imprimir detalle</button></div></div></div>';
       }).join(''):'<p class="empty">No hay fiados registrados todavía.</p>');
   }
   async function queryAll(sb,table,select){
@@ -117,6 +121,22 @@
     if(root.dataset.creditBookBound!=='1'){
       root.dataset.creditBookBound='1';
       root.addEventListener('click',e=>{
+        const toggle=e.target.closest('[data-credit-toggle]');
+        if(toggle){
+          e.preventDefault();
+          const index=Number(toggle.dataset.creditToggle);
+          const g=groups()[index];
+          if(!g)return;
+          const code=accountCode(g);
+          const opening=!expandedAccounts.has(code);
+          if(opening)expandedAccounts.add(code);else expandedAccounts.delete(code);
+          const detail=toggle.closest('[data-credit-account]')?.querySelector('[data-credit-detail]');
+          if(detail)detail.style.display=opening?'block':'none';
+          toggle.setAttribute('aria-expanded',String(opening));
+          const arrow=toggle.querySelector('[data-credit-chevron]');
+          if(arrow)arrow.textContent=opening?'▼':'▶';
+          return;
+        }
         if(e.target.closest('[data-credit-refresh]')){refresh(true);return}
         const btn=e.target.closest('[data-credit-pay]'),pr=e.target.closest('[data-credit-print]');
         const index=btn?Number(btn.dataset.creditPay):pr?Number(pr.dataset.creditPrint):-1;
