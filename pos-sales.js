@@ -533,142 +533,43 @@
         setTimeout(open,40);
       }
 
-      // El botón principal procesa el cobro en captura para que no lo silencien
-      // manejadores antiguos. Solo se usa una vez y abre el comprobante al confirmar la venta.
-      checkoutBtn.addEventListener('click',event=>{
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        if(window.__vareliaSafeCheckoutBusy)return;
-        window.__vareliaSafeCheckoutBusy=true;
-        const finish=delay=>setTimeout(()=>{window.__vareliaSafeCheckoutBusy=false},delay||0);
-        try{
-          const state=sync();
-          const rows=Array.isArray(state?.rows)?state.rows:[];
-          if(!rows.length){
-            window.vareliaToast?.('No hay productos en la venta. Agrega un producto antes de cobrar.','warn');
-            finish(100);return;
-          }
-          const total=Math.max(0,Number(state.total)||rows.reduce((sum,x)=>sum+(Number(x.subtotal)||((Number(x.qty)||1)*(Number(x.price)||0))),0));
-          if(total<=0){
-            window.vareliaToast?.('El total de la venta no es válido. Revisa los productos antes de cobrar.','warn');
-            finish(100);return;
-          }
-          const method=String(document.getElementById('vposPaymentMethod')?.value||payMethod.value||'Efectivo');
-          const mixedToggle=document.getElementById('vpayMixedToggle');
-          const mixed=mixedToggle?!!mixedToggle.checked:!!mixedPay.checked;
-          const breakdown={};
-          let received=0;
-          if(method==='Fiado'&&!mixed){
-            const customerName=String(document.getElementById('vposCreditCustomer')?.value||root.querySelector('#vposCreditCustomer')?.value||'').trim();
-            if(customerName.length<2){
-              window.vareliaToast?.('Escribe el nombre del cliente para registrar el fiado.','warn');
-              root.querySelector('#vposCreditCustomer')?.focus();
-              finish(100);return;
-            }
-          }else if(mixed){
-            const visibleRows=[...document.querySelectorAll('#vpayMixedRows .vpayMixedRow')];
-            if(visibleRows.length){
-              visibleRows.forEach(row=>{
-                const amount=Math.max(0,Number(String(row.querySelector('.vpayPart')?.value||'').replace(',','.'))||0);
-                const m=String(row.querySelector('.vpayMixedMethod')?.value||'').trim();
-                if(amount&&m){breakdown[m]=(breakdown[m]||0)+amount;received+=amount;}
-              });
-            }else{
-              payFields.querySelectorAll('[data-vpos-part]').forEach(row=>{
-                const amount=Math.max(0,Number(row.value)||0);
-                if(amount){breakdown[row.dataset.vposPart]=amount;received+=amount;}
-              });
-            }
-          }else if(method==='Efectivo'){
-            const candidates=[
-              document.getElementById('vpayReceived')?.value,
-              root.querySelector('#vposAmountReceived')?.value,
-              document.getElementById('vReceived')?.value,
-              document.getElementById('vCash')?.value
-            ];
-            const raw=candidates.find(v=>String(v??'').trim()!=='');
-            received=Math.max(0,Number(String(raw??'').replace(',','.'))||0);
-            if(received)breakdown.Efectivo=received;
-          }else{
-            received=total;
-            breakdown[method]=total;
-          }
-          const missing=method==='Fiado'&&!mixed?0:Math.max(0,total-received);
-          const change=method==='Fiado'&&!mixed?0:Math.max(0,received-total);
-          if(missing>.005){
-            window.vareliaToast?.('Faltan S/ '+missing.toFixed(2)+' para completar el pago. Revisa el monto recibido.','warn');
-            finish(100);return;
-          }
-          if(change&&breakdown.Efectivo)breakdown.Efectivo=Math.max(0,breakdown.Efectivo-change);
-          const entries=Object.entries(breakdown).filter(([,amount])=>Number(amount)>0);
-          const payment={
-            total,received,missing,change,breakdown:Object.fromEntries(entries),
-            method:entries.length>1?'Pago mixto':(entries[0]?.[0]||method),
-            customerName:method==='Fiado'?String(document.getElementById('vposCreditCustomer')?.value||root.querySelector('#vposCreditCustomer')?.value||'').trim():''
-          };
-          window.VareliaPaymentSnapshot={...payment,at:Date.now()};
-          const before=Array.isArray(sales)?sales.length:0;
-          if(!Array.isArray(cart)){window.vareliaToast?.('No se pudo leer el carrito. No se registró la venta.','warn');finish(100);return;}
-          if(cart.length===0){
-            const recovered=rows.map(row=>row.item).filter(Boolean);
-            if(recovered.length)cart.push(...recovered);
-          }
-          if(cart.length===0){
-            window.vareliaToast?.('El carrito está vacío. No se registró la venta; vuelve a agregar el producto.','warn');
-            finish(100);return;
-          }
-          window.vareliaToast?.('Procesando venta…','ok');
-          legacyCheckout.click();
-          let attempts=0;
-          const confirmAndShow=()=>{
-            attempts++;
-            let sale=null;
-            try{if(Array.isArray(sales)&&sales.length>before)sale=sales[sales.length-1]}catch{}
-            if(!sale){
-              if(attempts<20){setTimeout(confirmAndShow,80);return;}
-              window.vareliaToast?.('No se confirmó el registro de la venta. Revisa el historial antes de volver a cobrar.','warn');
-              finish(100);return;
-            }
-            try{
-              if(!Array.isArray(sale.items)||!sale.items.length){
-                sale.items=rows.map(x=>({id:x.p?.id??x.item?.id??x.key,name:String(x.name||x.p?.name||'Producto'),qty:Number(x.qty)||1,price:Number(x.price)||0,subtotal:Number(x.subtotal)||((Number(x.qty)||1)*(Number(x.price)||0)),unit:x.item?.unit||x.p?.unit||'',medicineSaleUnit:x.medicineSaleUnit||x.item?.medicineSaleUnit||'',medicineMultiplier:Number(x.medicineMultiplier||x.item?.medicineMultiplier||1),saleType:x.item?.saleType||'',characteristics:Array.isArray(x.p?.characteristics)?x.p.characteristics:[]}));
-              }
-              if(!(Number(sale.total)>0))sale.total=total;
-              sale.paymentMethod=payment.method||sale.paymentMethod||'Efectivo';
-              sale.paymentBreakdown=payment.breakdown;
-              sale.amountReceived=payment.received;
-              sale.changeGiven=payment.change;
-              if(sale.paymentMethod==='Fiado'){sale.customerName=payment.customerName;sale.paidAmount=0;sale.payments=[];sale.paymentStatus='pending';}
-              if(!sale.receiptNumber){
-                const d=new Date(sale.date||Date.now()).toISOString().slice(0,10).replace(/-/g,'');
-                const id=String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-6).toUpperCase();
-                sale.receiptNumber='V-'+d+'-'+id;
-              }
-              const vp=window.vareliaCurrentUserProfile||{};
-              sale.sellerName=sale.sellerName||vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';
-              try{if(typeof save==='function')save()}catch{}
-              try{window.dispatchEvent(new CustomEvent('varelia:sale-recorded',{detail:{saleId:String(sale.cloudSaleId||sale.id||''),source:'receipt-confirmed'}}))}catch{}
-            }catch(err){console.error('No se pudieron completar los datos del comprobante',err)}
-            let visible=false;
-            try{
-              if(typeof window.VareliaReceipt?.show==='function'){
-                window.VareliaReceipt.show(sale);
-                visible=!!document.getElementById('vreceiptOverlay')?.classList.contains('show');
-              }
-            }catch(err){console.error('Apertura del comprobante principal',err)}
-            if(!visible)showEmergencyReceipt(sale);
-            try{if(typeof renderSales==='function')renderSales()}catch{}
-            try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}
-            window.vareliaToast?.('Venta registrada. Comprueba el comprobante en pantalla.','ok');
-            setTimeout(()=>{try{sync();renderPay()}catch{}finish(1200)},100);
-          };
-          setTimeout(confirmAndShow,50);
-        }catch(err){
-          console.error('Error al cobrar y abrir comprobante',err);
-          window.vareliaToast?.('Ocurrió un error al cobrar. No vuelvas a pulsar todavía; revisa el historial de ventas.','warn');
-          finish(100);
+      checkoutBtn.onclick=()=>{
+        const state=sync();
+        if(!state.rows.length)return;
+        const p=paySnapshot();
+        if(p.method==='Fiado'&&String(p.customerName||'').length<2){
+          root.querySelector('#vposCreditCustomer')?.focus();
+          window.vareliaToast?.('Escribe el nombre del cliente para registrar el fiado.','warn');
+          return;
         }
-      },true);
+        if(p.missing>.005){
+          showPaymentDetail(p);
+          window.vareliaToast?.('Faltan S/ '+p.missing.toFixed(2)+' para completar el pago','warn');
+          return;
+        }
+        window.VareliaPaymentSnapshot={...p,at:Date.now()};
+        let before=0;
+        try{before=Array.isArray(sales)?sales.length:0}catch{}
+        try{
+          // Sincronizar el carrito que cobra el módulo antiguo con las filas visibles del POS.
+          if(Array.isArray(cart)&&cart.length===0&&state.rows.length){
+            const recovered=state.rows.map(r=>r.item).filter(Boolean);
+            if(recovered.length){cart.push(...recovered);try{if(typeof renderCart==='function')renderCart()}catch(e){console.warn('No se pudo redibujar el carrito recuperado',e)}}
+          }
+          if(!Array.isArray(cart)||cart.length===0){window.vareliaToast?.('El carrito visible no coincide con el carrito de cobro. Vuelve a agregar el producto antes de cobrar.','warn');return}
+          legacyCheckout.click();
+          showPaidReceipt(before,p,state);
+          setTimeout(()=>{
+            try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}
+            sync();renderPay();
+            try{if(typeof renderSales==='function')renderSales()}catch{}
+            window.vareliaToast?.(p.method==='Fiado'?'Fiado registrado. Consulta la deuda en Historial.':'Venta registrada','ok');
+          },160);
+        }catch(e){
+          console.error(e);
+          window.vareliaSound?.('error');
+        }
+      };
 
       function goSales(){const nav=document.querySelector('.nav [data-view="sales"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew();root.scrollIntoView({behavior:'smooth',block:'start'})},80)}
       document.addEventListener('click',e=>{const b=e.target.closest('#newSaleTop,#newSaleFab');if(!b)return;e.preventDefault();e.stopImmediatePropagation();goSales()},true);
