@@ -373,11 +373,32 @@
       function bridgeScanner(){saleDialog.classList.add('vposBridge');try{if(!saleDialog.open)saleDialog.show()}catch{}scanForSale.click()}
       root.querySelector('#vposScan').onclick=bridgeScanner;
 
+      function resetPaymentInputs(clearSnapshot=false,resetMixed=false){
+        try{
+          document.querySelectorAll('#vposAmountReceived,#vpayReceived,#vReceived,#vCash,[data-vpos-part],[data-vpart],.vpayPart').forEach(el=>{
+            if('value' in el&&String(el.value||'')!==''){
+              el.value='';
+              try{el.dispatchEvent(new Event('input',{bubbles:true}))}catch{}
+              try{el.dispatchEvent(new Event('change',{bubbles:true}))}catch{}
+            }
+          });
+          if(resetMixed){
+            ['#vposMixed','#vpayMixedToggle','#vposMixedToggle'].forEach(sel=>{
+              const el=document.querySelector(sel);
+              if(el&&'checked' in el&&el.checked){el.checked=false;try{el.dispatchEvent(new Event('change',{bubbles:true}))}catch{}}
+            });
+          }
+          if(clearSnapshot)window.VareliaPaymentSnapshot=null;
+        }catch(e){console.warn('No se pudo reiniciar el formulario de cobro',e)}
+      }
+
       function startNew(forceReset=false){
         if(forceReset){try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}}
         try{if(saleDialog.open)saleDialog.close()}catch{}saleDialog.classList.remove('vposBridge');document.body.classList.add('vposReset');
         try{if(typeof openSale==='function')openSale(forceReset||!Array.isArray(cart)||cart.length===0)}catch(e){console.warn(e)}
-        try{if(saleDialog.open)saleDialog.close()}catch{}document.body.classList.remove('vposReset');input.value='';hideSuggestions();sync();input.focus();window.vareliaToast?.(forceReset?'Nueva venta lista':'Carrito conservado','ok')
+        try{if(saleDialog.open)saleDialog.close()}catch{}document.body.classList.remove('vposReset');input.value='';hideSuggestions();sync();
+        try{window.dispatchEvent(new CustomEvent('varelia:payment-settings-changed'))}catch{}
+        resetPaymentInputs(true,true);input.focus();window.vareliaToast?.(forceReset?'Nueva venta lista':'Carrito conservado','ok')
       }
       const posNew=root.querySelector('#vposNew');if(posNew)posNew.onclick=()=>startNew(true);
       function showPaidReceipt(before,paymentSnap,checkoutState){
@@ -486,7 +507,9 @@
           showPaidReceipt(before,p,state);
           setTimeout(()=>{
             try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}
-            sync();renderPay();
+            sync();renderPay();resetPaymentInputs(false,true);
+            try{window.dispatchEvent(new CustomEvent('varelia:payment-settings-changed'))}catch{}
+            resetPaymentInputs(false,true);
             try{if(typeof renderSales==='function')renderSales()}catch{}
             window.vareliaToast?.(p.method==='Fiado'?'Fiado registrado. Consulta la deuda en Historial.':'Venta registrada','ok');
           },160);
