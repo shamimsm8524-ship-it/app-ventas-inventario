@@ -41,7 +41,8 @@
   const orderLines=o=>{
     const items=Array.isArray(o.items)?o.items:[];
     return items.length?items.map(i=>'<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;padding:10px 0;border-bottom:1px solid #e5e7eb;align-items:start"><div style="min-width:0;overflow-wrap:anywhere"><b style="display:block;line-height:1.3">'+escape(i.name||'Producto')+
-      '</b><div style="font-size:12px">'+escape(qtyLabel(i))+' × S/ '+Number(i.unit_price||0).toFixed(2)+'</div></div>'+
+      '</b><div style="font-size:12px;color:var(--muted,#64748b);line-height:1.4;margin-top:3px">Cantidad: '+escape(qtyLabel(i))+'</div>'+
+      '<div style="font-size:12px;color:var(--muted,#64748b);line-height:1.4">Precio unitario: S/ '+Number(i.unit_price||0).toFixed(2)+'</div></div>'+
       '<strong style="white-space:nowrap;line-height:1.3">'+money(cents(i.subtotal??((Number(i.qty)||0)*(Number(i.unit_price)||0))))+'</strong></div>').join(''):
       '<p style="font-size:12px">No hay detalle del producto en este registro.</p>';
   };
@@ -71,9 +72,11 @@
               '<b style="font-size:15px;line-height:1.35">Compra fiada</b>'+
               '<div style="font-size:13px;line-height:1.35">Fecha: <strong>'+escape(creditDate(o.created_at))+'</strong></div>'+
               '<div style="font-size:13px;line-height:1.35">Hora: <strong>'+escape(creditTime(o.created_at))+'</strong></div>'+
-              '<div style="font-size:14px;line-height:1.35;margin-top:4px">Total de compra: <strong style="white-space:nowrap">'+money(o.totalCents)+'</strong></div>'+
             '</div>'+
+            '<div style="font-size:13px;font-weight:850;margin-top:12px;margin-bottom:3px">Productos fiados ('+(Array.isArray(o.items)?o.items.length:0)+')</div>'+
             orderLines(o)+
+            '<div style="display:flex;align-items:center;justify-content:space-between;gap:9px;flex-wrap:wrap;padding:11px 0 6px;border-bottom:1px solid #e5e7eb;font-weight:850;font-size:14px">'+
+              '<span>Total de la compra</span><strong style="white-space:nowrap">'+money(o.totalCents)+'</strong></div>'+
             (o.payments.length?'<div style="font-size:12px;margin-top:9px"><b>Abonos de esta compra</b>'+
             o.payments.map(p=>'<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0"><span>'+escape(fmt(p.created_at))+' · '+escape(p.method)+'</span><b>−'+money(cents(p.amount))+'</b></div>').join('')+'</div>':'<p style="font-size:12px;margin-bottom:0">Sin abonos</p>')+
             '<p style="font-size:12px;font-weight:850;margin:8px 0 0">Saldo de la compra: '+money(Math.max(0,o.totalCents-o.paidCents))+'</p></section>').join('')+
