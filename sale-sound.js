@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaSaleSoundV1)return;
-  window.__vareliaSaleSoundV1=true;
+  if(window.__vareliaSaleSoundV2)return;
+  window.__vareliaSaleSoundV2=true;
 
   let ctx=null;
   let lastSale=0;
@@ -13,61 +13,70 @@
     return ctx;
   }
 
-  function resume(){
+  async function resume(){
     const c=getCtx();
-    if(c&&c.state==='suspended')c.resume().catch(()=>{});
+    if(!c)return null;
+    if(c.state!=='running'){
+      try{await c.resume()}catch{}
+    }
+    return c.state==='running'?c:null;
   }
 
-  function tone(freq,start,duration,volume=0.08,type='sine'){
-    const c=getCtx();if(!c)return;
-    const o=c.createOscillator(),g=c.createGain();
-    o.type=type;o.frequency.setValueAtTime(freq,c.currentTime+start);
-    g.gain.setValueAtTime(0.0001,c.currentTime+start);
-    g.gain.exponentialRampToValueAtTime(volume,c.currentTime+start+0.008);
-    g.gain.exponentialRampToValueAtTime(0.0001,c.currentTime+start+duration);
-    o.connect(g);g.connect(c.destination);
-    o.start(c.currentTime+start);o.stop(c.currentTime+start+duration+0.03);
+  function tone(c,freq,start,duration,volume=0.11,type='sine'){
+    if(!c||c.state!=='running')return;
+    try{
+      const o=c.createOscillator(),g=c.createGain(),at=c.currentTime+start;
+      o.type=type;
+      o.frequency.setValueAtTime(freq,at);
+      g.gain.setValueAtTime(0.0001,at);
+      g.gain.exponentialRampToValueAtTime(volume,at+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001,at+duration);
+      o.connect(g);g.connect(c.destination);
+      o.start(at);o.stop(at+duration+0.03);
+    }catch(e){console.warn('Varelia audio tone',e)}
   }
 
-  function cashClick(){
-    const c=getCtx();if(!c)return;
-    const len=Math.max(1,Math.floor(c.sampleRate*0.045));
-    const buffer=c.createBuffer(1,len,c.sampleRate);
-    const data=buffer.getChannelData(0);
-    for(let i=0;i<len;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/len,5);
-    const src=c.createBufferSource(),g=c.createGain(),f=c.createBiquadFilter();
-    src.buffer=buffer;f.type='highpass';f.frequency.value=1500;g.gain.value=0.12;
-    src.connect(f);f.connect(g);g.connect(c.destination);src.start();
+  function cashClick(c){
+    if(!c||c.state!=='running')return;
+    try{
+      const len=Math.max(1,Math.floor(c.sampleRate*0.045));
+      const buffer=c.createBuffer(1,len,c.sampleRate);
+      const data=buffer.getChannelData(0);
+      for(let i=0;i<len;i++)data[i]=(Math.random()*2-1)*Math.pow(1-i/len,5);
+      const src=c.createBufferSource(),g=c.createGain(),f=c.createBiquadFilter();
+      src.buffer=buffer;f.type='highpass';f.frequency.value=1300;g.gain.value=0.16;
+      src.connect(f);f.connect(g);g.connect(c.destination);src.start();
+    }catch(e){console.warn('Varelia cash audio',e)}
   }
 
-  function sale(){
+  async function sale(){
     const now=Date.now();
     if(now-lastSale<1200)return;
     lastSale=now;
-    resume();
-    setTimeout(()=>{
-      cashClick();
-      tone(1046.5,0.02,0.18,0.075,'sine');
-      tone(1318.5,0.10,0.20,0.07,'sine');
-      tone(1568.0,0.18,0.34,0.085,'sine');
-      tone(2093.0,0.21,0.30,0.035,'triangle');
-    },0);
+    const c=await resume();
+    if(!c)return;
+    cashClick(c);
+    tone(c,1046.5,0.02,0.18,0.12,'sine');
+    tone(c,1318.5,0.10,0.20,0.11,'sine');
+    tone(c,1568.0,0.18,0.34,0.13,'sine');
+    tone(c,2093.0,0.21,0.30,0.055,'triangle');
   }
 
-  function click(){
-    resume();
-    tone(660,0,0.045,0.018,'sine');
+  async function click(){
+    const c=await resume();
+    if(c)tone(c,660,0,0.07,0.10,'sine');
   }
 
-  function add(){
-    resume();
-    tone(880,0,0.07,0.025,'sine');
+  async function add(){
+    const c=await resume();
+    if(c)tone(c,880,0,0.09,0.12,'sine');
   }
 
-  function error(){
-    resume();
-    tone(220,0,0.13,0.04,'square');
-    tone(180,0.12,0.16,0.035,'square');
+  async function error(){
+    const c=await resume();
+    if(!c)return;
+    tone(c,220,0,0.13,0.10,'square');
+    tone(c,180,0.13,0.16,0.085,'square');
   }
 
   window.vareliaSound=(kind)=>{
@@ -77,6 +86,10 @@
     return add();
   };
 
-  document.addEventListener('pointerdown',resume,{passive:true});
-  document.addEventListener('keydown',resume,{passive:true});
+  // Desbloquea el AudioContext dentro del gesto fisico del usuario.
+  const unlock=()=>{void resume()};
+  document.addEventListener('pointerdown',unlock,{capture:true,passive:true});
+  document.addEventListener('touchstart',unlock,{capture:true,passive:true});
+  document.addEventListener('keydown',unlock,{capture:true,passive:true});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)unlock()});
 })();

@@ -1245,7 +1245,7 @@ if ('serviceWorker' in navigator) {
  document.addEventListener('click',e=>{const b=e.target.closest('#businessDataMenu');if(!b)return;e.preventDefault();if(open())return;setTimeout(open,350)},true);
 })();
 </script>
-<script src="sale-sound.js?v=20261008-cobro-sonido-v2"></script>
+<script src="sale-sound.js?v=20261014-audio-unlock-v1"></script>
 <script src="staff-stock-guard.js?v=20260930-6"></script>
 <script src="central-stock-sync.js?v=20261013-fiado-atomico-unidades-v29"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
@@ -1287,15 +1287,17 @@ if ('serviceWorker' in navigator) {
 // Sonidos de interacción para botones y controles de cantidad
 (()=>{
   let ctx=null;
-  function beep(kind='click'){
+  async function beep(kind='click'){
     try{
-      ctx=ctx||new (window.AudioContext||window.webkitAudioContext)();
-      if(ctx.state==='suspended')ctx.resume();
+      ctx=ctx||(window.AudioContext||window.webkitAudioContext)&&new (window.AudioContext||window.webkitAudioContext)();
+      if(!ctx)return;
+      if(ctx.state!=='running'){try{await ctx.resume()}catch{}}
+      if(ctx.state!=='running')return;
       const o=ctx.createOscillator(),g=ctx.createGain(),now=ctx.currentTime;
-      const freq=kind==='plus'?720:kind==='minus'?420:560;
+      const freq=kind==='plus'?820:kind==='minus'?420:660;
       o.type='sine';o.frequency.setValueAtTime(freq,now);
-      g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.055,now+.008);g.gain.exponentialRampToValueAtTime(.0001,now+.075);
-      o.connect(g);g.connect(ctx.destination);o.start(now);o.stop(now+.08);
+      g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(.11,now+.01);g.gain.exponentialRampToValueAtTime(.0001,now+.09);
+      o.connect(g);g.connect(ctx.destination);o.start(now);o.stop(now+.10);
     }catch{}
   }
   window.vareliaButtonSound=beep;
