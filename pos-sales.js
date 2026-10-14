@@ -482,10 +482,12 @@
           }catch(e){console.warn('Preparar comprobante',e)}
 
           const show=()=>{
-            if(window.VareliaReceipt?.show){
-              window.VareliaReceipt.show(sale);
-              // Mostrar el comprobante en pantalla; imprimir solo si el usuario pulsa Imprimir.
-              return true;
+            if(typeof window.VareliaReceipt?.show==='function'){
+              try{
+                window.VareliaReceipt.show(sale);
+                const panel=document.getElementById('vreceiptOverlay');
+                if(panel?.classList.contains('show'))return true;
+              }catch(e){console.warn('El comprobante principal no pudo abrirse; usar respaldo',e)}
             }
             return false;
           };
