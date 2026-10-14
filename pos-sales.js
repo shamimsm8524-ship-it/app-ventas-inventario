@@ -429,14 +429,84 @@
           let box=document.getElementById('vareliaEmergencyReceipt');
           const escReceipt=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
           const moneyReceipt=v=>'S/ '+(Number(v)||0).toFixed(2);
-          const items=Array.isArray(sale?.items)?sale.items:[];
+          const readReceiptSettings=()=>{
+            let live=window.vareliaVideoSettings||{},scoped={},legacy={},biz={};
+            try{
+              const k=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_video_settings_v1'):'varelia_video_settings_v1__no_account';
+              scoped=JSON.parse(localStorage.getItem(k)||'{}')||{};
+            }catch{}
+            try{legacy=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')||{}}catch{}
+            try{
+              const id=String(localStorage.getItem('varelia_active_business_id')||'').trim();
+              if(id)biz=JSON.parse(localStorage.getItem('varelia_video_settings_v1__'+id.replace(/[^a-zA-Z0-9_-]/g,''))||'{}')||{};
+            }catch{}
+            const s={...legacy,...biz,...scoped,...live};
+            const logoCandidates=[window.vareliaCloudBusinessLogo,s.logo,live.logo,scoped.logo,biz.logo,legacy.logo].map(x=>String(x||''));
+            s.logo=logoCandidates.find(x=>x.startsWith('data:image/'))||'';
+            return s;
+          };
+          const sellerReceipt=()=>{
+            const p=window.vareliaCurrentUserProfile||{};
+            const email=document.getElementById('vareliaUserEmail')?.textContent?.trim()||'';
+            return String(sale?.sellerName||sale?.seller_name||p.full_name||p.name||window.vareliaSellerName||document.getElementById('vareliaUserName')?.textContent?.trim()||email.split('@')[0]||'').trim();
+          };
+          const unitReceipt=i=>String(i?.medicineSaleUnit||i?.sale_unit||i?.saleUnit||i?.unit||'unidad').trim().toLowerCase();
           if(!box){
             box=document.createElement('div');
             box.id='vareliaEmergencyReceipt';
             box.style.cssText='position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:14px;background:rgba(15,23,42,.68);overflow:auto';
             document.body.appendChild(box);
           }
-          box.innerHTML='<div style="width:min(96vw,520px);max-height:92vh;overflow:auto;background:#fff;color:#111827;border-radius:22px;padding:18px;box-shadow:0 20px 60px #0005"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 style="margin:0;font-size:21px">Comprobante de venta</h2><button type="button" data-er-close style="border:0;background:#f1f5f9;border-radius:10px;padding:9px 13px;font-size:20px">×</button></div><div style="font-family:monospace;border:1px dashed #94a3b8;border-radius:12px;margin-top:14px;padding:15px"><h3 style="text-align:center;margin:0 0 5px">'+escReceipt(window.vareliaBusinessDisplayName||document.querySelector('.brand h1')?.textContent||'Varelia')+'</h3><div style="text-align:center;color:#64748b;font-size:12px">COMPROBANTE INTERNO DE VENTA</div><hr style="border:0;border-top:1px dashed #94a3b8;margin:12px 0"><div style="display:flex;justify-content:space-between;gap:8px"><span>N.º</span><b>'+escReceipt(sale.receiptNumber||sale.id||'Venta')+'</b></div><div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px"><span>Fecha</span><span>'+escReceipt(new Date(sale.date||Date.now()).toLocaleString('es-PE'))+'</span></div><div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px"><span>Pago</span><span>'+escReceipt(sale.paymentMethod||'Efectivo')+'</span></div><hr style="border:0;border-top:1px dashed #94a3b8;margin:12px 0">'+items.map(i=>'<div style="display:flex;justify-content:space-between;gap:10px;margin:10px 0"><div style="min-width:0"><b>'+escReceipt(i.name||'Producto')+'</b><div style="font-size:12px;color:#475569;margin-top:3px">Cantidad: '+escReceipt(i.qty||1)+' · Precio: '+moneyReceipt(i.price)+'</div></div><b style="white-space:nowrap">'+moneyReceipt(Number(i.qty||0)*Number(i.price||0))+'</b></div>').join('')+'<hr style="border:0;border-top:1px dashed #94a3b8;margin:12px 0"><div style="display:flex;justify-content:space-between;gap:10px;font-size:20px;font-weight:900"><span>TOTAL</span><span>'+moneyReceipt(sale.total)+'</span></div>'+((Number(sale.amountReceived)||Number(sale.changeGiven))?'<div style="margin-top:10px;font-size:13px">Recibido: '+moneyReceipt(sale.amountReceived)+'<br>Vuelto: '+moneyReceipt(sale.changeGiven)+'</div>':'')+'<div style="text-align:center;color:#64748b;font-size:11px;margin-top:14px">Gracias por su compra. Comprobante interno; no reemplaza boleta o factura electrónica SUNAT.</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px"><button type="button" data-er-print style="min-height:48px;border:0;border-radius:12px;background:#2563eb;color:white;font-weight:900">🖨️ Imprimir</button><button type="button" data-er-pdf style="min-height:48px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#111827;font-weight:900">📄 Descargar PDF</button><button type="button" data-er-wa style="grid-column:1/-1;min-height:48px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#111827;font-weight:900">Enviar por WhatsApp</button><button type="button" data-er-close style="grid-column:1/-1;min-height:48px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#111827;font-weight:900">Cerrar</button></div></div>';
+          const renderReceiptPreview=()=>{
+            if(!document.getElementById('vareliaEmergencyReceipt'))return;
+            const settings=readReceiptSettings();
+            const businessName=settings.businessName||window.vareliaBusinessDisplayName||document.querySelector('.brand h1')?.textContent?.trim()||'Varelia';
+            const phone=settings.phone||settings.businessPhone||'';
+            const address=settings.address||'';
+            const logo=settings.logo;
+            const seller=sellerReceipt();
+            const items=Array.isArray(sale?.items)?sale.items:[];
+            const payMethod=String(sale?.paymentMethod||'Efectivo');
+            const received=Number(sale?.amountReceived)||Number(sale?.received)||0;
+            const change=Number(sale?.changeGiven)||Number(sale?.change)||Math.max(0,received-(Number(sale?.total)||0));
+            const paymentBreakdown=sale?.paymentBreakdown&&typeof sale.paymentBreakdown==='object'?sale.paymentBreakdown:{};
+            const payRows=Object.entries(paymentBreakdown).filter(([,v])=>Number(v)>0);
+            const logoHtml=logo?'<div style="text-align:center;margin:0 0 7px"><img src="'+escReceipt(logo)+'" alt="Logo del negocio" style="display:inline-block;max-width:130px;max-height:66px;object-fit:contain"></div>':'';
+            const contactHtml=phone?'<div style="text-align:center;color:#64748b;font-size:12px">Tel: '+escReceipt(phone)+'</div>':'';
+            const addressHtml=address?'<div style="text-align:center;color:#64748b;font-size:12px">'+escReceipt(address)+'</div>':'';
+            const sellerHtml=seller?'<div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px"><span>Vendedor</span><span style="text-align:right">'+escReceipt(seller)+'</span></div>':'';
+            const itemHtml=items.map(i=>{
+              const qty=Number(i?.qty)||1,price=Number(i?.price)||0,unit=unitReceipt(i);
+              const priceUnit=unit==='unidades'?'unidad':unit;
+              const title=String(i?.name||'Producto')+(i?.saleType&& !String(i?.name||'').toLowerCase().includes(String(i.saleType).toLowerCase())?' · '+String(i.saleType):'');
+              return '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin:10px 0"><div style="min-width:0;flex:1"><b>'+escReceipt(title)+'</b><div style="font-size:12px;color:#475569;margin-top:3px;line-height:1.45">Cantidad: '+escReceipt(qty)+' '+escReceipt(unit)+'<br>Precio por '+escReceipt(priceUnit)+': '+moneyReceipt(price)+'</div></div><b style="white-space:nowrap">'+moneyReceipt(qty*price)+'</b></div>';
+            }).join('');
+            const paymentRows=(payRows.length?payRows.map(([k,v])=>'<div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px"><span>'+escReceipt(k)+'</span><span>'+moneyReceipt(v)+'</span></div>').join(''):'<div style="display:flex;justify-content:space-between;gap:8px;margin-top:5px"><span>'+escReceipt(payMethod)+'</span><span>'+moneyReceipt(sale?.total)+'</span></div>');
+            box.innerHTML='<div style="width:min(96vw,520px);max-height:92vh;overflow:auto;background:#fff;color:#111827;border-radius:26px;padding:20px;box-shadow:0 20px 60px #0005"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><h2 style="margin:0;font-size:23px">Comprobante de venta</h2><button type="button" data-er-close style="border:0;background:#f1f5f9;border-radius:12px;padding:10px 14px;font-size:22px">×</button></div><div style="font-family:monospace;border:1px dashed #94a3b8;border-radius:16px;margin-top:16px;padding:18px 16px">'+logoHtml+'<h3 style="text-align:center;margin:0 0 5px;font-size:22px">'+escReceipt(businessName)+'</h3><div style="text-align:center;color:#64748b;font-size:12px">COMPROBANTE INTERNO DE VENTA</div>'+contactHtml+addressHtml+'<hr style="border:0;border-top:1px dashed #94a3b8;margin:14px 0"><div style="display:flex;justify-content:space-between;gap:8px"><span>N.º</span><b>'+escReceipt(sale?.receiptNumber||sale?.receipt_number||sale?.id||'Venta')+'</b></div><div style="display:flex;justify-content:space-between;gap:8px;margin-top:6px"><span>Fecha</span><span style="text-align:right">'+escReceipt(new Date(sale?.date||Date.now()).toLocaleString('es-PE'))+'</span></div><div style="display:flex;justify-content:space-between;gap:8px;margin-top:6px"><span>Pago</span><span>'+escReceipt(payMethod)+'</span></div>'+sellerHtml+'<hr style="border:0;border-top:1px dashed #94a3b8;margin:14px 0">'+itemHtml+'<hr style="border:0;border-top:1px dashed #94a3b8;margin:14px 0"><div style="display:flex;justify-content:space-between;gap:10px;font-size:22px;font-weight:900"><span>TOTAL</span><span>'+moneyReceipt(sale?.total)+'</span></div><hr style="border:0;border-top:1px dashed #94a3b8;margin:14px 0"><div style="font-size:13px;font-weight:700;margin-bottom:8px">DETALLE DE PAGO</div>'+paymentRows+'<div style="display:flex;justify-content:space-between;gap:8px;margin-top:6px"><span>'+(payMethod==='Efectivo'?'Efectivo recibido':'Monto recibido')+'</span><span>'+moneyReceipt(received)+'</span></div><div style="display:flex;justify-content:space-between;gap:8px;margin-top:6px"><span>Vuelto</span><span>'+moneyReceipt(change)+'</span></div><div style="text-align:center;color:#64748b;font-size:11px;margin-top:16px;line-height:1.4">'+escReceipt(settings.ticketMessage||'Gracias por su compra.')+'<br>Este ticket es un comprobante interno; no reemplaza boleta o factura electrónica SUNAT.</div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:12px"><button type="button" data-er-print style="min-height:48px;border:0;border-radius:12px;background:#2563eb;color:white;font-weight:900">🖨️ Imprimir</button><button type="button" data-er-pdf style="min-height:48px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#111827;font-weight:900">📄 Descargar PDF</button><button type="button" data-er-wa style="grid-column:1/-1;min-height:48px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#111827;font-weight:900">Enviar por WhatsApp</button><button type="button" data-er-close style="grid-column:1/-1;min-height:48px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#111827;font-weight:900">Cerrar</button></div></div>';
+          };
+          renderReceiptPreview();
+          // Recuperar los datos oficiales del negocio si la copia local no tiene logo o teléfono.
+          const hydrate=async()=>{
+            try{
+              const sb=window.vareliaSupabase;
+              if(!sb)return;
+              const {data:u,error:ue}=await sb.auth.getUser();
+              if(ue||!u?.user)return;
+              const {data:p,error:pe}=await sb.from('profiles').select('business_id,role').eq('id',u.user.id).maybeSingle();
+              if(pe||!p?.business_id)return;
+              const {data:row,error}=await sb.from('varelia_business_settings').select('logo_data,phone,address,ruc,ticket_message').eq('business_id',p.business_id).maybeSingle();
+              if(error||!row)return;
+              const live={...(window.vareliaVideoSettings||{})};
+              if(String(row.logo_data||'').startsWith('data:image/')){live.logo=row.logo_data;window.vareliaCloudBusinessLogo=row.logo_data}
+              if(row.phone)live.phone=row.phone;
+              if(row.address)live.address=row.address;
+              if(row.ruc)live.ruc=row.ruc;
+              if(row.ticket_message)live.ticketMessage=row.ticket_message;
+              window.vareliaVideoSettings=live;
+              renderReceiptPreview();
+            }catch(err){console.warn('Recuperar logo y datos para vista previa de venta',err)}
+          };
+          hydrate();
           box.onclick=e=>{
             const b=e.target.closest('button');if(!b)return;
             if(b.hasAttribute('data-er-close')){box.remove();return}
