@@ -153,7 +153,45 @@
         const items=Array.isArray(sale.items)?sale.items:[],bs=businessSettings(),subtotal=Number(sale.subtotal??((Number(sale.total)||0)+(Number(sale.discount)||0)));
         return `<div class="vreceiptPaper">${bs.logo?`<div class="center"><img src="${bs.logo}" alt="" style="max-width:74px;max-height:50px;object-fit:contain;margin-bottom:6px"></div>`:''}<h3>${esc(businessName())}</h3><div class="center muted">COMPROBANTE INTERNO DE VENTA</div>${bs.phone?`<div class="center muted">Tel: ${esc(bs.phone)}</div>`:''}${bs.address?`<div class="center muted">${esc(bs.address)}</div>`:''}${bs.ruc?`<div class="center muted">RUC/Doc: ${esc(bs.ruc)}</div>`:''}<div class="vreceiptSep"></div><div class="vreceiptLine"><span>N.º</span><b>${esc(ticketNo(sale))}</b></div><div class="vreceiptLine"><span>Fecha</span><span>${esc(dateText(sale))}</span></div><div class="vreceiptLine"><span>Pago</span><span>${esc(sale.paymentMethod||'Efectivo')}</span></div>${sale.customerName?`<div class="vreceiptLine"><span>Cliente</span><span>${esc(sale.customerName)}</span></div>`:''}${receiptSeller(sale)?`<div class="vreceiptLine"><span>Vendedor</span><span>${esc(receiptSeller(sale))}</span></div>`:''}<div class="vreceiptSep"></div>${items.map(i=>{const q=Number(i.qty||0),p=Number(i.price||0),weighted=isWeightItem(i);const unit=String(receiptUnit(i)||'unidades').toLowerCase(),priceUnit=unit==='unidades'?'unidad':unit;const meta=weighted?`Peso: ${weightLabel(q)}<br>Precio por kilo: ${money(p)}`:`Cantidad: ${q} ${unit}<br>Precio por ${priceUnit}: ${money(p)}`;return `<div class="vreceiptLine"><div><div class="vreceiptItemName">${esc(i.name||'Producto')}</div>${itemDescription(i)?`<div class="vreceiptItemMeta">${esc(itemDescription(i))}</div>`:''}<div class="vreceiptItemMeta">${meta}</div></div><b>${money(q*p)}</b></div>`}).join('')}${Number(sale.discount)>0?`<div class="vreceiptSep"></div><div class="vreceiptLine"><span>Subtotal</span><span>${money(subtotal)}</span></div><div class="vreceiptLine"><span>Descuento</span><span>-${money(sale.discount)}</span></div>`:''}<div class="vreceiptSep"></div><div class="vreceiptTotal"><span>TOTAL</span><span>${money(sale.total)}</span></div>${paymentDetailHTML(sale)}${sale.paymentMethod==='Fiado'?`<div class="center muted" style="margin-top:8px">Venta al crédito · Saldo: ${money(Math.max(0,(Number(sale.total)||0)-(Number(sale.paidAmount)||0)))}</div>`:''}${sale.notes?`<div class="center muted" style="margin-top:8px">Nota: ${esc(sale.notes)}</div>`:''}<div class="vreceiptDisclaimer">${esc(bs.ticketMessage||'Gracias por su compra.')}<br>Este ticket es un comprobante interno y no reemplaza una boleta o factura electrónica SUNAT.</div></div>`;
       }
-      function showReceipt(sale){currentReceipt=sale;window.__vareliaCurrentReceiptSale=sale;window.__vareliaDownloadCurrentReceipt=()=>{if(currentReceipt)savePDF(currentReceipt)};preview.innerHTML=receiptHTML(sale);if(!overlay.classList.contains('show')){try{history.pushState({vareliaReceipt:true},'',location.href);receiptBackState=true}catch{receiptBackState=false}}overlay.classList.add('show')}
+      let receiptSettingsHydration=null;
+      async function hydrateReceiptBusinessSettings(){
+        if(receiptSettingsHydration)return receiptSettingsHydration;
+        receiptSettingsHydration=(async()=>{
+          try{
+            const sb=window.vareliaSupabase;
+            if(!sb)return false;
+            const {data:userData,error:userError}=await sb.auth.getUser();
+            if(userError||!userData?.user)return false;
+            const {data:profile,error:profileError}=await sb.from('profiles').select('business_id,role').eq('id',userData.user.id).maybeSingle();
+            if(profileError||!profile?.business_id)return false;
+            const {data:row,error}=await sb.from('varelia_business_settings').select('logo_data,phone,address,ruc,ticket_message,business_slogan').eq('business_id',profile.business_id).maybeSingle();
+            if(error||!row)return false;
+            const cloudLogo=String(row.logo_data||'');
+            if(cloudLogo.startsWith('data:image/'))window.vareliaCloudBusinessLogo=cloudLogo;
+            const current=window.vareliaVideoSettings||{};
+            window.vareliaVideoSettings={...current,
+              ...(cloudLogo.startsWith('data:image/')?{logo:cloudLogo}:{}),
+              ...(row.phone?{phone:row.phone}:{}),
+              ...(row.address?{address:row.address}:{}),
+              ...(row.ruc?{ruc:row.ruc}:{}),
+              ...(row.ticket_message?{ticketMessage:row.ticket_message}:{})
+            };
+            return true;
+          }catch(e){console.warn('No se pudo recuperar la configuración del comprobante',e);return false}
+          finally{receiptSettingsHydration=null}
+        })();
+        return receiptSettingsHydration;
+      }
+      function showReceipt(sale){
+        currentReceipt=sale;window.__vareliaCurrentReceiptSale=sale;
+        window.__vareliaDownloadCurrentReceipt=()=>{if(currentReceipt)savePDF(currentReceipt)};
+        preview.innerHTML=receiptHTML(sale);
+        if(!overlay.classList.contains('show')){try{history.pushState({vareliaReceipt:true},'',location.href);receiptBackState=true}catch{receiptBackState=false}}
+        overlay.classList.add('show');
+        hydrateReceiptBusinessSettings().then(ok=>{
+          if(ok&&currentReceipt===sale&&overlay.classList.contains('show'))preview.innerHTML=receiptHTML(sale);
+        });
+      }
       function receiptText(sale){
         const bs=businessSettings(),items=(sale.items||[]).map(i=>`${i.qty} ${receiptUnit(i)||'unidades'} x ${i.name}${itemDescription(i)?' — '+itemDescription(i):''} — ${money(Number(i.qty||0)*Number(i.price||0))}`).join('\n');
         const subtotal=Number(sale.subtotal??((Number(sale.total)||0)+(Number(sale.discount)||0)));
