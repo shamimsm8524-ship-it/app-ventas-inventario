@@ -44,3 +44,29 @@
 
   window.vareliaOpenPremiumAdmin=openAdmin;
 })();
+
+// La APK limpia/desregistra Service Workers al arrancar, por lo que una corrección
+// inyectada solo desde sw.js puede no ejecutarse en esa primera carga. Cargar el
+// guard de variantes directamente desde un módulo que la app ya incluye siempre.
+(()=>{
+  if(window.__vareliaDirectVariantGuardLoaderV5)return;
+  window.__vareliaDirectVariantGuardLoaderV5=true;
+  let attempts=0;
+  function load(){
+    if(window.__vareliaVariantStockGuardV3)return;
+    attempts++;
+    if(!window.VareliaCharacteristics||typeof window.addToCart!=='function'||!document.getElementById('productForm')){
+      if(attempts<160)setTimeout(load,100);
+      return;
+    }
+    if(document.querySelector('script[data-varelia-variant-guard-direct]'))return;
+    const s=document.createElement('script');
+    s.src='/variant-stock-guard.js?v=20261015-direct-v5';
+    s.async=false;
+    s.dataset.vareliaVariantGuardDirect='1';
+    s.onerror=()=>{s.remove();if(attempts<160)setTimeout(load,300)};
+    document.head.appendChild(s);
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(load,0),{once:true});
+  else setTimeout(load,0);
+})();
