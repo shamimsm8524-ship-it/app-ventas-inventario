@@ -116,11 +116,13 @@
       };
       const receiptSeller=sale=>{
         const profile=window.vareliaCurrentUserProfile||{};
+        const role=String(profile.role||window.vareliaSellerRole||'').trim().toLowerCase();
         const domName=document.getElementById('vareliaUserName')?.textContent?.trim()||'';
         const email=document.getElementById('vareliaUserEmail')?.textContent?.trim()||'';
-        return String(sale?.sellerName||sale?.seller_name||profile.full_name||profile.name||window.vareliaSellerName||domName||email.split('@')[0]||'').trim();
+        const configuredSeller=role==='owner'?'':(profile.full_name||profile.name||window.vareliaSellerName||domName||email.split('@')[0]||'');
+        return String(sale?.sellerName||sale?.seller_name||configuredSeller||'').trim();
       };
-      const businessName=()=>businessSettings().businessName||document.getElementById('vareliaBusinessName')?.textContent?.trim()||'Varelia Store';
+      const businessName=()=>document.getElementById('vareliaBusinessName')?.textContent?.trim()||window.vareliaBusinessDisplayName||businessSettings().businessName||'Varelia Store';
       const itemDescription=i=>{const d=String(i?.description||i?.detail||i?.details||i?.specifications||i?.specification||'').trim();const raw=Array.isArray(i?.characteristics)?i.characteristics:[];const c=raw.map(x=>{if(typeof x==='string')return x.trim();if(x&&typeof x==='object')return [x.name,x.value??x.label].filter(Boolean).join(': ');return ''}).filter(Boolean).join(' · ');const variants=Array.isArray(i?.variants)?i.variants.map(x=>typeof x==='string'?x:[x?.name,x?.value??x?.label].filter(Boolean).join(': ')).filter(Boolean).join(' · '):'';return [d,c,variants].filter(Boolean).join(' · ')};
       const itemUnit=i=>String(i?.unit||i?.saleUnit||i?.unitType||i?.measureUnit||i?.quantityUnit||i?.presentation||'').trim().toLowerCase();
       // Para medicamentos prevalece la unidad elegida en la venta sobre la unidad base del inventario.
