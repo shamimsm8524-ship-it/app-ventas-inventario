@@ -476,13 +476,14 @@
         const committedDate=new Date().toISOString();
         const committedId=(typeof uid==='function'?uid():String(Date.now()));
         const sellerProfile=window.vareliaCurrentUserProfile||{};
-        const committedSellerName=sellerProfile.full_name||window.vareliaSellerName||
-          document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';
+        const sellerRole=String(sellerProfile.role||window.vareliaSellerRole||'').trim().toLowerCase();
+        const committedSellerName=sellerRole==='owner'?'':(sellerProfile.full_name||window.vareliaSellerName||
+          document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario');
         committedSale={
           id:committedId,
           sellerId:sellerProfile.id||window.vareliaSellerId||'',
           sellerName:committedSellerName,
-          sellerRole:sellerProfile.role||window.vareliaSellerRole||'',
+          sellerRole:sellerRole||'',
           receiptNumber:'V-'+committedDate.slice(0,10).replace(/-/g,'')+'-'+String(committedId).replace(/[^a-z0-9]/gi,'').slice(-6).toUpperCase(),
           cloudSaleId:String(data?.sale_id||''),
           date:committedDate,
