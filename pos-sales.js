@@ -448,9 +448,14 @@
           const sellerReceipt=()=>{
             const p=window.vareliaCurrentUserProfile||{};
             const role=String(p.role||window.vareliaSellerRole||'').trim().toLowerCase();
+            const domName=document.getElementById('vareliaUserName')?.textContent?.trim()||'';
             const email=document.getElementById('vareliaUserEmail')?.textContent?.trim()||'';
-            const defaultSeller=role==='owner'?'':(p.full_name||p.name||window.vareliaSellerName||document.getElementById('vareliaUserName')?.textContent?.trim()||email.split('@')[0]||'');
-            return String(sale?.sellerName||sale?.seller_name||defaultSeller||'').trim();
+            const ownerNames=[p.full_name,p.name,window.vareliaSellerName,domName,email.split('@')[0]]
+              .map(v=>String(v||'').trim().toLocaleLowerCase()).filter(Boolean);
+            const savedSeller=String(sale?.sellerName||sale?.seller_name||'').trim();
+            if(role==='owner'&&savedSeller&&ownerNames.includes(savedSeller.toLocaleLowerCase()))return '';
+            const defaultSeller=role==='owner'?'':(p.full_name||p.name||window.vareliaSellerName||domName||email.split('@')[0]||'');
+            return String(savedSeller||defaultSeller||'').trim();
           };
           const unitReceipt=i=>String(i?.medicineSaleUnit||i?.sale_unit||i?.saleUnit||i?.unit||'unidad').trim().toLowerCase();
           if(!box){
