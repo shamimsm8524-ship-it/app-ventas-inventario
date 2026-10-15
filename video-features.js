@@ -37,6 +37,24 @@
       if(pe||!p?.business_id)return null;
       return {sb,businessId:String(p.business_id),role:String(p.role||'')};
     }
+    // Sincroniza el nombre editado en Ajustes con el nombre oficial del negocio.
+    // Solo escribe desde la cuenta propietaria; no altera pagos ni impresión.
+    async function syncCloudBusinessName(){
+      const name=String(cfg.businessName||'').trim();
+      if(!name)return false;
+      const ctx=await cloudPaymentContext();
+      if(!ctx||ctx.role!=='owner')return false;
+      const {data,error}=await ctx.sb.from('businesses').update({name})
+        .eq('id',ctx.businessId).select('id,name').maybeSingle();
+      if(error)throw error;
+      if(!data?.id)throw new Error('No se pudo confirmar el nombre del negocio en la nube.');
+      try{
+        const {error:catalogError}=await ctx.sb.from('public_catalogs')
+          .update({business_name:name}).eq('business_id',ctx.businessId);
+        if(catalogError)console.warn('El nombre del catálogo no se pudo sincronizar',catalogError);
+      }catch(err){console.warn('El nombre del catálogo no se pudo sincronizar',err)}
+      return true;
+    }
     // Guardar el logo por separado evita alterar los métodos de pago o los QR.
     // Una copia compacta cabe en el ticket térmico y es más fiable en Android.
     function compressBusinessLogo(raw){
@@ -423,9 +441,14 @@
         sec.querySelector('#vsettingsSave').onclick=async()=>{
           cfg.businessName=sec.querySelector('#vsetBusiness').value.trim();cfg.businessSlogan=sec.querySelector('#vsetBusinessSlogan').value.trim();cfg.ruc=sec.querySelector('#vsetRuc').value.trim();cfg.phone=sec.querySelector('#vsetPhone').value.trim();cfg.address=sec.querySelector('#vsetAddress').value.trim();cfg.businessHours=sec.querySelector('#vsetBusinessHours').value.trim();cfg.publicMapUrl=sec.querySelector('#vsetMapUrl').value.trim();cfg.publicAllowDelivery=sec.querySelector('#vsetAllowDelivery').checked;cfg.publicAllowPickup=sec.querySelector('#vsetAllowPickup').checked;cfg.deliveryInDriveEnabled=sec.querySelector('#vsetInDriveEnabled').checked;cfg.deliveryInDriveCost=Math.max(0,Number(sec.querySelector('#vsetInDriveCost').value)||0);cfg.deliveryOlvaEnabled=sec.querySelector('#vsetOlvaEnabled').checked;cfg.deliveryOlvaCost=Math.max(0,Number(sec.querySelector('#vsetOlvaCost').value)||0);cfg.deliveryShalomEnabled=sec.querySelector('#vsetShalomEnabled').checked;cfg.deliveryShalomCost=Math.max(0,Number(sec.querySelector('#vsetShalomCost').value)||0);cfg.deliveryShalomPayAgency=sec.querySelector('#vsetShalomPayAgency').checked;cfg.publicPaymentMethods=[...sec.querySelectorAll('[data-public-payment]:checked')].map(x=>x.dataset.publicPayment).join(',');cfg.ticketMessage=sec.querySelector('#vsetMessage').value.trim()||DEFAULTS.ticketMessage;cfg.currency=sec.querySelector('#vsetCurrency').value;cfg.socialTikTok=sec.querySelector('#vsetTikTok').value.trim();cfg.socialFacebook=sec.querySelector('#vsetFacebook').value.trim();cfg.socialInstagram=sec.querySelector('#vsetInstagram').value.trim();cfg.socialWhatsApp=sec.querySelector('#vsetWhatsApp').value.trim();cfg.socialYouTube=sec.querySelector('#vsetYouTube').value.trim();cfg.socialOther=sec.querySelector('#vsetSocialOther').value.trim();cfg.yapeHolder=sec.querySelector('#vsetYapeHolder').value.trim();cfg.plinHolder=sec.querySelector('#vsetPlinHolder').value.trim();cfg.transferDetails=sec.querySelector('#vsetTransferDetails').value.trim();cfg.thermalWidth=sec.querySelector('#vsetThermal').value;cfg.autoBarcode=sec.querySelector('#vsetAutoBarcode').checked;cfg.enableVariants=sec.querySelector('#vsetVariants').checked;saveCfg();applyBusinessName();setupProductExtras(true);window.dispatchEvent(new CustomEvent('varelia:catalog-settings-changed'));try{window.vareliaPublicCatalogSync?.()}catch{}
           const btn=sec.querySelector('#vsettingsSave');if(btn)btn.disabled=true;
+          let businessNameSynced=false;
+          try{businessNameSynced=await syncCloudBusinessName()}catch(err){console.error('No se pudo sincronizar el nombre del negocio',err)}
           try{
             const synced=await pushCloudPaymentSettings();
-            window.vareliaToast?.(synced?'Configuración y QR guardados.':'Configuración guardada en este dispositivo.','ok');
+            const notice=businessNameSynced
+              ?(synced?'Nombre del negocio, configuración y QR guardados.':'Nombre del negocio sincronizado; la configuración restante quedó guardada.')
+              :(synced?'Configuración y QR guardados. No se pudo confirmar la sincronización del nombre del negocio.':'Configuración guardada localmente; no se pudo confirmar la sincronización en la nube.');
+            window.vareliaToast?.(notice,businessNameSynced&&synced?'ok':'warn');
           }catch(err){
             console.error('Varelia save payment settings',err);
             window.vareliaToast?.('Se guardó localmente, pero no se pudo guardar el QR en la nube.','warn');
@@ -459,8 +482,12 @@
     }
 
     function applyBusinessName(){
-      cfg=loadSettings();if(!cfg.businessName)return;
-      document.querySelectorAll('#vareliaBusinessName,#dashBusinessName').forEach(el=>el.textContent=cfg.businessName);
+      cfg=loadSettings();const name=String(cfg.businessName||'').trim();if(!name)return;
+      document.querySelectorAll('#vareliaBusinessName,#dashBusinessName').forEach(el=>el.textContent=name);
+      const header=document.querySelector('.brand h1');if(header)header.textContent=name;
+      try{localStorage.setItem('varelia_business_display_name_v1',name)}catch{}
+      window.vareliaBusinessDisplayName=name;
+      window.dispatchEvent(new CustomEvent('varelia:business-name-changed',{detail:{name}}));
     }
 
     function setupSaleExtras(){
