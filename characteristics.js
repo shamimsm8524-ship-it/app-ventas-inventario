@@ -1,7 +1,7 @@
 (()=>{
 if(window.__vareliaCharacteristics)return;window.__vareliaCharacteristics=true;
 const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn();
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot',"'":'&#39;'}[c]));
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defs=['Talla','Color','Material','Calidad','Tamaño','Modelo','Grosor','Piezas','Tono','Acabado','Presentación','Marca','Otra'];
 const normalize=a=>Array.isArray(a)?a.filter(x=>x&&x.name&&Array.isArray(x.values)&&x.values.length).slice(0,8).map(x=>({name:String(x.name).slice(0,40),values:x.values.filter(v=>v&&String(v.label||v).trim()).slice(0,40).map(v=>typeof v==='string'?{label:v}:{label:String(v.label),color:String(v.color||'')})})):[];
 
