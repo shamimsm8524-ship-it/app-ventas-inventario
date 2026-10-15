@@ -1,7 +1,6 @@
 name: Varelia 1.0.51 APK
 on:
-  push:
-    branches: [main]
+  # Solo compilar una APK cuando se solicite manualmente.
   workflow_dispatch:
 
 jobs:
