@@ -119,8 +119,13 @@
         const role=String(profile.role||window.vareliaSellerRole||'').trim().toLowerCase();
         const domName=document.getElementById('vareliaUserName')?.textContent?.trim()||'';
         const email=document.getElementById('vareliaUserEmail')?.textContent?.trim()||'';
+        const ownerNames=[profile.full_name,profile.name,window.vareliaSellerName,domName,email.split('@')[0]]
+          .map(v=>String(v||'').trim().toLocaleLowerCase()).filter(Boolean);
+        const savedSeller=String(sale?.sellerName||sale?.seller_name||'').trim();
+        // No mostrar como cajero el nombre del administrador guardado en ventas anteriores.
+        if(role==='owner'&&savedSeller&&ownerNames.includes(savedSeller.toLocaleLowerCase()))return '';
         const configuredSeller=role==='owner'?'':(profile.full_name||profile.name||window.vareliaSellerName||domName||email.split('@')[0]||'');
-        return String(sale?.sellerName||sale?.seller_name||configuredSeller||'').trim();
+        return String(savedSeller||configuredSeller||'').trim();
       };
       const businessName=()=>document.getElementById('vareliaBusinessName')?.textContent?.trim()||window.vareliaBusinessDisplayName||businessSettings().businessName||'Varelia Store';
       const itemDescription=i=>{const d=String(i?.description||i?.detail||i?.details||i?.specifications||i?.specification||'').trim();const raw=Array.isArray(i?.characteristics)?i.characteristics:[];const c=raw.map(x=>{if(typeof x==='string')return x.trim();if(x&&typeof x==='object')return [x.name,x.value??x.label].filter(Boolean).join(': ');return ''}).filter(Boolean).join(' · ');const variants=Array.isArray(i?.variants)?i.variants.map(x=>typeof x==='string'?x:[x?.name,x?.value??x?.label].filter(Boolean).join(': ')).filter(Boolean).join(' · '):'';return [d,c,variants].filter(Boolean).join(' · ')};
