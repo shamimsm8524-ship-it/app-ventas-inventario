@@ -29,6 +29,7 @@
 
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     let cloudPaymentSyncPromise=null;
+    let businessNameStartupSyncStarted=false;
     async function cloudPaymentContext(){
       for(let i=0;i<80&&!window.vareliaSupabase;i++)await sleep(100);
       const sb=window.vareliaSupabase;if(!sb)return null;
@@ -545,6 +546,17 @@
     function init(){
       window.vareliaCloudBusinessSettingsReady=pullCloudPaymentSettings();
       applyBusinessName();
+      // Sincroniza el nombre ya guardado en Ajustes al abrir, sin pedir que se escriba de nuevo.
+      // syncCloudBusinessName solo actualiza la nube si el usuario es el administrador/propietario.
+      if(!businessNameStartupSyncStarted){
+        businessNameStartupSyncStarted=true;
+        setTimeout(async()=>{
+          try{
+            const synced=await syncCloudBusinessName();
+            if(synced)applyBusinessName();
+          }catch(err){console.warn('No se pudo sincronizar el nombre guardado del negocio al iniciar',err)}
+        },900);
+      }
       setupHistory();
       setupSettings();
       setupSaleExtras();
