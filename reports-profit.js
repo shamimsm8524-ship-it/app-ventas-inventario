@@ -290,7 +290,7 @@
       const findCard=(label,otherLabel)=>{
         for(let e=label.parentElement,depth=0;e&&e!==panel&&depth<6;e=e.parentElement,depth++){
           if(e.contains(otherLabel))return null;
-          if(/S\/\s*[\d.,]+/.test(e.textContent||''))return e;
+          if(/S\/\s*-?\s*[\d.,]+/.test(e.textContent||''))return e;
         }
         return null;
       };
@@ -299,7 +299,7 @@
       const row=revenueCard.parentElement;
       if(row.contains(heading))continue;
       const numberLeaf=card=>[...card.querySelectorAll('strong,b,span,div')].find(el=>
-        el.children.length===0&&/S\/\s*[\d.,]+/.test(el.textContent||''));
+        el.children.length===0&&/S\/\s*-?\s*[\d.,]+/.test(el.textContent||''));
       const revValue=numberLeaf(revenueCard),gainValue=numberLeaf(gainCard);
       if(!revValue||!gainValue)continue;
       const selectedHistory=reportHistoryFilter();
