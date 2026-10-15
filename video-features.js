@@ -246,7 +246,17 @@
       m.querySelectorAll('[data-history-extra-close]').forEach(b=>b.onclick=()=>m.remove());
     }
     function openExisting(kind){
-      if(kind==='reports'||kind==='profit'){openHistoryExtra(kind);return}
+      if(kind==='reports'){openHistoryExtra(kind);return}
+      if(kind==='profit'){
+        // El acceso Ganancias desde Historial debe abrir la pantalla completa,
+        // no el resumen emergente estimado que puede confundir costos antiguos.
+        if(typeof window.vareliaShowExtraView==='function'){window.vareliaShowExtraView('profit');return}
+        const item=document.querySelector('.premiumGainItem');
+        if(item){item.click();return}
+        if(showView('profit'))return;
+        window.vareliaToast?.('La pantalla de Ganancias todavía está cargando.','warn');
+        return;
+      }
       if(kind==='help'){
         try{window.vareliaShowExtraView?.(kind)}catch{}
         setTimeout(()=>showView(kind),20);return;
