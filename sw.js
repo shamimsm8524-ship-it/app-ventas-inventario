@@ -16,7 +16,7 @@ self.addEventListener('fetch', (e) => {
       try{
         const base=await fetch(e.request,{cache:'no-store'});
         if(!base.ok)return base;
-        const guard=await fetch('/variant-stock-guard.js?v=20261015-v3',{cache:'no-store'});
+        const guard=await fetch('/variant-stock-guard.js?v=20261015-v4',{cache:'no-store'});
         if(!guard.ok)return base;
         const body=(await base.text())+'\n;\n'+(await guard.text());
         return new Response(body,{
