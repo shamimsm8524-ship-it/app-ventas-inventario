@@ -447,8 +447,10 @@
           };
           const sellerReceipt=()=>{
             const p=window.vareliaCurrentUserProfile||{};
+            const role=String(p.role||window.vareliaSellerRole||'').trim().toLowerCase();
             const email=document.getElementById('vareliaUserEmail')?.textContent?.trim()||'';
-            return String(sale?.sellerName||sale?.seller_name||p.full_name||p.name||window.vareliaSellerName||document.getElementById('vareliaUserName')?.textContent?.trim()||email.split('@')[0]||'').trim();
+            const defaultSeller=role==='owner'?'':(p.full_name||p.name||window.vareliaSellerName||document.getElementById('vareliaUserName')?.textContent?.trim()||email.split('@')[0]||'');
+            return String(sale?.sellerName||sale?.seller_name||defaultSeller||'').trim();
           };
           const unitReceipt=i=>String(i?.medicineSaleUnit||i?.sale_unit||i?.saleUnit||i?.unit||'unidad').trim().toLowerCase();
           if(!box){
@@ -584,7 +586,9 @@
               sale.receiptNumber='V-'+d+'-'+id;
             }
             const vp=window.vareliaCurrentUserProfile||{};
-            sale.sellerName=sale.sellerName||vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario';
+            const sellerRole=String(vp.role||window.vareliaSellerRole||'').trim().toLowerCase();
+            const activeSeller=sellerRole==='owner'?'':(vp.full_name||window.vareliaSellerName||document.getElementById('vareliaUserEmail')?.textContent?.trim()?.split('@')[0]||'Usuario');
+            if(!sale.sellerName&&!sale.seller_name&&activeSeller)sale.sellerName=activeSeller;
             try{if(typeof save==='function')save()}catch{}
             // Refrescar los totales una vez guardado el MEDIO DE PAGO real.
             try{window.dispatchEvent(new CustomEvent('varelia:sale-recorded',{detail:{saleId:String(sale.cloudSaleId||sale.id||''),source:'receipt-complete'}}))}catch{}
