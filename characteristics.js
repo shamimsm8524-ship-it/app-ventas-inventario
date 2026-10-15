@@ -27,28 +27,13 @@ window.VareliaCharacteristics={select:selectProduct,normalize};
 ready(()=>{
  const form=document.getElementById('productForm'),pid=document.getElementById('productId');if(!form)return;
  const anchor=document.getElementById('reorderLevel')?.closest('label');const box=document.createElement('div');box.className='vcharBox';box.id='vcharEditor';box.innerHTML='<details class="vcharDetails" id="vcharDetails"><summary class="vcharSummary"><div><b>🏷️ Opciones del producto</b><div class="notice">Talla, color, modelo, material u otra característica.</div></div><span class="vcharChevron">⌄</span></summary><div class="vcharBody"><div class="vcharChooser"><label><span>Escoge qué quieres configurar</span><select id="vcharPresetSelect"><option value="">Seleccionar opción…</option><option value="size-color">Talla y color</option><option value="size">Solo talla</option><option value="color">Solo color</option><option value="Modelo">Modelo</option><option value="Material">Material</option><option value="Marca">Marca</option><option value="Tamaño">Tamaño</option><option value="Presentación">Presentación</option><option value="Otra">Otra característica</option></select></label><button type="button" class="btn secondary vcharAdd" id="vcharApplyPreset">Agregar</button></div><div id="vcharRows"></div><div class="vcomboBox"><div class="vcharHead"><b>Stock por cada combinación</b><button type="button" class="btn secondary vcharAdd" id="vcharGenerate">Actualizar combinaciones</button></div><div class="notice">Indica cuántas unidades o Kg tienes de cada combinación.</div><div class="vcomboGrid" id="vcomboGrid"></div></div></div></details>';anchor?.parentNode.insertBefore(box,anchor);
- const rows=box.querySelector('#vcharRows'),comboGrid=box.querySelector('#vcomboGrid'); let loadedCombos=[];
+ const rows=box.querySelector('#vcharRows'),comboGrid=box.querySelector('#vcomboGrid');let loadedCombos=[];
+ const productList=()=>{try{return Array.isArray(window.products)?window.products:(typeof products!=='undefined'&&Array.isArray(products)?products:[])}catch{return[]}};
  const currentChars=()=>[...rows.children].map(r=>{const sel=r.querySelector('[data-char-name]'),name=sel.value==='Otra'?r.querySelector('[data-char-custom]').value.trim():sel.value;const colorish=name==='Color'||name==='Tono';const values=[...r.querySelectorAll('.vcharValue')].map(v=>({label:v.querySelector('[data-val-label]').value.trim(),color:colorish?v.querySelector('[data-val-color]').value:''})).filter(v=>v.label);return{name,values}}).filter(x=>x.name&&x.values.length);
- function comboKey(vals){return vals.join('||')}
- function generateCombos(){const cs=currentChars(),old=new Map(loadedCombos.map(c=>[comboKey(c.values||[]),c]));comboGrid.querySelectorAll('[data-combo]').forEach(i=>{const k=String(i.dataset.combo||'');if(k)old.set(k,{values:k.split('||'),stock:Math.max(0,Number(i.value)||0)})});if(!cs.length){comboGrid.innerHTML='';return}let sets=[[]];cs.forEach(c=>{sets=sets.flatMap(a=>c.values.map(v=>a.concat(v.label)))});comboGrid.innerHTML=sets.map(vals=>{const o=old.get(comboKey(vals));return '<label class="vcomboLine"><span>'+esc(vals.join(' · '))+'</span><input type="number" min="0" step="0.001" data-combo="'+esc(comboKey(vals))+'" value="'+Number(o?.stock||0)+'" placeholder="Stock"></label>'}).join('');loadedCombos=[...comboGrid.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(i.value)||0)}))}
+ const comboKey=vals=>vals.join('||');
+ function generateCombos(){const cs=currentChars(),old=new Map(loadedCombos.map(c=>[comboKey(c.values||[]),c]));comboGrid.querySelectorAll('[data-combo]').forEach(i=>{const k=String(i.dataset.combo||'');if(k)old.set(k,{values:k.split('||'),stock:Math.max(0,Number(String(i.value||0).replace(',','.'))||0)})});if(!cs.length){comboGrid.innerHTML='';return}let sets=[[]];cs.forEach(c=>{sets=sets.flatMap(a=>c.values.map(v=>a.concat(v.label)))});comboGrid.innerHTML=sets.map(vals=>{const o=old.get(comboKey(vals));return '<label class="vcomboLine"><span>'+esc(vals.join(' · '))+'</span><input type="number" min="0" step="0.001" data-combo="'+esc(comboKey(vals))+'" value="'+Number(o?.stock||0)+'" placeholder="Stock"></label>'}).join('');loadedCombos=[...comboGrid.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(String(i.value||0).replace(',','.'))||0)}))}
  box.querySelector('#vcharGenerate').onclick=generateCombos;
- let persistTimer=null;
- const persistEditor=()=>{
-   const id=String(pid?.value||'').trim();if(!id)return;
-   let list=[];try{list=window.products||products||[]}catch{return}
-   const p=list.find(x=>String(x.id||'').trim()===id);if(!p)return;
-   const characteristics=currentChars();
-   const variantCombinations=[...comboGrid.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(i.value)||0)}));
-   p.characteristics=characteristics;p.variantCombinations=variantCombinations;
-   if(variantCombinations.length)p.stock=variantCombinations.reduce((a,c)=>a+Number(c.stock||0),0);
-   try{if(typeof save==='function')save()}catch{}
-   Promise.resolve(window.syncProductToCloud?.(p)).then(()=>window.vareliaPublicCatalogSync?.()).catch(console.error);
- };
- const schedulePersist=()=>{clearTimeout(persistTimer);persistTimer=setTimeout(persistEditor,450)};
- box.addEventListener('input',schedulePersist);
- box.addEventListener('change',schedulePersist);
- box.addEventListener('click',e=>{if(e.target.closest('[data-c],[data-add-value],[data-remove-char],#vcharApplyPreset,#vcharGenerate'))setTimeout(schedulePersist,80)});
- window.VareliaCharacteristics.readEditor=()=>{const characteristics=currentChars();const existing=[...comboGrid.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(i.value)||0)}));loadedCombos=existing;generateCombos();const variantCombinations=[...comboGrid.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(i.value)||0)}));loadedCombos=variantCombinations;return{characteristics,variantCombinations}};
+ window.VareliaCharacteristics.readEditor=()=>{const characteristics=currentChars();const existing=[...comboGrid.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(String(i.value||0).replace(',','.'))||0)}));loadedCombos=existing;generateCombos();const variantCombinations=[...comboGrid.querySelectorAll('[data-combo]')].map(i=>({values:String(i.dataset.combo||'').split('||'),stock:Math.max(0,Number(String(i.value||0).replace(',','.'))||0)}));loadedCombos=variantCombinations;return{characteristics,variantCombinations}};
  function addRow(data={name:'Talla',values:[]}){
    if(rows.children.length>=8)return window.vareliaToast?.('Puedes usar hasta 8 características.','warn');
    const r=document.createElement('div');r.className='vcharRow';r.innerHTML='<div class="vcharName"><select data-char-name>'+defs.map(x=>'<option>'+x+'</option>').join('')+'</select><input data-char-custom placeholder="Nombre personalizado" style="display:none"></div><div class="vcharValues"></div><div style="display:flex;gap:7px"><button type="button" class="btn secondary vcharAdd" data-add-value>+ Valor</button><button type="button" class="btn danger vcharAdd" data-remove-char>Quitar</button></div>';rows.appendChild(r);
@@ -58,8 +43,25 @@ ready(()=>{
  const addPreset=names=>{rows.innerHTML='';comboGrid.innerHTML='';loadedCombos=[];names.forEach(name=>addRow({name,values:[]}));};
  const presetSelect=box.querySelector('#vcharPresetSelect');
  box.querySelector('#vcharApplyPreset').onclick=()=>{const choice=String(presetSelect.value||'');if(!choice)return window.vareliaToast?.('Escoge una opción primero.','warn');if(choice==='size-color')addPreset(['Talla','Color']);else if(choice==='size')addPreset(['Talla']);else if(choice==='color')addPreset(['Color']);else addRow({name:choice,values:[]});presetSelect.value='';box.querySelector('#vcharDetails').open=true};
- function fill(){rows.innerHTML='';comboGrid.innerHTML='';const p=(window.products||products||[]).find(x=>String(x.id)===String(pid?.value||''));loadedCombos=Array.isArray(p?.variantCombinations)?p.variantCombinations:[];normalize(p?.characteristics).forEach(addRow);const legacy=document.getElementById('vProductVariants');if(legacy)legacy.value=p?.variants||'';presetSelect.value='';const details=box.querySelector('#vcharDetails');if(details)details.open=false;setTimeout(generateCombos,0)}
- document.addEventListener('click',e=>{if(e.target.closest('#newProduct,#inventoryNewProduct,[data-edit]'))setTimeout(fill,0)},true);
 
+ const medicineCat=v=>/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(v||'').trim());
+ const obviousNonMedicine=p=>{const text=(String(p?.name||'')+' '+String(p?.category||'')).toLowerCase();const apparel=/zapat|zapato|calzado|tenis|sandalia|ropa|polo|camis|blusa|pantal|short|vestido|falda|casaca|chompa|gorra|mochila|bolso/.test(text);const chars=normalize(p?.characteristics);const hasFashionChar=chars.some(c=>/^(talla|color)$/i.test(c.name));return apparel||hasFashionChar};
+ function repairFalseMedicineFlags(){const list=productList();let changed=false;const repaired=[];for(const p of list){if(!p?.medicine||medicineCat(p.category)||!obviousNonMedicine(p))continue;p.medicine=false;changed=true;repaired.push(p)}if(!changed)return false;try{if(typeof save==='function')save()}catch{}repaired.forEach(p=>Promise.resolve(window.syncProductToCloud?.(p)).catch(()=>{}));setTimeout(()=>{try{window.vareliaPublicCatalogSync?.()}catch{}},100);return true}
+ function initMedicineState(){const toggle=document.getElementById('vMedicineToggle'),cat=document.getElementById('productCategory');if(!toggle)return;toggle.dataset.vmedicineTouched='0';const id=String(pid?.value||''),p=productList().find(x=>String(x.id)===id);if(p&&p.medicine&&!medicineCat(p.category)&&obviousNonMedicine(p)){p.medicine=false;try{if(typeof save==='function')save()}catch{}}if(!id&&!medicineCat(cat?.value))toggle.checked=false;else if(p)toggle.checked=!!p.medicine;toggle.dispatchEvent(new Event('change',{bubbles:true}))}
+ document.addEventListener('change',e=>{if(e.target?.id==='vMedicineToggle'&&e.isTrusted)e.target.dataset.vmedicineTouched='1'},true);
+
+ form.addEventListener('submit',e=>{
+   const rowCount=rows.children.length,validCount=currentChars().length;
+   if(rowCount&&validCount!==rowCount){e.preventDefault();e.stopImmediatePropagation();box.querySelector('#vcharDetails').open=true;window.vareliaToast?.('Completa cada opción con al menos un valor antes de guardar.','warn');return}
+   const toggle=document.getElementById('vMedicineToggle'),cat=document.getElementById('productCategory');if(toggle&&!medicineCat(cat?.value)){
+     const p=productList().find(x=>String(x.id)===String(pid?.value||''));
+     const manuallyChanged=toggle.dataset.vmedicineTouched==='1';
+     if(!manuallyChanged&&!p?.medicine)toggle.checked=false;
+   }
+ },true);
+
+ function fill(){rows.innerHTML='';comboGrid.innerHTML='';const p=productList().find(x=>String(x.id)===String(pid?.value||''));loadedCombos=Array.isArray(p?.variantCombinations)?p.variantCombinations:[];const chars=normalize(p?.characteristics);chars.forEach(addRow);const legacy=document.getElementById('vProductVariants');if(legacy)legacy.value=p?.variants||'';presetSelect.value='';const details=box.querySelector('#vcharDetails');if(details)details.open=chars.length>0;setTimeout(generateCombos,0)}
+ document.addEventListener('click',e=>{if(e.target.closest('#newProduct,#inventoryNewProduct,[data-edit]'))setTimeout(()=>{fill();initMedicineState()},80)},true);
+ setTimeout(repairFalseMedicineFlags,100);setTimeout(repairFalseMedicineFlags,1200);
 });
 })();
