@@ -122,3 +122,64 @@
   document.addEventListener('input',e=>{if(e.target?.id==='vpayReceived')schedule()},true);
   document.addEventListener('change',e=>{if(e.target?.id==='vpayReceived')schedule()},true);
 })();
+
+// Mantener el modal de Reportes sincronizado mientras está abierto.
+// reports-profit.js observa cambios de hijos para recalcular, pero su comprobación
+// antigua del modal dependía de un id que no siempre existe en la vista móvil.
+(()=>{
+  if(window.__vareliaReportLiveRefreshV1)return;
+  window.__vareliaReportLiveRefreshV1=true;
+
+  const salesList=()=>{
+    try{
+      if(Array.isArray(window.sales))return window.sales;
+      if(typeof sales!=='undefined'&&Array.isArray(sales))return sales;
+    }catch{}
+    return [];
+  };
+
+  const reportPanel=()=>{
+    const titles=[...document.querySelectorAll('h1,h2,h3,h4')].filter(el=>/^(\s*📊\s*)?Reportes\s*$/i.test(String(el.textContent||'').trim()));
+    for(const title of titles){
+      for(let panel=title.parentElement,depth=0;panel&&panel!==document.body&&depth<9;panel=panel.parentElement,depth++){
+        const text=String(panel.textContent||'');
+        if(!text.includes('Productos más vendidos'))continue;
+        const close=[...panel.querySelectorAll('button')].find(b=>String(b.textContent||'').trim()==='Cerrar');
+        if(close)return panel;
+      }
+    }
+    return null;
+  };
+
+  const signature=()=>{
+    const list=salesList();
+    const last=list[list.length-1]||{};
+    let total=0;
+    for(const s of list)total+=Number(s?.total)||0;
+    let breakdown='';
+    try{breakdown=JSON.stringify(last?.paymentBreakdown||last?.payment_breakdown||{})}catch{}
+    return [list.length,total.toFixed(3),last?.id||last?.sale_id||'',last?.date||last?.created_at||'',last?.paymentMethod||last?.payment_method||'',breakdown,last?.status||last?.state||''].join('|');
+  };
+
+  let lastSignature='',lastPanel=null;
+  const poke=()=>{
+    const panel=reportPanel();
+    if(!panel){lastPanel=null;lastSignature=signature();return}
+    const sig=signature();
+    if(panel===lastPanel&&sig===lastSignature)return;
+    lastPanel=panel;lastSignature=sig;
+    const marker=document.createElement('span');
+    marker.hidden=true;
+    marker.setAttribute('aria-hidden','true');
+    marker.dataset.vareliaReportRefresh='1';
+    panel.appendChild(marker);
+    queueMicrotask(()=>marker.remove());
+  };
+
+  const burst=()=>[0,120,450,900,1500].forEach(ms=>setTimeout(()=>{lastSignature='';poke()},ms));
+  window.addEventListener('varelia:sale-recorded',burst);
+  window.addEventListener('focus',()=>{lastSignature='';poke()});
+  window.addEventListener('pageshow',()=>{lastSignature='';poke()});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){lastSignature='';poke()}});
+  setInterval(()=>{if(document.visibilityState==='visible')poke()},350);
+})();
