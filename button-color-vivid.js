@@ -51,7 +51,6 @@
     if(!valid(hex))return null;
     const rgb=hexToRgb(hex);
     const hsl=rgbToHsl(rgb.r,rgb.g,rgb.b);
-    // Mantener el tono elegido, pero usar una versión fuerte: muy saturada y nunca pálida.
     hsl.s=Math.max(hsl.s,96);
     hsl.l=clamp(hsl.l,30,42);
     const out=hslToRgb(hsl.h,hsl.s,hsl.l);
@@ -69,17 +68,13 @@
   function selected(){
     let c=String(document.getElementById('customColor')?.value||'').trim();
     if(c&&!c.startsWith('#'))c='#'+c;
-    if(!valid(c)){
-      try{c=localStorage.getItem('varelia_action_button_color_v3')||''}catch{}
-    }
+    if(!valid(c)){try{c=localStorage.getItem('varelia_action_button_color_v3')||''}catch{}}
     return valid(c)?c.toLowerCase():null;
   }
 
   function apply(){
-    const raw=selected();
-    if(!raw)return;
-    const c=vivid(raw);if(!c)return;
-    const c2=darker(c);
+    const raw=selected();if(!raw)return;
+    const c=vivid(raw);if(!c)return;const c2=darker(c);
     const root=document.documentElement;
     root.style.setProperty('--varelia-action',c,'important');
     root.style.setProperty('--varelia-action-2',c2,'important');
@@ -101,52 +96,28 @@
     const b=document.getElementById('colorBigPreview');if(b)b.style.background=c;
   }
 
-  function delayedApply(){
-    apply();
-    setTimeout(apply,20);
-    setTimeout(apply,80);
-  }
-
+  function delayedApply(){apply();setTimeout(apply,20);setTimeout(apply,80)}
   function wire(){
-    const input=document.getElementById('customColor');
-    const wheel=document.getElementById('colorWheel');
-    const slider=document.getElementById('lightSlider');
-    if(input&&!input.dataset.vareliaVivid2){
-      input.dataset.vareliaVivid2='1';
-      input.addEventListener('input',delayedApply);
-      input.addEventListener('change',delayedApply);
-    }
-    if(wheel&&!wheel.dataset.vareliaVivid2){
-      wheel.dataset.vareliaVivid2='1';
-      wheel.addEventListener('pointerdown',delayedApply);
-      wheel.addEventListener('pointermove',delayedApply);
-      wheel.addEventListener('pointerup',delayedApply);
-      wheel.addEventListener('pointercancel',delayedApply);
-    }
-    if(slider&&!slider.dataset.vareliaVivid2){
-      slider.dataset.vareliaVivid2='1';
-      slider.addEventListener('input',delayedApply);
-      slider.addEventListener('change',delayedApply);
-    }
+    const input=document.getElementById('customColor'),wheel=document.getElementById('colorWheel'),slider=document.getElementById('lightSlider');
+    if(input&&!input.dataset.vareliaVivid2){input.dataset.vareliaVivid2='1';input.addEventListener('input',delayedApply);input.addEventListener('change',delayedApply)}
+    if(wheel&&!wheel.dataset.vareliaVivid2){wheel.dataset.vareliaVivid2='1';wheel.addEventListener('pointerdown',delayedApply);wheel.addEventListener('pointermove',delayedApply);wheel.addEventListener('pointerup',delayedApply);wheel.addEventListener('pointercancel',delayedApply)}
+    if(slider&&!slider.dataset.vareliaVivid2){slider.dataset.vareliaVivid2='1';slider.addEventListener('input',delayedApply);slider.addEventListener('change',delayedApply)}
     apply();
   }
 
   const boot=()=>{wire();delayedApply()};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
-  else boot();
-  document.addEventListener('click',e=>{
-    if(e.target?.closest?.('[data-view="appearance"],button'))setTimeout(()=>{wire();delayedApply()},0);
-  },true);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+  document.addEventListener('click',e=>{if(e.target?.closest?.('[data-view="appearance"],button'))setTimeout(()=>{wire();delayedApply()},0)},true);
   new MutationObserver(()=>setTimeout(wire,0)).observe(document.documentElement,{childList:true,subtree:true});
   setInterval(()=>{if(document.getElementById('appearance')?.classList.contains('active'))apply()},180);
 })();
 
-// Recuperación puntual de Ampicilina. Se carga desde este módulo porque la APK 1.0.50 sí lo recibe directamente.
+// Recuperación puntual de Ampicilina. v2 no se da por terminada hasta verla realmente sincronizada.
 (()=>{
-  if(document.querySelector('script[data-varelia-ampicilina-recovery]'))return;
+  if(document.querySelector('script[data-varelia-ampicilina-recovery-v2]'))return;
   const s=document.createElement('script');
-  s.src='/ampicilina-recovery.js?v=20261016-v1';
+  s.src='/ampicilina-recovery.js?v=20261016-v2';
   s.async=false;
-  s.dataset.vareliaAmpicilinaRecovery='1';
+  s.dataset.vareliaAmpicilinaRecoveryV2='1';
   document.head.appendChild(s);
 })();
