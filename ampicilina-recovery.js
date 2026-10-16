@@ -1,14 +1,14 @@
 (()=>{
-  if(window.__vareliaAmpicilinaRecoveryV1)return;
-  window.__vareliaAmpicilinaRecoveryV1=true;
+  if(window.__vareliaAmpicilinaRecoveryV2)return;
+  window.__vareliaAmpicilinaRecoveryV2=true;
 
-  const DONE='varelia_ampicilina_recovered_v1';
+  const DONE='varelia_ampicilina_recovered_v2';
   const CLOUD_ID='84cde96f-4492-4115-8bc5-3cfa22ecb336';
   const LEGACY_ID='mureef4xsz29g';
   const BARCODE='2071674969557';
   const NAME='Ampicilina';
   const CATEGORY='Medicinas';
-  let busy=false;
+  let busy=false,remoteVerified=false;
 
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const list=()=>{
@@ -16,73 +16,52 @@
     try{if(typeof products!=='undefined'&&Array.isArray(products))return products}catch{}
     return [];
   };
-  const exists=()=>list().some(p=>
-    String(p?._cloudId||'')===CLOUD_ID||
-    String(p?.barcode||'').trim()===BARCODE||
-    String(p?.name||'').trim().toLowerCase()===NAME.toLowerCase()
-  );
+  const same=p=>String(p?._cloudId||'')===CLOUD_ID||String(p?.barcode||'').trim()===BARCODE||String(p?.name||'').trim().toLowerCase()===NAME.toLowerCase();
+  const exists=()=>list().some(same);
   const mark=()=>{try{localStorage.setItem(DONE,'1')}catch{}};
   const marked=()=>{try{return localStorage.getItem(DONE)==='1'}catch{return false}};
 
-  async function waitSupabase(){
-    for(let i=0;i<100&&!window.vareliaSupabase;i++)await sleep(100);
-    return window.vareliaSupabase||null;
-  }
+  const fallback=()=>({
+    id:LEGACY_ID,_cloudId:'',barcode:BARCODE,name:NAME,category:CATEGORY,
+    buyPrice:0,sellPrice:3,stock:0,unit:'Unidad',reorderLevel:0,
+    description:'',specifications:'',variants:'',characteristics:[],variantCombinations:[],image:'',
+    medicine:true,laboratory:'',medicinePresentation:'',batch:'',expiryDate:'',
+    blistersPerBox:1,unitsPerBlister:10,boxPrice:0,blisterPrice:6,unitMedicinePrice:0,medicineStockBoxes:0,
+    __ampicilinaRecovery:true
+  });
+
+  async function waitSupabase(){for(let i=0;i<100&&!window.vareliaSupabase;i++)await sleep(100);return window.vareliaSupabase||null}
 
   async function categoryName(sb,id){
     if(!id)return CATEGORY;
-    try{
-      const {data}=await sb.from('varelia_categories').select('name').eq('id',id).maybeSingle();
-      return String(data?.name||CATEGORY);
-    }catch{return CATEGORY}
+    try{const {data}=await sb.from('varelia_categories').select('name').eq('id',id).maybeSingle();return String(data?.name||CATEGORY)}catch{return CATEGORY}
   }
 
   function mapRow(row,cat){
     return {
-      id:String(row.legacy_id||row.id||LEGACY_ID),
-      _cloudId:String(row.id||''),
-      barcode:String(row.barcode||BARCODE),
-      name:String(row.name||NAME),
-      category:String(cat||CATEGORY),
-      buyPrice:Number(row.buy_price)||0,
-      sellPrice:Number(row.sell_price)||0,
-      stock:Number(row.stock)||0,
-      unit:String(row.unit||'Unidad'),
-      reorderLevel:Number(row.reorder_level)||0,
-      description:String(row.description||''),
-      specifications:String(row.specifications||''),
-      variants:String(row.variants||''),
-      characteristics:Array.isArray(row.characteristics)?row.characteristics:[],
-      variantCombinations:Array.isArray(row.variant_combinations)?row.variant_combinations:[],
-      image:String(row.image_data||''),
-      medicine:row.medicine!==false,
-      laboratory:String(row.laboratory||''),
-      medicinePresentation:String(row.medicine_presentation||''),
-      batch:String(row.batch||''),
-      expiryDate:String(row.expiry_date||''),
-      blistersPerBox:Number(row.blisters_per_box)||1,
-      unitsPerBlister:Number(row.units_per_blister)||10,
-      boxPrice:Number(row.box_price)||0,
-      blisterPrice:Number(row.blister_price)||6,
-      unitMedicinePrice:Number(row.unit_medicine_price)||0,
-      medicineStockBoxes:Number(row.medicine_stock_boxes)||0
+      id:String(row.legacy_id||row.id||LEGACY_ID),_cloudId:String(row.id||''),barcode:String(row.barcode||BARCODE),name:String(row.name||NAME),category:String(cat||CATEGORY),
+      buyPrice:Number(row.buy_price)||0,sellPrice:Number(row.sell_price)||0,stock:Number(row.stock)||0,unit:String(row.unit||'Unidad'),reorderLevel:Number(row.reorder_level)||0,
+      description:String(row.description||''),specifications:String(row.specifications||''),variants:String(row.variants||''),
+      characteristics:Array.isArray(row.characteristics)?row.characteristics:[],variantCombinations:Array.isArray(row.variant_combinations)?row.variant_combinations:[],image:String(row.image_data||''),
+      medicine:row.medicine!==false,laboratory:String(row.laboratory||''),medicinePresentation:String(row.medicine_presentation||''),batch:String(row.batch||''),expiryDate:String(row.expiry_date||''),
+      blistersPerBox:Number(row.blisters_per_box)||1,unitsPerBlister:Number(row.units_per_blister)||10,boxPrice:Number(row.box_price)||0,blisterPrice:Number(row.blister_price)||6,
+      unitMedicinePrice:Number(row.unit_medicine_price)||0,medicineStockBoxes:Number(row.medicine_stock_boxes)||0
     };
   }
 
   function injectLocal(p){
     const arr=list();
-    if(!arr.length&&Array.isArray(window.products)){
-      window.products.push(p);
-    }else if(!arr.some(x=>String(x?._cloudId||'')===String(p._cloudId||'')||String(x?.barcode||'')===BARCODE||String(x?.name||'').toLowerCase()===NAME.toLowerCase())){
-      arr.push(p);
-    }
+    const found=arr.findIndex(same);
+    if(found>=0){
+      if(p._cloudId)arr[found]={...arr[found],...p};
+    }else arr.push(p);
     try{
       if(Array.isArray(window.categories)&&!window.categories.includes(CATEGORY))window.categories.push(CATEGORY);
       if(typeof categories!=='undefined'&&Array.isArray(categories)&&!categories.includes(CATEGORY))categories.push(CATEGORY);
     }catch{}
     try{
       if(typeof K!=='undefined'){
-        if(K.products)localStorage.setItem(K.products,JSON.stringify(list()));
+        if(K.products)localStorage.setItem(K.products,JSON.stringify(arr));
         const cats=Array.isArray(window.categories)?window.categories:(typeof categories!=='undefined'&&Array.isArray(categories)?categories:[]);
         if(K.categories)localStorage.setItem(K.categories,JSON.stringify(cats));
       }
@@ -106,92 +85,55 @@
     if(q.data?.id)return q.data.id;
     if(role!=='owner')return null;
     q=await sb.from('varelia_categories').insert({business_id:businessId,name:CATEGORY}).select('id').single();
-    if(q.error){
-      const retry=await sb.from('varelia_categories').select('id').eq('business_id',businessId).eq('name',CATEGORY).maybeSingle();
-      return retry.data?.id||null;
-    }
-    return q.data?.id||null;
+    if(!q.error&&q.data?.id)return q.data.id;
+    const retry=await sb.from('varelia_categories').select('id').eq('business_id',businessId).eq('name',CATEGORY).maybeSingle();
+    return retry.data?.id||null;
   }
 
   async function recreate(sb,businessId,role){
     if(role!=='owner')return null;
-    const categoryId=await ensureCategory(sb,businessId,role);
-    if(!categoryId)return null;
-    const payload={
-      business_id:businessId,
-      category_id:categoryId,
-      legacy_id:LEGACY_ID,
-      barcode:BARCODE,
-      name:NAME,
-      description:'',
-      specifications:'',
-      variants:'',
-      characteristics:[],
-      variant_combinations:[],
-      buy_price:0,
-      sell_price:3,
-      stock:0,
-      unit:'Unidad',
-      reorder_level:0,
-      image_data:'',
-      medicine:true,
-      laboratory:null,
-      medicine_presentation:null,
-      batch:null,
-      expiry_date:null,
-      blisters_per_box:1,
-      units_per_blister:10,
-      box_price:0,
-      blister_price:6,
-      unit_medicine_price:0,
-      medicine_stock_boxes:0
-    };
+    const categoryId=await ensureCategory(sb,businessId,role);if(!categoryId)return null;
+    const payload={business_id:businessId,category_id:categoryId,legacy_id:LEGACY_ID,barcode:BARCODE,name:NAME,description:'',specifications:'',variants:'',characteristics:[],variant_combinations:[],buy_price:0,sell_price:3,stock:0,unit:'Unidad',reorder_level:0,image_data:'',medicine:true,laboratory:null,medicine_presentation:null,batch:null,expiry_date:null,blisters_per_box:1,units_per_blister:10,box_price:0,blister_price:6,unit_medicine_price:0,medicine_stock_boxes:0};
     const cols='id,business_id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes';
     const ins=await sb.from('varelia_products').insert(payload).select(cols).single();
     if(!ins.error&&ins.data)return ins.data;
+    console.warn('Ampicilina: no se pudo recrear en nube',ins.error);
     return await findRemote(sb,businessId);
   }
 
   async function run(){
-    if(busy||marked())return;
-    if(exists()){mark();return}
+    if(busy)return;
     busy=true;
     try{
-      const sb=await waitSupabase();
-      if(!sb)return;
-      const auth=await sb.auth.getUser();
-      const user=auth.data?.user;
-      if(!user)return;
-      const prof=await sb.from('profiles').select('business_id,role').eq('id',user.id).maybeSingle();
-      const businessId=String(prof.data?.business_id||'');
-      const role=String(prof.data?.role||'');
-      if(!businessId)return;
+      // Siempre mantenerla visible mientras todavía no esté confirmada en la nube.
+      if(!exists())injectLocal(fallback());
+      if(marked()&&exists()){remoteVerified=true;return}
 
-      let row=await findRemote(sb,businessId);
-      let created=false;
-      if(!row){
-        row=await recreate(sb,businessId,role);
-        created=!!row;
-      }
-      if(!row)return;
+      const sb=await waitSupabase();if(!sb)return;
+      const auth=await sb.auth.getUser();const user=auth.data?.user;if(!user)return;
+      const prof=await sb.from('profiles').select('business_id,role').eq('id',user.id).maybeSingle();
+      const businessId=String(prof.data?.business_id||''),role=String(prof.data?.role||'');if(!businessId)return;
+
+      let row=await findRemote(sb,businessId),created=false;
+      if(!row){row=await recreate(sb,businessId,role);created=!!row}
+      if(!row){injectLocal(fallback());return}
 
       const cat=await categoryName(sb,row.category_id);
       injectLocal(mapRow(row,cat));
-      mark();
-      if(created){
-        window.vareliaToast?.('Ampicilina fue recuperada. Stock en 0: edítala para registrar tus existencias reales.','ok');
-      }else{
-        window.vareliaToast?.('Ampicilina recuperada en Medicinas.','ok');
-      }
-      setTimeout(()=>{try{window.vareliaForceSync?.()}catch{}},600);
+      remoteVerified=true;mark();
+      window.vareliaToast?.(created?'Ampicilina recuperada. Revisa y registra el stock real.':'Ampicilina recuperada en Medicinas.','ok');
+      setTimeout(()=>{try{window.vareliaForceSync?.()}catch{}},700);
     }catch(err){
       console.warn('Recuperación de Ampicilina',err);
+      if(!exists())injectLocal(fallback());
     }finally{busy=false}
   }
 
-  const boot=()=>setTimeout(run,1400);
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
-  else boot();
+  const keepVisible=()=>{if(!remoteVerified&&!exists())injectLocal(fallback())};
+  const boot=()=>{setTimeout(run,900);setTimeout(run,3000);setTimeout(run,7000)};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
   window.addEventListener('varelia:sync-connected',()=>setTimeout(run,250));
-  window.addEventListener('varelia:forced-sync-complete',()=>setTimeout(run,250));
+  window.addEventListener('varelia:forced-sync-complete',()=>setTimeout(()=>{keepVisible();run()},300));
+  window.addEventListener('varelia:central-stock-updated',()=>setTimeout(()=>{keepVisible();if(!remoteVerified)run()},200));
+  setInterval(()=>{if(!remoteVerified)keepVisible()},1200);
 })();
