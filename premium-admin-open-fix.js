@@ -344,11 +344,11 @@
   setTimeout(run,1200);
 })();
 
-// Apariencia: separar y ordenar los controles de color sin tocar autenticación ni lógica de negocio.
+// Apariencia: paleta general separada del color de botones. Solo modifica esta pantalla.
 (()=>{
-  if(window.__vareliaAppearanceColorsV2)return;
-  window.__vareliaAppearanceColorsV2=true;
-  const KEY='varelia_action_button_color_v2';
+  if(window.__vareliaAppearanceColorsV3)return;
+  window.__vareliaAppearanceColorsV3=true;
+  const KEY='varelia_action_button_color_v3';
   const DEFAULT='#2563eb';
   const valid=c=>/^#[0-9a-f]{6}$/i.test(String(c||'').trim());
   const saved=()=>{try{const c=localStorage.getItem(KEY);return valid(c)?c.toLowerCase():DEFAULT}catch{return DEFAULT}};
@@ -374,13 +374,23 @@
       #appearance .vareliaColorCard .colorPickerBox{margin-top:12px}
       #appearance .appearanceOptions{display:block!important}
       #appearance .appearanceOptions>.optionCard{margin:0}
-      button.primary,.btn.primary,#newSaleTop,#newSaleFab,#vposCheckout,#checkout,#businessBrandSave,.chip.active,
-      #vmobileNav button.active,.vmobileNav button.active,.mobileNav button.active{
-        background:linear-gradient(135deg,var(--varelia-action),var(--varelia-action-2))!important;
+      html body button.primary,html body .btn.primary,html body .primary,
+      html body #newProduct,html body #inventoryNewProduct,html body #newSaleTop,html body #newSaleFab,
+      html body #businessBrandSave,html body #vposCheckout,html body #checkout,html body #applyCustomColor,html body .vcsOk,
+      html body .chip.active,html body .segmented button.active,
+      html body #vmobileNav button.active,html body .vmobileNav button.active,html body .mobileNav button.active{
+        background-color:var(--varelia-action)!important;
+        background-image:linear-gradient(135deg,var(--varelia-action),var(--varelia-action-2))!important;
         color:#fff!important;border-color:var(--varelia-action)!important;
       }
       @media(max-width:700px){#appearance .appearanceHero,#appearance .vareliaColorCard,#appearance .vareliaBackgroundCard{border-radius:20px;padding:16px}}
     `;
+  }
+
+  function pickerColor(){
+    let c=String(document.getElementById('customColor')?.value||'').trim();
+    if(c&&!c.startsWith('#'))c='#'+c;
+    return valid(c)?c.toLowerCase():null;
   }
 
   function syncPicker(color){
@@ -389,6 +399,20 @@
     const input=document.getElementById('customColor');if(input)input.value=c.toUpperCase();
     const a=document.getElementById('hexPreview');if(a)a.style.background=c;
     const b=document.getElementById('colorBigPreview');if(b)b.style.background=c;
+  }
+
+  function previewPicker(){
+    const c=pickerColor();
+    if(c)applyActionColor(c);
+  }
+
+  function savePicker(showToast=true){
+    const c=pickerColor();
+    if(!c)return false;
+    try{localStorage.setItem(KEY,c)}catch{}
+    applyActionColor(c);
+    if(showToast)window.vareliaToast?.('Color de botones actualizado.','ok');
+    return true;
   }
 
   function orderAppearance(){
@@ -410,7 +434,7 @@
     if(custom&&!custom.classList.contains('vareliaColorCard')){
       custom.classList.add('vareliaColorCard');
       const title=custom.querySelector('strong');if(title)title.textContent='🎯 Color de botones';
-      const note=custom.querySelector('.notice');if(note)note.textContent='Cambia solo botones principales y opciones activas. No cambia la paleta general.';
+      const note=custom.querySelector('.notice');if(note)note.textContent='Toca o desliza la rueda: los botones cambian al instante. La paleta general no cambia.';
       const step=document.createElement('div');step.className='vareliaStep';step.textContent='2 · Botones';
       custom.insertBefore(step,custom.firstChild);
       hero.insertAdjacentElement('afterend',custom);
@@ -423,33 +447,59 @@
     }
   }
 
-  document.addEventListener('click',e=>{
-    const apply=e.target?.closest?.('#applyCustomColor');
-    if(apply){
-      e.preventDefault();e.stopImmediatePropagation();
-      let c=String(document.getElementById('customColor')?.value||'').trim();
-      if(c&&!c.startsWith('#'))c='#'+c;
-      if(!valid(c)){alert('Elige un color válido.');return}
-      c=c.toLowerCase();
-      try{localStorage.setItem(KEY,c)}catch{}
-      applyActionColor(c);syncPicker(c);
-      window.vareliaToast?.('Color de botones actualizado.','ok');
-      return;
-    }
-    const reset=e.target?.closest?.('#resetPicker');
-    if(reset){
-      e.preventDefault();e.stopImmediatePropagation();
-      try{localStorage.removeItem(KEY)}catch{}
-      applyActionColor(DEFAULT);syncPicker(DEFAULT);
-      window.vareliaToast?.('Color de botones restablecido.','ok');
-      return;
-    }
-    if(e.target?.closest?.('#themeGrid [data-color]'))setTimeout(()=>syncPicker(saved()),0);
-    const nav=e.target?.closest?.('[data-view="appearance"],button');
-    if(nav&&/Apariencia/i.test(String(nav.textContent||'')))setTimeout(()=>{orderAppearance();syncPicker(saved())},0);
-  },true);
+  function wirePicker(){
+    const apply=document.getElementById('applyCustomColor');
+    const reset=document.getElementById('resetPicker');
+    const wheel=document.getElementById('colorWheel');
+    const slider=document.getElementById('lightSlider');
+    const input=document.getElementById('customColor');
+    const themeGrid=document.getElementById('themeGrid');
 
-  const boot=()=>{orderAppearance();applyActionColor(saved());syncPicker(saved())};
+    if(apply&&!apply.dataset.vareliaButtonsWired){
+      apply.dataset.vareliaButtonsWired='1';
+      apply.onclick=e=>{
+        e.preventDefault();
+        if(!savePicker(true))alert('Elige un color válido.');
+      };
+    }
+    if(reset&&!reset.dataset.vareliaButtonsWired){
+      reset.dataset.vareliaButtonsWired='1';
+      reset.onclick=e=>{
+        e.preventDefault();
+        try{localStorage.removeItem(KEY)}catch{}
+        applyActionColor(DEFAULT);syncPicker(DEFAULT);
+        window.vareliaToast?.('Color de botones restablecido.','ok');
+      };
+    }
+    if(wheel&&!wheel.dataset.vareliaButtonsWired){
+      wheel.dataset.vareliaButtonsWired='1';
+      const live=()=>requestAnimationFrame(previewPicker);
+      wheel.addEventListener('pointerdown',live);
+      wheel.addEventListener('pointermove',live);
+      wheel.addEventListener('pointerup',()=>setTimeout(()=>savePicker(false),0));
+      wheel.addEventListener('pointercancel',()=>setTimeout(()=>savePicker(false),0));
+    }
+    if(slider&&!slider.dataset.vareliaButtonsWired){
+      slider.dataset.vareliaButtonsWired='1';
+      slider.addEventListener('input',()=>setTimeout(previewPicker,0));
+      slider.addEventListener('change',()=>setTimeout(()=>savePicker(false),0));
+    }
+    if(input&&!input.dataset.vareliaButtonsWired){
+      input.dataset.vareliaButtonsWired='1';
+      input.addEventListener('input',()=>setTimeout(previewPicker,0));
+      input.addEventListener('change',()=>setTimeout(()=>savePicker(false),0));
+    }
+    if(themeGrid&&!themeGrid.dataset.vareliaButtonsWired){
+      themeGrid.dataset.vareliaButtonsWired='1';
+      themeGrid.addEventListener('click',()=>setTimeout(()=>syncPicker(saved()),0));
+    }
+  }
+
+  const boot=()=>{orderAppearance();applyActionColor(saved());syncPicker(saved());wirePicker()};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
   else boot();
+  document.addEventListener('click',e=>{
+    const nav=e.target?.closest?.('[data-view="appearance"],button');
+    if(nav&&/Apariencia/i.test(String(nav.textContent||'')))setTimeout(()=>{orderAppearance();wirePicker();syncPicker(saved())},0);
+  },true);
 })();
