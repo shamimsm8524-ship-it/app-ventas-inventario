@@ -79,19 +79,33 @@ function ticket(o){
     const width=thermalWidth(),paper=width===58?52:72,logoW=width===58?22:28;
     return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>@page{size:'+width+'mm auto;margin:2mm}*{box-sizing:border-box}html,body{margin:0!important;padding:0!important;background:#fff;color:#111;width:100%}body{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;-webkit-print-color-adjust:exact;print-color-adjust:exact}.vreceiptPaper{width:'+paper+'mm!important;margin:0 auto!important;padding:2mm 1.5mm!important;background:#fff!important;color:#111!important;border:0!important;border-radius:0!important;line-height:1.35;overflow-wrap:anywhere}.vreceiptPaper h3{text-align:center;font-size:17px;margin:0 0 1mm}.center{text-align:center}.muted{color:#555;font-size:9px}.status{font-size:10px;font-weight:900;margin:2mm 0}.vreceiptLogo{text-align:center;margin:0 0 2mm}.vreceiptLogo img{display:block;margin:auto;max-width:'+logoW+'mm;max-height:18mm;width:auto;height:auto;object-fit:contain}.vreceiptSep{border-top:1px dashed #777;margin:2mm 0}.vreceiptLine{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2mm;align-items:start;margin:1.2mm 0;font-size:10px}.vreceiptLine>span:last-child,.vreceiptLine>b:last-child{text-align:right;overflow-wrap:anywhere}.item{border:0;border-bottom:1px dashed #aaa;padding:1.8mm 0;font-size:10px;break-inside:avoid}.itemqty{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2mm;align-items:start;font-size:9px;color:#444;line-height:1.35;margin-top:.8mm}.itemqty>b{white-space:nowrap;text-align:right;color:#111}.vreceiptTotal{display:flex;justify-content:space-between;gap:2mm;font-size:17px;font-weight:900;margin-top:2mm;padding-top:2mm;border-top:2px solid #111}.vreceiptDisclaimer{font-size:8px;text-align:center;color:#555;margin-top:3mm;line-height:1.35}</style></head><body>'+clone.outerHTML+'</body></html>';
   }
+  function nativeOrderPayload(){
+    const sourceItems=Array.isArray(o.items)?o.items:[];
+    const nativeItems=sourceItems.map(i=>{
+      let qty=Number(i.qty||0),raw=String(i.sale_unit||i.unit||'').trim().toLowerCase(),unit=raw,weighted=false;
+      if(raw==='g'||raw==='gramo'||raw==='gramos'){qty=qty/1000;unit='kg';weighted=true}
+      else if(raw==='kg'||raw==='kilogramo'||raw==='kilogramos'){unit='kg';weighted=true}
+      else if(!raw){(Array.isArray(i.characteristics)?i.characteristics:[]).some(v=>{const m=String(v).match(/^Peso:\s*(\d+(?:[.,]\d+)?)\s*(kg|g|gramos?)$/i);if(!m)return false;qty=Number(m[1].replace(',','.'))*(m[2].toLowerCase()==='kg'?1:.001);unit='kg';weighted=true;return true})}
+      const price=Number(i.unit_price??i.price??0)||0;
+      return {name:String(i.name||'Producto'),qty,price,subtotal:Number(i.subtotal??(qty*price))||0,saleType:weighted?'weight':'',unit:unit||'',byWeight:weighted};
+    });
+    const shipping=Number(o.shipping)||0;
+    if(shipping>0||o.delivery_label){nativeItems.push({name:'Entrega: '+String(o.delivery_label||''),qty:1,price:shipping,subtotal:shipping,saleType:'',unit:'unidad',byWeight:false})}
+    const total=Number(o.total)||0,method=String(o.payment_method||'Efectivo');
+    const paidAt=paid&&o.paid_at?new Date(o.paid_at).toLocaleString('es-PE'):'';
+    const customer=[String(o.customer_name||''),o.customer_phone?'Celular: '+o.customer_phone:'',o.customer_city?'Ciudad: '+o.customer_city:''].filter(Boolean).join(' · ');
+    const details=[paidAt?'Pago confirmado: '+paidAt:'',o.customer_address?'Dirección: '+o.customer_address:'',paid?'Pago verificado por el negocio.':'Pago pendiente de confirmación.'].filter(Boolean).join(' · ');
+    return {business:receiptBusinessName,logo:receiptLogo,ruc:String(bs.ruc||''),phone:String(bs.phone||''),address:String(bs.address||''),message:details,thermalWidth:String(thermalWidth()),ticket:String(o.order_code||'Pedido'),date:new Date(o.created_at||Date.now()).toLocaleString('es-PE'),method,seller:'',customer,total,received:paid?total:0,change:0,breakdown:paid?{[method]:total}:{},items:nativeItems};
+  }
   function printThermal(){
     const html=thermalPrintHtml(),title='Comprobante '+String(o.order_code||'pedido');
     if(window.VareliaAndroid&&typeof window.VareliaAndroid.printHtmlDocument==='function'){
-      window.VareliaAndroid.printHtmlDocument(title,html);return;
+      try{window.VareliaAndroid.printHtmlDocument(title,html);return}catch(err){console.warn('No se pudo usar impresión HTML nativa',err)}
     }
-    // APK 1.0.50: imprimir directamente la vista del pedido para conservar TODAS
-    // las descripciones. No convertirlo al comprobante normal de venta.
-    let transient=document.getElementById('vreceiptThermalPrintCss');if(transient)transient.remove();
-    transient=document.createElement('style');transient.id='vreceiptThermalPrintCss';
-    const width=thermalWidth(),paper=width===58?52:72;
-    transient.textContent='@page{size:'+width+'mm auto;margin:2mm}@media print{html,body{margin:0!important;padding:0!important;background:#fff!important}#catalogOrderReceipt{width:'+width+'mm!important;max-width:'+width+'mm!important}#catalogOrderReceipt .vreceiptWrap{width:'+width+'mm!important;max-width:'+width+'mm!important}#catalogOrderReceipt .vreceiptPaper{width:'+paper+'mm!important;max-width:'+paper+'mm!important;padding:2mm 1.5mm!important}}';
-    document.head.appendChild(transient);
-    try{window.print()}finally{setTimeout(()=>transient?.remove(),1500)}
+    if(window.VareliaAndroid&&typeof window.VareliaAndroid.printSaleReceipt==='function'){
+      window.VareliaAndroid.printSaleReceipt(JSON.stringify(nativeOrderPayload()));return;
+    }
+    throw new Error('La impresión nativa no está disponible en esta app.');
   }
   const printButton=document.getElementById('vreceiptPrint');
   printButton.onclick=()=>{try{printThermal()}catch(err){console.error(err);alert('No se pudo abrir la impresión térmica. Inténtalo nuevamente.')}};
