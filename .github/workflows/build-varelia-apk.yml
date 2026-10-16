@@ -1,7 +1,7 @@
 name: Varelia 1.0.50 APK
 on:
   push:
-    branches: [main]
+    branches: [build-varelia-1.0.50-correct]
   workflow_dispatch:
 
 jobs:
@@ -71,6 +71,4 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-# Build trigger: verify secure Varelia APK build
-# Receipt download fix: trigger APK rebuild
-# Rebuild receipt printing and free PDF download fix - 2026-10-09
+# Build trigger: exact later Varelia 1.0.50 source
