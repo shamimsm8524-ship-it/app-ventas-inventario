@@ -9,18 +9,41 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url=new URL(e.request.url);
 
-  // Varelia 1.0.50 solo acepta un campo "customer" para la impresion nativa.
-  // Ajustar el modulo al vuelo para que Cliente, Celular y Ciudad se envuelvan
-  // visualmente en tres renglones sin cambiar la APK ni el resto del comprobante.
+  // Restaurar el comportamiento anterior del comprobante de pedido:
+  // imprimir exactamente el comprobante que se ve en pantalla, sin convertirlo
+  // al formato nativo de "comprobante interno de venta" de la APK 1.0.50.
   if(url.origin===self.location.origin && url.pathname.endsWith('/catalog-orders.js')){
     e.respondWith((async()=>{
       try{
         const base=await fetch(e.request,{cache:'no-store'});
         if(!base.ok)return base;
         let body=await base.text();
-        const customerLine=/const customer=\[String\(o\.customer_name\|\|''\),o\.customer_phone\?'Celular: '\+o\.customer_phone:'',o\.customer_city\?'Ciudad: '\+o\.customer_city:''\]\.filter\(Boolean\)\.join\([^;]+;/;
-        const replacement="const nativeLinePad=text=>{const px=[...String(text||'')].length*6;const count=Math.max(1,Math.min(24,Math.ceil((205-px)/10)));return '\\u3000'.repeat(count)};const customerName=String(o.customer_name||'');const customerPhone=o.customer_phone?'Celular: '+String(o.customer_phone):'';const customerCity=o.customer_city?'Ciudad: '+String(o.customer_city):'';let customer=customerName;if(customerPhone)customer+=nativeLinePad(customerName)+customerPhone;if(customerCity)customer+=nativeLinePad(customerPhone||customerName)+customerCity;";
-        body=body.replace(customerLine,replacement);
+        const printBlock=/function printThermal\(\)\{[\s\S]*?\n  const printButton=/;
+        const restored=`function printThermal(){
+    const source=sec.querySelector('.vreceiptPaper');
+    if(!source)throw new Error('No se encontró el comprobante');
+    const paper=source.cloneNode(true);
+    paper.querySelector('.vreceiptActions')?.remove();
+    const width=thermalWidth(), printable=width===58?52:74, logoW=width===58?22:24;
+    let w=null;
+    try{w=window.open('','_blank','width=420,height=720')}catch{}
+    if(!w)throw new Error('No se pudo abrir la vista de impresión');
+    const printCss='@page{size:'+width+'mm auto;margin:3mm}*{box-sizing:border-box}html,body{margin:0!important;padding:0!important;background:#fff!important;color:#111!important}body{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;-webkit-print-color-adjust:exact;print-color-adjust:exact}.vreceiptPaper{width:'+printable+'mm!important;max-width:100%!important;margin:0 auto!important;padding:0!important;background:#fff!important;color:#111!important;border:0!important;border-radius:0!important;box-shadow:none!important;line-height:1.35;overflow-wrap:anywhere}.vreceiptPaper h3{text-align:center;font-size:17px;margin:0 0 3px;color:#111}.center{text-align:center}.muted{color:#555;font-size:10px}.status{text-align:center;font-size:10px;font-weight:900;margin:2mm 0}.vreceiptLogo{text-align:center;margin:0 0 2mm}.vreceiptLogo img{display:block;margin:0 auto;max-width:'+logoW+'mm;max-height:17mm;width:auto;height:auto;object-fit:contain}.vreceiptSep{border-top:1px dashed #888;margin:2mm 0}.vreceiptLine{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2mm;align-items:start;margin:1.2mm 0;font-size:10px}.vreceiptLine>span:last-child,.vreceiptLine>b:last-child{text-align:right;overflow-wrap:anywhere}.item{border:0;border-bottom:1px dashed #bbb;padding:1.8mm 0;font-size:10px;break-inside:avoid}.itemqty{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2mm;align-items:start;font-size:9px;color:#444;line-height:1.35;margin-top:.8mm}.itemqty>b{white-space:nowrap;text-align:right;color:#111}.vreceiptTotal{display:flex;justify-content:space-between;gap:2mm;font-size:17px;font-weight:900;margin-top:2mm;padding-top:2mm;border-top:2px solid #111}.vreceiptDisclaimer{font-size:9px;text-align:center;color:#555;margin-top:3mm;line-height:1.35}.vreceiptActions{display:none!important}';
+    w.document.open();
+    w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Comprobante '+esc(o.order_code)+'</title><style>'+printCss+'</style></head><body>'+paper.outerHTML+'</body></html>');
+    w.document.close();
+    let done=false;
+    const runPrint=()=>{if(done)return;done=true;setTimeout(()=>{try{w.focus();w.print()}catch(err){console.error(err)}},180)};
+    const imgs=Array.from(w.document.images||[]);
+    if(imgs.length&&imgs.some(img=>!img.complete)){
+      let remaining=imgs.filter(img=>!img.complete).length;
+      const ready=()=>{remaining--;if(remaining<=0)runPrint()};
+      imgs.forEach(img=>{if(!img.complete){img.addEventListener('load',ready,{once:true});img.addEventListener('error',ready,{once:true})}});
+      setTimeout(runPrint,1800);
+    }else runPrint();
+  }
+  const printButton=`;
+        if(printBlock.test(body))body=body.replace(printBlock,restored);
         return new Response(body,{
           status:base.status,
           statusText:base.statusText,
