@@ -140,3 +140,13 @@
   new MutationObserver(()=>setTimeout(wire,0)).observe(document.documentElement,{childList:true,subtree:true});
   setInterval(()=>{if(document.getElementById('appearance')?.classList.contains('active'))apply()},180);
 })();
+
+// Recuperación puntual de Ampicilina. Se carga desde este módulo porque la APK 1.0.50 sí lo recibe directamente.
+(()=>{
+  if(document.querySelector('script[data-varelia-ampicilina-recovery]'))return;
+  const s=document.createElement('script');
+  s.src='/ampicilina-recovery.js?v=20261016-v1';
+  s.async=false;
+  s.dataset.vareliaAmpicilinaRecovery='1';
+  document.head.appendChild(s);
+})();
