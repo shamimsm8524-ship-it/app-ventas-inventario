@@ -2,6 +2,8 @@ name: Varelia 1.0.50 APK
 on:
   push:
     branches: [build-varelia-1.0.50-export]
+  pull_request:
+    branches: [build-varelia-1.0.50-export]
   workflow_dispatch:
 
 jobs:
