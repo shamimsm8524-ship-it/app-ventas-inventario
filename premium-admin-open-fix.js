@@ -184,47 +184,171 @@
   setInterval(()=>{if(document.visibilityState==='visible')poke()},350);
 })();
 
-// En algunos WebView, al pulsar el botón grande de Cobrar, otro manejador puede
-// vaciar el arreglo global antes de que central-stock-sync.js lea el carrito.
-// Guardar una copia JUSTO al pulsar Cobrar permite que el flujo central recupere
-// exactamente los productos que todavía están visibles en pantalla.
+// Cobro estable: el carrito visible es la fuente de verdad para cualquier producto.
+// Si otro manejador vacía `cart` antes del cobro, se reconstruye automáticamente
+// desde las filas visibles (incluidas talla/color) y se conserva hasta confirmar la venta.
 (()=>{
-  if(window.__vareliaCheckoutCartSnapshotFixV1)return;
-  window.__vareliaCheckoutCartSnapshotFixV1=true;
+  if(window.__vareliaCheckoutCartSnapshotFixV2)return;
+  window.__vareliaCheckoutCartSnapshotFixV2=true;
   const KEY='varelia_scanner_cart_backup_v1';
 
   const cloneItem=x=>({
     ...x,
     id:x?.id??x?.productId,
+    productId:x?.productId??x?.id,
     price:Number(x?.price??x?.sellPrice??0)||0,
     qty:Number(x?.qty??x?.quantity??0)||0,
     selectedCharacteristics:Array.isArray(x?.selectedCharacteristics)?x.selectedCharacteristics.map(y=>({...y})):[]
   });
 
-  function visibleCart(){
+  const rowItem=row=>{
+    if(!row)return null;
+    const p=row.p||{};
+    const raw=row.item||{};
+    const id=raw.id??raw.productId??p.id??row.key;
+    const qty=Number(raw.qty??raw.quantity??row.qty??0)||0;
+    if(id==null||qty<=0)return null;
+    const selected=Array.isArray(raw.selectedCharacteristics)
+      ?raw.selectedCharacteristics
+      :(Array.isArray(row.selectedCharacteristics)?row.selectedCharacteristics:[]);
+    return cloneItem({
+      ...p,
+      ...raw,
+      id,
+      productId:raw.productId??id,
+      name:String(raw.name??row.name??p.name??'Producto'),
+      price:Number(raw.price??raw.sellPrice??row.price??p.sellPrice??0)||0,
+      qty,
+      unit:raw.unit??p.unit??'Unidad',
+      cartKey:String(raw.cartKey??row.key??id),
+      selectedCharacteristics:selected,
+      selectedCombination:raw.selectedCombination??row.selectedCombination??null,
+      medicineSaleUnit:raw.medicineSaleUnit??row.medicineSaleUnit??'',
+      medicineMultiplier:Number(raw.medicineMultiplier??row.medicineMultiplier??1)||1,
+      saleType:raw.saleType??row.saleType??''
+    });
+  };
+
+  const validItems=rows=>(Array.isArray(rows)?rows:[]).map(cloneItem).filter(x=>x.id!=null&&x.qty>0);
+
+  function posRows(){
     try{
-      if(typeof cart!=='undefined'&&Array.isArray(cart)&&cart.length)return cart.map(cloneItem).filter(x=>x.id!=null&&x.qty>0);
-    }catch{}
-    try{
-      const rows=window.VareliaPOS?.getCartItems?.();
-      if(Array.isArray(rows)&&rows.length)return rows.map(cloneItem).filter(x=>x.id!=null&&x.qty>0);
+      const state=window.VareliaPOS?.sync?.();
+      return (Array.isArray(state?.rows)?state.rows:[]).map(rowItem).filter(Boolean);
     }catch{}
     return [];
   }
 
-  document.addEventListener('click',e=>{
-    if(!e.target?.closest?.('#vposCheckout'))return;
-    const snapshot=visibleCart();
-    if(!snapshot.length)return;
-    let raw='';
+  function savedItems(){
+    try{return validItems(JSON.parse(localStorage.getItem(KEY)||'[]'))}catch{return[]}
+  }
+
+  function hasVisibleSale(){
+    if(document.querySelector('#vposItems .vposRow'))return true;
+    const total=Number(String(document.getElementById('vposTotal')?.textContent||'').replace(/[^0-9.]/g,''));
+    return Number.isFinite(total)&&total>0;
+  }
+
+  function remember(items){
+    items=validItems(items);
+    if(!items.length)return false;
+    try{localStorage.setItem(KEY,JSON.stringify(items));return true}catch{return false}
+  }
+
+  function patchPos(){
+    const pos=window.VareliaPOS;
+    if(!pos||pos.__vareliaCheckoutCartBridgeV2)return false;
+    const original=typeof pos.getCartItems==='function'?pos.getCartItems.bind(pos):null;
+    pos.getCartItems=()=>{
+      let items=[];
+      try{items=validItems(original?.()||[])}catch{}
+      if(!items.length)items=posRows();
+      if(!items.length&&hasVisibleSale())items=savedItems();
+      if(items.length)remember(items);
+      return items.map(x=>({...x}));
+    };
+    pos.__vareliaCheckoutCartBridgeV2=true;
+    return true;
+  }
+
+  function visibleCart(includeSaved=true){
     try{
-      raw=JSON.stringify(snapshot);
-      localStorage.setItem(KEY,raw);
-    }catch{return}
-    setTimeout(()=>{
-      try{if(localStorage.getItem(KEY)===raw)localStorage.removeItem(KEY)}catch{}
-    },3000);
+      if(typeof cart!=='undefined'&&Array.isArray(cart)&&cart.length){
+        const items=validItems(cart);
+        if(items.length)return items;
+      }
+    }catch{}
+    patchPos();
+    try{
+      const items=validItems(window.VareliaPOS?.getCartItems?.()||[]);
+      if(items.length)return items;
+    }catch{}
+    const rows=posRows();
+    if(rows.length)return rows;
+    return includeSaved&&hasVisibleSale()?savedItems():[];
+  }
+
+  function restoreCart(items){
+    items=validItems(items);
+    if(!items.length)return false;
+    try{
+      if(typeof cart!=='undefined'&&Array.isArray(cart)&&cart.length===0){
+        cart.splice(0,cart.length,...items.map(x=>({...x})));
+        try{if(typeof renderCart==='function')renderCart()}catch{}
+        try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
+      }
+      return true;
+    }catch{return false}
+  }
+
+  function syncBackup(){
+    patchPos();
+    const items=visibleCart(false);
+    if(items.length){remember(items);return}
+    if(!hasVisibleSale()){
+      try{localStorage.removeItem(KEY)}catch{}
+    }
+  }
+
+  document.addEventListener('click',e=>{
+    const checkout=e.target?.closest?.('#vposCheckout,#checkout');
+    if(checkout){
+      const snapshot=visibleCart(true);
+      if(snapshot.length){remember(snapshot);restoreCart(snapshot)}
+      return;
+    }
+    if(e.target?.closest?.('#newSaleTop,#newSaleFab,#vposNew')){
+      setTimeout(()=>{try{localStorage.removeItem(KEY)}catch{}},0);
+    }
   },true);
+
+  document.addEventListener('input',e=>{
+    if(e.target?.matches?.('[data-pos-qty],[data-cart-qty]'))setTimeout(syncBackup,0);
+  },true);
+  document.addEventListener('change',e=>{
+    if(e.target?.matches?.('[data-pos-qty],[data-cart-qty]'))setTimeout(syncBackup,0);
+  },true);
+
+  const observer=new MutationObserver(()=>setTimeout(syncBackup,0));
+  const armObserver=()=>{
+    const box=document.getElementById('vposItems');
+    if(box&&!box.dataset.vareliaCheckoutObserved){
+      box.dataset.vareliaCheckoutObserved='1';
+      observer.observe(box,{childList:true,subtree:true,characterData:true});
+    }
+  };
+
+  window.addEventListener('varelia:checkout-confirmed',()=>{
+    setTimeout(()=>{
+      try{localStorage.removeItem(KEY)}catch{}
+      syncBackup();
+    },500);
+  });
+
+  const boot=()=>{patchPos();armObserver();syncBackup()};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0),{once:true});
+  else setTimeout(boot,0);
+  setInterval(()=>{patchPos();armObserver()},700);
 })();
 
 // Compatibilidad directa con el actualizador interno de Reportes.
