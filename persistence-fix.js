@@ -20,6 +20,7 @@
       products=load(K.products,[]);
       categories=load(K.categories,[]);
       sales=load(K.sales,[]);
+      window.sales=sales;
       closures=load(K.closures,[]);
       cashStart=load(K.cashStart,new Date().toISOString());
       theme=load(K.theme,{color:'#be185d',dark:false,updatedAt:0});
@@ -84,6 +85,7 @@
     try{
       localStorage.setItem(K.products,JSON.stringify(compactProducts()));
       for(const [k,v] of [[K.categories,categories],[K.sales,sales],[K.closures,closures],[K.cashStart,cashStart],[K.movements,movements],[K.suppliers,suppliers],[K.purchases,purchases]])localStorage.setItem(k,JSON.stringify(v));
+      window.sales=sales;
       if(typeof render==='function')render();
     }catch(err){console.error('No se pudo guardar',err);alert('No se pudo guardar el cambio. Libera un poco de espacio del navegador y vuelve a intentarlo.')}
   }
