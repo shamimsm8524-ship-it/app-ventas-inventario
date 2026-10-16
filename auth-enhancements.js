@@ -25,11 +25,17 @@
       addEye(document.getElementById('vaLoginPass'));
       addEye(document.getElementById('vaPass'));
 
-      if(!document.getElementById('vaGoogleBtn')){
+      function ensureGoogleButton(){
+        if(document.getElementById('vaGoogleBtn'))return true;
         const login=document.getElementById('vaLogin');
-        const divider=document.createElement('div');divider.className='va-divider';divider.textContent='o';
+        if(!login)return false;
+        let divider=login.nextElementSibling;
+        if(!divider||!divider.classList.contains('va-divider')){
+          divider=document.createElement('div');divider.className='va-divider';divider.textContent='o';
+          login.insertAdjacentElement('afterend',divider);
+        }
         const google=document.createElement('button');google.id='vaGoogleBtn';google.type='button';google.className='va-google';google.innerHTML='<span class="va-google-logo">G</span><span>Continuar con Google</span>';
-        login.insertAdjacentElement('afterend',divider);divider.insertAdjacentElement('afterend',google);
+        divider.insertAdjacentElement('afterend',google);
         google.onclick=async()=>{
           const msg=document.getElementById('vaMsg');
           if(msg){msg.textContent='Abriendo Google...';msg.className='va-msg'}
@@ -58,7 +64,10 @@
             if(error)throw error;
           }catch(e){if(msg){msg.textContent='No se pudo iniciar con Google: '+(e.message||e);msg.className='va-msg error'}}
         };
+        return true;
       }
+      ensureGoogleButton();
+      new MutationObserver(()=>ensureGoogleButton()).observe(document.body,{childList:true,subtree:true});
 
       let verified=document.getElementById('vaVerifiedStatus');
       if(!verified){
