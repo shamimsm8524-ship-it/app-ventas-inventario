@@ -117,6 +117,62 @@
 
   migrateAndHydrate();
 
+  // Mantener Historial/Reportes enlazados a la venta confirmada sin reiniciar la APK.
+  // La venta que confirma el flujo central se copia al arreglo vivo, a window.sales y
+  // al almacenamiento de esta cuenta antes de pedir que el modal se recalcule.
+  const saleIds=s=>[
+    s?.cloudSaleId,s?.cloud_sale_id,s?.saleId,s?.sale_id,s?.id,
+    s?.receiptNumber,s?.receipt_number,s?.receiptNo,s?.ticketNumber,s?.ticket_number
+  ].map(v=>String(v??'').trim()).filter(Boolean);
+
+  function sameSale(a,b){
+    if(a===b)return true;
+    const A=new Set(saleIds(a));
+    if(A.size&&saleIds(b).some(id=>A.has(id)))return true;
+    const da=String(a?.date??a?.created_at??''),db=String(b?.date??b?.created_at??'');
+    const ta=Number(a?.total),tb=Number(b?.total);
+    return !!da&&da===db&&Number.isFinite(ta)&&Number.isFinite(tb)&&Math.abs(ta-tb)<0.001;
+  }
+
+  function pokeOpenReport(){
+    const modal=document.getElementById('vareliaHistoryExtraModal');
+    if(!modal||!modal.isConnected)return;
+    const marker=document.createElement('span');
+    marker.hidden=true;
+    marker.dataset.vareliaSalesLiveRefresh='1';
+    modal.appendChild(marker);
+    queueMicrotask(()=>marker.remove());
+  }
+
+  function publishConfirmedSale(sale){
+    if(!sale||typeof sale!=='object')return false;
+    try{
+      if(!Array.isArray(sales))sales=[];
+      const index=sales.findIndex(existing=>sameSale(existing,sale));
+      if(index>=0)sales[index]={...sales[index],...sale};
+      else sales.push({...sale});
+      window.sales=sales;
+      try{localStorage.setItem(K.sales,JSON.stringify(sales))}catch(e){console.warn('No se pudo persistir la venta confirmada para reportes',e)}
+      pokeOpenReport();
+      setTimeout(pokeOpenReport,80);
+      setTimeout(pokeOpenReport,260);
+      return true;
+    }catch(e){console.warn('No se pudo actualizar el reporte con la venta confirmada',e);return false}
+  }
+
+  window.addEventListener('varelia:checkout-confirmed',event=>{
+    publishConfirmedSale(event.detail?.sale);
+  });
+  window.addEventListener('varelia:sale-recorded',event=>{
+    const confirmed=event.detail?.sale;
+    if(confirmed)publishConfirmedSale(confirmed);
+    else{
+      try{if(Array.isArray(sales))window.sales=sales}catch{}
+      pokeOpenReport();
+      setTimeout(pokeOpenReport,180);
+    }
+  });
+
   const bindScope=setInterval(async()=>{
     const sb=window.vareliaSupabase;if(!sb)return;clearInterval(bindScope);
     async function syncSession(session){
