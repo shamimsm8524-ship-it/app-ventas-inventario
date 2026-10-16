@@ -183,3 +183,48 @@
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){lastSignature='';poke()}});
   setInterval(()=>{if(document.visibilityState==='visible')poke()},350);
 })();
+
+// En algunos WebView, al pulsar el botón grande de Cobrar, otro manejador puede
+// vaciar el arreglo global antes de que central-stock-sync.js lea el carrito.
+// Guardar una copia JUSTO al pulsar Cobrar permite que el flujo central recupere
+// exactamente los productos que todavía están visibles en pantalla.
+(()=>{
+  if(window.__vareliaCheckoutCartSnapshotFixV1)return;
+  window.__vareliaCheckoutCartSnapshotFixV1=true;
+  const KEY='varelia_scanner_cart_backup_v1';
+
+  const cloneItem=x=>({
+    ...x,
+    id:x?.id??x?.productId,
+    price:Number(x?.price??x?.sellPrice??0)||0,
+    qty:Number(x?.qty??x?.quantity??0)||0,
+    selectedCharacteristics:Array.isArray(x?.selectedCharacteristics)?x.selectedCharacteristics.map(y=>({...y})):[]
+  });
+
+  function visibleCart(){
+    try{
+      if(typeof cart!=='undefined'&&Array.isArray(cart)&&cart.length)return cart.map(cloneItem).filter(x=>x.id!=null&&x.qty>0);
+    }catch{}
+    try{
+      const rows=window.VareliaPOS?.getCartItems?.();
+      if(Array.isArray(rows)&&rows.length)return rows.map(cloneItem).filter(x=>x.id!=null&&x.qty>0);
+    }catch{}
+    return [];
+  }
+
+  document.addEventListener('click',e=>{
+    if(!e.target?.closest?.('#vposCheckout'))return;
+    const snapshot=visibleCart();
+    if(!snapshot.length)return;
+    let raw='';
+    try{
+      raw=JSON.stringify(snapshot);
+      localStorage.setItem(KEY,raw);
+    }catch{return}
+    // centralCheckout copia este respaldo de forma síncrona al comenzar. Luego se
+    // elimina para que nunca pueda reutilizarse en una venta posterior vacía.
+    setTimeout(()=>{
+      try{if(localStorage.getItem(KEY)===raw)localStorage.removeItem(KEY)}catch{}
+    },3000);
+  },true);
+})();
