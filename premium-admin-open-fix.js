@@ -228,3 +228,56 @@
     },3000);
   },true);
 })();
+
+// Compatibilidad directa con el actualizador interno de Reportes.
+// El módulo principal busca #vareliaHistoryExtraModal; en móvil el modal puede
+// existir sin ese id. Asignarlo al panel real permite que el evento de venta y
+// su temporizador actualicen el reporte sin cerrarlo ni volver a abrirlo.
+(()=>{
+  if(window.__vareliaReportModalCompatV2)return;
+  window.__vareliaReportModalCompatV2=true;
+
+  function findReportPanel(){
+    const titles=[...document.querySelectorAll('h1,h2,h3,h4')].filter(el=>/^(\s*📊\s*)?Reportes\s*$/i.test(String(el.textContent||'').trim()));
+    for(const title of titles){
+      for(let panel=title.parentElement,depth=0;panel&&panel!==document.body&&depth<9;panel=panel.parentElement,depth++){
+        const close=[...panel.querySelectorAll('button')].find(b=>String(b.textContent||'').trim()==='Cerrar');
+        if(close&&(panel.querySelector('[data-report-synced]')||String(panel.textContent||'').includes('Productos más vendidos')))return panel;
+      }
+    }
+    return null;
+  }
+
+  function arm(){
+    const panel=findReportPanel();
+    if(!panel)return null;
+    const expected=document.getElementById('vareliaHistoryExtraModal');
+    if(!expected)panel.id='vareliaHistoryExtraModal';
+    else if(expected!==panel&&!/Reportes/i.test(String(expected.textContent||''))){
+      expected.removeAttribute('id');
+      panel.id='vareliaHistoryExtraModal';
+    }
+    return panel;
+  }
+
+  function poke(){
+    const panel=arm();
+    if(!panel)return;
+    const marker=document.createElement('i');
+    marker.hidden=true;
+    marker.dataset.vareliaReportCompatRefresh='1';
+    panel.appendChild(marker);
+    queueMicrotask(()=>marker.remove());
+  }
+
+  const burst=()=>[0,80,220,500,900,1500].forEach(ms=>setTimeout(poke,ms));
+  window.addEventListener('varelia:sale-recorded',burst);
+  window.addEventListener('varelia:checkout-confirmed',burst);
+  document.addEventListener('click',e=>{
+    const text=String(e.target?.closest?.('button')?.textContent||'').trim().replace(/^[📊📅🗓️]\s*/u,'');
+    if(text==='Reportes')setTimeout(burst,30);
+  },true);
+  new MutationObserver(()=>arm()).observe(document.body,{childList:true,subtree:true});
+  setInterval(()=>{if(document.visibilityState==='visible')poke()},900);
+  setTimeout(poke,300);
+})();
