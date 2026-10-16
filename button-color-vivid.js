@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaButtonColorVividV1)return;
-  window.__vareliaButtonColorVividV1=true;
+  if(window.__vareliaButtonColorVividV2)return;
+  window.__vareliaButtonColorVividV2=true;
 
   const valid=hex=>/^#[0-9a-f]{6}$/i.test(String(hex||'').trim());
   const clamp=(n,min,max)=>Math.max(min,Math.min(max,n));
@@ -51,9 +51,9 @@
     if(!valid(hex))return null;
     const rgb=hexToRgb(hex);
     const hsl=rgbToHsl(rgb.r,rgb.g,rgb.b);
-    // Conservar el tono escogido, pero evitar colores lavados o demasiado claros.
-    hsl.s=Math.max(hsl.s,82);
-    hsl.l=clamp(hsl.l,34,50);
+    // Mantener el tono elegido, pero usar una versión fuerte: muy saturada y nunca pálida.
+    hsl.s=Math.max(hsl.s,96);
+    hsl.l=clamp(hsl.l,30,42);
     const out=hslToRgb(hsl.h,hsl.s,hsl.l);
     return rgbToHex(out.r,out.g,out.b);
   }
@@ -61,8 +61,8 @@
   function darker(hex){
     const rgb=hexToRgb(hex);
     const hsl=rgbToHsl(rgb.r,rgb.g,rgb.b);
-    hsl.l=clamp(hsl.l-10,24,42);
-    const out=hslToRgb(hsl.h,Math.max(hsl.s,84),hsl.l);
+    hsl.l=clamp(hsl.l-8,22,34);
+    const out=hslToRgb(hsl.h,100,hsl.l);
     return rgbToHex(out.r,out.g,out.b);
   }
 
@@ -79,42 +79,64 @@
     const raw=selected();
     if(!raw)return;
     const c=vivid(raw);if(!c)return;
+    const c2=darker(c);
     const root=document.documentElement;
-    root.style.setProperty('--varelia-action',c);
-    root.style.setProperty('--varelia-action-2',darker(c));
+    root.style.setProperty('--varelia-action',c,'important');
+    root.style.setProperty('--varelia-action-2',c2,'important');
+    let style=document.getElementById('vareliaButtonColorVividCss');
+    if(!style){style=document.createElement('style');style.id='vareliaButtonColorVividCss';document.head.appendChild(style)}
+    style.textContent=`
+      html body button.primary,html body .btn.primary,html body .primary,
+      html body #newProduct,html body #inventoryNewProduct,html body #newSaleTop,html body #newSaleFab,
+      html body #businessBrandSave,html body #vposCheckout,html body #checkout,html body #applyCustomColor,html body .vcsOk,
+      html body .chip.active,html body .segmented button.active,
+      html body #vmobileNav button.active,html body .vmobileNav button.active,html body .mobileNav button.active{
+        background-color:${c}!important;
+        background-image:linear-gradient(135deg,${c},${c2})!important;
+        border-color:${c}!important;
+        color:#fff!important;
+      }
+    `;
     const a=document.getElementById('hexPreview');if(a)a.style.background=c;
     const b=document.getElementById('colorBigPreview');if(b)b.style.background=c;
+  }
+
+  function delayedApply(){
+    apply();
+    setTimeout(apply,20);
+    setTimeout(apply,80);
   }
 
   function wire(){
     const input=document.getElementById('customColor');
     const wheel=document.getElementById('colorWheel');
     const slider=document.getElementById('lightSlider');
-    if(input&&!input.dataset.vareliaVivid){
-      input.dataset.vareliaVivid='1';
-      input.addEventListener('input',()=>setTimeout(apply,0));
-      input.addEventListener('change',()=>setTimeout(apply,0));
+    if(input&&!input.dataset.vareliaVivid2){
+      input.dataset.vareliaVivid2='1';
+      input.addEventListener('input',delayedApply);
+      input.addEventListener('change',delayedApply);
     }
-    if(wheel&&!wheel.dataset.vareliaVivid){
-      wheel.dataset.vareliaVivid='1';
-      wheel.addEventListener('pointerdown',()=>setTimeout(apply,0));
-      wheel.addEventListener('pointermove',()=>setTimeout(apply,0));
-      wheel.addEventListener('pointerup',()=>setTimeout(apply,0));
+    if(wheel&&!wheel.dataset.vareliaVivid2){
+      wheel.dataset.vareliaVivid2='1';
+      wheel.addEventListener('pointerdown',delayedApply);
+      wheel.addEventListener('pointermove',delayedApply);
+      wheel.addEventListener('pointerup',delayedApply);
+      wheel.addEventListener('pointercancel',delayedApply);
     }
-    if(slider&&!slider.dataset.vareliaVivid){
-      slider.dataset.vareliaVivid='1';
-      slider.addEventListener('input',()=>setTimeout(apply,0));
-      slider.addEventListener('change',()=>setTimeout(apply,0));
+    if(slider&&!slider.dataset.vareliaVivid2){
+      slider.dataset.vareliaVivid2='1';
+      slider.addEventListener('input',delayedApply);
+      slider.addEventListener('change',delayedApply);
     }
     apply();
   }
 
-  const boot=()=>{wire();apply()};
+  const boot=()=>{wire();delayedApply()};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
   else boot();
   document.addEventListener('click',e=>{
-    if(e.target?.closest?.('[data-view="appearance"],button'))setTimeout(wire,0);
+    if(e.target?.closest?.('[data-view="appearance"],button'))setTimeout(()=>{wire();delayedApply()},0);
   },true);
   new MutationObserver(()=>setTimeout(wire,0)).observe(document.documentElement,{childList:true,subtree:true});
-  setInterval(()=>{if(document.getElementById('appearance')?.classList.contains('active'))apply()},350);
+  setInterval(()=>{if(document.getElementById('appearance')?.classList.contains('active'))apply()},180);
 })();
