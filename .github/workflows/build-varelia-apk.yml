@@ -1,7 +1,7 @@
 name: Varelia 1.0.50 APK
 on:
   push:
-    branches: [main]
+    branches: [build-varelia-1.0.50-export]
   workflow_dispatch:
 
 jobs:
@@ -49,5 +49,3 @@ jobs:
           path: Varelia.apk
           if-no-files-found: error
           retention-days: 30
-
-# Build trigger: verify secure Varelia APK build
