@@ -183,3 +183,125 @@
 
   syncWindow();
 })();
+
+// Reportes: no mezclar variantes (talla/color) del mismo producto.
+(()=>{
+  if(window.__vareliaReportVariantRowsV1)return;
+  window.__vareliaReportVariantRowsV1=true;
+
+  const validSales=()=>{
+    const list=Array.isArray(window.sales)?window.sales:(()=>{try{return typeof sales!=='undefined'&&Array.isArray(sales)?sales:[]}catch{return[]}})();
+    return list.filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
+      !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
+  };
+  const dayKey=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');
+  const saleDate=s=>new Date(s?.date??s?.created_at??s?.createdAt??'');
+  const totalOf=list=>list.reduce((n,s)=>n+(Number(s?.total)||0),0);
+
+  function reportBox(){
+    const box=document.querySelector('#vareliaHistoryExtraModal [data-report-synced]');
+    if(!box)return null;
+    const heading=[...box.querySelectorAll('h3')].find(h=>String(h.textContent||'').trim()==='Productos más vendidos');
+    return heading?{box,heading}:null;
+  }
+
+  function targetSales(box){
+    const list=validSales(),now=new Date(),today=dayKey(now);
+    const text=String(box.textContent||'');
+    const period=(text.match(/Período:\s*([^\n]+)/i)?.[1]||'').trim();
+    const count=Number((text.match(/Ventas realizadas\s*(\d+)/i)||[])[1]);
+    const sold=Number(String((text.match(/Total vendido\s*S\/\s*([\d.,]+)/i)||[])[1]||'').replace(/,/g,''));
+    const sameSummary=xs=>(!Number.isFinite(count)||xs.length===count)&&(!Number.isFinite(sold)||Math.abs(totalOf(xs)-sold)<0.011);
+    const byDay=value=>list.filter(s=>{const d=saleDate(s);return Number.isFinite(d.getTime())&&dayKey(d)===value});
+    const candidates=[];
+    const explicit=period.match(/(\d{4}-\d{2}-\d{2})/);
+    if(explicit)candidates.push(byDay(explicit[1]));
+    candidates.push(byDay(today));
+    candidates.push(list.filter(s=>{const d=saleDate(s);return Number.isFinite(d.getTime())&&d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth()}));
+    const mon=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+    const monday=new Date(mon);monday.setDate(mon.getDate()-((mon.getDay()+6)%7));
+    const rolling=new Date(mon);rolling.setDate(mon.getDate()-6);
+    candidates.push(list.filter(s=>{const d=saleDate(s);if(!Number.isFinite(d.getTime()))return false;const dd=new Date(d.getFullYear(),d.getMonth(),d.getDate());return dd>=monday&&dd<=mon}));
+    candidates.push(list.filter(s=>{const d=saleDate(s);if(!Number.isFinite(d.getTime()))return false;const dd=new Date(d.getFullYear(),d.getMonth(),d.getDate());return dd>=rolling&&dd<=mon}));
+    candidates.push(list);
+    return candidates.find(sameSummary)||list;
+  }
+
+  function characteristicLabel(it){
+    const direct=String(it?.selectionLabel??it?.variantLabel??'').trim();
+    if(direct)return direct;
+    const selected=Array.isArray(it?.selectedCharacteristics)?it.selectedCharacteristics:[];
+    return selected.map(x=>{
+      if(x==null)return '';
+      if(typeof x==='string')return x.trim();
+      const label=String(x.label??x.name??x.characteristic??x.type??'').trim();
+      const value=String(x.value??x.option??x.selected??'').trim();
+      return label&&value?label+': '+value:(value||label);
+    }).filter(Boolean).join(' · ');
+  }
+
+  function productRows(salesList){
+    const catalog=(()=>{try{return Array.isArray(window.products)?window.products:(typeof products!=='undefined'&&Array.isArray(products)?products:[])}catch{return[]}})();
+    const out=new Map();
+    for(const sale of salesList){
+      for(const it of Array.isArray(sale?.items)?sale.items:[]){
+        const id=String(it?.productId??it?.product_id??it?.id??'');
+        const matched=catalog.find(p=>String(p?.id)===id||String(p?.legacy_id||'')===id)||
+          catalog.find(p=>String(p?.name||'').trim().toLowerCase()===String(it?.baseName??it?.productName??it?.product_name??it?.name??'').trim().toLowerCase());
+        const base=String(it?.baseName??it?.productName??it?.product_name??matched?.name??it?.name??'Producto').trim()||'Producto';
+        const extra=characteristicLabel(it);
+        let name=String(it?.name??'').trim();
+        if(!name)name=extra?base+' · '+extra:base;
+        else if(extra&&!name.toLowerCase().includes(extra.toLowerCase()))name=base+' · '+extra;
+        const unitRaw=String(it?.sale_unit??it?.saleUnit??it?.unit??matched?.unit??'Unidad').trim().toLowerCase();
+        const unit=['kg','kilo','kilos','kilogramo','kilogramos','g','gr','gramo','gramos'].includes(unitRaw)?'kg':(unitRaw||'unidad');
+        const stock=it?.stock_qty??it?.stockQty;
+        const qtyRaw=Number(it?.qty??it?.quantity??1);
+        const quantity=(stock!==undefined&&stock!==null&&stock!==''&&Number.isFinite(Number(stock)))
+          ?Number(stock):(unitRaw==='g'||unitRaw==='gr'||unitRaw==='gramo'||unitRaw==='gramos'?qtyRaw/1000:qtyRaw);
+        if(!Number.isFinite(quantity))continue;
+        const key=[id||base.toLowerCase(),name.toLowerCase(),unit].join('|');
+        const row=out.get(key)||{name,unit,quantity:0};
+        row.quantity+=quantity;
+        out.set(key,row);
+      }
+    }
+    return [...out.values()].sort((a,b)=>b.quantity-a.quantity||a.name.localeCompare(b.name,'es'));
+  }
+
+  function draw(){
+    const found=reportBox();
+    if(!found)return;
+    const {box,heading}=found;
+    const rows=productRows(targetSales(box));
+    const sig=JSON.stringify([box.dataset.reportSignature||'',rows.map(x=>[x.name,x.unit,Number(x.quantity.toFixed(6))])]);
+    if(box.dataset.vareliaVariantReportSignature===sig)return;
+    box.dataset.vareliaVariantReportSignature=sig;
+    let node=heading.nextSibling;
+    while(node){const next=node.nextSibling;node.remove();node=next}
+    if(!rows.length){
+      const empty=document.createElement('p');
+      empty.textContent='No hay productos vendidos en este período.';
+      empty.style.cssText='font-size:13px;color:#64748b;';
+      box.appendChild(empty);
+      return;
+    }
+    for(const p of rows){
+      const formatted=Number(p.quantity.toFixed(3)).toLocaleString('es-PE',{maximumFractionDigits:3});
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid #e5e5e5;align-items:center;';
+      const name=document.createElement('span');name.textContent=p.name;name.style.cssText='font-size:15px;overflow-wrap:anywhere;';
+      const qty=document.createElement('strong');qty.textContent=formatted+' '+p.unit;qty.style.cssText='font-size:16px;white-space:nowrap;';
+      row.append(name,qty);box.appendChild(row);
+    }
+  }
+
+  let queued=false;
+  const schedule=()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;draw()})};
+  new MutationObserver(schedule).observe(document.body,{childList:true,subtree:true});
+  window.addEventListener('varelia:sale-recorded',()=>{schedule();setTimeout(schedule,120);setTimeout(schedule,600)});
+  window.addEventListener('varelia:checkout-confirmed',()=>{schedule();setTimeout(schedule,120);setTimeout(schedule,600)});
+  document.addEventListener('click',e=>{if(/Reportes|^(Hoy|Día|Semana|Mes|Todo)$/i.test(String(e.target?.closest?.('button')?.textContent||'').trim().replace(/^[📅🗓️]\s*/u,'')))setTimeout(schedule,0)},true);
+  setInterval(()=>{if(document.visibilityState==='visible'&&document.getElementById('vareliaHistoryExtraModal'))schedule()},900);
+  schedule();
+})();
