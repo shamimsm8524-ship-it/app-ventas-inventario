@@ -34,6 +34,30 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
+  // Apariencia: conservar toda la lógica existente y reforzar únicamente
+  // el color seleccionado para que los botones no queden pálidos.
+  if(url.origin===self.location.origin && url.pathname.endsWith('/premium-admin-open-fix.js')){
+    e.respondWith((async()=>{
+      try{
+        const base=await fetch(e.request,{cache:'no-store'});
+        if(!base.ok)return base;
+        const helper=await fetch('/button-color-vivid.js?v=20261016-v1',{cache:'no-store'});
+        const body=(await base.text())+(helper.ok?'\n;\n'+(await helper.text()):'');
+        return new Response(body,{
+          status:base.status,
+          statusText:base.statusText,
+          headers:{
+            'Content-Type':'application/javascript; charset=utf-8',
+            'Cache-Control':'no-store, no-cache, must-revalidate'
+          }
+        });
+      }catch(err){
+        return fetch(e.request,{cache:'no-store'});
+      }
+    })());
+    return;
+  }
+
   // Mantener únicamente la corrección existente de variantes talla/color/marca.
   if(url.origin===self.location.origin && url.pathname.endsWith('/characteristics.js')){
     e.respondWith((async()=>{
