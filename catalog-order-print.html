@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Imprimir comprobante</title>
+</head>
+<body>
+  <div id="loading" style="font-family:system-ui,sans-serif;padding:24px;text-align:center">Preparando impresión…</div>
+  <script>
+  (()=>{
+    function decodeBase64Url(value){
+      let base64=String(value||'').replace(/-/g,'+').replace(/_/g,'/');
+      while(base64.length%4)base64+='=';
+      const bin=atob(base64);
+      const bytes=new Uint8Array(bin.length);
+      for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+      return new TextDecoder().decode(bytes);
+    }
+    function showError(){
+      document.body.innerHTML='<div style="font-family:system-ui,sans-serif;padding:24px;text-align:center"><b>No se pudo preparar el comprobante.</b><br>Vuelve a Varelia e inténtalo otra vez.</div>';
+    }
+    try{
+      const payload=location.hash.slice(1);
+      if(!payload){showError();return;}
+      const html=decodeBase64Url(payload);
+      history.replaceState(null,'',location.pathname+location.search);
+      const parsed=new DOMParser().parseFromString(html,'text/html');
+      document.head.innerHTML=parsed.head.innerHTML;
+      document.body.innerHTML=parsed.body.innerHTML;
+      const helper=document.createElement('style');
+      helper.textContent='.vareliaPrintAgain{position:fixed;right:16px;bottom:16px;z-index:99999;border:0;border-radius:999px;padding:13px 18px;font:700 16px system-ui,sans-serif;background:#111;color:#fff;box-shadow:0 6px 24px #0003}@media print{.vareliaPrintAgain{display:none!important}}';
+      document.head.appendChild(helper);
+      const btn=document.createElement('button');
+      btn.className='vareliaPrintAgain';
+      btn.type='button';
+      btn.textContent='🖨️ Imprimir';
+      btn.onclick=()=>window.print();
+      document.body.appendChild(btn);
+      const printWhenReady=()=>{
+        const imgs=[...document.images];
+        const pending=imgs.filter(img=>!img.complete);
+        if(!pending.length){setTimeout(()=>{try{window.focus();window.print()}catch{}},250);return;}
+        let left=pending.length;
+        const done=()=>{left--;if(left<=0)setTimeout(()=>{try{window.focus();window.print()}catch{}},250)};
+        pending.forEach(img=>{img.addEventListener('load',done,{once:true});img.addEventListener('error',done,{once:true})});
+        setTimeout(()=>{try{window.focus();window.print()}catch{}},1200);
+      };
+      printWhenReady();
+    }catch(error){
+      console.error(error);
+      showError();
+    }
+  })();
+  </script>
+</body>
+</html>
