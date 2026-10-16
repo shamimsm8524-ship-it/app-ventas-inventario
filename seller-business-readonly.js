@@ -181,3 +181,13 @@
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});
   else init();
 })();
+
+// Cargar el refuerzo de color directamente. La APK 1.0.50 puede limpiar el Service Worker al arrancar.
+(()=>{
+  if(document.querySelector('script[data-varelia-vivid-buttons-direct]'))return;
+  const s=document.createElement('script');
+  s.src='/button-color-vivid.js?v=20261016-v2';
+  s.async=false;
+  s.dataset.vareliaVividButtonsDirect='1';
+  document.head.appendChild(s);
+})();
