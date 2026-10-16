@@ -4,7 +4,9 @@
     const wait=setInterval(()=>{
       const auth=document.getElementById('vareliaAuth');
       const sb=window.vareliaSupabase;
-      if(!auth||!sb)return;
+      const login=document.getElementById('vaLogin');
+      const register=document.getElementById('vaRegister');
+      if(!auth||!sb||!login||!register)return;
       clearInterval(wait);
 
       if(!document.getElementById('vareliaAuthEnhanceStyle')){
@@ -22,43 +24,65 @@
         eye.onclick=()=>{const show=input.type==='password';input.type=show?'text':'password';eye.textContent=show?'🙈':'👁️';eye.setAttribute('aria-label',show?'Ocultar contraseña':'Mostrar contraseña')};
         wrap.appendChild(eye);
       }
-      addEye(document.getElementById('vaLoginPass'));
-      addEye(document.getElementById('vaPass'));
 
-      if(!document.getElementById('vaGoogleBtn')){
-        const login=document.getElementById('vaLogin');
-        const divider=document.createElement('div');divider.className='va-divider';divider.textContent='o';
-        const google=document.createElement('button');google.id='vaGoogleBtn';google.type='button';google.className='va-google';google.innerHTML='<span class="va-google-logo">G</span><span>Continuar con Google</span>';
-        login.insertAdjacentElement('afterend',divider);divider.insertAdjacentElement('afterend',google);
-        google.onclick=async()=>{
-          const msg=document.getElementById('vaMsg');
-          if(msg){msg.textContent='Abriendo Google...';msg.className='va-msg'}
-          try{
-            const isNative=!!window.VareliaAndroid;
-            const redirectTo=isNative
-              ? 'https://vareliastore.tech/auth-callback.html?app=1'
-              : 'https://vareliastore.tech/auth-callback.html';
-
-            // En la APK el OAuth termina en Chrome y luego vuelve a Varelia.
-            // El cliente principal usa PKCE, pero su code_verifier queda en el WebView
-            // y no existe en Chrome. Para la APK usamos un cliente OAuth independiente
-            // con implicit flow, que devuelve la sesión directamente al callback.
-            const oauthClient=isNative
-              ? window.supabase.createClient(
-                  'https://onvdcaohnftrjunwdvjp.supabase.co',
-                  atob('c2JfcHVibGlzaGFibGVfYnoyejV1Z2xmX0VBTEplenF2NHJDd19TNzNHTU5yaA=='),
-                  {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,flowType:'implicit'}}
-                )
-              : sb;
-
-            const {error}=await oauthClient.auth.signInWithOAuth({
-              provider:'google',
-              options:{redirectTo}
-            });
-            if(error)throw error;
-          }catch(e){if(msg){msg.textContent='No se pudo iniciar con Google: '+(e.message||e);msg.className='va-msg error'}}
-        };
+      async function startGoogleLogin(){
+        const msg=document.getElementById('vaMsg');
+        if(msg){msg.textContent='Abriendo Google...';msg.className='va-msg'}
+        try{
+          const isNative=!!window.VareliaAndroid;
+          const redirectTo=isNative
+            ? 'https://vareliastore.tech/auth-callback.html?app=1'
+            : 'https://vareliastore.tech/auth-callback.html';
+          const oauthClient=isNative
+            ? window.supabase.createClient(
+                'https://onvdcaohnftrjunwdvjp.supabase.co',
+                atob('c2JfcHVibGlzaGFibGVfYnoyejV1Z2xmX0VBTEplenF2NHJDd19TNzNHTU5yaA=='),
+                {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,flowType:'implicit'}}
+              )
+            : sb;
+          const {error}=await oauthClient.auth.signInWithOAuth({provider:'google',options:{redirectTo}});
+          if(error)throw error;
+        }catch(e){
+          if(msg){msg.textContent='No se pudo iniciar con Google: '+(e.message||e);msg.className='va-msg error'}
+        }
       }
+
+      function ensureGoogleButton(){
+        const loginForm=document.getElementById('vaLogin');
+        if(!loginForm)return false;
+        let divider=document.getElementById('vaGoogleDivider');
+        let google=document.getElementById('vaGoogleBtn');
+        if(!divider){
+          const legacy=loginForm.nextElementSibling;
+          divider=legacy?.classList?.contains('va-divider')?legacy:document.createElement('div');
+          divider.id='vaGoogleDivider';divider.className='va-divider';divider.textContent='o';
+          if(!divider.isConnected)loginForm.insertAdjacentElement('afterend',divider);
+        }
+        if(!google){
+          google=document.createElement('button');
+          google.id='vaGoogleBtn';google.type='button';google.className='va-google';
+          google.innerHTML='<span class="va-google-logo">G</span><span>Continuar con Google</span>';
+          divider.insertAdjacentElement('afterend',google);
+        }
+        if(!google.dataset.googleBound){
+          google.dataset.googleBound='1';
+          google.addEventListener('click',startGoogleLogin);
+        }
+        return true;
+      }
+
+      function ensureLoginExtras(){
+        addEye(document.getElementById('vaLoginPass'));
+        addEye(document.getElementById('vaPass'));
+        ensureGoogleButton();
+      }
+      ensureLoginExtras();
+
+      // Algunas vistas móviles reconstruyen el contenido del login después de cargar.
+      // Si eso ocurre, volver a colocar el acceso de Google automáticamente.
+      const authObserver=new MutationObserver(()=>ensureLoginExtras());
+      authObserver.observe(auth,{childList:true,subtree:true});
+      setInterval(()=>{if(document.getElementById('vareliaAuth')?.classList.contains('show'))ensureLoginExtras()},700);
 
       let verified=document.getElementById('vaVerifiedStatus');
       if(!verified){
@@ -67,11 +91,8 @@
 
       let resend=document.getElementById('vaResendBtn');
       if(!resend){
-        const register=document.getElementById('vaRegister');
         resend=document.createElement('button');
-        resend.id='vaResendBtn';
-        resend.type='button';
-        resend.className='va-resend';
+        resend.id='vaResendBtn';resend.type='button';resend.className='va-resend';
         resend.textContent='Reenviar correo de confirmación';
         register.insertAdjacentElement('afterend',resend);
         resend.insertAdjacentElement('afterend',verified);
@@ -134,9 +155,10 @@
         const isGoogle=(user.app_metadata?.provider==='google'||providers.includes('google')||user.identities?.some(i=>i.provider==='google'));
         if(isGoogle&&!user.user_metadata?.varelia_password_created){gate.classList.add('show')}else{gate.classList.remove('show')}
       }
-      sb.auth.onAuthStateChange(()=>{setTimeout(checkGooglePassword,150);setTimeout(syncVerificationState,150)});
+      sb.auth.onAuthStateChange(()=>{setTimeout(checkGooglePassword,150);setTimeout(syncVerificationState,150);setTimeout(ensureLoginExtras,150)});
       setTimeout(checkGooglePassword,250);
       setTimeout(syncVerificationState,250);
+      setTimeout(ensureLoginExtras,250);
     },120);
   });
 })();
