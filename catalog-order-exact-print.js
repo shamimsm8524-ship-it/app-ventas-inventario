@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaCatalogOrderExactPrintV2)return;
-  window.__vareliaCatalogOrderExactPrintV2=true;
+  if(window.__vareliaCatalogOrderExactPrintV3)return;
+  window.__vareliaCatalogOrderExactPrintV3=true;
 
   const thermalWidth=()=>{
     let value='';
@@ -13,6 +13,8 @@
     const source=document.querySelector('#catalogOrderReceipt .vreceiptPaper');
     if(!source)throw new Error('No se encontró el comprobante de pedido');
 
+    // No modificar contenido, descripciones ni orden: imprimir una copia exacta
+    // del comprobante que ya está visible en pantalla.
     const paper=source.cloneNode(true);
     paper.querySelector('.vreceiptActions')?.remove();
 
@@ -42,25 +44,25 @@
     const w=window.open('','_blank','width=420,height=720');
     if(!w)throw new Error('No se pudo abrir la vista de impresión');
     const title=String(document.querySelector('#catalogOrderReceipt .center.muted')?.textContent||'Comprobante de pedido').replace(/[<>]/g,'');
-    w.document.open();
-    w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+title+'</title><style>'+css+'</style></head><body>'+paper.outerHTML+'</body></html>');
-    w.document.close();
+    const autoPrint=`<script>(()=>{
+      let done=false;
+      const go=()=>{
+        if(done)return;
+        done=true;
+        setTimeout(()=>{try{window.focus();window.print()}catch(e){console.error(e)}},180);
+      };
+      const imgs=[...document.images];
+      const waiting=imgs.filter(i=>!i.complete);
+      if(!waiting.length){go();return}
+      let left=waiting.length;
+      const ready=()=>{left--;if(left<=0)go()};
+      waiting.forEach(i=>{i.addEventListener('load',ready,{once:true});i.addEventListener('error',ready,{once:true})});
+      setTimeout(go,1800);
+    })()<\/script>`;
 
-    let printed=false;
-    const runPrint=()=>{
-      if(printed)return;
-      printed=true;
-      setTimeout(()=>{try{w.focus();w.print()}catch(err){console.error('Varelia pedido print',err)}},200);
-    };
-    const pending=[...w.document.images].filter(img=>!img.complete);
-    if(!pending.length){runPrint();return}
-    let left=pending.length;
-    const ready=()=>{left--;if(left<=0)runPrint()};
-    pending.forEach(img=>{
-      img.addEventListener('load',ready,{once:true});
-      img.addEventListener('error',ready,{once:true});
-    });
-    setTimeout(runPrint,1800);
+    w.document.open();
+    w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+title+'</title><style>'+css+'</style></head><body>'+paper.outerHTML+autoPrint+'</body></html>');
+    w.document.close();
   }
 
   document.addEventListener('click',e=>{
