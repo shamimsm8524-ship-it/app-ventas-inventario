@@ -93,7 +93,7 @@ function ticket(o){
     if(shipping>0||o.delivery_label){nativeItems.push({name:'Entrega: '+String(o.delivery_label||''),qty:1,price:shipping,subtotal:shipping,saleType:'',unit:'unidad',byWeight:false})}
     const total=Number(o.total)||0,method=String(o.payment_method||'Efectivo');
     const paidAt=paid&&o.paid_at?new Date(o.paid_at).toLocaleString('es-PE'):'';
-    const customer=[String(o.customer_name||''),o.customer_phone?'Celular: '+o.customer_phone:'',o.customer_city?'Ciudad: '+o.customer_city:''].filter(Boolean).join(' · ');
+    const customer=[String(o.customer_name||''),o.customer_phone?'Celular: '+o.customer_phone:'',o.customer_city?'Ciudad: '+o.customer_city:''].filter(Boolean).join('\u2028');
     const details=[paidAt?'Pago confirmado: '+paidAt:'',o.customer_address?'Dirección: '+o.customer_address:'',paid?'Pago verificado por el negocio.':'Pago pendiente de confirmación.'].filter(Boolean).join(' · ');
     return {business:receiptBusinessName,logo:receiptLogo,ruc:String(bs.ruc||''),phone:String(bs.phone||''),address:String(bs.address||''),message:details,thermalWidth:String(thermalWidth()),ticket:String(o.order_code||'Pedido'),date:new Date(o.created_at||Date.now()).toLocaleString('es-PE'),method,seller:'',customer,total,received:paid?total:0,change:0,breakdown:paid?{[method]:total}:{},items:nativeItems};
   }
