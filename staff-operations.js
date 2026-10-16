@@ -246,7 +246,54 @@
     </style></head><body>${clone.outerHTML}</body></html>`;
   }
 
+  function nativeThermalPayload(sale){
+    const cfg=window.vareliaVideoSettings||{};
+    const items=Array.isArray(sale?.items)?sale.items:[];
+    let total=Number(sale?.total)||0;
+    if(total<=0)total=items.reduce((sum,item)=>sum+(Number(item?.qty)||0)*(Number(item?.price)||0),0);
+    const ticket=String(sale?.receiptNumber||sale?.receipt_number||('V-'+String(sale?.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-10).toUpperCase()));
+    const breakdown=(sale?.paymentBreakdown&&typeof sale.paymentBreakdown==='object')?sale.paymentBreakdown:((sale?.payment_breakdown&&typeof sale.payment_breakdown==='object')?sale.payment_breakdown:{});
+    const received=Number(sale?.received??sale?.amountReceived??sale?.paidAmount??total)||0;
+    const change=Number(sale?.change??sale?.changeAmount??Math.max(0,received-total))||0;
+    const business=document.getElementById('vareliaBusinessName')?.textContent?.trim()||window.vareliaBusinessDisplayName||cfg.businessName||'Varelia Store';
+    const seller=String(sale?.sellerName||sale?.seller_name||'');
+    return {
+      business:String(business),
+      logo:String(cfg.logo||window.vareliaCloudBusinessLogo||''),
+      ruc:String(cfg.ruc||''),
+      phone:String(cfg.phone||''),
+      address:String(cfg.address||''),
+      message:String(cfg.ticketMessage||'Gracias por su compra.'),
+      thermalWidth:String(thermalWidth()),
+      ticket,
+      date:new Date(sale?.date||Date.now()).toLocaleString('es-PE',{dateStyle:'short',timeStyle:'short'}),
+      method:String(sale?.paymentMethod||sale?.method||'Efectivo'),
+      seller,
+      customer:String(sale?.customerName||sale?.customer_name||''),
+      total,
+      received,
+      change,
+      breakdown,
+      items:items.map(i=>({
+        name:String(i?.name||'Producto'),
+        qty:Number(i?.qty||0),
+        price:Number(i?.price||0),
+        subtotal:Number(i?.qty||0)*Number(i?.price||0),
+        saleType:String(i?.saleType||''),
+        unit:String(i?.medicineSaleUnit||i?.sale_unit||i?.saleUnit||i?.unit||i?.unitType||''),
+        byWeight:i?.byWeight===true,
+        description:String(i?.description||i?.detail||i?.details||i?.specifications||i?.specification||'')
+      }))
+    };
+  }
+
   function printFixed(sale){
+    if(window.VareliaAndroid&&typeof window.VareliaAndroid.printSaleReceipt==='function'){
+      try{
+        window.VareliaAndroid.printSaleReceipt(JSON.stringify(nativeThermalPayload(sale)));
+        return true;
+      }catch(err){console.warn('Impresión térmica nativa no disponible; se usará el respaldo HTML',err)}
+    }
     const html=printableHtml();
     if(!html)return false;
     const title='Comprobante '+String(sale?.receiptNumber||sale?.receipt_number||'venta');
