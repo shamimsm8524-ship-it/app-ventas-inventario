@@ -1,1 +1,2 @@
 activar rueda cromatica circular
+build apk export 2026-10-16
