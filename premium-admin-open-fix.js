@@ -221,8 +221,6 @@
       raw=JSON.stringify(snapshot);
       localStorage.setItem(KEY,raw);
     }catch{return}
-    // centralCheckout copia este respaldo de forma síncrona al comenzar. Luego se
-    // elimina para que nunca pueda reutilizarse en una venta posterior vacía.
     setTimeout(()=>{
       try{if(localStorage.getItem(KEY)===raw)localStorage.removeItem(KEY)}catch{}
     },3000);
@@ -230,9 +228,6 @@
 })();
 
 // Compatibilidad directa con el actualizador interno de Reportes.
-// El módulo principal busca #vareliaHistoryExtraModal; en móvil el modal puede
-// existir sin ese id. Asignarlo al panel real permite que el evento de venta y
-// su temporizador actualicen el reporte sin cerrarlo ni volver a abrirlo.
 (()=>{
   if(window.__vareliaReportModalCompatV2)return;
   window.__vareliaReportModalCompatV2=true;
@@ -280,4 +275,71 @@
   new MutationObserver(()=>arm()).observe(document.body,{childList:true,subtree:true});
   setInterval(()=>{if(document.visibilityState==='visible')poke()},900);
   setTimeout(poke,300);
+})();
+
+// Los medicamentos usan su propio flujo (caja/blíster/pastilla). Nunca deben
+// heredar Talla/Color/Marca del editor de productos normales.
+(()=>{
+  if(window.__vareliaMedicineVariantIsolationV1)return;
+  window.__vareliaMedicineVariantIsolationV1=true;
+  const medCat=v=>/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(v||'').trim());
+  const obviousGoods=p=>/zapat|zapato|calzado|tenis|sandalia|ropa|polo|camis|blusa|pantal|short|vestido|falda|casaca|chompa|gorra|mochila|bolso/i.test(String(p?.name||'')+' '+String(p?.category||''));
+  const isMedicine=p=>{
+    if(!p||obviousGoods(p))return false;
+    return !!p.medicine||medCat(p.category)||!!String(p.laboratory||p.medicinePresentation||p.batch||p.expiryDate||'').trim()||Number(p.medicineStockBoxes||0)>0;
+  };
+  const list=()=>{try{return Array.isArray(window.products)?window.products:(typeof products!=='undefined'&&Array.isArray(products)?products:[])}catch{return[]}};
+
+  function patchCharacteristics(){
+    const vc=window.VareliaCharacteristics;
+    if(!vc)return false;
+    if(typeof vc.select==='function'&&!vc.select.__medicineIsolation){
+      const original=vc.select;
+      const wrapped=function(p,cb){
+        if(isMedicine(p)){
+          return cb({...p,__characteristicsSelected:true,characteristics:[],variantCombinations:[],selectedCharacteristics:[],selectionLabel:'',selectedCombination:null});
+        }
+        return original.call(this,p,cb);
+      };
+      wrapped.__medicineIsolation=true;
+      wrapped.__original=original;
+      vc.select=wrapped;
+    }
+    if(typeof vc.readEditor==='function'&&!vc.readEditor.__medicineIsolation){
+      const originalRead=vc.readEditor;
+      const wrappedRead=function(){
+        const toggle=document.getElementById('vMedicineToggle');
+        const type=document.getElementById('vMedicineTypeSelect');
+        if(toggle?.checked||type?.value==='medicine')return{characteristics:[],variantCombinations:[]};
+        return originalRead.call(this);
+      };
+      wrappedRead.__medicineIsolation=true;
+      wrappedRead.__original=originalRead;
+      vc.readEditor=wrappedRead;
+    }
+    return true;
+  }
+
+  function repairMedicines(){
+    const changed=[];
+    for(const p of list()){
+      if(!isMedicine(p))continue;
+      let dirty=false;
+      if(!p.medicine){p.medicine=true;dirty=true}
+      if(Array.isArray(p.characteristics)&&p.characteristics.length){p.characteristics=[];dirty=true}
+      if(Array.isArray(p.variantCombinations)&&p.variantCombinations.length){p.variantCombinations=[];dirty=true}
+      if(dirty)changed.push(p);
+    }
+    if(!changed.length)return;
+    try{if(typeof save==='function')save()}catch{}
+    try{if(typeof render==='function')render()}catch{}
+    changed.forEach(p=>{try{Promise.resolve(window.syncProductToCloud?.(p)).catch(()=>{})}catch{}});
+  }
+
+  const run=()=>{patchCharacteristics();repairMedicines()};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(run,0),{once:true});
+  else setTimeout(run,0);
+  window.addEventListener('varelia:central-stock-updated',()=>setTimeout(run,80));
+  window.addEventListener('varelia:forced-sync-complete',()=>setTimeout(run,80));
+  setTimeout(run,1200);
 })();
