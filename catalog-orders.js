@@ -72,11 +72,23 @@ function ticket(o){
   async function receiptCanvas(){const source=sec.querySelector('.vreceiptPaper');if(!source)throw new Error('No se encontró el comprobante');await loadReceiptLib('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',()=>typeof window.html2canvas==='function');return await window.html2canvas(source,{scale:2,backgroundColor:'#ffffff',useCORS:true,logging:false})}
   function receiptFilename(ext){return 'comprobante-'+String(o.order_code||'pedido').replace(/[^a-z0-9_-]/gi,'')+'.'+ext}
   async function runReceiptAction(button,label,fn){const oldLabel=button.textContent;button.disabled=true;button.textContent=label;try{await fn()}catch(err){console.error(err);alert('No se pudo descargar el comprobante. Revisa tu conexión e inténtalo de nuevo.')}finally{button.disabled=false;button.textContent=oldLabel}}
+  function nativeReceiptHtml(){
+    const source=sec.querySelector('.vreceiptPaper');if(!source)throw new Error('No se encontró el comprobante');
+    const clone=source.cloneNode(true);clone.querySelector('.vreceiptActions')?.remove();
+    clone.querySelectorAll('img').forEach(img=>{try{img.setAttribute('src',img.src)}catch{}});
+    let width='80';try{width=String(window.vareliaVideoSettings?.thermalWidth||JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')?.thermalWidth||'80')}catch{};if(width!=='58')width='80';
+    const css=document.getElementById('vreceiptCss')?.textContent||'';
+    const printCss='@page{size:'+width+'mm auto;margin:0}html,body{margin:0;padding:0;background:#fff}#catalogOrderReceipt{width:'+width+'mm;max-width:'+width+'mm;margin:0;padding:0;background:#fff}#catalogOrderReceipt .vreceiptWrap{width:'+width+'mm;max-width:'+width+'mm;margin:0;padding:0}#catalogOrderReceipt .vreceiptPaper{box-sizing:border-box;width:'+width+'mm;max-width:'+width+'mm;margin:0;padding:4mm;border:0;border-radius:0;box-shadow:none;background:#fff;color:#111}#catalogOrderReceipt .vreceiptActions,#vreceiptBack{display:none!important}';
+    return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'\n'+printCss+'</style></head><body><section id="catalogOrderReceipt"><div class="vreceiptWrap">'+clone.outerHTML+'</div></section></body></html>';
+  }
 
   const printButton=sec.querySelector('#vcatalogReceiptPrint');
   printButton.onclick=()=>{
-    try{window.print()}
-    catch(err){console.error(err);alert('No se pudo abrir la impresión. Inténtalo nuevamente.')}
+    try{
+      const native=window.VareliaAndroid;
+      if(!native||typeof native.printHtmlDocument!=='function')throw new Error('Puente de impresión Android no disponible');
+      native.printHtmlDocument('Comprobante '+String(o.order_code||'pedido'),nativeReceiptHtml());
+    }catch(err){console.error(err);alert('No se pudo abrir la impresión de Android. Cierra Varelia por completo y vuelve a abrirla.')}
   };
   const imageButton=sec.querySelector('#vreceiptImage');
   imageButton.onclick=()=>runReceiptAction(imageButton,'Preparando PNG…',async()=>{const canvas=await receiptCanvas();const a=document.createElement('a');a.download=receiptFilename('png');a.href=canvas.toDataURL('image/png');a.click()});
