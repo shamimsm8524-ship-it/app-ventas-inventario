@@ -9,31 +9,7 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url=new URL(e.request.url);
 
-  // Pedidos del catálogo: cargar siempre el módulo fresco y añadir el impresor
-  // que clona exactamente el comprobante visible antes de cualquier formato nativo.
-  if(url.origin===self.location.origin && url.pathname.endsWith('/catalog-orders.js')){
-    e.respondWith((async()=>{
-      try{
-        const base=await fetch(e.request,{cache:'no-store'});
-        if(!base.ok)return base;
-        const fix=await fetch('/catalog-order-exact-print.js?v=20261016-exact-v3',{cache:'no-store'});
-        const body=(await base.text())+(fix.ok?'\n;\n'+(await fix.text()):'');
-        return new Response(body,{
-          status:base.status,
-          statusText:base.statusText,
-          headers:{
-            'Content-Type':'application/javascript; charset=utf-8',
-            'Cache-Control':'no-store, no-cache, must-revalidate'
-          }
-        });
-      }catch(err){
-        return fetch(e.request,{cache:'no-store'});
-      }
-    })());
-    return;
-  }
-
-  // Mantener la corrección existente de variantes talla/color/marca.
+  // Mantener únicamente la corrección existente de variantes talla/color/marca.
   if(url.origin===self.location.origin && url.pathname.endsWith('/characteristics.js')){
     e.respondWith((async()=>{
       try{
