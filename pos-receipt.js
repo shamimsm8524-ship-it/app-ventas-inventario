@@ -122,7 +122,6 @@
         const ownerNames=[profile.full_name,profile.name,window.vareliaSellerName,domName,email.split('@')[0]]
           .map(v=>String(v||'').trim().toLocaleLowerCase()).filter(Boolean);
         const savedSeller=String(sale?.sellerName||sale?.seller_name||'').trim();
-        // No mostrar como cajero el nombre del administrador guardado en ventas anteriores.
         if(role==='owner'&&savedSeller&&ownerNames.includes(savedSeller.toLocaleLowerCase()))return '';
         const configuredSeller=role==='owner'?'':(profile.full_name||profile.name||window.vareliaSellerName||domName||email.split('@')[0]||'');
         return String(savedSeller||configuredSeller||'').trim();
@@ -130,7 +129,6 @@
       const businessName=()=>document.getElementById('vareliaBusinessName')?.textContent?.trim()||window.vareliaBusinessDisplayName||businessSettings().businessName||'Varelia Store';
       const itemDescription=i=>{const d=String(i?.description||i?.detail||i?.details||i?.specifications||i?.specification||'').trim();const raw=Array.isArray(i?.characteristics)?i.characteristics:[];const c=raw.map(x=>{if(typeof x==='string')return x.trim();if(x&&typeof x==='object')return [x.name,x.value??x.label].filter(Boolean).join(': ');return ''}).filter(Boolean).join(' · ');const variants=Array.isArray(i?.variants)?i.variants.map(x=>typeof x==='string'?x:[x?.name,x?.value??x?.label].filter(Boolean).join(': ')).filter(Boolean).join(' · '):'';return [d,c,variants].filter(Boolean).join(' · ')};
       const itemUnit=i=>String(i?.unit||i?.saleUnit||i?.unitType||i?.measureUnit||i?.quantityUnit||i?.presentation||'').trim().toLowerCase();
-      // Para medicamentos prevalece la unidad elegida en la venta sobre la unidad base del inventario.
       const receiptUnit=i=>{const picked=String(i?.medicineSaleUnit||i?.sale_unit||'').trim();if(picked)return picked;const name=String(i?.name||i?.baseName||'');const match=name.match(/\s·\s*(cajas?|bl[ií]ster(?:es)?|pastillas?|tabletas?|c[aá]psulas?|ampollas?|sobres?|unidades?)\s*$/i);if(match)return match[1];return String(i?.saleUnit||i?.unit||i?.unitType||i?.measureUnit||i?.quantityUnit||i?.presentation||'unidades').trim();};tItem=i=>{const u=itemUnit(i);return i?.saleType==='weight'||i?.byWeight===true||['kg','kilo','kilos','kilogramo','kilogramos','g','gr','gramo','gramos'].includes(u)||(!Number.isInteger(Number(i?.qty))&&Number(i?.qty)>0)};
       const weightLabel=q=>{const n=Number(q)||0;return n<1?`${Math.round(n*1000)} g`:`${Number.isInteger(n)?n:n.toLocaleString('es-PE')} kg`};
       const ticketNo=sale=>sale.receiptNumber||('V-'+String(sale.id||Date.now()).replace(/[^a-z0-9]/gi,'').slice(-10).toUpperCase());
@@ -244,9 +242,7 @@
         const businessInfo=`${bs.ruc?`<div class="c small">RUC/Doc: ${esc(bs.ruc)}</div>`:''}${bs.phone?`<div class="c small">Tel: ${esc(bs.phone)}</div>`:''}${bs.address?`<div class="c small">${esc(bs.address)}</div>`:''}`;
         const customerInfo=`${sale.customerName?`<div class="line"><span>Cliente</span><span>${esc(sale.customerName)}</span></div>`:''}${sale.sellerName?`<div class="line"><span>Vendedor</span><span>${esc(sale.sellerName)}</span></div>`:''}`;
         const footer=esc(bs.ticketMessage||'Gracias por su compra.');
-        const printDocumentHtml=`<html><head><meta charset="utf-8"><title>${esc(ticketNo(sale))}</title><style>@page{size:${width}mm auto;margin:2mm}*{box-sizing:border-box}html,body{margin:0!important;padding:0!important;background:#fff;width:100%} @media print{html,body{width:${paper}mm!important;margin:0!important;padding:0!important}.paper{width:${paper}mm!important;margin:0 auto!important;page-break-after:avoid;break-after:avoid}} @media screen{body{background:#fff}}body{font-family:monospace;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}.paper{width:${paper}mm;margin:0 auto}.c{text-align:center}.logoWrap{margin:0 0 2mm}.logoWrap img{display:block;margin:0 auto;max-width:${logoMaxW}mm;max-height:${logoMaxH}mm;width:auto;height:auto;object-fit:contain}.sep{border-top:1px dashed #777;margin:2mm 0}.line{display:flex;justify-content:space-between;gap:2mm;margin:1mm 0;align-items:flex-start}.line span:first-child{min-width:0;overflow-wrap:anywhere}.line span:last-child,.line b:last-child{text-align:right;overflow-wrap:anywhere}.small{font-size:10px;color:#444;line-height:1.25}.total{font-size:18px;font-weight:900}.item{margin:1.8mm 0}h2{font-size:17px;margin:0 0 1mm}.footer{margin-top:3mm}</style></head><body><div class="paper">${logoHtml}<h2 class="c">${esc(businessName())}</h2><div class="c small">COMPROBANTE INTERNO DE VENTA</div>${businessInfo}<div class="sep"></div><div class="line"><span>N.º</span><b>${esc(ticketNo(sale))}</b></div><div class="line"><span>Fecha</span><span>${esc(dateText(sale))}</span></div><div class="line"><span>Pago</span><span>${esc(sale.paymentMethod||'Efectivo')}</span></div>${customerInfo}<div class="sep"></div>\${(sale.items||[]).map(i=>{const q=Number(i.qty||0),p=Number(i.price||0),weighted=isWeightItem(i);let unit=String(receiptUnit(i)||'unidades').trim().toLowerCase();const unitKey=unit.normalize('NFD').replace(/[\u0300-\u036f]/g,'');const unitMap={unidades:'unidad',unidad:'unidad',unids:'unidad',blister:'blíster',blisters:'blíster',blisteres:'blíster',cajas:'caja',pastillas:'pastilla',tabletas:'tableta',gramos:'gramo',kilogramos:'kilogramo',litros:'litro',mililitros:'mililitro',frascos:'frasco',sobres:'sobre',paquetes:'paquete',docenas:'docena'};const unitForPrice=unitMap[unitKey]||unit;if(!unit||unit==='unidades')unit='unidad';const description=itemDescription(i)?'<div class="small">'+esc(itemDescription(i))+'</div>':'';const meta=weighted?'<div class="small">Peso: '+esc(weightLabel(q))+'</div><div class="small">Precio por kilo: '+money(p)+'</div>':'<div class="small">Cantidad: '+esc(q)+' '+esc(unit)+'</div><div class="small">Precio por '+esc(unitForPrice)+': '+money(p)+'</div>';return '<div class="item"><div><b>'+esc(i.name||'Producto')+'</b>'+description+meta+'</div><b>'+money(q*p)+'</b></div>'}).join('')}<div class="sep"></div><div class="line total"><span>TOTAL</span><span>${money(sale.total)}</span></div>${payHtml}<p class="c small footer">${footer}<br>Comprobante interno. No reemplaza boleta o factura SUNAT.</p></div><script>(()=>{let done=false;const go=()=>{if(done)return;done=true;setTimeout(()=>{try{focus()}catch{}try{print()}catch(e){console.error('Error al abrir impresión',e)}setTimeout(()=>{try{if(window.frameElement)window.frameElement.style.display='none'}catch{}try{close()}catch{}},1200)},250)};const img=document.getElementById('ticketLogo');if(img&&!img.complete){img.onload=go;img.onerror=go;setTimeout(go,1800)}else go()})()<\/script></body></html>`;
-        // En la APK, usar el puente nativo que imprime HTML conserva los campos
-        // de cantidad/unidad del comprobante en la vista "Guardar como PDF".
+        const printDocumentHtml=`<html><head><meta charset="utf-8"><title>${esc(ticketNo(sale))}</title><style>@page{size:${width}mm auto;margin:2mm}*{box-sizing:border-box}html,body{margin:0!important;padding:0!important;background:#fff;width:100%} @media print{html,body{width:${paper}mm!important;margin:0!important;padding:0!important}.paper{width:${paper}mm!important;margin:0 auto!important;page-break-after:avoid;break-after:avoid}} @media screen{body{background:#fff}}body{font-family:monospace;color:#111;-webkit-print-color-adjust:exact;print-color-adjust:exact}.paper{width:${paper}mm;margin:0 auto}.c{text-align:center}.logoWrap{margin:0 0 2mm}.logoWrap img{display:block;margin:0 auto;max-width:${logoMaxW}mm;max-height:${logoMaxH}mm;width:auto;height:auto;object-fit:contain}.sep{border-top:1px dashed #777;margin:2mm 0}.line{display:flex;justify-content:space-between;gap:2mm;margin:1mm 0;align-items:flex-start}.line span:first-child{min-width:0;overflow-wrap:anywhere}.line span:last-child,.line b:last-child{text-align:right;overflow-wrap:anywhere}.small{font-size:10px;color:#444;line-height:1.25}.total{font-size:18px;font-weight:900}.item{margin:1.8mm 0}h2{font-size:17px;margin:0 0 1mm}.footer{margin-top:3mm}</style></head><body><div class="paper">${logoHtml}<h2 class="c">${esc(businessName())}</h2><div class="c small">COMPROBANTE INTERNO DE VENTA</div>${businessInfo}<div class="sep"></div><div class="line"><span>N.º</span><b>${esc(ticketNo(sale))}</b></div><div class="line"><span>Fecha</span><span>${esc(dateText(sale))}</span></div><div class="line"><span>Pago</span><span>${esc(sale.paymentMethod||'Efectivo')}</span></div>${customerInfo}<div class="sep"></div>${(sale.items||[]).map(i=>{const q=Number(i.qty||0),p=Number(i.price||0),weighted=isWeightItem(i);let unit=String(receiptUnit(i)||'unidades').trim().toLowerCase();const unitKey=unit.normalize('NFD').replace(/[\u0300-\u036f]/g,'');const unitMap={unidades:'unidad',unidad:'unidad',unids:'unidad',blister:'blíster',blisters:'blíster',blisteres:'blíster',cajas:'caja',pastillas:'pastilla',tabletas:'tableta',gramos:'gramo',kilogramos:'kilogramo',litros:'litro',mililitros:'mililitro',frascos:'frasco',sobres:'sobre',paquetes:'paquete',docenas:'docena'};const unitForPrice=unitMap[unitKey]||unit;if(!unit||unit==='unidades')unit='unidad';const description=itemDescription(i)?'<div class="small">'+esc(itemDescription(i))+'</div>':'';const meta=weighted?'<div class="small">Peso: '+esc(weightLabel(q))+'</div><div class="small">Precio por kilo: '+money(p)+'</div>':'<div class="small">Cantidad: '+esc(q)+' '+esc(unit)+'</div><div class="small">Precio por '+esc(unitForPrice)+': '+money(p)+'</div>';return '<div class="item"><div><b>'+esc(i.name||'Producto')+'</b>'+description+meta+'</div><b>'+money(q*p)+'</b></div>'}).join('')}<div class="sep"></div><div class="line total"><span>TOTAL</span><span>${money(sale.total)}</span></div>${payHtml}<p class="c small footer">${footer}<br>Comprobante interno. No reemplaza boleta o factura SUNAT.</p></div><script>(()=>{let done=false;const go=()=>{if(done)return;done=true;setTimeout(()=>{try{focus()}catch{}try{print()}catch(e){console.error('Error al abrir impresión',e)}setTimeout(()=>{try{if(window.frameElement)window.frameElement.style.display='none'}catch{}try{close()}catch{}},1200)},250)};const img=document.getElementById('ticketLogo');if(img&&!img.complete){img.onload=go;img.onerror=go;setTimeout(go,1800)}else go()})()<\/script></body></html>`;
         if(window.VareliaAndroid&&typeof window.VareliaAndroid.printHtmlDocument==='function'){
           try{window.VareliaAndroid.printHtmlDocument('Comprobante '+ticketNo(sale),printDocumentHtml);return}
           catch(nativeError){console.warn('Impresión HTML nativa no disponible; se intentará la impresión web',nativeError)}
@@ -316,11 +312,7 @@
       });
 
       async function savePDF(sale){
-        // Descargar el comprobante es una función básica y gratuita: generar el PDF
-        // en JavaScript evita activar cualquier restricción del flujo nativo Premium.
         try{
-          // En la APK usar el generador PDF nativo de Android. Evita depender de
-          // que jsPDF cargue desde un CDN externo dentro del WebView.
           if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveSalePdf==='function'){
             try{
               window.VareliaAndroid.saveSalePdf(JSON.stringify(nativeReceiptPayload(sale)));
@@ -350,7 +342,6 @@
           if(window.VareliaAndroid&&typeof window.VareliaAndroid.saveDataUrl==='function'){
             try{window.VareliaAndroid.saveDataUrl(uri,name);return}catch(nativeError){console.warn('Guardado nativo no disponible; se usará descarga web',nativeError)}
           }
-          // WebView Android puede ignorar doc.save(); crear enlace Blob como alternativa.
           try{doc.save(name)}catch(saveError){console.warn('doc.save falló',saveError)}
           setTimeout(()=>{
             try{
@@ -363,15 +354,13 @@
           },100);
         }catch(e){console.error(e);alert('No se pudo descargar el comprobante. Intenta usar Imprimir y luego Guardar como PDF.')}
       }
-            async function shareReceipt(sale){
+      async function shareReceipt(sale){
         const text=receiptText(sale);
         if(navigator.share){try{await navigator.share({title:'Comprobante '+ticketNo(sale),text});return}catch(e){if(e?.name==='AbortError')return}}
         window.open('https://wa.me/?text='+encodeURIComponent(text),'_blank');
       }
-      // Interceptar en captura para impedir que un listener externo abra el muro Premium. El PDF es una función local y gratuita.
       document.addEventListener('click',function(e){const b=e.target&&e.target.closest?e.target.closest('#vreceiptPdf'):null;if(!b||!currentReceipt)return;e.preventDefault();e.stopPropagation();if(e.stopImmediatePropagation)e.stopImmediatePropagation();if(window.__vareliaReceiptDownloadBusy)return;window.__vareliaReceiptDownloadBusy=true;const label=b.textContent;b.disabled=true;b.textContent='Preparando PDF…';Promise.resolve(window.__vareliaDownloadCurrentReceipt?window.__vareliaDownloadCurrentReceipt():window.VareliaReceipt?.pdf?.(currentReceipt)).catch(err=>{console.error(err);alert('No se pudo guardar el PDF. Usa Imprimir y elige Guardar como PDF.')}).finally(()=>{b.disabled=false;b.textContent=label;setTimeout(()=>{window.__vareliaReceiptDownloadBusy=false},350)});},true);
       const receiptPdfButton=overlay.querySelector('#vreceiptPdf');
-      // Un solo manejador evita que Android ejecute la descarga varias veces por toque.
       receiptPdfButton.onclick=async (e)=>{
         e.preventDefault();
         e.stopPropagation();
@@ -389,10 +378,7 @@
       };
       overlay.querySelector('#vreceiptPrint').onclick=()=>currentReceipt&&printReceipt(currentReceipt);
       overlay.querySelector('#vreceiptWhatsApp').onclick=()=>currentReceipt&&shareReceipt(currentReceipt);
-      
 
-      // No registrar listeners globales duplicados: la descarga se ejecuta solo
-      // desde el botón del comprobante y no debe abrir muros Premium.
       let pending=null;
       document.addEventListener('click',e=>{
         const b=e.target.closest('#checkout');if(!b)return;
@@ -406,8 +392,6 @@
         }
         let before=0;try{before=Array.isArray(sales)?sales.length:0}catch{}
         pending={before,paymentMethod:paymentMethod.value,total,extras:{...extras}};
-        // La venta puede tardar más de unos milisegundos en guardarse.
-        // Esperamos hasta 6 segundos para mostrar siempre el comprobante después de cobrar.
         let waited=0;
         const waitForSavedSale=()=>{
           if(!pending)return;
