@@ -81,14 +81,26 @@ function ticket(o){
     const printCss='@page{size:'+width+'mm auto;margin:0}html,body{margin:0;padding:0;background:#fff}#catalogOrderReceipt{width:'+width+'mm;max-width:'+width+'mm;margin:0;padding:0;background:#fff}#catalogOrderReceipt .vreceiptWrap{width:'+width+'mm;max-width:'+width+'mm;margin:0;padding:0}#catalogOrderReceipt .vreceiptPaper{box-sizing:border-box;width:'+width+'mm;max-width:'+width+'mm;margin:0;padding:4mm;border:0;border-radius:0;box-shadow:none;background:#fff;color:#111}#catalogOrderReceipt .vreceiptActions,#vreceiptBack{display:none!important}';
     return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+css+'\n'+printCss+'</style></head><body><section id="catalogOrderReceipt"><div class="vreceiptWrap">'+clone.outerHTML+'</div></section></body></html>';
   }
+  function encodeBase64Url(text){
+    const bytes=new TextEncoder().encode(String(text||''));let binary='';
+    for(let i=0;i<bytes.length;i+=8192){binary+=String.fromCharCode.apply(null,bytes.subarray(i,Math.min(i+8192,bytes.length)))}
+    return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+  function openExternalPrint(html){
+    const url=location.origin+'/catalog-order-print.html#'+encodeBase64Url(html);
+    try{if(window.VareliaAndroid&&typeof window.VareliaAndroid.openExternal==='function'){window.VareliaAndroid.openExternal(url);return}}catch(err){console.warn(err)}
+    const opened=window.open(url,'_blank');if(!opened)location.href=url;
+  }
 
   const printButton=sec.querySelector('#vcatalogReceiptPrint');
   printButton.onclick=()=>{
     try{
-      const native=window.VareliaAndroid;
-      if(!native||typeof native.printHtmlDocument!=='function')throw new Error('Puente de impresión Android no disponible');
-      native.printHtmlDocument('Comprobante '+String(o.order_code||'pedido'),nativeReceiptHtml());
-    }catch(err){console.error(err);alert('No se pudo abrir la impresión de Android. Cierra Varelia por completo y vuelve a abrirla.')}
+      const html=nativeReceiptHtml();
+      try{
+        if(window.VareliaAndroid){window.VareliaAndroid.printHtmlDocument('Comprobante '+String(o.order_code||'pedido'),html);return}
+      }catch(nativeErr){console.info('APK sin printHtmlDocument; usando impresión externa.',nativeErr)}
+      openExternalPrint(html);
+    }catch(err){console.error(err);alert('No se pudo preparar la impresión. Inténtalo nuevamente.')}
   };
   const imageButton=sec.querySelector('#vreceiptImage');
   imageButton.onclick=()=>runReceiptAction(imageButton,'Preparando PNG…',async()=>{const canvas=await receiptCanvas();const a=document.createElement('a');a.download=receiptFilename('png');a.href=canvas.toDataURL('image/png');a.click()});
