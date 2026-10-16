@@ -23,18 +23,44 @@
     const width=getThermalWidth();
     const baseCss=document.getElementById('vreceiptCss')?.textContent||'';
     const nativeCss='@page{size:'+width+'mm auto;margin:0}'+
-      '@media print{html,body{margin:0!important;padding:0!important;background:#fff!important}'+
-      '#catalogOrderReceipt{display:block!important;position:absolute!important;left:0!important;top:0!important;width:'+width+'mm!important;max-width:'+width+'mm!important;margin:0!important;padding:0!important;background:#fff!important}'+
+      'html,body{margin:0!important;padding:0!important;background:#fff!important}'+
+      '#catalogOrderReceipt{display:block!important;width:'+width+'mm!important;max-width:'+width+'mm!important;margin:0!important;padding:0!important;background:#fff!important}'+
       '#catalogOrderReceipt .vreceiptWrap{width:'+width+'mm!important;max-width:'+width+'mm!important;margin:0!important;padding:0!important}'+
       '#catalogOrderReceipt .vreceiptPaper{box-sizing:border-box!important;width:'+width+'mm!important;max-width:'+width+'mm!important;margin:0!important;padding:4mm!important;border:0!important;border-radius:0!important;box-shadow:none!important;background:#fff!important;color:#111!important}'+
-      '#catalogOrderReceipt .vreceiptActions,#vreceiptBack{display:none!important}}';
+      '#catalogOrderReceipt .vreceiptActions,#vreceiptBack{display:none!important}'+
+      '@media print{html,body{margin:0!important;padding:0!important;background:#fff!important}}';
 
     return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>'+baseCss+'\n'+nativeCss+'</style></head><body><section id="catalogOrderReceipt"><div class="vreceiptWrap">'+clone.outerHTML+'</div></section></body></html>';
   }
 
   function receiptTitle(){
-    const text=document.querySelector('#catalogOrderReceipt .center.muted:nth-of-type(2)')?.textContent||'';
-    return 'Comprobante '+String(text.replace(/^N\.º\s*/i,'').trim()||'pedido');
+    const lines=[...document.querySelectorAll('#catalogOrderReceipt .center.muted')];
+    const code=lines.map(x=>x.textContent||'').find(x=>/^N\.º\s*/i.test(x))||'';
+    return 'Comprobante '+String(code.replace(/^N\.º\s*/i,'').trim()||'pedido');
+  }
+
+  function encodeBase64Url(text){
+    const bytes=new TextEncoder().encode(String(text||''));
+    let binary='';
+    for(let i=0;i<bytes.length;i+=8192){
+      const chunk=bytes.subarray(i,Math.min(i+8192,bytes.length));
+      binary+=String.fromCharCode.apply(null,chunk);
+    }
+    return btoa(binary).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  }
+
+  function openExternalPrint(html){
+    const url=location.origin+'/catalog-order-print.html#'+encodeBase64Url(html);
+    try{
+      if(window.VareliaAndroid){
+        window.VareliaAndroid.openExternal(url);
+        return;
+      }
+    }catch(error){
+      console.warn('Varelia openExternal no disponible',error);
+    }
+    const opened=window.open(url,'_blank');
+    if(!opened)location.href=url;
   }
 
   document.addEventListener('click',function(e){
@@ -45,15 +71,18 @@
     e.stopPropagation();
     try{
       const html=buildExactReceiptHtml();
-      const native=window.VareliaAndroid;
-      if(native&&typeof native.printHtmlDocument==='function'){
-        native.printHtmlDocument(receiptTitle(),html);
-        return;
+      try{
+        if(window.VareliaAndroid){
+          window.VareliaAndroid.printHtmlDocument(receiptTitle(),html);
+          return;
+        }
+      }catch(nativeError){
+        console.info('Esta APK no tiene printHtmlDocument; usando impresión externa de Android.',nativeError);
       }
-      window.print();
+      openExternalPrint(html);
     }catch(err){
       console.error('Varelia catalog order Android print',err);
-      alert('No se pudo abrir la impresión de Android. Inténtalo nuevamente.');
+      alert('No se pudo preparar la impresión. Inténtalo nuevamente.');
     }
   },true);
 })();
