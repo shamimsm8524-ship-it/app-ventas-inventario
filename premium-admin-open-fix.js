@@ -343,3 +343,113 @@
   window.addEventListener('varelia:forced-sync-complete',()=>setTimeout(run,80));
   setTimeout(run,1200);
 })();
+
+// Apariencia: separar y ordenar los controles de color sin tocar autenticación ni lógica de negocio.
+(()=>{
+  if(window.__vareliaAppearanceColorsV2)return;
+  window.__vareliaAppearanceColorsV2=true;
+  const KEY='varelia_action_button_color_v2';
+  const DEFAULT='#2563eb';
+  const valid=c=>/^#[0-9a-f]{6}$/i.test(String(c||'').trim());
+  const saved=()=>{try{const c=localStorage.getItem(KEY);return valid(c)?c.toLowerCase():DEFAULT}catch{return DEFAULT}};
+  const darker=(hex,delta=-24)=>{
+    const n=parseInt(hex.slice(1),16);
+    const r=Math.max(0,Math.min(255,(n>>16)+delta));
+    const g=Math.max(0,Math.min(255,((n>>8)&255)+delta));
+    const b=Math.max(0,Math.min(255,(n&255)+delta));
+    return '#'+((r<<16)|(g<<8)|b).toString(16).padStart(6,'0');
+  };
+
+  function applyActionColor(color){
+    const c=valid(color)?String(color).toLowerCase():DEFAULT;
+    let style=document.getElementById('vareliaAppearanceColorsCss');
+    if(!style){style=document.createElement('style');style.id='vareliaAppearanceColorsCss';document.head.appendChild(style)}
+    style.textContent=`
+      :root{--varelia-action:${c};--varelia-action-2:${darker(c)}}
+      #appearance{display:none}
+      #appearance.active{display:block}
+      #appearance .appearanceHero,#appearance .vareliaColorCard,#appearance .vareliaBackgroundCard{margin-bottom:16px}
+      #appearance .vareliaColorCard,#appearance .vareliaBackgroundCard{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:18px;box-shadow:var(--shadow)}
+      #appearance .vareliaStep{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;padding:5px 9px;border-radius:999px;background:color-mix(in srgb,var(--p) 9%,var(--card));color:var(--p);font-size:11px;font-weight:900}
+      #appearance .vareliaColorCard .colorPickerBox{margin-top:12px}
+      #appearance .appearanceOptions{display:block!important}
+      #appearance .appearanceOptions>.optionCard{margin:0}
+      button.primary,.btn.primary,#newSaleTop,#newSaleFab,#vposCheckout,#checkout,#businessBrandSave,.chip.active,
+      #vmobileNav button.active,.vmobileNav button.active,.mobileNav button.active{
+        background:linear-gradient(135deg,var(--varelia-action),var(--varelia-action-2))!important;
+        color:#fff!important;border-color:var(--varelia-action)!important;
+      }
+      @media(max-width:700px){#appearance .appearanceHero,#appearance .vareliaColorCard,#appearance .vareliaBackgroundCard{border-radius:20px;padding:16px}}
+    `;
+  }
+
+  function syncPicker(color){
+    const c=valid(color)?String(color).toLowerCase():saved();
+    try{if(typeof syncWheelFromHex==='function')syncWheelFromHex(c)}catch{}
+    const input=document.getElementById('customColor');if(input)input.value=c.toUpperCase();
+    const a=document.getElementById('hexPreview');if(a)a.style.background=c;
+    const b=document.getElementById('colorBigPreview');if(b)b.style.background=c;
+  }
+
+  function orderAppearance(){
+    const view=document.getElementById('appearance');if(!view)return;
+    const hero=view.querySelector('.appearanceHero');
+    const options=view.querySelector('.appearanceOptions');
+    if(!hero||!options)return;
+
+    if(!hero.querySelector('.vareliaStep')){
+      const step=document.createElement('div');step.className='vareliaStep';step.textContent='1 · Paleta general';
+      hero.insertBefore(step,hero.firstChild);
+      const note=hero.querySelector('.notice');if(note)note.textContent='Cambia fondos, tarjetas, detalles y colores secundarios de Varelia.';
+    }
+
+    const cards=[...options.querySelectorAll('.optionCard')];
+    const custom=cards.find(card=>/Color personalizado|Color de botones/i.test(String(card.querySelector('strong')?.textContent||'')));
+    const background=cards.find(card=>/Fondo de la app/i.test(String(card.querySelector('strong')?.textContent||'')));
+
+    if(custom&&!custom.classList.contains('vareliaColorCard')){
+      custom.classList.add('vareliaColorCard');
+      const title=custom.querySelector('strong');if(title)title.textContent='🎯 Color de botones';
+      const note=custom.querySelector('.notice');if(note)note.textContent='Cambia solo botones principales y opciones activas. No cambia la paleta general.';
+      const step=document.createElement('div');step.className='vareliaStep';step.textContent='2 · Botones';
+      custom.insertBefore(step,custom.firstChild);
+      hero.insertAdjacentElement('afterend',custom);
+    }
+
+    if(background&&!background.classList.contains('vareliaBackgroundCard')){
+      background.classList.add('vareliaBackgroundCard');
+      const step=document.createElement('div');step.className='vareliaStep';step.textContent='3 · Fondo';
+      background.insertBefore(step,background.firstChild);
+    }
+  }
+
+  document.addEventListener('click',e=>{
+    const apply=e.target?.closest?.('#applyCustomColor');
+    if(apply){
+      e.preventDefault();e.stopImmediatePropagation();
+      let c=String(document.getElementById('customColor')?.value||'').trim();
+      if(c&&!c.startsWith('#'))c='#'+c;
+      if(!valid(c)){alert('Elige un color válido.');return}
+      c=c.toLowerCase();
+      try{localStorage.setItem(KEY,c)}catch{}
+      applyActionColor(c);syncPicker(c);
+      window.vareliaToast?.('Color de botones actualizado.','ok');
+      return;
+    }
+    const reset=e.target?.closest?.('#resetPicker');
+    if(reset){
+      e.preventDefault();e.stopImmediatePropagation();
+      try{localStorage.removeItem(KEY)}catch{}
+      applyActionColor(DEFAULT);syncPicker(DEFAULT);
+      window.vareliaToast?.('Color de botones restablecido.','ok');
+      return;
+    }
+    if(e.target?.closest?.('#themeGrid [data-color]'))setTimeout(()=>syncPicker(saved()),0);
+    const nav=e.target?.closest?.('[data-view="appearance"],button');
+    if(nav&&/Apariencia/i.test(String(nav.textContent||'')))setTimeout(()=>{orderAppearance();syncPicker(saved())},0);
+  },true);
+
+  const boot=()=>{orderAppearance();applyActionColor(saved());syncPicker(saved())};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});
+  else boot();
+})();
