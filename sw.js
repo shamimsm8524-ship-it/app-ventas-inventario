@@ -16,7 +16,7 @@ self.addEventListener('fetch', (e) => {
       try{
         const base=await fetch(e.request,{cache:'no-store'});
         if(!base.ok)return base;
-        const fix=await fetch('/catalog-order-exact-print.js?v=20261016-exact-v2',{cache:'no-store'});
+        const fix=await fetch('/catalog-order-exact-print.js?v=20261016-exact-v3',{cache:'no-store'});
         const body=(await base.text())+(fix.ok?'\n;\n'+(await fix.text()):'');
         return new Response(body,{
           status:base.status,
