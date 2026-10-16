@@ -208,3 +208,84 @@
   new MutationObserver(()=>tick()).observe(document.documentElement,{childList:true,subtree:true});
   addEventListener('pageshow',()=>setTimeout(tick,100));
 })();
+
+// Impresión del comprobante: imprimir el HTML ya renderizado del ticket.
+// Evita que el código JavaScript del detalle aparezca literalmente en la hoja.
+(()=>{
+  if(window.__vareliaReceiptPrintLiteralFixV1)return;
+  window.__vareliaReceiptPrintLiteralFixV1=true;
+
+  function thermalWidth(){
+    let value=window.vareliaVideoSettings?.thermalWidth;
+    try{
+      if(!value){
+        const scopedKey=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_video_settings_v1'):'';
+        const scoped=scopedKey?JSON.parse(localStorage.getItem(scopedKey)||'{}'):{};
+        value=scoped?.thermalWidth;
+      }
+    }catch{}
+    try{if(!value)value=JSON.parse(localStorage.getItem('varelia_video_settings_v1')||'{}')?.thermalWidth}catch{}
+    return String(value)==='58'?58:80;
+  }
+
+  function printableHtml(){
+    const source=document.querySelector('#vreceiptPreview .vreceiptPaper');
+    if(!source)return '';
+    const clone=source.cloneNode(true);
+    clone.removeAttribute('style');
+    const width=thermalWidth(),paper=width===58?52:72;
+    return `<html><head><meta charset="utf-8"><style>
+      @page{size:${width}mm auto;margin:2mm}
+      *{box-sizing:border-box}html,body{margin:0!important;padding:0!important;background:#fff;color:#111;width:100%}
+      body{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .vreceiptPaper{width:${paper}mm!important;margin:0 auto!important;padding:2mm 1.5mm!important;background:#fff!important;color:#111!important;border:0!important;border-radius:0!important}
+      .vreceiptPaper h3{text-align:center;margin:0;font-size:17px}.center{text-align:center}.muted{color:#555;font-size:10px}.vreceiptSep{border-top:1px dashed #777;margin:2mm 0}
+      .vreceiptLine{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2mm;margin:1.2mm 0;font-size:11px;align-items:start}.vreceiptLine>span:last-child,.vreceiptLine>b:last-child{text-align:right}
+      .vreceiptItemName{font-weight:800}.vreceiptItemMeta{font-size:10px;color:#444;line-height:1.35;margin-top:.5mm}.vreceiptTotal{display:flex;justify-content:space-between;gap:2mm;font-size:18px;font-weight:900;margin-top:2mm}
+      .vreceiptDisclaimer{font-size:9px;text-align:center;color:#555;margin-top:3mm;line-height:1.35}.vreceiptPaper img{display:block;margin:0 auto 2mm;max-width:${width===58?24:30}mm!important;max-height:${width===58?18:22}mm!important;width:auto!important;height:auto!important;object-fit:contain}
+    </style></head><body>${clone.outerHTML}</body></html>`;
+  }
+
+  function printFixed(sale){
+    const html=printableHtml();
+    if(!html)return false;
+    const title='Comprobante '+String(sale?.receiptNumber||sale?.receipt_number||'venta');
+    if(window.VareliaAndroid&&typeof window.VareliaAndroid.printHtmlDocument==='function'){
+      try{window.VareliaAndroid.printHtmlDocument(title,html);return true}catch(err){console.warn('Impresión nativa corregida no disponible',err)}
+    }
+    let w=null,frame=null;
+    try{w=window.open('','_blank','width=420,height=720')}catch{}
+    if(!w){
+      frame=document.createElement('iframe');
+      frame.setAttribute('title','Imprimir comprobante');
+      frame.style.cssText='position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff;z-index:2147483647';
+      document.body.appendChild(frame);
+      w=frame.contentWindow;
+    }
+    if(!w)return false;
+    try{
+      w.document.open();w.document.write(html);w.document.close();
+      setTimeout(()=>{try{w.focus()}catch{}try{w.print()}catch(err){console.error('Error al imprimir comprobante',err)}setTimeout(()=>{try{frame?.remove()}catch{}},1200)},300);
+      return true;
+    }catch(err){console.error('No se pudo preparar la impresión corregida',err);try{frame?.remove()}catch{};return false}
+  }
+
+  document.addEventListener('click',e=>{
+    const btn=e.target?.closest?.('#vreceiptPrint');
+    if(!btn||!document.querySelector('#vreceiptPreview .vreceiptPaper'))return;
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+    if(!printFixed(window.__vareliaCurrentReceiptSale))alert('No se pudo abrir la impresión.');
+  },true);
+
+  let attempts=0;
+  const patch=setInterval(()=>{
+    attempts++;
+    const api=window.VareliaReceipt;
+    if(api&&!api.__vareliaPrintLiteralFixed){
+      const original=typeof api.print==='function'?api.print.bind(api):null;
+      api.print=sale=>printFixed(sale)||(original?original(sale):undefined);
+      api.__vareliaPrintLiteralFixed=true;
+      clearInterval(patch);
+    }else if(attempts>120)clearInterval(patch);
+  },100);
+})();
