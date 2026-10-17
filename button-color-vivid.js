@@ -121,12 +121,12 @@
   document.head.appendChild(s);
 })();
 
-// Conteo y guardado correcto de medicamentos. v3 fuerza descarga nueva en Android/WebView.
+// Conteo y guardado directo de medicamentos. v4 guarda local antes de esperar la nube.
 (()=>{
-  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v3]'))return;
+  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v4]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-stock-count-fix.js?v=20261016-v3';
+  s.src='/medicine-stock-count-fix.js?v=20261016-v4';
   s.async=false;
-  s.dataset.vareliaMedicineStockCountFixV3='1';
+  s.dataset.vareliaMedicineStockCountFixV4='1';
   document.head.appendChild(s);
 })();
