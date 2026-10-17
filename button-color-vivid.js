@@ -121,12 +121,12 @@
   document.head.appendChild(s);
 })();
 
-// Conteo y guardado directo de medicamentos. v4 guarda local antes de esperar la nube.
+// Conteo, guardado y cobro confiable de medicamentos.
 (()=>{
-  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v4]'))return;
+  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v5]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-stock-count-fix.js?v=20261016-v4';
+  s.src='/medicine-stock-count-fix.js?v=20261017-v5';
   s.async=false;
-  s.dataset.vareliaMedicineStockCountFixV4='1';
+  s.dataset.vareliaMedicineStockCountFixV5='1';
   document.head.appendChild(s);
 })();
