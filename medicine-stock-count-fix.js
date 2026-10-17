@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaMedicineStockCountFixV2)return;
-  window.__vareliaMedicineStockCountFixV2=true;
+  if(window.__vareliaMedicineStockCountFixV3)return;
+  window.__vareliaMedicineStockCountFixV3=true;
 
   const AMP_NAME='ampicilina';
   const AMP_BARCODE='2071674969557';
@@ -24,8 +24,6 @@
     const med=isMedicine();
     const sell=el('sellPrice');
     if(sell){
-      // Los medicamentos usan sus propios precios por caja/blíster/pastilla.
-      // El precio de venta genérico no debe bloquear el formulario.
       sell.required=!med;
       sell.setCustomValidity('');
     }
@@ -42,6 +40,14 @@
     const box=Number(el('vMedicineBoxPrice')?.value||0);
     const fallback=unit>0?unit:(blister>0?blister:(box>0?box:0));
     if(fallback>0)sell.value=String(fallback);
+  }
+
+  function prepareMedicineSave(){
+    if(!isMedicine())return;
+    syncFormRequirements();
+    ensureGenericMedicinePrice();
+    const form=el('productForm');
+    if(form)form.dataset.vareliaMedicinePrepared='1';
   }
 
   function updateSummary(){
@@ -78,7 +84,6 @@
     if(clearedRecoveredAmpicilina||!isAmpicilina())return;
     const bpb=el('vMedicineBlistersPerBox');
     if(!bpb)return;
-    // El valor 1 de Ampicilina fue introducido por la recuperación; no era un dato original confirmado.
     if(String(bpb.value||'').trim()==='1'){
       bpb.value='';
       bpb.placeholder='Ingresa el dato real';
@@ -106,7 +111,19 @@
     }
   },true);
 
+  // Preparar el formulario ANTES de la validación nativa del navegador/WebView.
+  // Si se espera hasta el evento submit, un campo required oculto puede impedir que submit ocurra.
+  const prepareFromPointer=e=>{
+    const button=e.target?.closest?.('#productForm button[type="submit"],#productForm input[type="submit"]');
+    if(!button)return;
+    prepareMedicineSave();
+  };
+  document.addEventListener('pointerdown',prepareFromPointer,true);
+  document.addEventListener('touchstart',prepareFromPointer,{capture:true,passive:true});
+  document.addEventListener('mousedown',prepareFromPointer,true);
   document.addEventListener('click',e=>{
+    const button=e.target?.closest?.('#productForm button[type="submit"],#productForm input[type="submit"]');
+    if(button)prepareMedicineSave();
     if(e.target?.closest?.('[data-edit],button')){
       setTimeout(refresh,30);setTimeout(refresh,120);setTimeout(refresh,300);
     }
@@ -114,8 +131,7 @@
 
   document.addEventListener('submit',e=>{
     if(e.target?.id!=='productForm'||!isMedicine())return;
-    syncFormRequirements();
-    ensureGenericMedicinePrice();
+    prepareMedicineSave();
     const bpb=intVal(el('vMedicineBlistersPerBox'));
     const upb=intVal(el('vMedicineUnitsPerBlister'));
     if(bpb<1||upb<1){
@@ -129,8 +145,6 @@
     const id=String(el('productId')?.value||'');
     const expectedBoxes=intVal(el('vMedicineStockBoxes'));
     const expectedBpb=bpb,expectedUpb=upb;
-    // El guardado local del formulario ocurre antes del primer await del manejador original.
-    // Cerrar apenas confirmemos que los valores ya entraron en window.products; la nube sigue sincronizando detrás.
     setTimeout(()=>{
       const p=(window.products||[]).find(x=>String(x?.id||'')===id)
         ||(window.products||[]).find(x=>String(x?.barcode||'').trim()===String(el('barcode')?.value||'').trim());
@@ -144,5 +158,5 @@
   },true);
 
   new MutationObserver(()=>setTimeout(refresh,0)).observe(document.documentElement,{childList:true,subtree:true});
-  setInterval(()=>{if(el('productDialog')?.open)refresh()},400);
+  setInterval(()=>{if(el('productDialog')?.open)refresh()},250);
 })();
