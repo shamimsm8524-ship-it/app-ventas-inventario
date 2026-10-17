@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaMedicineStockCountFixV1)return;
-  window.__vareliaMedicineStockCountFixV1=true;
+  if(window.__vareliaMedicineStockCountFixV2)return;
+  window.__vareliaMedicineStockCountFixV2=true;
 
   const AMP_NAME='ampicilina';
   const AMP_BARCODE='2071674969557';
@@ -8,15 +8,41 @@
 
   const el=id=>document.getElementById(id);
   const intVal=node=>Math.max(0,Math.floor(Number(node?.value||0)));
+  const medicineCategory=()=>/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(el('productCategory')?.value||'').trim());
   const isMedicineVisible=()=>{
     const box=el('vMedicineFields');
     return !!box&&box.style.display!=='none';
   };
+  const isMedicine=()=>isMedicineVisible()||!!el('vMedicineToggle')?.checked||medicineCategory();
   const isAmpicilina=()=>{
     const name=String(el('productName')?.value||'').trim().toLowerCase();
     const barcode=String(el('barcode')?.value||'').trim();
     return name===AMP_NAME||barcode===AMP_BARCODE;
   };
+
+  function syncFormRequirements(){
+    const med=isMedicine();
+    const sell=el('sellPrice');
+    if(sell){
+      // Los medicamentos usan sus propios precios por caja/blíster/pastilla.
+      // El precio de venta genérico no debe bloquear el formulario.
+      sell.required=!med;
+      sell.setCustomValidity('');
+    }
+  }
+
+  function ensureGenericMedicinePrice(){
+    if(!isMedicine())return;
+    const sell=el('sellPrice');
+    if(!sell)return;
+    const current=Number(sell.value);
+    if(Number.isFinite(current)&&current>0)return;
+    const unit=Number(el('vMedicineUnitPrice')?.value||0);
+    const blister=Number(el('vMedicineBlisterPrice')?.value||0);
+    const box=Number(el('vMedicineBoxPrice')?.value||0);
+    const fallback=unit>0?unit:(blister>0?blister:(box>0?box:0));
+    if(fallback>0)sell.value=String(fallback);
+  }
 
   function updateSummary(){
     const stock=el('vMedicineStockBoxes');
@@ -42,8 +68,7 @@
     summary.style.color='';
     summary.textContent=boxes+' caja'+(boxes===1?'':'s')+' = '+blisters+' blíster'+(blisters===1?'':'es')+' = '+units+' pastilla'+(units===1?'':'s');
 
-    const cat=String(el('productCategory')?.value||'').trim();
-    if(/^(pastillas?|medicinas?|medicamentos?)$/i.test(cat)){
+    if(medicineCategory()){
       const qty=el('productQty');
       if(qty)qty.value=units;
     }
@@ -63,15 +88,22 @@
   }
 
   function refresh(){
+    syncFormRequirements();
     clearRecoveredBadDefault();
     setTimeout(updateSummary,0);
   }
 
   document.addEventListener('input',e=>{
-    if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister'))setTimeout(updateSummary,0);
+    if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister,#vMedicineUnitPrice,#vMedicineBlisterPrice,#vMedicineBoxPrice')){
+      syncFormRequirements();
+      setTimeout(updateSummary,0);
+    }
   },true);
   document.addEventListener('change',e=>{
-    if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister,#productCategory'))setTimeout(updateSummary,0);
+    if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister,#productCategory,#vMedicineToggle')){
+      syncFormRequirements();
+      setTimeout(updateSummary,0);
+    }
   },true);
 
   document.addEventListener('click',e=>{
@@ -81,7 +113,9 @@
   },true);
 
   document.addEventListener('submit',e=>{
-    if(e.target?.id!=='productForm'||!isMedicineVisible())return;
+    if(e.target?.id!=='productForm'||!isMedicine())return;
+    syncFormRequirements();
+    ensureGenericMedicinePrice();
     const bpb=intVal(el('vMedicineBlistersPerBox'));
     const upb=intVal(el('vMedicineUnitsPerBlister'));
     if(bpb<1||upb<1){
@@ -89,9 +123,26 @@
       e.stopImmediatePropagation();
       updateSummary();
       alert(bpb<1?'Indica cuántos blísteres trae cada caja antes de guardar.':'Indica cuántas pastillas trae cada blíster antes de guardar.');
+      return;
     }
+
+    const id=String(el('productId')?.value||'');
+    const expectedBoxes=intVal(el('vMedicineStockBoxes'));
+    const expectedBpb=bpb,expectedUpb=upb;
+    // El guardado local del formulario ocurre antes del primer await del manejador original.
+    // Cerrar apenas confirmemos que los valores ya entraron en window.products; la nube sigue sincronizando detrás.
+    setTimeout(()=>{
+      const p=(window.products||[]).find(x=>String(x?.id||'')===id)
+        ||(window.products||[]).find(x=>String(x?.barcode||'').trim()===String(el('barcode')?.value||'').trim());
+      if(!p)return;
+      const ok=Number(p.medicineStockBoxes)===expectedBoxes&&Number(p.blistersPerBox)===expectedBpb&&Number(p.unitsPerBlister)===expectedUpb;
+      if(!ok)return;
+      const dlg=el('productDialog');
+      if(dlg?.open){try{dlg.close()}catch{}}
+      window.vareliaToast?.('Producto guardado. Sincronizando con la nube…','ok');
+    },120);
   },true);
 
   new MutationObserver(()=>setTimeout(refresh,0)).observe(document.documentElement,{childList:true,subtree:true});
-  setInterval(()=>{if(el('productDialog')?.open)refresh()},500);
+  setInterval(()=>{if(el('productDialog')?.open)refresh()},400);
 })();
