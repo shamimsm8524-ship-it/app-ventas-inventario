@@ -121,3 +121,13 @@
   s.dataset.vareliaAmpicilinaRecoveryV2='1';
   document.head.appendChild(s);
 })();
+
+// Conteo correcto de medicamentos: nunca asumir 1 blíster por caja cuando el dato real falta.
+(()=>{
+  if(document.querySelector('script[data-varelia-medicine-stock-count-fix]'))return;
+  const s=document.createElement('script');
+  s.src='/medicine-stock-count-fix.js?v=20261016-v1';
+  s.async=false;
+  s.dataset.vareliaMedicineStockCountFix='1';
+  document.head.appendChild(s);
+})();
