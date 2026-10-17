@@ -122,12 +122,12 @@
   document.head.appendChild(s);
 })();
 
-// Conteo correcto de medicamentos: nunca asumir 1 blíster por caja cuando el dato real falta.
+// Conteo y guardado correcto de medicamentos.
 (()=>{
-  if(document.querySelector('script[data-varelia-medicine-stock-count-fix]'))return;
+  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v2]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-stock-count-fix.js?v=20261016-v1';
+  s.src='/medicine-stock-count-fix.js?v=20261016-v2';
   s.async=false;
-  s.dataset.vareliaMedicineStockCountFix='1';
+  s.dataset.vareliaMedicineStockCountFixV2='1';
   document.head.appendChild(s);
 })();
