@@ -112,7 +112,6 @@
   setInterval(()=>{if(document.getElementById('appearance')?.classList.contains('active'))apply()},180);
 })();
 
-// Recuperación puntual de Ampicilina. v2 no se da por terminada hasta verla realmente sincronizada.
 (()=>{
   if(document.querySelector('script[data-varelia-ampicilina-recovery-v2]'))return;
   const s=document.createElement('script');
@@ -122,12 +121,12 @@
   document.head.appendChild(s);
 })();
 
-// Conteo y guardado correcto de medicamentos.
+// Conteo y guardado correcto de medicamentos. v3 fuerza descarga nueva en Android/WebView.
 (()=>{
-  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v2]'))return;
+  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v3]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-stock-count-fix.js?v=20261016-v2';
+  s.src='/medicine-stock-count-fix.js?v=20261016-v3';
   s.async=false;
-  s.dataset.vareliaMedicineStockCountFixV2='1';
+  s.dataset.vareliaMedicineStockCountFixV3='1';
   document.head.appendChild(s);
 })();
