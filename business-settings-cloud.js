@@ -226,6 +226,27 @@
     }
   }
 
+  function hookToastGuard(){
+    const original=window.vareliaToast;
+    if(typeof original!=='function'||original.__vareliaSettingsToastGuard)return;
+    const guarded=function(message,type){
+      if(String(message||'').trim()==='No se pudo sincronizar el producto.'){
+        const hub=document.getElementById('mobileSettingsHub');
+        if(hub){
+          const style=getComputedStyle(hub),box=hub.getBoundingClientRect();
+          const visible=style.display!=='none'&&style.visibility!=='hidden'&&box.width>0&&box.height>0;
+          if(visible){
+            console.warn('Se ocultó un aviso de producto ajeno a Ajustes.');
+            return;
+          }
+        }
+      }
+      return original.apply(this,arguments);
+    };
+    guarded.__vareliaSettingsToastGuard=true;
+    window.vareliaToast=guarded;
+  }
+
   async function init(){
     for(let i=0;i<150&&!sb();i++)await sleep(100);
     if(!sb())return;
@@ -245,7 +266,7 @@
       }
     }catch(e){console.warn('No se pudieron cargar los datos privados del negocio',e)}
     let tries=0;
-    const timer=setInterval(()=>{hookSave();hookLogo();if(++tries>160)clearInterval(timer)},250);
+    const timer=setInterval(()=>{hookSave();hookLogo();hookToastGuard();if(++tries>160)clearInterval(timer)},250);
     window.addEventListener('varelia:business-scope-ready',()=>setTimeout(()=>syncFromCloud().catch(()=>{}),250));
     // Este evento se emite al cambiar el logo. No hacemos un segundo guardado general;
     // usamos una cola dedicada para que el último cambio siempre sea el que prevalezca.
