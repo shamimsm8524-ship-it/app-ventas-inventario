@@ -47,6 +47,13 @@
     publicAllowPickup:r.public_allow_pickup!==false,
     publicPaymentMethods:r.public_payment_methods||defaults.publicPaymentMethods
   });
+
+  let settingsSyncChain=Promise.resolve();
+  let logoSyncChain=Promise.resolve();
+  let logoVersion=0;
+  let logoDebounceTimer=0;
+  let logoFinalTimer=0;
+
   async function profile(){
     const c=sb();if(!c)return null;
     const {data:u,error:ue}=await c.auth.getUser();if(ue||!u?.user)return null;
@@ -54,6 +61,7 @@
     if(error)throw error;if(!p?.business_id)return null;
     return {businessId:String(p.business_id),role:String(p.role||'')};
   }
+
   async function syncFromCloud(){
     const c=sb(),p=await profile();if(!c||!p)return false;
     const active=clean(localStorage.getItem('varelia_active_business_id')||'');
@@ -74,7 +82,8 @@
     localSet(p.businessId,fromRow(fresh,ins.data));
     return true;
   }
-  async function syncToCloud(){
+
+  async function syncToCloudNow(){
     const c=sb(),p=await profile();if(!c||!p||p.role!=='owner')return false;
     const active=clean(localStorage.getItem('varelia_active_business_id')||'');
     if(active!==clean(p.businessId))return false;
@@ -84,6 +93,100 @@
     localSet(p.businessId,fromRow(local,data));
     return true;
   }
+
+  // Serializa guardados para que dos toques rápidos no terminen dejando una versión vieja.
+  function syncToCloud(){
+    settingsSyncChain=settingsSyncChain.catch(()=>{}).then(()=>syncToCloudNow());
+    return settingsSyncChain;
+  }
+
+  function compressLogo(raw){
+    return new Promise((resolve,reject)=>{
+      const str=String(raw||'');
+      if(!/^data:image\/(png|jpeg|jpg|webp|gif);base64,/i.test(str))return reject(new Error('Selecciona una imagen PNG, JPG o WEBP para el logo.'));
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          const scale=Math.min(1,640/Math.max(img.naturalWidth,1),360/Math.max(img.naturalHeight,1));
+          const canvas=document.createElement('canvas');
+          canvas.width=Math.max(1,Math.round(img.naturalWidth*scale));
+          canvas.height=Math.max(1,Math.round(img.naturalHeight*scale));
+          const ctx=canvas.getContext('2d');
+          if(!ctx)throw new Error('No se pudo preparar la imagen.');
+          ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(img,0,0,canvas.width,canvas.height);
+          resolve(canvas.toDataURL('image/jpeg',0.82));
+        }catch(e){reject(e)}
+      };
+      img.onerror=()=>reject(new Error('No se pudo leer la imagen del logo.'));
+      img.src=str;
+    });
+  }
+
+  function setLogoStatus(text,isError=false){
+    const el=document.getElementById('vsetLogoStatus');
+    if(el){el.textContent=text;el.style.color=isError?'#b45309':'var(--muted)'}
+  }
+
+  async function syncLogoSnapshot(raw,version){
+    const c=sb(),p=await profile();if(!c||!p||p.role!=='owner')return false;
+    if(version!==logoVersion)return false;
+    const active=clean(localStorage.getItem('varelia_active_business_id')||'');
+    if(active!==clean(p.businessId))return false;
+    const compact=await compressLogo(raw);
+    if(version!==logoVersion)return false;
+    const {data,error}=await c.from('varelia_business_settings')
+      .upsert({business_id:p.businessId,logo_data:compact,updated_at:new Date().toISOString()},{onConflict:'business_id'})
+      .select('business_id,logo_data').single();
+    if(error)throw error;
+    if(version!==logoVersion)return false;
+    const local=localGet(p.businessId);
+    local.logo=String(data?.logo_data||compact);
+    localSet(p.businessId,local);
+    window.vareliaCloudBusinessLogo=local.logo;
+    const preview=document.getElementById('vLogoPreview');
+    if(preview&&local.logo)preview.src=local.logo;
+    setLogoStatus('✓ Logo guardado y sincronizado con todas las cajas.');
+    return true;
+  }
+
+  function enqueueLatestLogo(version,raw){
+    logoSyncChain=logoSyncChain.catch(()=>{}).then(()=>syncLogoSnapshot(raw,version)).catch(err=>{
+      console.warn('Cloud logo save',err);
+      if(version===logoVersion)setLogoStatus('No se pudo sincronizar el logo. Se volverá a intentar.',true);
+      return false;
+    });
+    return logoSyncChain;
+  }
+
+  async function captureLatestLogo(){
+    const p=await profile();if(!p||p.role!=='owner')return false;
+    if(!(await waitForScope(p)))return false;
+    const live=window.vareliaVideoSettings||{};
+    const raw=String(live.logo||'');
+    if(!raw)return false;
+    const local=localGet(p.businessId);
+    local.logo=raw;
+    localSet(p.businessId,local); // guardado local inmediato: el cambio no se pierde aunque se cierre Ajustes.
+    return raw;
+  }
+
+  async function scheduleLogoSync(){
+    const raw=await captureLatestLogo();if(!raw)return false;
+    const version=++logoVersion;
+    setLogoStatus('Guardando logo…');
+    clearTimeout(logoDebounceTimer);
+    clearTimeout(logoFinalTimer);
+    // Debounce corto: si se elige otro logo enseguida, solo el último queda como definitivo.
+    logoDebounceTimer=setTimeout(()=>enqueueLatestLogo(version,raw),220);
+    // Segundo guardado deliberado: gana frente a una petición anterior que haya terminado tarde.
+    logoFinalTimer=setTimeout(async()=>{
+      if(version!==logoVersion)return;
+      const latest=String((window.vareliaVideoSettings||{}).logo||raw);
+      enqueueLatestLogo(version,latest);
+    },1800);
+    return true;
+  }
+
   async function waitForScope(p){
     for(let i=0;i<100;i++){
       const a=clean(localStorage.getItem('varelia_active_business_id')||'');
@@ -92,6 +195,7 @@
     }
     return false;
   }
+
   function hookSave(){
     const btn=document.getElementById('vsettingsSave');
     if(!btn||btn.dataset.cloudWrappedV2==='1')return;
@@ -104,24 +208,20 @@
     };
     btn.dataset.cloudWrappedV2='1';
   }
+
   function hookLogo(){
-    const input=document.getElementById('vsetLogo');
-    if(!input||input.dataset.cloudLogoHook==='1')return;
-    input.addEventListener('change',async()=>{
-      // video-features actualiza cfg; esperamos un instante y luego guardamos ese cfg.
-      await sleep(100);
-      try{
-        const p=await profile();
-        if(!p||!(await waitForScope(p)))return;
-        const local=localGet(p.businessId);
-        const live=window.vareliaVideoSettings||{};
-        if(live.logo) local.logo=live.logo;
-        localSet(p.businessId,local);
-        await syncToCloud();
-      }catch(e){console.warn('Cloud logo save',e)}
-    });
-    input.dataset.cloudLogoHook='1';
+    // El cambio del selector ya emite varelia:business-settings-local-changed.
+    // Aquí solo reforzamos el botón manual para no lanzar dos sincronizaciones por la misma selección.
+    const share=document.getElementById('vsetShareLogo');
+    if(share&&share.dataset.cloudLogoHook!=='1'){
+      share.addEventListener('click',async()=>{
+        await sleep(80);
+        try{await scheduleLogoSync()}catch(e){console.warn('Cloud logo share',e)}
+      });
+      share.dataset.cloudLogoHook='1';
+    }
   }
+
   async function init(){
     for(let i=0;i<150&&!sb();i++)await sleep(100);
     if(!sb())return;
@@ -132,7 +232,9 @@
     let tries=0;
     const timer=setInterval(()=>{hookSave();hookLogo();if(++tries>160)clearInterval(timer)},250);
     window.addEventListener('varelia:business-scope-ready',()=>setTimeout(()=>syncFromCloud().catch(()=>{}),250));
-    window.addEventListener('varelia:business-settings-local-changed',()=>setTimeout(()=>syncToCloud().catch(()=>{}),100));
+    // Este evento se emite al cambiar el logo. No hacemos un segundo guardado general;
+    // usamos una cola dedicada para que el último cambio siempre sea el que prevalezca.
+    window.addEventListener('varelia:business-settings-local-changed',()=>setTimeout(()=>scheduleLogoSync().catch(()=>{}),90));
     sb().auth.onAuthStateChange(()=>setTimeout(async()=>{try{
       const p=await profile();if(p&&await waitForScope(p))await syncFromCloud();
     }catch(e){console.warn('Business settings auth sync',e)}},500));
