@@ -6,6 +6,7 @@
   const clean=v=>String(v||'').replace(/[^a-zA-Z0-9_-]/g,'_');
   const defaults={businessName:'',businessSlogan:'',logo:'',ruc:'',phone:'',address:'',businessHours:'',publicMapUrl:'',ticketMessage:'Gracias por su compra.',currency:'S/',publicAllowDelivery:true,publicAllowPickup:true,publicPaymentMethods:'Efectivo,Yape,Plin,Transferencia'};
   const scopeKey=businessId=>'varelia_video_settings_v1__'+clean(businessId);
+  const pendingLogoKey=businessId=>'varelia_pending_business_logo_v1__'+clean(businessId);
   const localGet=(businessId)=>{
     try{
       const active=clean(localStorage.getItem('varelia_active_business_id')||'');
@@ -134,14 +135,16 @@
     if(active!==clean(p.businessId))return false;
     const compact=await compressLogo(raw);
     if(version!==logoVersion)return false;
+    const current=localGet(p.businessId);
     const {data,error}=await c.from('varelia_business_settings')
-      .upsert({business_id:p.businessId,logo_data:compact,updated_at:new Date().toISOString()},{onConflict:'business_id'})
+      .upsert({business_id:p.businessId,...toRow(current),logo_data:compact,updated_at:new Date().toISOString()},{onConflict:'business_id'})
       .select('business_id,logo_data').single();
     if(error)throw error;
     if(version!==logoVersion)return false;
     const local=localGet(p.businessId);
     local.logo=String(data?.logo_data||compact);
     localSet(p.businessId,local);
+    try{localStorage.removeItem(pendingLogoKey(p.businessId))}catch{}
     window.vareliaCloudBusinessLogo=local.logo;
     const preview=document.getElementById('vLogoPreview');
     if(preview&&local.logo)preview.src=local.logo;
@@ -167,6 +170,7 @@
     const local=localGet(p.businessId);
     local.logo=raw;
     localSet(p.businessId,local); // guardado local inmediato: el cambio no se pierde aunque se cierre Ajustes.
+    try{localStorage.setItem(pendingLogoKey(p.businessId),raw)}catch{}
     return raw;
   }
 
@@ -227,7 +231,18 @@
     if(!sb())return;
     try{
       const p=await profile();
-      if(p&&await waitForScope(p))await syncFromCloud();
+      if(p&&await waitForScope(p)){
+        let pending='';
+        try{pending=String(localStorage.getItem(pendingLogoKey(p.businessId))||'')}catch{}
+        await syncFromCloud();
+        // Si la APK se cerró justo después de elegir un logo, la selección local pendiente
+        // tiene prioridad sobre una copia vieja de la nube y se reintenta automáticamente.
+        if(pending&&p.role==='owner'){
+          const local=localGet(p.businessId);local.logo=pending;localSet(p.businessId,local);
+          window.vareliaCloudBusinessLogo=pending;
+          setTimeout(()=>scheduleLogoSync().catch(()=>{}),300);
+        }
+      }
     }catch(e){console.warn('No se pudieron cargar los datos privados del negocio',e)}
     let tries=0;
     const timer=setInterval(()=>{hookSave();hookLogo();if(++tries>160)clearInterval(timer)},250);
