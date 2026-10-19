@@ -50,3 +50,67 @@
 #productGrid .catalogSalePriceText{
   word-spacing:-2px!important;
 }
+
+/* Web de escritorio: usar la misma navegación principal que la APK. */
+@media(min-width:981px){
+  body.varelia-simple-mobile{padding-bottom:110px!important}
+  body.varelia-simple-mobile #sidebar,
+  body.varelia-simple-mobile #overlay,
+  body.varelia-simple-mobile #menuBtn,
+  body.varelia-simple-mobile #newSaleFab{display:none!important}
+  body.varelia-simple-mobile .shell{
+    grid-template-columns:minmax(0,1fr)!important;
+    max-width:980px!important;
+    width:100%!important;
+    margin:0 auto!important;
+  }
+  body.varelia-simple-mobile .content{
+    width:100%!important;
+    padding:20px 18px 118px!important;
+  }
+  body.varelia-simple-mobile .brand{
+    max-width:980px!important;
+  }
+  #vmobileNav{
+    position:fixed!important;
+    left:50%!important;
+    right:auto!important;
+    transform:translateX(-50%)!important;
+    bottom:0!important;
+    z-index:9990!important;
+    width:min(100%,980px)!important;
+    height:92px!important;
+    padding:8px 8px 10px!important;
+    display:grid!important;
+    grid-template-columns:repeat(6,minmax(0,1fr))!important;
+    background:color-mix(in srgb,var(--card) 97%,transparent)!important;
+    backdrop-filter:blur(16px)!important;
+    border:1px solid var(--line)!important;
+    border-bottom:0!important;
+    border-radius:18px 18px 0 0!important;
+    box-shadow:0 -8px 28px rgba(15,23,42,.08)!important;
+  }
+  #vmobileNav button{
+    border:0!important;
+    background:transparent!important;
+    color:var(--muted)!important;
+    border-radius:13px!important;
+    display:grid!important;
+    place-items:center!important;
+    align-content:center!important;
+    gap:5px!important;
+    padding:7px 1px!important;
+    font-size:11px!important;
+    font-weight:850!important;
+  }
+  #vmobileNav button span{font-size:30px!important;line-height:1!important}
+  #vmobileNav button.active{
+    color:var(--p)!important;
+    background:color-mix(in srgb,var(--p) 7%,var(--card))!important;
+  }
+  #products .head{margin-bottom:9px!important}
+  #products .toolbar{margin-bottom:7px!important}
+  #products .toolbar input{height:38px!important;min-height:38px!important;padding:7px 10px!important;border-radius:10px!important;font-size:13px!important}
+  #products .btn{min-height:36px!important;padding:7px 10px!important;border-radius:10px!important;font-size:12px!important;line-height:1.1!important}
+  #products .catalogHeadActions{gap:6px!important}
+}
