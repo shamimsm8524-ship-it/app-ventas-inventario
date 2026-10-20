@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaMedicineSaleUnitServerFixV3)return;
-  window.__vareliaMedicineSaleUnitServerFixV3=true;
+  if(window.__vareliaMedicineSaleUnitServerFixV4)return;
+  window.__vareliaMedicineSaleUnitServerFixV4=true;
 
   const normalize=value=>String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const canonical=value=>{
@@ -42,24 +42,18 @@
   },true);
 })();
 
+// Sistema definitivo de medicamentos: cada presentación conserva su propio
+// costo de compra escrito por el usuario. No se divide ni se estima automáticamente.
 (()=>{
-  if(document.querySelector('script[data-varelia-ampicilina-price-repair-v1]'))return;
+  if(document.querySelector('script[data-varelia-medicine-purchase-costs-v1]'))return;
   const s=document.createElement('script');
-  s.src='/ampicilina-price-repair.js?v=20261020-v1';
+  s.src='/medicine-purchase-costs.js?v=20261020-v1';
   s.async=false;
-  s.dataset.vareliaAmpicilinaPriceRepairV1='1';
+  s.dataset.vareliaMedicinePurchaseCostsV1='1';
   document.head.appendChild(s);
 })();
 
-(()=>{
-  if(document.querySelector('script[data-varelia-medicine-profit-history-fix-v4]'))return;
-  const s=document.createElement('script');
-  s.src='/medicine-profit-history-fix.js?v=20261020-v4';
-  s.async=false;
-  s.dataset.vareliaMedicineProfitHistoryFixV4='1';
-  document.head.appendChild(s);
-})();
-
+// Solo mejora el texto de la tarjeta de ganancias; no cambia importes.
 (()=>{
   if(document.querySelector('script[data-varelia-profit-label-copy-fix-v1]'))return;
   const s=document.createElement('script');
