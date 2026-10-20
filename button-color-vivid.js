@@ -123,10 +123,10 @@
 
 // Conteo, guardado y cobro confiable de medicamentos.
 (()=>{
-  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v5]'))return;
+  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v6]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-stock-count-fix.js?v=20261017-v5';
+  s.src='/medicine-stock-count-fix.js?v=20261020-v6';
   s.async=false;
-  s.dataset.vareliaMedicineStockCountFixV5='1';
+  s.dataset.vareliaMedicineStockCountFixV6='1';
   document.head.appendChild(s);
 })();
