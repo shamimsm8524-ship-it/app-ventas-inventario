@@ -495,6 +495,7 @@
       const pos=document.getElementById('vareliaPosSales'),payment=document.getElementById('vposPaymentMethod');if(!pos||!payment||document.getElementById('vposVideoExtras'))return false;
       if(![...payment.options].some(o=>o.value==='Fiado'))payment.add(new Option('Fiado','Fiado'));
       const bottom=pos.querySelector('.vposPaymentBar');
+      if(!bottom)return false;
       const box=document.createElement('div');box.id='vposVideoExtras';box.className='vposExtras';
       box.innerHTML=`<div class="vposExtraGrid"><label>Descuento (S/)<input id="vposDiscount" type="number" min="0" step="0.01" value="0"></label><label id="vposCustomerWrap" style="display:none">Cliente / Fiado<input id="vposCustomer" placeholder="Nombre del cliente"></label><label class="full">Notas / Observaciones<textarea id="vposNotes" rows="2" placeholder="Opcional"></textarea></label></div><div class="vposQrBox" id="vposQrBox" style="display:none!important"><img id="vposQrImg"><div><b id="vposQrTitle"></b><small id="vposQrHolder"></small></div></div><div class="vposDue"><span>Total después del descuento</span><strong id="vposDue">S/ 0.00</strong></div>`;
       bottom.insertAdjacentElement('afterend',box);
