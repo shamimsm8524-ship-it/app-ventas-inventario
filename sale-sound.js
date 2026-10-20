@@ -184,10 +184,11 @@
   syncWindow();
 })();
 
-// Reportes: no mezclar variantes (talla/color) del mismo producto.
+// Reportes: no mezclar variantes (talla/color) del mismo producto y respetar
+// la unidad real elegida al vender medicamentos (caja, blíster o pastilla).
 (()=>{
-  if(window.__vareliaReportVariantRowsV1)return;
-  window.__vareliaReportVariantRowsV1=true;
+  if(window.__vareliaReportVariantRowsV2)return;
+  window.__vareliaReportVariantRowsV2=true;
 
   const validSales=()=>{
     const list=Array.isArray(window.sales)?window.sales:(()=>{try{return typeof sales!=='undefined'&&Array.isArray(sales)?sales:[]}catch{return[]}})();
@@ -253,12 +254,30 @@
         let name=String(it?.name??'').trim();
         if(!name)name=extra?base+' · '+extra:base;
         else if(extra&&!name.toLowerCase().includes(extra.toLowerCase()))name=base+' · '+extra;
-        const unitRaw=String(it?.sale_unit??it?.saleUnit??it?.unit??matched?.unit??'Unidad').trim().toLowerCase();
-        const unit=['kg','kilo','kilos','kilogramo','kilogramos','g','gr','gramo','gramos'].includes(unitRaw)?'kg':(unitRaw||'unidad');
+
+        // Para medicamentos, medicineSaleUnit describe lo que realmente compró el cliente.
+        // No usar la unidad base del producto (por ejemplo Caja) para una venta de Pastilla.
+        const medicineUnitRaw=String(it?.medicineSaleUnit??it?.medicine_sale_unit??'').trim().toLowerCase();
+        const unitRaw=String(medicineUnitRaw||it?.sale_unit??it?.saleUnit??it?.unit??matched?.unit??'Unidad').trim().toLowerCase();
+        const aliases={
+          'pill':'pastilla','pills':'pastilla','pastillas':'pastilla','tableta':'pastilla','tabletas':'pastilla',
+          'blister':'blíster','blisters':'blíster','blísteres':'blíster','blisteres':'blíster',
+          'box':'caja','boxes':'caja','cajas':'caja',
+          'kg':'kg','kilo':'kg','kilos':'kg','kilogramo':'kg','kilogramos':'kg',
+          'g':'kg','gr':'kg','gramo':'kg','gramos':'kg',
+          'unit':'unidad','units':'unidad','unidades':'unidad'
+        };
+        const unit=aliases[unitRaw]||(unitRaw||'unidad');
         const stock=it?.stock_qty??it?.stockQty;
         const qtyRaw=Number(it?.qty??it?.quantity??1);
-        const quantity=(stock!==undefined&&stock!==null&&stock!==''&&Number.isFinite(Number(stock)))
-          ?Number(stock):(unitRaw==='g'||unitRaw==='gr'||unitRaw==='gramo'||unitRaw==='gramos'?qtyRaw/1000:qtyRaw);
+
+        // stock_qty representa el descuento del inventario base. Para un medicamento
+        // puede ser 100 pastillas aunque el cliente haya comprado 1 caja. El reporte
+        // debe mostrar la cantidad vendida en la presentación elegida, es decir qty.
+        const quantity=medicineUnitRaw
+          ?qtyRaw
+          :((stock!==undefined&&stock!==null&&stock!==''&&Number.isFinite(Number(stock)))
+            ?Number(stock):(unitRaw==='g'||unitRaw==='gr'||unitRaw==='gramo'||unitRaw==='gramos'?qtyRaw/1000:qtyRaw));
         if(!Number.isFinite(quantity))continue;
         const key=[id||base.toLowerCase(),name.toLowerCase(),unit].join('|');
         const row=out.get(key)||{name,unit,quantity:0};
