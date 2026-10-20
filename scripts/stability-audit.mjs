@@ -8,7 +8,7 @@ const errors=[];
 const warnings=[];
 
 const critical=[
-  'index.html','central-stock-sync.js','pos-sales.js','pos-receipt.js',
+  'index.html','central-stock-sync.js','pos-sales.js','pos-receipt.js','video-features.js',
   'reports-profit.js','sale-sound.js','medicine-stock-count-fix.js',
   'medicine-sale-unit-server-fix.js','medicine-purchase-costs.js',
   'medicine-purchase-save-fix.js','medicine-price-layout.js','sw.js'
@@ -37,6 +37,14 @@ if(/setTimeout\(\(\)=>\{[\s\S]{0,500}medicineSaleUnit[\s\S]{0,500}\},\s*50\s*\)/
   errors.push('La unidad de medicamento vuelve a restaurarse a los 50 ms: la RPC asíncrona puede recibir la presentación incorrecta.');
 }
 if(!unitFix.includes('varelia:sale-recorded'))errors.push('El normalizador de presentaciones no espera a que termine la venta para restaurar el carrito.');
+
+const videoFeatures=read('video-features.js');
+if(/const\s+bottom\s*=\s*pos\.querySelector\(['"]\.vposPaymentBar['"]\);\s*const\s+box\s*=/.test(videoFeatures)){
+  errors.push('video-features.js usa .vposPaymentBar sin comprobar que exista; esto provoca insertAdjacentElement sobre null durante el arranque.');
+}
+if(!/const\s+bottom\s*=\s*pos\.querySelector\(['"]\.vposPaymentBar['"]\);\s*if\(!bottom\)return false;/.test(videoFeatures)){
+  errors.push('Falta el guard de arranque para .vposPaymentBar en video-features.js.');
+}
 
 const profit=read('reports-profit.js');
 if(profit.includes('const qty=Number.isFinite(stockNumber)?stockNumber')){
