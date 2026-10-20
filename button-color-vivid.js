@@ -133,3 +133,65 @@
   s.dataset.vareliaMedicineStockCountFixV7='1';
   document.head.appendChild(s);
 })();
+
+// Reportes móviles: corregir únicamente la presentación visible de ventas
+// antiguas de medicamentos. El nombre del ticket ya conserva la presentación
+// elegida (p. ej. "Ampicilina · Pastilla"), aunque versiones antiguas hayan
+// dejado `unit` como "Caja".
+(()=>{
+  if(window.__vareliaReportMedicineDisplayFixV1)return;
+  window.__vareliaReportMedicineDisplayFixV1=true;
+
+  const normalize=value=>String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const unitFromName=name=>{
+    const m=String(name||'').match(/(?:·|-)\s*(caja|cajas|bl[ií]ster(?:es)?|pastilla|pastillas)\s*$/i);
+    if(!m)return '';
+    const k=normalize(m[1]);
+    if(/^cajas?$/.test(k))return 'caja';
+    if(/^blister(?:es)?$/.test(k))return 'blíster';
+    if(/^pastillas?$/.test(k))return 'pastilla';
+    return '';
+  };
+  const plural=(unit,qty)=>{
+    if(Math.abs(Number(qty)-1)<0.000001)return unit;
+    if(unit==='caja')return 'cajas';
+    if(unit==='blíster')return 'blísteres';
+    if(unit==='pastilla')return 'pastillas';
+    return unit;
+  };
+
+  function fixVisibleReport(){
+    document.querySelectorAll('[data-report-synced]').forEach(box=>{
+      box.querySelectorAll('div').forEach(row=>{
+        const children=[...row.children];
+        if(children.length!==2)return;
+        const left=children[0],right=children[1];
+        if(left.tagName!=='SPAN'||right.tagName!=='STRONG')return;
+        const unit=unitFromName(left.textContent);
+        if(!unit)return;
+        const match=String(right.textContent||'').match(/-?\d+(?:[.,]\d+)?/);
+        if(!match)return;
+        const raw=match[0].replace(',','.');
+        const qty=Number(raw);
+        if(!Number.isFinite(qty))return;
+        const shown=Number(qty.toFixed(3)).toLocaleString('es-PE',{maximumFractionDigits:3});
+        right.textContent=shown+' '+plural(unit,qty);
+      });
+    });
+  }
+
+  let scheduled=false;
+  const schedule=()=>{
+    if(scheduled)return;
+    scheduled=true;
+    requestAnimationFrame(()=>{scheduled=false;fixVisibleReport()});
+  };
+  new MutationObserver(schedule).observe(document.documentElement,{childList:true,subtree:true,characterData:true});
+  document.addEventListener('click',e=>{
+    if(/Reportes/i.test(String(e.target?.textContent||'')))setTimeout(schedule,0);
+  },true);
+  schedule();
+  setInterval(()=>{
+    if(document.querySelector('[data-report-synced]'))fixVisibleReport();
+  },800);
+})();
