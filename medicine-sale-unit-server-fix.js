@@ -59,3 +59,12 @@
   s.dataset.vareliaMedicineProfitHistoryFixV4='1';
   document.head.appendChild(s);
 })();
+
+(()=>{
+  if(document.querySelector('script[data-varelia-profit-label-copy-fix-v1]'))return;
+  const s=document.createElement('script');
+  s.src='/profit-label-copy-fix.js?v=20261020-v1';
+  s.async=false;
+  s.dataset.vareliaProfitLabelCopyFixV1='1';
+  document.head.appendChild(s);
+})();
