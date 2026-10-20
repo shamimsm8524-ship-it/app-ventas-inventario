@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaMedicineSaleUnitServerFixV4)return;
-  window.__vareliaMedicineSaleUnitServerFixV4=true;
+  if(window.__vareliaMedicineSaleUnitServerFixV5)return;
+  window.__vareliaMedicineSaleUnitServerFixV5=true;
 
   const normalize=value=>String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const canonical=value=>{
@@ -16,30 +16,43 @@
     return Array.isArray(window.cart)?window.cart:null;
   }
 
+  let pending=[];
+  let fallbackTimer=0;
+  function restore(){
+    clearTimeout(fallbackTimer);
+    const rows=pending.splice(0);
+    for(const x of rows){
+      if(!x?.item)continue;
+      if(x.had)x.item.medicineSaleUnit=x.value;
+      else delete x.item.medicineSaleUnit;
+    }
+  }
+
   function prepareServerUnits(){
+    restore();
     const rows=activeCart();
     if(!rows?.length)return;
-    const restore=[];
     for(const item of rows){
       const raw=String(item?.medicineSaleUnit??item?.medicine_sale_unit??item?.sale_unit??item?.saleUnit??'').trim();
       if(!raw)continue;
       const serverUnit=canonical(raw);
-      if(!serverUnit||serverUnit===raw)continue;
-      restore.push({item,value:item.medicineSaleUnit,had:Object.prototype.hasOwnProperty.call(item,'medicineSaleUnit')});
+      if(!serverUnit)continue;
+      const had=Object.prototype.hasOwnProperty.call(item,'medicineSaleUnit');
+      pending.push({item,value:item.medicineSaleUnit,had});
+      item.medicineDisplayUnit=item.medicineDisplayUnit||raw;
+      // Mantener la unidad canónica durante TODO el checkout. Antes se restauraba
+      // a los 50 ms y la RPC asíncrona podía volver a recibir "Blíster" con tilde,
+      // cayendo al cálculo por pastillas (10 x precio unitario).
       item.medicineSaleUnit=serverUnit;
-      item.medicineDisplayUnit=raw;
     }
-    if(restore.length)setTimeout(()=>{
-      for(const x of restore){
-        if(x.had)x.item.medicineSaleUnit=x.value;
-        else delete x.item.medicineSaleUnit;
-      }
-    },50);
+    fallbackTimer=setTimeout(restore,20000);
   }
 
   document.addEventListener('click',e=>{
     if(e.target?.closest?.('#checkout,#vposCheckout'))prepareServerUnits();
   },true);
+  window.addEventListener('varelia:sale-recorded',()=>setTimeout(restore,0));
+  window.addEventListener('varelia:checkout-confirmed',()=>setTimeout(restore,0));
 })();
 
 // Sistema definitivo de medicamentos: cada presentación conserva su propio
