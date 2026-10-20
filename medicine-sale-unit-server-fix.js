@@ -63,6 +63,16 @@
   document.head.appendChild(s);
 })();
 
+// Confirmación visible al guardar y mensaje claro cuando falta un costo.
+(()=>{
+  if(document.querySelector('script[data-varelia-medicine-save-feedback-v1]'))return;
+  const s=document.createElement('script');
+  s.src='/medicine-save-feedback.js?v=20261020-v1';
+  s.async=false;
+  s.dataset.vareliaMedicineSaveFeedbackV1='1';
+  document.head.appendChild(s);
+})();
+
 // Solo mejora el texto de la tarjeta de ganancias; no cambia importes.
 (()=>{
   if(document.querySelector('script[data-varelia-profit-label-copy-fix-v1]'))return;
