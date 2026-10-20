@@ -28,44 +28,36 @@ jobs:
           if anchor not in text:
               raise SystemExit('Inventory summary anchor not found')
 
-          helper = r'''      head.insertAdjacentElement('afterend',box);
-      const inventoryPurchaseValue=p=>{
-        const stock=Math.max(0,Number(p?.stock)||0);
-        const genericBuy=Math.max(0,Number(p?.buyPrice)||0);
-        const category=String(p?.category||'').trim();
-        const medicine=p?.medicine===true||/^(pastillas?|medicinas?|medicamentos?)$/i.test(category);
-        if(!medicine)return stock*genericBuy;
-
-        // En medicamentos el stock se guarda en la unidad mínima (pastilla/unidad),
-        // mientras buyPrice representa históricamente el costo de la caja.
-        // Nunca multiplicar pastillas por precio de caja.
-        const unitCost=Math.max(0,Number(p?.medicineBuyUnitPrice)||0);
-        const blisterCost=Math.max(0,Number(p?.medicineBuyBlisterPrice)||0);
-        const boxCost=Math.max(0,Number(p?.medicineBuyBoxPrice)||genericBuy);
-        const unitsPerBlister=Math.max(0,Math.floor(Number(p?.unitsPerBlister)||0));
-        const blistersPerBox=Math.max(0,Math.floor(Number(p?.blistersPerBox)||0));
-
-        // Si el usuario registró costo por unidad, es el dato exacto para el stock base.
-        if(unitCost>0)return stock*unitCost;
-
-        // Si no existe costo por unidad, valorar únicamente presentaciones completas
-        // usando los costos independientes escritos por el usuario. No se inventan
-        // conversiones de costo entre caja, blíster y pastilla.
-        let remaining=stock,value=0;
-        const unitsPerBox=unitsPerBlister>0&&blistersPerBox>0?unitsPerBlister*blistersPerBox:0;
-        if(boxCost>0&&unitsPerBox>0){
-          const boxes=Math.floor(remaining/unitsPerBox);
-          value+=boxes*boxCost;
-          remaining-=boxes*unitsPerBox;
-        }
-        if(blisterCost>0&&unitsPerBlister>0){
-          const blisters=Math.floor(remaining/unitsPerBlister);
-          value+=blisters*blisterCost;
-          remaining-=blisters*unitsPerBlister;
-        }
-        return value;
-      };
-      const render=()=>'''
+          helper = "\n".join([
+              "      head.insertAdjacentElement('afterend',box);",
+              "      const inventoryPurchaseValue=p=>{",
+              "        const stock=Math.max(0,Number(p?.stock)||0);",
+              "        const genericBuy=Math.max(0,Number(p?.buyPrice)||0);",
+              "        const category=String(p?.category||'').trim();",
+              "        const medicine=p?.medicine===true||/^(pastillas?|medicinas?|medicamentos?)$/i.test(category);",
+              "        if(!medicine)return stock*genericBuy;",
+              "        const unitCost=Math.max(0,Number(p?.medicineBuyUnitPrice)||0);",
+              "        const blisterCost=Math.max(0,Number(p?.medicineBuyBlisterPrice)||0);",
+              "        const boxCost=Math.max(0,Number(p?.medicineBuyBoxPrice)||genericBuy);",
+              "        const unitsPerBlister=Math.max(0,Math.floor(Number(p?.unitsPerBlister)||0));",
+              "        const blistersPerBox=Math.max(0,Math.floor(Number(p?.blistersPerBox)||0));",
+              "        if(unitCost>0)return stock*unitCost;",
+              "        let remaining=stock,value=0;",
+              "        const unitsPerBox=unitsPerBlister>0&&blistersPerBox>0?unitsPerBlister*blistersPerBox:0;",
+              "        if(boxCost>0&&unitsPerBox>0){",
+              "          const boxes=Math.floor(remaining/unitsPerBox);",
+              "          value+=boxes*boxCost;",
+              "          remaining-=boxes*unitsPerBox;",
+              "        }",
+              "        if(blisterCost>0&&unitsPerBlister>0){",
+              "          const blisters=Math.floor(remaining/unitsPerBlister);",
+              "          value+=blisters*blisterCost;",
+              "          remaining-=blisters*unitsPerBlister;",
+              "        }",
+              "        return value;",
+              "      };",
+              "      const render=()=>",
+          ])
           text = text.replace(anchor, helper, 1)
 
           old = "val=ps.reduce((a,p)=>a+(Number(p.stock)||0)*(Number(p.buyPrice)||0),0)"
@@ -82,13 +74,7 @@ jobs:
           if old_build not in html:
               raise SystemExit('Expected build marker not found')
           html = html.replace(old_build, new_build, 1)
-
-          html, n = re.subn(
-              r'src=[\"\']video-features\.js(?:\?[^\"\']*)?[\"\']',
-              'src="video-features.js?v=20261020-inventory-value-v13"',
-              html,
-              count=1,
-          )
+          html, n = re.subn(r'src=[\"\']video-features\.js(?:\?[^\"\']*)?[\"\']', 'src="video-features.js?v=20261020-inventory-value-v13"', html, count=1)
           if n != 1:
               raise SystemExit('video-features.js script tag not found')
           idx.write_text(html, encoding='utf-8')
