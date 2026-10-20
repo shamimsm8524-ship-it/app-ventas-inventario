@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaMedicineSaleUnitServerFixV2)return;
-  window.__vareliaMedicineSaleUnitServerFixV2=true;
+  if(window.__vareliaMedicineSaleUnitServerFixV3)return;
+  window.__vareliaMedicineSaleUnitServerFixV3=true;
 
   const normalize=value=>String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const canonical=value=>{
@@ -42,11 +42,22 @@
   },true);
 })();
 
+// Reparación puntual del precio de blíster de la Ampicilina afectada.
 (()=>{
-  if(document.querySelector('script[data-varelia-medicine-profit-history-fix-v2]'))return;
+  if(document.querySelector('script[data-varelia-ampicilina-price-repair-v1]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-profit-history-fix.js?v=20261020-v2';
+  s.src='/ampicilina-price-repair.js?v=20261020-v1';
   s.async=false;
-  s.dataset.vareliaMedicineProfitHistoryFixV2='1';
+  s.dataset.vareliaAmpicilinaPriceRepairV1='1';
+  document.head.appendChild(s);
+})();
+
+// Reparar el histórico de Ganancias después de corregir el precio real.
+(()=>{
+  if(document.querySelector('script[data-varelia-medicine-profit-history-fix-v3]'))return;
+  const s=document.createElement('script');
+  s.src='/medicine-profit-history-fix.js?v=20261020-v3';
+  s.async=false;
+  s.dataset.vareliaMedicineProfitHistoryFixV3='1';
   document.head.appendChild(s);
 })();
