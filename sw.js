@@ -58,10 +58,49 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Reportes: las ventas antiguas de medicamentos pueden haber guardado
-  // la presentación dentro del nombre ("Ampicilina · Pastilla") aunque el
-  // campo unit siga siendo "Caja". Completar medicineSaleUnit desde ese nombre
-  // antes de que el reporte calcule la cantidad y la unidad mostradas.
+  // Reportes reales (modal "Total por medio de pago / Productos más vendidos").
+  // Respetar la presentación elegida al vender medicamentos y no la unidad base
+  // del producto. También reparar ventas antiguas cuyo nombre quedó como
+  // "Ampicilina · Pastilla" pero cuyo campo unit todavía decía "Caja".
+  if(url.origin===self.location.origin && url.pathname.endsWith('/reports-profit.js')){
+    e.respondWith((async()=>{
+      try{
+        const base=await fetch(e.request,{cache:'no-store'});
+        if(!base.ok)return base;
+        let body=await base.text();
+
+        // Pantalla principal de Reportes.
+        const oldTop="const rawUnit=String(it.unit||it.saleUnit||it.unitType||it.measureUnit||it.measure||it.presentation||p?.unit||p?.saleUnit||p?.unitType||p?.measureUnit||p?.measure||p?.presentation||p?.unidad||p?.unidades||'').trim();";
+        const newTop="const medicineNameUnit=(String(it.name||'').match(/(?:·|-)\\s*(caja|cajas|bl[ií]ster(?:es)?|pastilla|pastillas)\\s*$/i)||[])[1]||'';const medicineExplicit=it.medicineSaleUnit??it.medicine_sale_unit??it.sale_unit??it.saleUnit;const rawUnit=String((medicineExplicit!=null&&String(medicineExplicit).trim())?medicineExplicit:(medicineNameUnit||it.unit||it.unitType||it.measureUnit||it.measure||it.presentation||p?.unit||p?.saleUnit||p?.unitType||p?.measureUnit||p?.measure||p?.presentation||p?.unidad||p?.unidades||'')).trim();";
+        if(body.includes(oldTop))body=body.replace(oldTop,newTop);
+
+        // Modal móvil exacto mostrado por el usuario.
+        const oldModal="const unitRaw=String(it.sale_unit??it.saleUnit??it.unit??matched?.unit??'Unidad').trim().toLowerCase();";
+        const newModal="const medicineNameUnit=(String(it.name??it.productName??it.product_name??'').match(/(?:·|-)\\s*(caja|cajas|bl[ií]ster(?:es)?|pastilla|pastillas)\\s*$/i)||[])[1]||'';const medicineExplicit=it.medicineSaleUnit??it.medicine_sale_unit??it.sale_unit??it.saleUnit;const unitRaw=String((medicineExplicit!=null&&String(medicineExplicit).trim())?medicineExplicit:(medicineNameUnit||it.unit||matched?.unit||'Unidad')).trim().toLowerCase();";
+        if(body.includes(oldModal))body=body.replace(oldModal,newModal);
+
+        // En medicamentos, stock_qty es el descuento del inventario base (pastillas),
+        // no la cantidad de presentaciones vendidas. El reporte debe usar qty.
+        const oldQty="const quantity=(stock!==undefined&&stock!==null&&stock!==''&&Number.isFinite(Number(stock)))\n          ?Number(stock):(unitRaw==='g'||unitRaw==='gr'||unitRaw==='gramo'||unitRaw==='gramos'?qtyRaw/1000:qtyRaw);";
+        const newQty="const medicinePresentation=['caja','cajas','box','boxes','blister','blisters','blíster','blísteres','blisteres','pastilla','pastillas','pill','pills','tableta','tabletas'].includes(unitRaw);const quantity=medicinePresentation?qtyRaw:((stock!==undefined&&stock!==null&&stock!==''&&Number.isFinite(Number(stock)))\n          ?Number(stock):(unitRaw==='g'||unitRaw==='gr'||unitRaw==='gramo'||unitRaw==='gramos'?qtyRaw/1000:qtyRaw));";
+        if(body.includes(oldQty))body=body.replace(oldQty,newQty);
+
+        return new Response(body,{
+          status:base.status,
+          statusText:base.statusText,
+          headers:{
+            'Content-Type':'application/javascript; charset=utf-8',
+            'Cache-Control':'no-store, no-cache, must-revalidate'
+          }
+        });
+      }catch(err){
+        return fetch(e.request,{cache:'no-store'});
+      }
+    })());
+    return;
+  }
+
+  // Respaldo de reportes antiguos construidos por sale-sound.js.
   if(url.origin===self.location.origin && url.pathname.endsWith('/sale-sound.js')){
     e.respondWith((async()=>{
       try{
