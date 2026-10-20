@@ -1,11 +1,13 @@
 (()=>{
-  if(window.__vareliaMedicineStockCountFixV5)return;
-  window.__vareliaMedicineStockCountFixV5=true;
+  if(window.__vareliaMedicineStockCountFixV6)return;
+  window.__vareliaMedicineStockCountFixV6=true;
 
   const AMP_NAME='ampicilina';
   const AMP_BARCODE='2071674969557';
   let clearedRecoveredAmpicilina=false;
   let saving=false;
+  let stockTouched=false;
+  let lastEditKey='';
 
   const el=id=>document.getElementById(id);
   const intVal=node=>Math.max(0,Math.floor(Number(node?.value||0)));
@@ -19,6 +21,14 @@
   function productList(){
     try{if(typeof products!=='undefined'&&Array.isArray(products))return products}catch{}
     return Array.isArray(window.products)?window.products:[];
+  }
+
+  function findCurrent(arr){
+    const id=text('productId'),barcode=text('barcode'),name=text('productName').toLowerCase();
+    return (id&&arr.find(p=>String(p?.id||'')===id))
+      ||(barcode&&arr.find(p=>String(p?.barcode||'').trim()===barcode))
+      ||(name&&arr.find(p=>String(p?.name||'').trim().toLowerCase()===name))
+      ||null;
   }
 
   function syncFormRequirements(){
@@ -42,12 +52,55 @@
     ensureGenericMedicinePrice();
   }
 
+  function existingStock(){
+    const old=findCurrent(productList());
+    if(!old)return null;
+    const stock=Math.max(0,Math.floor(Number(old.stock)||0));
+    return {old,stock};
+  }
+
+  function splitStock(stock,bpb,upb){
+    const perBox=bpb*upb;
+    if(perBox<1||upb<1)return {boxes:0,blisters:0,units:stock};
+    const boxes=Math.floor(stock/perBox);
+    const remAfterBoxes=stock-(boxes*perBox);
+    const blisters=Math.floor(remAfterBoxes/upb);
+    const units=remAfterBoxes-(blisters*upb);
+    return {boxes,blisters,units};
+  }
+
+  function syncUntouchedEditStock(){
+    if(stockTouched||!text('productId'))return;
+    const state=existingStock();if(!state)return;
+    const bpb=intVal(el('vMedicineBlistersPerBox'))||Math.max(0,Math.floor(Number(state.old?.blistersPerBox)||0));
+    const upb=intVal(el('vMedicineUnitsPerBlister'))||Math.max(0,Math.floor(Number(state.old?.unitsPerBlister)||0));
+    if(bpb<1||upb<1)return;
+    const field=el('vMedicineStockBoxes');if(!field)return;
+    const wholeBoxes=Math.floor(state.stock/(bpb*upb));
+    if(String(field.value||'')!==String(wholeBoxes))field.value=String(wholeBoxes);
+  }
+
   function updateSummary(){
     const stock=el('vMedicineStockBoxes'),bpb=el('vMedicineBlistersPerBox'),upb=el('vMedicineUnitsPerBlister'),summary=el('vMedicineStockSummary');
     if(!stock||!bpb||!upb||!summary||!isMedicineVisible())return;
     const boxes=intVal(stock),blistersPerBox=intVal(bpb),unitsPerBlister=intVal(upb);
     if(blistersPerBox<1){summary.textContent='Indica cuántos blísteres trae cada caja para calcular el stock correctamente.';summary.style.color='#b45309';return}
     if(unitsPerBlister<1){summary.textContent='Indica cuántas pastillas trae cada blíster para calcular el stock correctamente.';summary.style.color='#b45309';return}
+
+    const state=!stockTouched&&text('productId')?existingStock():null;
+    if(state){
+      const parts=splitStock(state.stock,blistersPerBox,unitsPerBlister);
+      summary.style.color='';
+      if(parts.blisters===0&&parts.units===0){
+        const totalBlisters=parts.boxes*blistersPerBox;
+        summary.textContent=parts.boxes+' caja'+(parts.boxes===1?'':'s')+' = '+totalBlisters+' blíster'+(totalBlisters===1?'':'es')+' = '+state.stock+' pastilla'+(state.stock===1?'':'s');
+      }else{
+        summary.textContent='Stock real: '+state.stock+' pastilla'+(state.stock===1?'':'s')+' = '+parts.boxes+' caja'+(parts.boxes===1?'':'s')+' completa'+(parts.boxes===1?'':'s')+' + '+parts.blisters+' blíster'+(parts.blisters===1?'':'es')+' + '+parts.units+' pastilla'+(parts.units===1?'':'s');
+      }
+      const qty=el('productQty');if(qty)qty.value=String(state.stock);
+      return;
+    }
+
     const blisters=boxes*blistersPerBox,units=blisters*unitsPerBlister;
     summary.style.color='';
     summary.textContent=boxes+' caja'+(boxes===1?'':'s')+' = '+blisters+' blíster'+(blisters===1?'':'es')+' = '+units+' pastilla'+(units===1?'':'s');
@@ -57,17 +110,24 @@
   function clearRecoveredBadDefault(){
     if(clearedRecoveredAmpicilina||!isAmpicilina())return;
     const bpb=el('vMedicineBlistersPerBox');if(!bpb)return;
-    if(String(bpb.value||'').trim()==='1'){bpb.value='';bpb.placeholder='Ingresa el dato real';clearedRecoveredAmpicilina=true;updateSummary()}
+    if(String(bpb.value||'').trim()==='1'){
+      bpb.value='';
+      bpb.placeholder='Ingresa el dato real';
+      clearedRecoveredAmpicilina=true;
+      updateSummary();
+    }
   }
 
-  function refresh(){syncFormRequirements();clearRecoveredBadDefault();setTimeout(updateSummary,0)}
-
-  function findCurrent(arr){
-    const id=text('productId'),barcode=text('barcode'),name=text('productName').toLowerCase();
-    return (id&&arr.find(p=>String(p?.id||'')===id))
-      ||(barcode&&arr.find(p=>String(p?.barcode||'').trim()===barcode))
-      ||(name&&arr.find(p=>String(p?.name||'').trim().toLowerCase()===name))
-      ||null;
+  function refresh(){
+    syncFormRequirements();
+    const key=text('productId')||'__new__';
+    if(key!==lastEditKey){
+      lastEditKey=key;
+      stockTouched=key==='__new__';
+    }
+    clearRecoveredBadDefault();
+    if(!stockTouched)syncUntouchedEditStock();
+    setTimeout(updateSummary,0);
   }
 
   function localSaveMedicine(){
@@ -76,7 +136,9 @@
     const arr=productList();
     const old=findCurrent(arr);
     const id=text('productId')||String(old?.id||('med-'+Date.now().toString(36)));
-    const units=boxes*bpb*upb;
+    const preserveExisting=!!old&&!stockTouched;
+    const units=preserveExisting?Math.max(0,Math.floor(Number(old.stock)||0)):boxes*bpb*upb;
+    const derivedBoxes=Math.floor(units/(bpb*upb));
     const unitPrice=num('vMedicineUnitPrice'),blisterPrice=num('vMedicineBlisterPrice'),boxPrice=num('vMedicineBoxPrice');
     const genericPrice=num('sellPrice')||(unitPrice||blisterPrice||boxPrice||Number(old?.sellPrice)||0);
     const obj={
@@ -101,7 +163,7 @@
       boxPrice,
       blisterPrice,
       unitMedicinePrice:unitPrice,
-      medicineStockBoxes:boxes
+      medicineStockBoxes:preserveExisting?derivedBoxes:boxes
     };
     if(old)Object.assign(old,obj);else arr.push(obj);
     try{window.products=arr}catch{}
@@ -155,9 +217,16 @@
   }
 
   document.addEventListener('input',e=>{
-    if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister,#vMedicineUnitPrice,#vMedicineBlisterPrice,#vMedicineBoxPrice')){syncFormRequirements();setTimeout(updateSummary,0)}
+    if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister')){
+      stockTouched=true;
+      syncFormRequirements();
+      setTimeout(updateSummary,0);
+      return;
+    }
+    if(e.target?.matches?.('#vMedicineUnitPrice,#vMedicineBlisterPrice,#vMedicineBoxPrice')){syncFormRequirements();setTimeout(updateSummary,0)}
   },true);
   document.addEventListener('change',e=>{
+    if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister'))stockTouched=true;
     if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister,#productCategory,#vMedicineToggle')){syncFormRequirements();setTimeout(updateSummary,0)}
   },true);
 
