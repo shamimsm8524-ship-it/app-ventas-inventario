@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaMedicineProfitHistoryFixV2)return;
-  window.__vareliaMedicineProfitHistoryFixV2=true;
+  if(window.__vareliaMedicineProfitHistoryFixV3)return;
+  window.__vareliaMedicineProfitHistoryFixV3=true;
 
   const money=n=>'S/ '+(Number(n)||0).toFixed(2);
   const norm=s=>String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -91,11 +91,10 @@
     const oldRevenue=readMoney(revenueRow.value.textContent);
     const oldCost=readMoney(costRow.value.textContent);
 
-    // El fallo histórico de la RPC guardó la cantidad base del inventario
-    // (10 pastillas) como si fueran 10 blísteres. Solo reparar cuando además
-    // el precio mostrado NO coincide con el precio configurado de la presentación.
+    // Caso histórico corrupto: la venta de 1 presentación quedó guardada como
+    // la cantidad de unidades base que salen del stock (ej. 10 pastillas = 1 blíster).
     if(!(mult>1&&targetSell>0&&Number.isFinite(shownQty)&&shownQty>=mult&&almostInt(shownQty/mult)))return null;
-    if(Number.isFinite(shownSell)&&Math.abs(shownSell-targetSell)<0.009)return null;
+    if(Number.isFinite(shownSell)&&Math.abs(shownSell-targetSell)<0.009&&shownQty<mult*2)return null;
 
     const realQty=shownQty/mult;
     const buyPerPresentation=Number.isFinite(shownBuy)?shownBuy:
@@ -111,7 +110,7 @@
     if(gainUnitRow)gainUnitRow.value.textContent=money(gainPer);
     if(gainRow)gainRow.value.textContent=money(newRevenue-newCost);
 
-    card.dataset.vareliaMedicineHistoryFixed='2';
+    card.dataset.vareliaMedicineHistoryFixed='3';
     return {
       revenueDelta:Number.isFinite(oldRevenue)?newRevenue-oldRevenue:0,
       costDelta:Number.isFinite(oldCost)?newCost-oldCost:0
@@ -152,5 +151,7 @@
     if(e.target?.closest?.('[data-gain-period-buttons],button')||/Ganancias/i.test(String(e.target?.textContent||'')))schedule(100);
   },true);
   window.addEventListener('varelia:sale-recorded',()=>schedule(150));
+  window.addEventListener('varelia:ampicilina-price-repaired',()=>schedule(30));
+  setInterval(()=>{if(document.querySelector('[data-gain-per-product]'))repair()},700);
   schedule(150);
 })();
