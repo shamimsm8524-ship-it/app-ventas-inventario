@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaMedicineProfitHistoryFixV4)return;
-  window.__vareliaMedicineProfitHistoryFixV4=true;
+  if(window.__vareliaMedicineProfitHistoryFixV5)return;
+  window.__vareliaMedicineProfitHistoryFixV5=true;
 
   const money=n=>'S/ '+(Number(n)||0).toFixed(2);
   const norm=s=>String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -43,6 +43,12 @@
     if(u==='pastilla')return Number(p?.unitMedicinePrice??p?.unit_medicine_price??p?.sellPrice??p?.sell_price)||0;
     return 0;
   }
+  function configuredBuy(p,u){
+    if(u==='caja')return Number(p?.medicineBuyBoxPrice??p?.medicine_buy_box_price)||0;
+    if(u==='blíster')return Number(p?.medicineBuyBlisterPrice??p?.medicine_buy_blister_price)||0;
+    if(u==='pastilla')return Number(p?.medicineBuyUnitPrice??p?.medicine_buy_unit_price)||0;
+    return 0;
+  }
   function rows(card){
     const out={};
     card.querySelectorAll('div').forEach(w=>{
@@ -76,7 +82,7 @@
     const buyRow=findRow(r,/^Precio compra por /i);
     const qtyRow=findRow(r,/^Cantidad vendida$/i);
     const revenueRow=findRow(r,/^Total vendido$/i);
-    const costRow=findRow(r,/^Costo total de compra$/i);
+    const costRow=findRow(r,/^Costo (?:total de compra|de lo vendido)$/i);
     const gainRow=findRow(r,/^Ganancia total$/i);
     const gainUnitRow=findRow(r,/^Ganancia por /i);
     if(!sellRow||!buyRow||!qtyRow||!revenueRow||!costRow)return null;
@@ -90,25 +96,26 @@
     const oldRevenue=readMoney(revenueRow.value.textContent);
     const oldCost=readMoney(costRow.value.textContent);
 
-    // Para caja/blíster, la pantalla antigua suma stock_qty (unidades base).
-    // Convertir SIEMPRE a cantidad de presentaciones: stock_qty / multiplicador.
+    // En Supabase stock_qty representa las pastillas que salieron del inventario.
+    // Para Ganancias, caja/blíster deben mostrarse en la presentación realmente vendida.
     if(!(mult>1&&targetSell>0&&Number.isFinite(shownQty)&&shownQty>=mult&&almostInt(shownQty/mult)))return null;
 
     const realQty=shownQty/mult;
-    const buyPerPresentation=Number.isFinite(shownBuy)?shownBuy:
-      (Number(p?.buyPrice??p?.buy_price)||0)*mult;
+    const explicitBuy=configuredBuy(p,unit);
+    const buyPerPresentation=explicitBuy>0?explicitBuy:(Number.isFinite(shownBuy)?shownBuy:0);
     const newRevenue=targetSell*realQty;
     const newCost=buyPerPresentation*realQty;
     const gainPer=targetSell-buyPerPresentation;
 
     sellRow.value.textContent=money(targetSell);
+    buyRow.value.textContent=money(buyPerPresentation);
     qtyRow.value.textContent=Number(realQty.toFixed(3))+' '+plural(unit,realQty);
     revenueRow.value.textContent=money(newRevenue);
     costRow.value.textContent=money(newCost);
     if(gainUnitRow)gainUnitRow.value.textContent=money(gainPer);
     if(gainRow)gainRow.value.textContent=money(newRevenue-newCost);
 
-    card.dataset.vareliaMedicineHistoryFixed='4';
+    card.dataset.vareliaMedicineHistoryFixed='5';
     return {
       revenueDelta:Number.isFinite(oldRevenue)?newRevenue-oldRevenue:0,
       costDelta:Number.isFinite(oldCost)?newCost-oldCost:0
@@ -149,7 +156,6 @@
     if(e.target?.closest?.('[data-gain-period-buttons],button')||/Ganancias/i.test(String(e.target?.textContent||'')))schedule(100);
   },true);
   window.addEventListener('varelia:sale-recorded',()=>schedule(150));
-  window.addEventListener('varelia:ampicilina-price-repaired',()=>schedule(30));
   setInterval(()=>{if(document.querySelector('[data-gain-per-product]'))repair()},700);
   schedule(150);
 })();
