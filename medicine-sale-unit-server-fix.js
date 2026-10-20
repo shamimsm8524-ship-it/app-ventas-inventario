@@ -42,7 +42,6 @@
   },true);
 })();
 
-// Reparación puntual del precio de blíster de la Ampicilina afectada.
 (()=>{
   if(document.querySelector('script[data-varelia-ampicilina-price-repair-v1]'))return;
   const s=document.createElement('script');
@@ -52,12 +51,11 @@
   document.head.appendChild(s);
 })();
 
-// Reparar el histórico de Ganancias después de corregir el precio real.
 (()=>{
-  if(document.querySelector('script[data-varelia-medicine-profit-history-fix-v3]'))return;
+  if(document.querySelector('script[data-varelia-medicine-profit-history-fix-v4]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-profit-history-fix.js?v=20261020-v3';
+  s.src='/medicine-profit-history-fix.js?v=20261020-v4';
   s.async=false;
-  s.dataset.vareliaMedicineProfitHistoryFixV3='1';
+  s.dataset.vareliaMedicineProfitHistoryFixV4='1';
   document.head.appendChild(s);
 })();
