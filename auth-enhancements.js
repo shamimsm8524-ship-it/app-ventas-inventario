@@ -4,7 +4,9 @@
     const wait=setInterval(()=>{
       const auth=document.getElementById('vareliaAuth');
       const sb=window.vareliaSupabase;
-      if(!auth||!sb)return;
+      const login=document.getElementById('vaLogin');
+      const register=document.getElementById('vaRegister');
+      if(!auth||!sb||!login||!register)return;
       clearInterval(wait);
 
       if(!document.getElementById('vareliaAuthEnhanceStyle')){
@@ -15,7 +17,7 @@
       }
 
       function addEye(input){
-        if(!input||input.parentElement?.classList.contains('va-passwrap'))return;
+        if(!input||!input.parentNode||input.parentElement?.classList.contains('va-passwrap'))return;
         const wrap=document.createElement('div');wrap.className='va-passwrap';
         input.parentNode.insertBefore(wrap,input);wrap.appendChild(input);
         const eye=document.createElement('button');eye.type='button';eye.className='va-eye';eye.setAttribute('aria-label','Mostrar contraseña');eye.textContent='👁️';
@@ -28,7 +30,7 @@
       function ensureGoogleButton(){
         if(document.getElementById('vaGoogleBtn'))return true;
         const login=document.getElementById('vaLogin');
-        if(!login)return false;
+        if(!login?.parentNode)return false;
         let divider=login.nextElementSibling;
         if(!divider||!divider.classList.contains('va-divider')){
           divider=document.createElement('div');divider.className='va-divider';divider.textContent='o';
@@ -44,11 +46,6 @@
             const redirectTo=isNative
               ? 'https://vareliastore.tech/auth-callback.html?app=1'
               : 'https://vareliastore.tech/auth-callback.html';
-
-            // En la APK el OAuth termina en Chrome y luego vuelve a Varelia.
-            // El cliente principal usa PKCE, pero su code_verifier queda en el WebView
-            // y no existe en Chrome. Para la APK usamos un cliente OAuth independiente
-            // con implicit flow, que devuelve la sesión directamente al callback.
             const oauthClient=isNative
               ? window.supabase.createClient(
                   'https://onvdcaohnftrjunwdvjp.supabase.co',
@@ -56,11 +53,7 @@
                   {auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,flowType:'implicit'}}
                 )
               : sb;
-
-            const {error}=await oauthClient.auth.signInWithOAuth({
-              provider:'google',
-              options:{redirectTo}
-            });
+            const {error}=await oauthClient.auth.signInWithOAuth({provider:'google',options:{redirectTo}});
             if(error)throw error;
           }catch(e){if(msg){msg.textContent='No se pudo iniciar con Google: '+(e.message||e);msg.className='va-msg error'}}
         };
@@ -77,6 +70,7 @@
       let resend=document.getElementById('vaResendBtn');
       if(!resend){
         const register=document.getElementById('vaRegister');
+        if(!register?.parentNode)return;
         resend=document.createElement('button');
         resend.id='vaResendBtn';
         resend.type='button';
@@ -103,9 +97,10 @@
           }catch(e){if(msg){msg.textContent='No se pudo reenviar: '+(e.message||e);msg.className='va-msg error'}}
           finally{resend.disabled=false;}
         };
-      }else if(!verified.isConnected){resend.insertAdjacentElement('afterend',verified)}
+      }else if(!verified.isConnected&&resend.parentNode){resend.insertAdjacentElement('afterend',verified)}
 
       async function syncVerificationState(){
+        if(!resend)return;
         const {data:{user}}=await sb.auth.getUser();
         const confirmed=!!(user&&(user.email_confirmed_at||user.confirmed_at));
         if(confirmed){resend.style.display='none';verified.classList.add('show')}
@@ -119,11 +114,12 @@
         gate.innerHTML=`<div class="va-password-card"><h2>Crea tu contraseña de Varelia</h2><p>Ingresaste con Google. Crea una contraseña para que también puedas entrar con tu correo y contraseña.</p><form id="vaPasswordForm" class="va-password-form"><label>Nueva contraseña<input id="vaGooglePass1" type="password" minlength="8" autocomplete="new-password" required></label><label>Repite la contraseña<input id="vaGooglePass2" type="password" minlength="8" autocomplete="new-password" required></label><button class="va-password-save" type="submit">Guardar contraseña</button><div id="vaPasswordMsg" class="va-password-msg"></div></form></div>`;
         document.body.appendChild(gate);
         addEye(document.getElementById('vaGooglePass1'));addEye(document.getElementById('vaGooglePass2'));
-        document.getElementById('vaPasswordForm').addEventListener('submit',async e=>{
+        document.getElementById('vaPasswordForm')?.addEventListener('submit',async e=>{
           e.preventDefault();
-          const p1=document.getElementById('vaGooglePass1').value;
-          const p2=document.getElementById('vaGooglePass2').value;
+          const p1=document.getElementById('vaGooglePass1')?.value||'';
+          const p2=document.getElementById('vaGooglePass2')?.value||'';
           const m=document.getElementById('vaPasswordMsg');
+          if(!m)return;
           if(p1.length<8){m.textContent='La contraseña debe tener al menos 8 caracteres.';return}
           if(p1!==p2){m.textContent='Las contraseñas no coinciden.';return}
           m.style.color='#475569';m.textContent='Guardando contraseña...';
