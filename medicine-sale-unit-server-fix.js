@@ -53,6 +53,16 @@
   document.head.appendChild(s);
 })();
 
+// Un solo bloque visual para Compra y Venta por presentación.
+(()=>{
+  if(document.querySelector('script[data-varelia-medicine-price-layout-v1]'))return;
+  const s=document.createElement('script');
+  s.src='/medicine-price-layout.js?v=20261020-v1';
+  s.async=false;
+  s.dataset.vareliaMedicinePriceLayoutV1='1';
+  document.head.appendChild(s);
+})();
+
 // Solo mejora el texto de la tarjeta de ganancias; no cambia importes.
 (()=>{
   if(document.querySelector('script[data-varelia-profit-label-copy-fix-v1]'))return;
