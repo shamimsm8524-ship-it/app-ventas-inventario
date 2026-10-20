@@ -165,10 +165,23 @@
         tries++;
         const ps=productList();
         let p=(pending.id&&ps.find(x=>String(x.id)===pending.id))||(pending.barcode&&ps.find(x=>String(x.barcode||'')===pending.barcode))||ps.find(x=>String(x.name||'').trim()===pending.name);
-        if(!p){if(tries<20)setTimeout(apply,100);return}
+        if(!p){
+          if(tries<120){setTimeout(apply,100);return}
+          toast('No se pudieron asociar los precios por cantidad al producto. Vuelve a abrirlo y revisa antes de vender.','warn');
+          return;
+        }
         p.advancedPricing=pending.config?normalizeConfig(pending.config):null;
         try{if(typeof save==='function')save();else if(typeof K!=='undefined')localStorage.setItem(K.products,JSON.stringify(ps))}catch{}
-        try{if(typeof window.vareliaSyncProduct==='function')await window.vareliaSyncProduct(p)}catch(err){console.error('Sincronización de precios por cantidad',err);toast('El producto se guardó, pero falta sincronizar los precios por cantidad. Toca la nube para reintentar.','warn')}
+        try{
+          if(typeof window.vareliaSyncProduct==='function'){
+            // El guardado normal del formulario puede tener un sync en curso. La primera
+            // espera deja terminar ese guardado y la segunda llamada persiste SIEMPRE
+            // advancedPricing ya incorporado, evitando que Supabase lo pierda por carrera.
+            await window.vareliaSyncProduct(p);
+            await new Promise(resolve=>setTimeout(resolve,180));
+            await window.vareliaSyncProduct(p);
+          }
+        }catch(err){console.error('Sincronización de precios por cantidad',err);toast('El producto se guardó, pero falta sincronizar los precios por cantidad. Toca la nube para reintentar.','warn')}
         try{window.dispatchEvent(new CustomEvent('varelia:advanced-pricing-saved',{detail:{id:p.id}}))}catch{}
       };
       setTimeout(apply,80);
