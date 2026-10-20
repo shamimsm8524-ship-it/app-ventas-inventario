@@ -130,12 +130,12 @@
   document.head.appendChild(s);
 })();
 
-// Conteo, guardado y cobro confiable de medicamentos.
+// Conteo y sincronización confiable de medicamentos.
 (()=>{
-  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v6]'))return;
+  if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v7]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-stock-count-fix.js?v=20261020-v6';
+  s.src='/medicine-stock-count-fix.js?v=20261020-v7';
   s.async=false;
-  s.dataset.vareliaMedicineStockCountFixV6='1';
+  s.dataset.vareliaMedicineStockCountFixV7='1';
   document.head.appendChild(s);
 })();
