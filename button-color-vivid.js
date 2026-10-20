@@ -122,11 +122,11 @@
 })();
 
 (()=>{
-  if(document.querySelector('script[data-varelia-ampicilina-unit-android-v1]'))return;
+  if(document.querySelector('script[data-varelia-ampicilina-unit-android-v2]'))return;
   const s=document.createElement('script');
-  s.src='/ampicilina-unit-selector-fix.js?v=20261020-v1';
+  s.src='/ampicilina-unit-selector-fix.js?v=20261020-v2';
   s.async=false;
-  s.dataset.vareliaAmpicilinaUnitAndroidV1='1';
+  s.dataset.vareliaAmpicilinaUnitAndroidV2='1';
   document.head.appendChild(s);
 })();
 
