@@ -112,15 +112,7 @@
   setInterval(()=>{if(document.getElementById('appearance')?.classList.contains('active'))apply()},180);
 })();
 
-(()=>{
-  if(document.querySelector('script[data-varelia-ampicilina-recovery-v4]'))return;
-  const s=document.createElement('script');
-  s.src='/ampicilina-recovery.js?v=20261020-v4';
-  s.async=false;
-  s.dataset.vareliaAmpicilinaRecoveryV4='1';
-  document.head.appendChild(s);
-})();
-
+// Selector específico de Ampicilina en Android. No crea ni recupera productos.
 (()=>{
   if(document.querySelector('script[data-varelia-ampicilina-unit-android-v4]'))return;
   const s=document.createElement('script');
