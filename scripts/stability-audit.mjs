@@ -11,7 +11,7 @@ const critical=[
   'index.html','central-stock-sync.js','pos-sales.js','pos-receipt.js','video-features.js',
   'reports-profit.js','sale-sound.js','medicine-stock-count-fix.js',
   'medicine-sale-unit-server-fix.js','medicine-purchase-costs.js',
-  'medicine-purchase-save-fix.js','medicine-price-layout.js','sw.js'
+  'medicine-purchase-save-fix.js','medicine-price-layout.js','advanced-pricing.js','sw.js'
 ];
 for(const file of critical)if(!exists(file))errors.push(`Falta archivo crítico: ${file}`);
 
@@ -45,6 +45,14 @@ if(/const\s+bottom\s*=\s*pos\.querySelector\(['"]\.vposPaymentBar['"]\);\s*const
 if(!/const\s+bottom\s*=\s*pos\.querySelector\(['"]\.vposPaymentBar['"]\);\s*if\(!bottom\)return false;/.test(videoFeatures)){
   errors.push('Falta el guard de arranque para .vposPaymentBar en video-features.js.');
 }
+
+
+const advanced=read('advanced-pricing.js');
+if(!scriptRefs.includes('advanced-pricing.js'))errors.push('index.html no carga advanced-pricing.js.');
+if(!advanced.includes('VareliaAdvancedPricing'))errors.push('advanced-pricing.js no expone el motor de precios por cantidad.');
+const central=read('central-stock-sync.js');
+if(!central.includes('VARELIA_ADV_PRICING_V1'))errors.push('central-stock-sync.js no conserva la configuración de docena/mayorista/promoción en la nube.');
+if(index.includes("p.stock = Math.max(0, before - i.qty);"))errors.push('El checkout local aún descuenta presentaciones en vez de unidades reales de stock.');
 
 const profit=read('reports-profit.js');
 if(profit.includes('const qty=Number.isFinite(stockNumber)?stockNumber')){

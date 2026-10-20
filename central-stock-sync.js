@@ -12,6 +12,34 @@
   const localCategories=()=>{try{return Array.isArray(categories)?categories:[]}catch{return[]}};
   const isOwner=()=>role==='owner';
 
+  const ADV_PRICING_RE=/\s*\[\[VARELIA_ADV_PRICING_V1:([^\]]+)\]\]\s*$/;
+  function stripAdvancedPricing(value){return String(value||'').replace(ADV_PRICING_RE,'').trimEnd()}
+  function normalizeAdvancedPricing(raw){
+    const r=raw&&typeof raw==='object'?raw:{};
+    return {
+      version:1,proxy:!!r.proxy,
+      dozenEnabled:!!r.dozenEnabled,dozenPrice:Math.max(0,Number(r.dozenPrice)||0),
+      wholesaleEnabled:!!r.wholesaleEnabled,wholesaleMinQty:Math.max(2,Math.floor(Number(r.wholesaleMinQty)||12)),wholesalePrice:Math.max(0,Number(r.wholesalePrice)||0),
+      promoEnabled:!!r.promoEnabled,promoType:['percent','fixed'].includes(String(r.promoType))?String(r.promoType):'percent',promoValue:Math.max(0,Number(r.promoValue)||0),
+      promoStart:String(r.promoStart||''),promoEnd:String(r.promoEnd||''),promoName:String(r.promoName||'Promoción').trim()||'Promoción',
+      baseSellPrice:Math.max(0,Number(r.baseSellPrice)||0),baseBuyPrice:Math.max(0,Number(r.baseBuyPrice)||0),baseUnit:String(r.baseUnit||'Unidad')
+    };
+  }
+  function readAdvancedPricing(value){
+    const m=String(value||'').match(ADV_PRICING_RE);if(!m)return null;
+    try{return normalizeAdvancedPricing(JSON.parse(decodeURIComponent(m[1])))}catch{return null}
+  }
+  function localDay(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+  function advancedPromoActive(c){const day=localDay();return !!(c?.promoEnabled&&Number(c.promoValue)>0&&(!c.promoStart||day>=c.promoStart)&&(!c.promoEnd||day<=c.promoEnd))}
+  function advancedPromoPrice(base,c){base=Math.max(0,Number(base)||0);if(!advancedPromoActive(c))return Math.round(base*100)/100;const out=c.promoType==='fixed'?Math.max(.01,base-c.promoValue):Math.max(.01,base*(1-Math.min(100,c.promoValue)/100));return Math.round(out*100)/100}
+  function pricingProxyFor(p){const c=normalizeAdvancedPricing(p?.advancedPricing||{});return !p?.medicine&&(c.dozenEnabled||c.wholesaleEnabled||c.promoEnabled)?c:null}
+  function writeAdvancedPricing(spec,p,c){
+    const clean=stripAdvancedPricing(spec);if(!c)return clean;
+    const meta={...c,proxy:true,baseSellPrice:Math.max(0,Number(p.sellPrice)||0),baseBuyPrice:Math.max(0,Number(p.buyPrice)||0),baseUnit:String(p.unit||'Unidad')};
+    const tag='[[VARELIA_ADV_PRICING_V1:'+encodeURIComponent(JSON.stringify(meta))+']]';
+    return clean?clean+'\n'+tag:tag;
+  }
+
   async function waitClient(){
     for(let i=0;i<80&&!window.vareliaSupabase;i++)await sleep(100);
     sb=window.vareliaSupabase;
@@ -97,6 +125,12 @@
   };
 
   function productPayload(p,categoryId){
+    const pricing=pricingProxyFor(p);
+    const regularBase=Math.max(0,Number(p.sellPrice)||0);
+    const regularEffective=pricing?advancedPromoPrice(regularBase,pricing):regularBase;
+    const wholesaleEffective=pricing&&pricing.wholesaleEnabled?advancedPromoPrice(pricing.wholesalePrice,pricing):regularEffective;
+    const dozenEffective=pricing&&pricing.dozenEnabled?advancedPromoPrice(pricing.dozenPrice,pricing):0;
+    const baseBuy=Math.max(0,Number(p.buyPrice)||0);
     return {
       business_id:businessId,
       category_id:categoryId||null,
@@ -104,27 +138,27 @@
       barcode:String(p.barcode||'').trim()||null,
       name:String(p.name||'Producto').trim()||'Producto',
       description:String(p.description||''),
-      specifications:String(p.specifications||''),
+      specifications:writeAdvancedPricing(String(p.specifications||''),p,pricing),
       variants:String(p.variants||''),
       characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
       variant_combinations:Array.isArray(p.variantCombinations)?p.variantCombinations:[],
-      buy_price:Math.max(0,Number(p.buyPrice)||0),
-      sell_price:Math.max(0,Number(p.sellPrice)||0),
+      buy_price:pricing?baseBuy*12:baseBuy,
+      sell_price:pricing?regularEffective:regularBase,
       stock:Math.max(0,Number(p.stock)||0),
       unit:String(p.unit||'Unidad'),
       reorder_level:Math.max(0,Number(p.reorderLevel)||0),
       image_data:String(p.image||''),
-      medicine:!!p.medicine,
-      laboratory:String(p.laboratory||'').trim()||null,
-      medicine_presentation:String(p.medicinePresentation||'').trim()||null,
-      batch:String(p.batch||'').trim()||null,
-      expiry_date:String(p.expiryDate||'').trim()||null,
-      blisters_per_box:Math.max(1,Math.floor(Number(p.blistersPerBox)||1)),
-      units_per_blister:Math.max(1,Math.floor(Number(p.unitsPerBlister)||1)),
-      box_price:Math.max(0,Number(p.boxPrice)||0),
-      blister_price:Math.max(0,Number(p.blisterPrice)||0),
-      unit_medicine_price:Math.max(0,Number(p.unitMedicinePrice)||0),
-      medicine_stock_boxes:Math.max(0,Math.floor(Number(p.medicineStockBoxes)||0))
+      medicine:pricing?true:!!p.medicine,
+      laboratory:pricing?null:(String(p.laboratory||'').trim()||null),
+      medicine_presentation:pricing?'Varelia precios por cantidad':(String(p.medicinePresentation||'').trim()||null),
+      batch:pricing?null:(String(p.batch||'').trim()||null),
+      expiry_date:pricing?null:(String(p.expiryDate||'').trim()||null),
+      blisters_per_box:pricing?12:Math.max(1,Math.floor(Number(p.blistersPerBox)||1)),
+      units_per_blister:pricing?1:Math.max(1,Math.floor(Number(p.unitsPerBlister)||1)),
+      box_price:pricing?dozenEffective:Math.max(0,Number(p.boxPrice)||0),
+      blister_price:pricing?wholesaleEffective:Math.max(0,Number(p.blisterPrice)||0),
+      unit_medicine_price:pricing?regularEffective:Math.max(0,Number(p.unitMedicinePrice)||0),
+      medicine_stock_boxes:pricing?Math.floor(Math.max(0,Number(p.stock)||0)/12):Math.max(0,Math.floor(Number(p.medicineStockBoxes)||0))
     };
   }
 
@@ -196,34 +230,37 @@
       const key=String(p.id||'');
       const pending=lastProductStockWrite.get(key);
       const stock=(pending&&Date.now()-pending.at<5000)?pending.stock:effectiveRemoteStock;
+      const advanced=readAdvancedPricing(p.specifications);
+      const pricingProxy=!!advanced?.proxy;
       return {
       id:String(p.legacy_id||p.id),
       _cloudId:String(p.id),
       barcode:String(p.barcode||''),
       name:String(p.name||'Producto'),
       category:catMap.get(String(p.category_id||''))||'',
-      buyPrice:Number(p.buy_price)||0,
-      sellPrice:Number(p.sell_price)||0,
+      buyPrice:pricingProxy?Math.max(0,Number(advanced.baseBuyPrice)||0):(Number(p.buy_price)||0),
+      sellPrice:pricingProxy?Math.max(0,Number(advanced.baseSellPrice)||0):(Number(p.sell_price)||0),
       stock:stock,
       unit:String(p.unit||'Unidad'),
       reorderLevel:Number(p.reorder_level)||0,
       description:String(p.description||''),
-      specifications:String(p.specifications||''),
+      specifications:stripAdvancedPricing(String(p.specifications||'')),
+      advancedPricing:pricingProxy?normalizeAdvancedPricing(advanced):null,
       variants:String(p.variants||''),
       characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
       variantCombinations:Array.isArray(p.variant_combinations)?p.variant_combinations:[],
       image:String(p.image_data||''),
-      medicine:!!p.medicine,
+      medicine:pricingProxy?false:!!p.medicine,
       laboratory:String(p.laboratory||''),
       medicinePresentation:String(p.medicine_presentation||''),
       batch:String(p.batch||''),
       expiryDate:String(p.expiry_date||''),
-      blistersPerBox:Number(p.blisters_per_box)||1,
-      unitsPerBlister:Number(p.units_per_blister)||1,
-      boxPrice:Number(p.box_price)||0,
-      blisterPrice:Number(p.blister_price)||0,
-      unitMedicinePrice:Number(p.unit_medicine_price)||0,
-      medicineStockBoxes:Number(p.medicine_stock_boxes)||0
+      blistersPerBox:pricingProxy?12:(Number(p.blisters_per_box)||1),
+      unitsPerBlister:pricingProxy?1:(Number(p.units_per_blister)||1),
+      boxPrice:pricingProxy?(Number(advanced.dozenPrice)||0):(Number(p.box_price)||0),
+      blisterPrice:pricingProxy?(Number(advanced.wholesalePrice)||0):(Number(p.blister_price)||0),
+      unitMedicinePrice:pricingProxy?(Number(advanced.baseSellPrice)||0):(Number(p.unit_medicine_price)||0),
+      medicineStockBoxes:pricingProxy?Math.floor(stock/12):(Number(p.medicine_stock_boxes)||0)
       };
     });
 
@@ -805,5 +842,7 @@
       }
     });
   },100);
+  // Public bridge used by pricing/options modules after the normal product save.
+  window.vareliaSyncProduct=syncProduct;
   setTimeout(init,350);
 })();

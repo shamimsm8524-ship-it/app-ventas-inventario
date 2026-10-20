@@ -36,6 +36,7 @@
         else if(/^(ml|mililitro|mililitros)$/.test(u))add('ml','ml',q,2);
         else if(/^(m|metro|metros)$/.test(u))add('m','m',q,3);
         else if(/^(m2|m²|metro cuadrado|metros cuadrados)$/.test(u))add('m2','m²',q,3);
+        else if(/^(docena|docenas)$/.test(u))add('docena','doc.',q,2);
         else discrete+=q;
       }
     }
