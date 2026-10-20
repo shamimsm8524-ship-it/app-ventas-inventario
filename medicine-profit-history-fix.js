@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaMedicineProfitHistoryFixV3)return;
-  window.__vareliaMedicineProfitHistoryFixV3=true;
+  if(window.__vareliaMedicineProfitHistoryFixV4)return;
+  window.__vareliaMedicineProfitHistoryFixV4=true;
 
   const money=n=>'S/ '+(Number(n)||0).toFixed(2);
   const norm=s=>String(s||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -85,16 +85,14 @@
     if(!unit)return null;
     const mult=multiplier(p,unit);
     const targetSell=configuredSell(p,unit);
-    const shownSell=readMoney(sellRow.value.textContent);
     const shownBuy=readMoney(buyRow.value.textContent);
     const shownQty=readNumber(qtyRow.value.textContent);
     const oldRevenue=readMoney(revenueRow.value.textContent);
     const oldCost=readMoney(costRow.value.textContent);
 
-    // Caso histórico corrupto: la venta de 1 presentación quedó guardada como
-    // la cantidad de unidades base que salen del stock (ej. 10 pastillas = 1 blíster).
+    // Para caja/blíster, la pantalla antigua suma stock_qty (unidades base).
+    // Convertir SIEMPRE a cantidad de presentaciones: stock_qty / multiplicador.
     if(!(mult>1&&targetSell>0&&Number.isFinite(shownQty)&&shownQty>=mult&&almostInt(shownQty/mult)))return null;
-    if(Number.isFinite(shownSell)&&Math.abs(shownSell-targetSell)<0.009&&shownQty<mult*2)return null;
 
     const realQty=shownQty/mult;
     const buyPerPresentation=Number.isFinite(shownBuy)?shownBuy:
@@ -110,7 +108,7 @@
     if(gainUnitRow)gainUnitRow.value.textContent=money(gainPer);
     if(gainRow)gainRow.value.textContent=money(newRevenue-newCost);
 
-    card.dataset.vareliaMedicineHistoryFixed='3';
+    card.dataset.vareliaMedicineHistoryFixed='4';
     return {
       revenueDelta:Number.isFinite(oldRevenue)?newRevenue-oldRevenue:0,
       costDelta:Number.isFinite(oldCost)?newCost-oldCost:0
