@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaAmpicilinaRecoveryV2)return;
-  window.__vareliaAmpicilinaRecoveryV2=true;
+  if(window.__vareliaAmpicilinaRecoveryV3)return;
+  window.__vareliaAmpicilinaRecoveryV3=true;
 
   const DONE='varelia_ampicilina_recovered_v2';
   const CLOUD_ID='84cde96f-4492-4115-8bc5-3cfa22ecb336';
@@ -105,7 +105,6 @@
     if(busy)return;
     busy=true;
     try{
-      // Siempre mantenerla visible mientras todavía no esté confirmada en la nube.
       if(!exists())injectLocal(fallback());
       if(marked()&&exists()){remoteVerified=true;return}
 
@@ -136,4 +135,73 @@
   window.addEventListener('varelia:forced-sync-complete',()=>setTimeout(()=>{keepVisible();run()},300));
   window.addEventListener('varelia:central-stock-updated',()=>setTimeout(()=>{keepVisible();if(!remoteVerified)run()},200));
   setInterval(()=>{if(!remoteVerified)keepVisible()},1200);
+})();
+
+// Mantiene la unidad elegida por el usuario al editar Ampicilina en Android/WebView.
+(()=>{
+  if(window.__vareliaAmpicilinaUnitSelectorFixV1)return;
+  window.__vareliaAmpicilinaUnitSelectorFixV1=true;
+
+  const BARCODE='2071674969557';
+  const NAME='ampicilina';
+  let chosenUnit='';
+  let activeKey='';
+
+  const el=id=>document.getElementById(id);
+  const text=id=>String(el(id)?.value||'').trim();
+  const isAmpForm=()=>text('barcode')===BARCODE||text('productName').toLowerCase()===NAME;
+  const dialogOpen=()=>!!el('productDialog')?.open;
+  const products=()=>{
+    try{if(Array.isArray(window.products))return window.products}catch{}
+    try{if(typeof products!=='undefined'&&Array.isArray(products))return products}catch{}
+    return [];
+  };
+  const currentProduct=()=>{
+    const id=text('productId');
+    return (id&&products().find(p=>String(p?.id||'')===id))
+      ||products().find(p=>String(p?.barcode||'').trim()===BARCODE)
+      ||products().find(p=>String(p?.name||'').trim().toLowerCase()===NAME)
+      ||null;
+  };
+
+  function ensureOptions(){
+    const unit=el('unit');if(!unit||!isAmpForm())return;
+    ['Unidad','Caja','Blíster'].forEach(label=>{
+      if(!Array.from(unit.options||[]).some(o=>String(o.value||o.textContent).trim()===label)){
+        const option=document.createElement('option');option.value=label;option.textContent=label;unit.appendChild(option);
+      }
+    });
+  }
+
+  function syncEditor(){
+    if(!dialogOpen()||!isAmpForm()){chosenUnit='';activeKey='';return}
+    ensureOptions();
+    const key=text('productId')||text('barcode')||NAME;
+    const unit=el('unit');if(!unit)return;
+    if(key!==activeKey){
+      activeKey=key;
+      const p=currentProduct();
+      chosenUnit=String(p?.unit||unit.value||'Unidad').trim()||'Unidad';
+    }
+    if(chosenUnit&&unit.value!==chosenUnit)unit.value=chosenUnit;
+  }
+
+  function remember(e){
+    if(e.target?.id!=='unit'||!isAmpForm())return;
+    const value=String(e.target.value||'').trim();
+    if(!value)return;
+    chosenUnit=value;
+    const p=currentProduct();
+    if(p)p.__ampicilinaPendingUnit=value;
+    setTimeout(()=>{const unit=el('unit');if(dialogOpen()&&isAmpForm()&&unit&&unit.value!==chosenUnit)unit.value=chosenUnit},0);
+    setTimeout(()=>{const unit=el('unit');if(dialogOpen()&&isAmpForm()&&unit&&unit.value!==chosenUnit)unit.value=chosenUnit},120);
+  }
+
+  document.addEventListener('input',remember,true);
+  document.addEventListener('change',remember,true);
+  document.addEventListener('click',e=>{
+    if(e.target?.closest?.('[data-edit],button')){setTimeout(syncEditor,30);setTimeout(syncEditor,120);setTimeout(syncEditor,300)}
+  },true);
+  new MutationObserver(()=>setTimeout(syncEditor,0)).observe(document.documentElement,{childList:true,subtree:true});
+  setInterval(syncEditor,200);
 })();
