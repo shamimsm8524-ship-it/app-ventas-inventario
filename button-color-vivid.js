@@ -134,6 +134,17 @@
   document.head.appendChild(s);
 })();
 
+// Normalizar la presentación de medicamentos solo al enviarla al servidor.
+// Evita que "Blíster" con tilde caiga al cálculo por pastilla en la RPC central.
+(()=>{
+  if(document.querySelector('script[data-varelia-medicine-sale-unit-server-fix-v1]'))return;
+  const s=document.createElement('script');
+  s.src='/medicine-sale-unit-server-fix.js?v=20261020-v1';
+  s.async=false;
+  s.dataset.vareliaMedicineSaleUnitServerFixV1='1';
+  document.head.appendChild(s);
+})();
+
 // Reportes móviles: corregir únicamente la presentación visible de ventas
 // antiguas de medicamentos. El nombre del ticket ya conserva la presentación
 // elegida (p. ej. "Ampicilina · Pastilla"), aunque versiones antiguas hayan
