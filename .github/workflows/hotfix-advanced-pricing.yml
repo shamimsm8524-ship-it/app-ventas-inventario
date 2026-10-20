@@ -20,6 +20,9 @@ jobs:
       - name: Apply advanced pricing integration
         run: python3 scripts/apply-advanced-pricing-hotfix.py
 
+      - name: Harden advanced pricing save synchronization
+        run: python3 scripts/patch-advanced-pricing-resilience.py
+
       - name: Validate JavaScript syntax
         run: |
           node --check advanced-pricing.js
@@ -36,5 +39,5 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add advanced-pricing.js central-stock-sync.js index.html cash-consistency-fix.js scripts/stability-audit.mjs
           git diff --cached --quiet && exit 0
-          git commit -m "Add dozen wholesale and promotion sales"
+          git commit -m "Harden dozen wholesale and promotion sales"
           git push origin main
