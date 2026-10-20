@@ -1,0 +1,66 @@
+name: One-time Varelia DOM startup hotfix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/hotfix-dom-race.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch unsafe POS startup anchor
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          vf = Path('video-features.js')
+          text = vf.read_text(encoding='utf-8')
+          old = "      const bottom=pos.querySelector('.vposPaymentBar');\n      const box=document.createElement('div');box.id='vposVideoExtras';box.className='vposExtras';"
+          new = "      const bottom=pos.querySelector('.vposPaymentBar');\n      if(!bottom)return false;\n      const box=document.createElement('div');box.id='vposVideoExtras';box.className='vposExtras';"
+          if new not in text:
+              if old not in text:
+                  raise SystemExit('No se encontró el bloque esperado de setupSaleExtras; no se aplicó un parche a ciegas.')
+              text = text.replace(old, new, 1)
+              vf.write_text(text, encoding='utf-8')
+
+          idx = Path('index.html')
+          html = idx.read_text(encoding='utf-8')
+          html = html.replace(
+              'video-features.js?v=20261015-business-name-cloud-v4',
+              'video-features.js?v=20261020-dom-race-v5'
+          )
+          html = html.replace(
+              "const BUILD='20261014-CHECKOUT-RECEIPT-DIRECT-V10'",
+              "const BUILD='20261020-DOM-RACE-GUARD-V11'"
+          )
+          idx.write_text(html, encoding='utf-8')
+          PY
+
+      - name: Verify syntax and stability
+        run: |
+          node --check video-features.js
+          node scripts/stability-audit.mjs
+
+      - name: Commit verified hotfix
+        shell: bash
+        run: |
+          if git diff --quiet -- video-features.js index.html; then
+            echo 'Hotfix already applied.'
+            exit 0
+          fi
+          git config user.name 'Varelia Stability Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add video-features.js index.html
+          git commit -m 'Fix POS startup DOM race before sale extras mount'
+          git push origin HEAD:main
