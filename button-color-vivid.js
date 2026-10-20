@@ -113,11 +113,11 @@
 })();
 
 (()=>{
-  if(document.querySelector('script[data-varelia-ampicilina-recovery-v3]'))return;
+  if(document.querySelector('script[data-varelia-ampicilina-recovery-v4]'))return;
   const s=document.createElement('script');
-  s.src='/ampicilina-recovery.js?v=20261020-v3';
+  s.src='/ampicilina-recovery.js?v=20261020-v4';
   s.async=false;
-  s.dataset.vareliaAmpicilinaRecoveryV3='1';
+  s.dataset.vareliaAmpicilinaRecoveryV4='1';
   document.head.appendChild(s);
 })();
 
