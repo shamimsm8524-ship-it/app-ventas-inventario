@@ -540,7 +540,33 @@
       const head=sec.querySelector('.head');if(!head)return false;
       const box=document.createElement('div');box.id='vInventoryVideoSummary';box.className='vrefStats';box.style.marginBottom='13px';
       head.insertAdjacentElement('afterend',box);
-      const render=()=>{const ps=productsList(),val=ps.reduce((a,p)=>a+(Number(p.stock)||0)*(Number(p.buyPrice)||0),0),low=ps.filter(p=>(Number(p.stock)||0)<=Math.max(0,Number(p.reorderLevel)||0)).length,out=ps.filter(p=>(Number(p.stock)||0)<=0).length;box.innerHTML=`<div class="vrefStat"><small>SKUs / Productos</small><strong>${ps.length}</strong></div><div class="vrefStat"><small>Valor del stock</small><strong>${money(val)}</strong></div><div class="vrefStat"><small>Por reponer</small><strong>${low}</strong></div><div class="vrefStat"><small>Agotados</small><strong>${out}</strong></div>`};
+      const inventoryPurchaseValue=p=>{
+        const stock=Math.max(0,Number(p?.stock)||0);
+        const genericBuy=Math.max(0,Number(p?.buyPrice)||0);
+        const category=String(p?.category||'').trim();
+        const medicine=p?.medicine===true||/^(pastillas?|medicinas?|medicamentos?)$/i.test(category);
+        if(!medicine)return stock*genericBuy;
+        const unitCost=Math.max(0,Number(p?.medicineBuyUnitPrice)||0);
+        const blisterCost=Math.max(0,Number(p?.medicineBuyBlisterPrice)||0);
+        const boxCost=Math.max(0,Number(p?.medicineBuyBoxPrice)||genericBuy);
+        const unitsPerBlister=Math.max(0,Math.floor(Number(p?.unitsPerBlister)||0));
+        const blistersPerBox=Math.max(0,Math.floor(Number(p?.blistersPerBox)||0));
+        if(unitCost>0)return stock*unitCost;
+        let remaining=stock,value=0;
+        const unitsPerBox=unitsPerBlister>0&&blistersPerBox>0?unitsPerBlister*blistersPerBox:0;
+        if(boxCost>0&&unitsPerBox>0){
+          const boxes=Math.floor(remaining/unitsPerBox);
+          value+=boxes*boxCost;
+          remaining-=boxes*unitsPerBox;
+        }
+        if(blisterCost>0&&unitsPerBlister>0){
+          const blisters=Math.floor(remaining/unitsPerBlister);
+          value+=blisters*blisterCost;
+          remaining-=blisters*unitsPerBlister;
+        }
+        return value;
+      };
+      const render=()=>{const ps=productsList(),val=ps.reduce((a,p)=>a+inventoryPurchaseValue(p),0),low=ps.filter(p=>(Number(p.stock)||0)<=Math.max(0,Number(p.reorderLevel)||0)).length,out=ps.filter(p=>(Number(p.stock)||0)<=0).length;box.innerHTML=`<div class="vrefStat"><small>SKUs / Productos</small><strong>${ps.length}</strong></div><div class="vrefStat"><small>Valor del stock</small><strong>${money(val)}</strong></div><div class="vrefStat"><small>Por reponer</small><strong>${low}</strong></div><div class="vrefStat"><small>Agotados</small><strong>${out}</strong></div>`};
       render();window.VareliaInventorySummary={render};return true;
     }
 
