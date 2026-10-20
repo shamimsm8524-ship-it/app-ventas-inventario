@@ -1,10 +1,7 @@
 (()=>{
-  if(window.__vareliaMedicineStockCountFixV6)return;
-  window.__vareliaMedicineStockCountFixV6=true;
+  if(window.__vareliaMedicineStockCountFixV7)return;
+  window.__vareliaMedicineStockCountFixV7=true;
 
-  const AMP_NAME='ampicilina';
-  const AMP_BARCODE='2071674969557';
-  let clearedRecoveredAmpicilina=false;
   let saving=false;
   let stockTouched=false;
   let lastEditKey='';
@@ -16,14 +13,13 @@
   const medicineCategory=()=>/^(pastillas?|medicinas?|medicamentos?)$/i.test(text('productCategory'));
   const isMedicineVisible=()=>{const box=el('vMedicineFields');return !!box&&box.style.display!=='none'};
   const isMedicine=()=>isMedicineVisible()||!!el('vMedicineToggle')?.checked||medicineCategory();
-  const isAmpicilina=()=>text('productName').toLowerCase()===AMP_NAME||text('barcode')===AMP_BARCODE;
 
   function productList(){
     try{if(typeof products!=='undefined'&&Array.isArray(products))return products}catch{}
     return Array.isArray(window.products)?window.products:[];
   }
 
-  function findCurrent(arr){
+  function findCurrent(arr=productList()){
     const id=text('productId'),barcode=text('barcode'),name=text('productName').toLowerCase();
     return (id&&arr.find(p=>String(p?.id||'')===id))
       ||(barcode&&arr.find(p=>String(p?.barcode||'').trim()===barcode))
@@ -46,27 +42,19 @@
     if(fallback>0)sell.value=String(fallback);
   }
 
-  function prepareMedicineSave(){
-    if(!isMedicine())return;
-    syncFormRequirements();
-    ensureGenericMedicinePrice();
-  }
-
   function existingStock(){
-    const old=findCurrent(productList());
+    const old=findCurrent();
     if(!old)return null;
-    const stock=Math.max(0,Math.floor(Number(old.stock)||0));
-    return {old,stock};
+    return {old,stock:Math.max(0,Math.floor(Number(old.stock)||0))};
   }
 
   function splitStock(stock,bpb,upb){
     const perBox=bpb*upb;
     if(perBox<1||upb<1)return {boxes:0,blisters:0,units:stock};
     const boxes=Math.floor(stock/perBox);
-    const remAfterBoxes=stock-(boxes*perBox);
-    const blisters=Math.floor(remAfterBoxes/upb);
-    const units=remAfterBoxes-(blisters*upb);
-    return {boxes,blisters,units};
+    const rem=stock-boxes*perBox;
+    const blisters=Math.floor(rem/upb);
+    return {boxes,blisters,units:rem-blisters*upb};
   }
 
   function syncUntouchedEditStock(){
@@ -107,27 +95,33 @@
     const qty=el('productQty');if(qty)qty.value=String(units);
   }
 
-  function clearRecoveredBadDefault(){
-    if(clearedRecoveredAmpicilina||!isAmpicilina())return;
-    const bpb=el('vMedicineBlistersPerBox');if(!bpb)return;
-    if(String(bpb.value||'').trim()==='1'){
-      bpb.value='';
-      bpb.placeholder='Ingresa el dato real';
-      clearedRecoveredAmpicilina=true;
-      updateSummary();
-    }
-  }
-
   function refresh(){
     syncFormRequirements();
+    const dlg=el('productDialog');
+    if(!dlg?.open)return;
     const key=text('productId')||'__new__';
     if(key!==lastEditKey){
       lastEditKey=key;
       stockTouched=key==='__new__';
     }
-    clearRecoveredBadDefault();
     if(!stockTouched)syncUntouchedEditStock();
-    setTimeout(updateSummary,0);
+    updateSummary();
+  }
+
+  function setSavingUI(on){
+    const form=el('productForm');if(!form)return;
+    form.querySelectorAll('button[type="submit"],input[type="submit"]').forEach(btn=>{
+      if(on){
+        if(!btn.dataset.vareliaOldText)btn.dataset.vareliaOldText=btn.textContent||btn.value||'';
+        btn.disabled=true;
+        if(btn.tagName==='BUTTON')btn.textContent='Guardando y sincronizando…';
+        else btn.value='Guardando y sincronizando…';
+      }else{
+        btn.disabled=false;
+        const old=btn.dataset.vareliaOldText;
+        if(old!==undefined){if(btn.tagName==='BUTTON')btn.textContent=old;else btn.value=old;delete btn.dataset.vareliaOldText}
+      }
+    });
   }
 
   function localSaveMedicine(){
@@ -163,7 +157,8 @@
       boxPrice,
       blisterPrice,
       unitMedicinePrice:unitPrice,
-      medicineStockBoxes:preserveExisting?derivedBoxes:boxes
+      medicineStockBoxes:preserveExisting?derivedBoxes:boxes,
+      __vareliaMedicineSyncPending:true
     };
     if(old)Object.assign(old,obj);else arr.push(obj);
     try{window.products=arr}catch{}
@@ -175,182 +170,140 @@
 
   async function cloudSaveMedicine(saved){
     const syncFn=window.vareliaCentralStockSyncProduct||window.syncProductToCloud;
-    if(typeof syncFn==='function'){
-      await Promise.race([
-        Promise.resolve(syncFn(saved)),
-        new Promise((_,reject)=>setTimeout(()=>reject(new Error('La nube tardó demasiado')),12000))
-      ]);
-      if(typeof window.vareliaPublicCatalogSync==='function'){
-        try{await Promise.race([Promise.resolve(window.vareliaPublicCatalogSync()),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Catálogo tardó demasiado')),8000))])}catch(e){console.warn(e)}
-      }
-      return;
+    if(typeof syncFn!=='function')throw new Error('Sincronización central no disponible');
+    await Promise.race([
+      Promise.resolve(syncFn(saved)),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('La nube tardó demasiado. Revisa tu conexión e inténtalo otra vez.')),20000))
+    ]);
+    if(typeof window.vareliaPublicCatalogSync==='function'){
+      try{await Promise.race([Promise.resolve(window.vareliaPublicCatalogSync()),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Catálogo tardó demasiado')),8000))])}catch(e){console.warn('Catálogo pendiente',e)}
     }
-    throw new Error('Sincronización central no disponible');
   }
 
-  function finishLocal(saved){
-    try{window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'))}catch{}
-    const dlg=el('productDialog');if(dlg?.open){try{dlg.close()}catch{}}
-    window.vareliaToast?.('Producto guardado. Sincronizando con la nube…','ok');
-    Promise.resolve().then(()=>cloudSaveMedicine(saved)).then(()=>{
-      if(saved&&saved.__ampicilinaRecovery)delete saved.__ampicilinaRecovery;
-      window.vareliaToast?.('Producto guardado y sincronizado.','ok');
-    }).catch(err=>{
-      console.error('Sincronización medicamento',err);
-      window.vareliaToast?.('Producto guardado en el equipo. La nube se reintentará.','warn');
-      try{setTimeout(()=>window.vareliaForceSync?.(),1500)}catch{}
-    }).finally(()=>{saving=false});
-  }
-
-  function interceptMedicineSubmit(e){
+  async function interceptMedicineSubmit(e){
     if(e.target?.id!=='productForm'||!isMedicine())return;
     e.preventDefault();
     e.stopImmediatePropagation();
     e.stopPropagation();
     if(saving)return;
-    prepareMedicineSave();
+    syncFormRequirements();
+    ensureGenericMedicinePrice();
     updateSummary();
     const bpb=intVal(el('vMedicineBlistersPerBox')),upb=intVal(el('vMedicineUnitsPerBlister'));
     if(bpb<1||upb<1){alert(bpb<1?'Indica cuántos blísteres trae cada caja antes de guardar.':'Indica cuántas pastillas trae cada blíster antes de guardar.');return}
+
     saving=true;
-    try{const saved=localSaveMedicine();finishLocal(saved)}catch(err){saving=false;console.error(err);alert(String(err?.message||err||'No se pudo guardar el medicamento.'))}
+    setSavingUI(true);
+    let saved=null;
+    try{
+      saved=localSaveMedicine();
+      window.vareliaToast?.('Guardando producto y confirmando stock en la nube…','ok');
+      await cloudSaveMedicine(saved);
+      delete saved.__vareliaMedicineSyncPending;
+      if(saved.__ampicilinaRecovery)delete saved.__ampicilinaRecovery;
+      try{if(typeof save==='function')save()}catch{}
+      try{window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'))}catch{}
+      window.vareliaToast?.('Producto y stock guardados.','ok');
+      const dlg=el('productDialog');if(dlg?.open){try{dlg.close()}catch{}}
+    }catch(err){
+      console.error('Sincronización medicamento',err);
+      if(saved)saved.__vareliaMedicineSyncPending=true;
+      try{if(typeof save==='function')save()}catch{}
+      window.vareliaToast?.('No se confirmó el stock en la nube. El producto quedó abierto para que puedas reintentar.','warn');
+      alert(String(err?.message||err||'No se pudo sincronizar el medicamento.'));
+    }finally{
+      saving=false;
+      setSavingUI(false);
+    }
   }
 
   document.addEventListener('input',e=>{
     if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister')){
-      stockTouched=true;
-      syncFormRequirements();
-      setTimeout(updateSummary,0);
-      return;
+      stockTouched=true;updateSummary();return;
     }
-    if(e.target?.matches?.('#vMedicineUnitPrice,#vMedicineBlisterPrice,#vMedicineBoxPrice')){syncFormRequirements();setTimeout(updateSummary,0)}
+    if(e.target?.matches?.('#vMedicineUnitPrice,#vMedicineBlisterPrice,#vMedicineBoxPrice'))syncFormRequirements();
   },true);
   document.addEventListener('change',e=>{
     if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister'))stockTouched=true;
-    if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister,#productCategory,#vMedicineToggle')){syncFormRequirements();setTimeout(updateSummary,0)}
+    if(e.target?.matches?.('#vMedicineStockBoxes,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister,#productCategory,#vMedicineToggle')){syncFormRequirements();updateSummary()}
   },true);
-
-  const prepareFromPointer=e=>{if(e.target?.closest?.('#productForm button[type="submit"],#productForm input[type="submit"]'))prepareMedicineSave()};
-  document.addEventListener('pointerdown',prepareFromPointer,true);
-  document.addEventListener('touchstart',prepareFromPointer,{capture:true,passive:true});
-  document.addEventListener('mousedown',prepareFromPointer,true);
   document.addEventListener('click',e=>{
-    if(e.target?.closest?.('#productForm button[type="submit"],#productForm input[type="submit"]'))prepareMedicineSave();
-    if(e.target?.closest?.('[data-edit],button')){setTimeout(refresh,30);setTimeout(refresh,120);setTimeout(refresh,300)}
+    if(e.target?.closest?.('[data-edit],#newProduct,#inventoryNewProduct'))[30,120,300].forEach(ms=>setTimeout(refresh,ms));
   },true);
   document.addEventListener('submit',interceptMedicineSubmit,true);
 
-  new MutationObserver(()=>setTimeout(refresh,0)).observe(document.documentElement,{childList:true,subtree:true});
-  setInterval(()=>{if(el('productDialog')?.open)refresh()},250);
+  const boot=()=>{
+    const dlg=el('productDialog');
+    if(dlg)new MutationObserver(()=>{if(dlg.open)setTimeout(refresh,0)}).observe(dlg,{attributes:true,attributeFilter:['open']});
+    setTimeout(refresh,0);
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
 
-// Cobro confiable para medicamentos recuperados.
-// Intercepta el botón oculto #checkout justo antes de centralCheckout, confirma
-// Ampicilina en la nube si todavía era una recuperación local y muestra el estado
-// real del cobro en el botón visible.
+// Solo interviene si un medicamento tiene una sincronización pendiente (o fue
+// recuperado localmente). Las ventas normales siguen usando el flujo original.
 (()=>{
-  if(window.__vareliaMedicineCheckoutReliabilityV1)return;
-  window.__vareliaMedicineCheckoutReliabilityV1=true;
+  if(window.__vareliaMedicineCheckoutReliabilityV2)return;
+  window.__vareliaMedicineCheckoutReliabilityV2=true;
 
-  const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-  const timeout=(promise,ms,label)=>Promise.race([
-    Promise.resolve(promise),
-    new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' tardó demasiado.')),ms))
-  ]);
   const list=()=>{
     try{if(typeof products!=='undefined'&&Array.isArray(products))return products}catch{}
     return Array.isArray(window.products)?window.products:[];
   };
-  const isRecoveredMedicine=p=>!!(p&&p.medicine&&p.__ampicilinaRecovery===true);
-
-  async function remoteMedicine(p){
-    const sb=window.vareliaSupabase;if(!sb)return null;
-    const cols='id,legacy_id,barcode,stock,blisters_per_box,units_per_blister,medicine_stock_boxes';
-    let q=null;
-    if(p._cloudId){q=await timeout(sb.from('varelia_products').select(cols).eq('id',p._cloudId).maybeSingle(),8000,'La verificación del medicamento');if(q.error)throw q.error;if(q.data)return q.data}
-    const legacy=String(p.id||'').trim();
-    if(legacy){q=await timeout(sb.from('varelia_products').select(cols).eq('legacy_id',legacy).maybeSingle(),8000,'La verificación del medicamento');if(q.error)throw q.error;if(q.data)return q.data}
-    const barcode=String(p.barcode||'').trim();
-    if(barcode){q=await timeout(sb.from('varelia_products').select(cols).eq('barcode',barcode).limit(1).maybeSingle(),8000,'La verificación del medicamento');if(q.error)throw q.error;if(q.data)return q.data}
-    return null;
-  }
-
-  function matchesSavedMedicine(row,p){
-    if(!row||!p)return false;
-    const stock=Math.max(0,Number(p.stock)||0);
-    const boxes=Math.max(0,Math.floor(Number(p.medicineStockBoxes)||0));
-    const bpb=Math.max(1,Math.floor(Number(p.blistersPerBox)||1));
-    const upb=Math.max(1,Math.floor(Number(p.unitsPerBlister)||1));
-    return Math.abs((Number(row.stock)||0)-stock)<0.000001
-      &&Math.floor(Number(row.medicine_stock_boxes)||0)===boxes
-      &&Math.floor(Number(row.blisters_per_box)||0)===bpb
-      &&Math.floor(Number(row.units_per_blister)||0)===upb;
-  }
-
-  async function ensureRecoveredMedicineReady(p){
-    if(!isRecoveredMedicine(p))return;
-    const visible=document.getElementById('vposCheckout');
-    if(visible)visible.textContent='⏳ Sincronizando medicamento…';
-    window.vareliaToast?.('Confirmando el stock de '+String(p.name||'medicamento')+' antes de cobrar…','ok');
-
-    let row=await remoteMedicine(p).catch(()=>null);
-    if(!matchesSavedMedicine(row,p)){
-      const fn=window.vareliaCentralStockSyncProduct||window.syncProductToCloud;
-      if(typeof fn!=='function')throw new Error('La sincronización del medicamento todavía no está lista.');
-      try{await timeout(fn(p),14000,'La sincronización del medicamento')}catch(err){console.warn('Sincronización previa al cobro',err)}
-      row=await remoteMedicine(p);
-    }
-    if(!matchesSavedMedicine(row,p))throw new Error('El stock del medicamento todavía no quedó confirmado en la nube. Abre el producto, guárdalo nuevamente y vuelve a cobrar.');
-    if(row?.id)p._cloudId=String(row.id);
-    delete p.__ampicilinaRecovery;
-    try{if(typeof save==='function')save()}catch{}
-  }
+  const needsSync=p=>!!(p?.medicine&&(p.__vareliaMedicineSyncPending===true||p.__ampicilinaRecovery===true));
+  const timeout=(promise,ms)=>Promise.race([Promise.resolve(promise),new Promise((_,reject)=>setTimeout(()=>reject(new Error('La sincronización del medicamento tardó demasiado.')),ms))]);
 
   function cartSnapshot(){
     try{if(typeof cart!=='undefined'&&Array.isArray(cart))return cart.map(x=>({...x}))}catch{}
     try{return (window.VareliaPOS?.getCartItems?.()||[]).map(x=>({...x}))}catch{return[]}
   }
 
+  function pendingProducts(){
+    const productsNow=list();
+    const found=[];
+    for(const item of cartSnapshot()){
+      const p=productsNow.find(x=>String(x?.id||'')===String(item?.id||''))
+        ||productsNow.find(x=>String(x?.barcode||'').trim()&&String(x?.barcode||'').trim()===String(item?.barcode||'').trim());
+      if(p&&needsSync(p)&&!found.includes(p))found.push(p);
+    }
+    return found;
+  }
+
   document.addEventListener('click',async e=>{
     const legacy=e.target?.closest?.('#checkout');
     if(!legacy||legacy.dataset.centralStock!=='1')return;
+    const pending=pendingProducts();
+    if(!pending.length)return;
     const original=legacy.onclick;
-    if(typeof original!=='function'||original.__vareliaReliableWrapped)return;
+    if(typeof original!=='function')return;
 
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    e.stopPropagation();
-    if(legacy.dataset.vareliaReliableCheckoutBusy==='1')return;
-    legacy.dataset.vareliaReliableCheckoutBusy='1';
-
+    e.preventDefault();e.stopImmediatePropagation();e.stopPropagation();
+    if(legacy.dataset.vareliaMedicineCheckoutBusy==='1')return;
+    legacy.dataset.vareliaMedicineCheckoutBusy='1';
     const visible=document.getElementById('vposCheckout');
     const oldText=visible?.textContent||'💳 Cobrar venta';
-    if(visible){visible.disabled=true;visible.textContent='⏳ Procesando cobro…'}
-    let slowTimer=setTimeout(()=>{
-      if(visible)visible.textContent='⏳ Verificando venta…';
-      window.vareliaToast?.('La red está tardando. No vuelvas a pulsar Cobrar mientras se verifica la venta.','warn');
-    },8000);
+    if(visible){visible.disabled=true;visible.textContent='⏳ Confirmando stock…'}
 
     try{
-      if(navigator.onLine===false)throw new Error('No hay conexión a internet para confirmar la venta.');
-      const snapshot=cartSnapshot();
-      const productsNow=list();
-      for(const item of snapshot){
-        const p=productsNow.find(x=>String(x?.id||'')===String(item?.id||''))
-          ||productsNow.find(x=>String(x?.barcode||'').trim()&&String(x?.barcode||'').trim()===String(item?.barcode||'').trim());
-        if(isRecoveredMedicine(p))await ensureRecoveredMedicineReady(p);
+      if(navigator.onLine===false)throw new Error('No hay conexión a internet para confirmar el stock.');
+      const syncFn=window.vareliaCentralStockSyncProduct||window.syncProductToCloud;
+      if(typeof syncFn!=='function')throw new Error('La sincronización de inventario aún no está lista.');
+      for(const p of pending){
+        await timeout(syncFn(p),18000);
+        delete p.__vareliaMedicineSyncPending;
+        delete p.__ampicilinaRecovery;
       }
+      try{if(typeof save==='function')save()}catch{}
       if(visible)visible.textContent='⏳ Registrando venta…';
       await Promise.resolve(original.call(legacy));
     }catch(err){
-      console.error('Cobro de medicamento',err);
-      const msg=String(err?.message||err||'No se pudo registrar la venta.');
+      console.error('Confirmar medicamento antes de cobrar',err);
+      const msg=String(err?.message||err||'No se pudo confirmar el stock del medicamento.');
       window.vareliaToast?.(msg,'warn');
       alert(msg);
     }finally{
-      clearTimeout(slowTimer);
-      delete legacy.dataset.vareliaReliableCheckoutBusy;
-      if(visible){visible.disabled=false;visible.textContent=oldText.includes('COBRAR')?'💳 Cobrar venta':oldText}
+      delete legacy.dataset.vareliaMedicineCheckoutBusy;
+      if(visible){visible.disabled=false;visible.textContent=oldText}
     }
   },true);
 })();
