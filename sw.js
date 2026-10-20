@@ -41,7 +41,7 @@ self.addEventListener('fetch', (e) => {
       try{
         const base=await fetch(e.request,{cache:'no-store'});
         if(!base.ok)return base;
-        const helper=await fetch('/button-color-vivid.js?v=20261020-stability-v7',{cache:'no-store'});
+        const helper=await fetch('/button-color-vivid.js?v=20261020-stability-v8',{cache:'no-store'});
         const body=(await base.text())+(helper.ok?'\n;\n'+(await helper.text()):'');
         return new Response(body,{
           status:base.status,
@@ -60,8 +60,8 @@ self.addEventListener('fetch', (e) => {
 
   // Reportes reales (modal "Total por medio de pago / Productos más vendidos").
   // Respetar la presentación elegida al vender medicamentos y no la unidad base
-  // del producto. También reparar ventas antiguas cuyo nombre quedó como
-  // "Ampicilina · Pastilla" pero cuyo campo unit todavía decía "Caja".
+  // del producto. En ventas antiguas, el nombre del ítem ("· Pastilla", etc.)
+  // tiene prioridad sobre sale_unit/unit porque esos campos podían quedar como Caja.
   if(url.origin===self.location.origin && url.pathname.endsWith('/reports-profit.js')){
     e.respondWith((async()=>{
       try{
@@ -71,12 +71,12 @@ self.addEventListener('fetch', (e) => {
 
         // Pantalla principal de Reportes.
         const oldTop="const rawUnit=String(it.unit||it.saleUnit||it.unitType||it.measureUnit||it.measure||it.presentation||p?.unit||p?.saleUnit||p?.unitType||p?.measureUnit||p?.measure||p?.presentation||p?.unidad||p?.unidades||'').trim();";
-        const newTop="const medicineNameUnit=(String(it.name||'').match(/(?:·|-)\\s*(caja|cajas|bl[ií]ster(?:es)?|pastilla|pastillas)\\s*$/i)||[])[1]||'';const medicineExplicit=it.medicineSaleUnit??it.medicine_sale_unit??it.sale_unit??it.saleUnit;const rawUnit=String((medicineExplicit!=null&&String(medicineExplicit).trim())?medicineExplicit:(medicineNameUnit||it.unit||it.unitType||it.measureUnit||it.measure||it.presentation||p?.unit||p?.saleUnit||p?.unitType||p?.measureUnit||p?.measure||p?.presentation||p?.unidad||p?.unidades||'')).trim();";
+        const newTop="const medicineNameUnit=(String(it.name||'').match(/(?:·|-)\\s*(caja|cajas|bl[ií]ster(?:es)?|pastilla|pastillas)\\s*$/i)||[])[1]||'';const medicineExplicit=it.medicineSaleUnit??it.medicine_sale_unit;const rawUnit=String((medicineExplicit!=null&&String(medicineExplicit).trim())?medicineExplicit:(medicineNameUnit||it.sale_unit||it.saleUnit||it.unit||it.unitType||it.measureUnit||it.measure||it.presentation||p?.unit||p?.saleUnit||p?.unitType||p?.measureUnit||p?.measure||p?.presentation||p?.unidad||p?.unidades||'')).trim();";
         if(body.includes(oldTop))body=body.replace(oldTop,newTop);
 
         // Modal móvil exacto mostrado por el usuario.
         const oldModal="const unitRaw=String(it.sale_unit??it.saleUnit??it.unit??matched?.unit??'Unidad').trim().toLowerCase();";
-        const newModal="const medicineNameUnit=(String(it.name??it.productName??it.product_name??'').match(/(?:·|-)\\s*(caja|cajas|bl[ií]ster(?:es)?|pastilla|pastillas)\\s*$/i)||[])[1]||'';const medicineExplicit=it.medicineSaleUnit??it.medicine_sale_unit??it.sale_unit??it.saleUnit;const unitRaw=String((medicineExplicit!=null&&String(medicineExplicit).trim())?medicineExplicit:(medicineNameUnit||it.unit||matched?.unit||'Unidad')).trim().toLowerCase();";
+        const newModal="const medicineNameUnit=(String(it.name??it.productName??it.product_name??'').match(/(?:·|-)\\s*(caja|cajas|bl[ií]ster(?:es)?|pastilla|pastillas)\\s*$/i)||[])[1]||'';const medicineExplicit=it.medicineSaleUnit??it.medicine_sale_unit;const unitRaw=String((medicineExplicit!=null&&String(medicineExplicit).trim())?medicineExplicit:(medicineNameUnit||it.sale_unit||it.saleUnit||it.unit||matched?.unit||'Unidad')).trim().toLowerCase();";
         if(body.includes(oldModal))body=body.replace(oldModal,newModal);
 
         // En medicamentos, stock_qty es el descuento del inventario base (pastillas),
@@ -84,6 +84,12 @@ self.addEventListener('fetch', (e) => {
         const oldQty="const quantity=(stock!==undefined&&stock!==null&&stock!==''&&Number.isFinite(Number(stock)))\n          ?Number(stock):(unitRaw==='g'||unitRaw==='gr'||unitRaw==='gramo'||unitRaw==='gramos'?qtyRaw/1000:qtyRaw);";
         const newQty="const medicinePresentation=['caja','cajas','box','boxes','blister','blisters','blíster','blísteres','blisteres','pastilla','pastillas','pill','pills','tableta','tabletas'].includes(unitRaw);const quantity=medicinePresentation?qtyRaw:((stock!==undefined&&stock!==null&&stock!==''&&Number.isFinite(Number(stock)))\n          ?Number(stock):(unitRaw==='g'||unitRaw==='gr'||unitRaw==='gramo'||unitRaw==='gramos'?qtyRaw/1000:qtyRaw));";
         if(body.includes(oldQty))body=body.replace(oldQty,newQty);
+
+        // Un mismo medicamento vendido como caja/blíster/pastilla debe mantenerse
+        // separado por presentación dentro de "Productos más vendidos".
+        const oldKey="const key=id||name.toLowerCase()+'|'+unit;";
+        const newKey="const key=(id||name.toLowerCase())+'|'+unit;";
+        if(body.includes(oldKey))body=body.replace(oldKey,newKey);
 
         return new Response(body,{
           status:base.status,
@@ -108,7 +114,7 @@ self.addEventListener('fetch', (e) => {
         if(!base.ok)return base;
         let body=await base.text();
         const from="const medicineUnitRaw=String(it?.medicineSaleUnit??it?.medicine_sale_unit??'').trim().toLowerCase();";
-        const to="const medicineNameUnit=(String(it?.name??'').match(/(?:·|-)\\s*(caja|cajas|bl[ií]ster(?:es)?|pastilla|pastillas)\\s*$/i)||[])[1]||''; const medicineUnitRaw=String(it?.medicineSaleUnit??it?.medicine_sale_unit??medicineNameUnit??'').trim().toLowerCase();";
+        const to="const medicineExplicit=String(it?.medicineSaleUnit??it?.medicine_sale_unit??'').trim(); const medicineNameUnit=(String(it?.name??'').match(/(?:·|-)\\s*(caja|cajas|bl[ií]ster(?:es)?|pastilla|pastillas)\\s*$/i)||[])[1]||''; const medicineUnitRaw=String(medicineExplicit||medicineNameUnit).trim().toLowerCase();";
         if(body.includes(from))body=body.replace(from,to);
         return new Response(body,{
           status:base.status,
