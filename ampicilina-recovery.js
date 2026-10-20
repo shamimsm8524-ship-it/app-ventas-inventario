@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaAmpicilinaRecoveryV3)return;
-  window.__vareliaAmpicilinaRecoveryV3=true;
+  if(window.__vareliaAmpicilinaRecoveryV4)return;
+  window.__vareliaAmpicilinaRecoveryV4=true;
 
   const DONE='varelia_ampicilina_recovered_v2';
   const CLOUD_ID='84cde96f-4492-4115-8bc5-3cfa22ecb336';
@@ -137,71 +137,63 @@
   setInterval(()=>{if(!remoteVerified)keepVisible()},1200);
 })();
 
-// Mantiene la unidad elegida por el usuario al editar Ampicilina en Android/WebView.
+// Selector de unidad de Ampicilina: no fuerza valores mientras Android muestra el selector nativo.
 (()=>{
-  if(window.__vareliaAmpicilinaUnitSelectorFixV1)return;
-  window.__vareliaAmpicilinaUnitSelectorFixV1=true;
+  if(window.__vareliaAmpicilinaUnitSelectorFixV2)return;
+  window.__vareliaAmpicilinaUnitSelectorFixV2=true;
 
   const BARCODE='2071674969557';
   const NAME='ampicilina';
-  let chosenUnit='';
-  let activeKey='';
-
   const el=id=>document.getElementById(id);
   const text=id=>String(el(id)?.value||'').trim();
   const isAmpForm=()=>text('barcode')===BARCODE||text('productName').toLowerCase()===NAME;
-  const dialogOpen=()=>!!el('productDialog')?.open;
-  const products=()=>{
+
+  function productList(){
     try{if(Array.isArray(window.products))return window.products}catch{}
     try{if(typeof products!=='undefined'&&Array.isArray(products))return products}catch{}
     return [];
-  };
-  const currentProduct=()=>{
+  }
+
+  function currentProduct(){
     const id=text('productId');
-    return (id&&products().find(p=>String(p?.id||'')===id))
-      ||products().find(p=>String(p?.barcode||'').trim()===BARCODE)
-      ||products().find(p=>String(p?.name||'').trim().toLowerCase()===NAME)
+    return (id&&productList().find(p=>String(p?.id||'')===id))
+      ||productList().find(p=>String(p?.barcode||'').trim()===BARCODE)
+      ||productList().find(p=>String(p?.name||'').trim().toLowerCase()===NAME)
       ||null;
-  };
-
-  function ensureOptions(){
-    const unit=el('unit');if(!unit||!isAmpForm())return;
-    ['Unidad','Caja','Blíster'].forEach(label=>{
-      if(!Array.from(unit.options||[]).some(o=>String(o.value||o.textContent).trim()===label)){
-        const option=document.createElement('option');option.value=label;option.textContent=label;unit.appendChild(option);
-      }
-    });
   }
 
-  function syncEditor(){
-    if(!dialogOpen()||!isAmpForm()){chosenUnit='';activeKey='';return}
-    ensureOptions();
-    const key=text('productId')||text('barcode')||NAME;
-    const unit=el('unit');if(!unit)return;
-    if(key!==activeKey){
-      activeKey=key;
-      const p=currentProduct();
-      chosenUnit=String(p?.unit||unit.value||'Unidad').trim()||'Unidad';
+  function ensureBlisterOption(){
+    const unit=el('unit');
+    if(!unit||!isAmpForm())return;
+    if(!Array.from(unit.options||[]).some(o=>String(o.value||o.textContent).trim()==='Blíster')){
+      const option=document.createElement('option');
+      option.value='Blíster';
+      option.textContent='Blíster';
+      const caja=Array.from(unit.options||[]).find(o=>String(o.value||o.textContent).trim()==='Caja');
+      if(caja?.nextSibling)unit.insertBefore(option,caja.nextSibling);else unit.appendChild(option);
     }
-    if(chosenUnit&&unit.value!==chosenUnit)unit.value=chosenUnit;
   }
 
-  function remember(e){
+  function prepareEditor(){
+    if(!isAmpForm())return;
+    ensureBlisterOption();
+  }
+
+  function rememberSelection(e){
     if(e.target?.id!=='unit'||!isAmpForm())return;
     const value=String(e.target.value||'').trim();
     if(!value)return;
-    chosenUnit=value;
     const p=currentProduct();
-    if(p)p.__ampicilinaPendingUnit=value;
-    setTimeout(()=>{const unit=el('unit');if(dialogOpen()&&isAmpForm()&&unit&&unit.value!==chosenUnit)unit.value=chosenUnit},0);
-    setTimeout(()=>{const unit=el('unit');if(dialogOpen()&&isAmpForm()&&unit&&unit.value!==chosenUnit)unit.value=chosenUnit},120);
+    if(p)p.unit=value;
+    try{if(typeof save==='function')save()}catch{}
   }
 
-  document.addEventListener('input',remember,true);
-  document.addEventListener('change',remember,true);
+  document.addEventListener('change',rememberSelection,true);
+  document.addEventListener('input',rememberSelection,true);
   document.addEventListener('click',e=>{
-    if(e.target?.closest?.('[data-edit],button')){setTimeout(syncEditor,30);setTimeout(syncEditor,120);setTimeout(syncEditor,300)}
+    if(e.target?.closest?.('[data-edit]')){
+      setTimeout(prepareEditor,30);
+      setTimeout(prepareEditor,150);
+    }
   },true);
-  new MutationObserver(()=>setTimeout(syncEditor,0)).observe(document.documentElement,{childList:true,subtree:true});
-  setInterval(syncEditor,200);
 })();
