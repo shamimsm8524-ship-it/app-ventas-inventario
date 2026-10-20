@@ -121,6 +121,15 @@
   document.head.appendChild(s);
 })();
 
+(()=>{
+  if(document.querySelector('script[data-varelia-ampicilina-unit-android-v1]'))return;
+  const s=document.createElement('script');
+  s.src='/ampicilina-unit-selector-fix.js?v=20261020-v1';
+  s.async=false;
+  s.dataset.vareliaAmpicilinaUnitAndroidV1='1';
+  document.head.appendChild(s);
+})();
+
 // Conteo, guardado y cobro confiable de medicamentos.
 (()=>{
   if(document.querySelector('script[data-varelia-medicine-stock-count-fix-v6]'))return;
