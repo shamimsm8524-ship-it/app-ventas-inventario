@@ -86,7 +86,6 @@
     return add();
   };
 
-  // Desbloquea el AudioContext dentro del gesto fisico del usuario.
   const unlock=()=>{void resume()};
   document.addEventListener('pointerdown',unlock,{capture:true,passive:true});
   document.addEventListener('touchstart',unlock,{capture:true,passive:true});
@@ -94,8 +93,6 @@
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)unlock()});
 })();
 
-// Reportes en vivo: mantener window.sales unido al arreglo real de ventas y
-// refrescar el modal inmediatamente después de cada cobro confirmado.
 (()=>{
   if(window.__vareliaLiveReportBridgeV1)return;
   window.__vareliaLiveReportBridgeV1=true;
@@ -184,8 +181,6 @@
   syncWindow();
 })();
 
-// Reportes: no mezclar variantes (talla/color) del mismo producto y respetar
-// la unidad real elegida al vender medicamentos (caja, blíster o pastilla).
 (()=>{
   if(window.__vareliaReportVariantRowsV2)return;
   window.__vareliaReportVariantRowsV2=true;
@@ -255,10 +250,9 @@
         if(!name)name=extra?base+' · '+extra:base;
         else if(extra&&!name.toLowerCase().includes(extra.toLowerCase()))name=base+' · '+extra;
 
-        // Para medicamentos, medicineSaleUnit describe lo que realmente compró el cliente.
-        // No usar la unidad base del producto (por ejemplo Caja) para una venta de Pastilla.
         const medicineUnitRaw=String(it?.medicineSaleUnit??it?.medicine_sale_unit??'').trim().toLowerCase();
-        const unitRaw=String(medicineUnitRaw||it?.sale_unit??it?.saleUnit??it?.unit??matched?.unit??'Unidad').trim().toLowerCase();
+        const fallbackUnit=it?.sale_unit??it?.saleUnit??it?.unit??matched?.unit??'Unidad';
+        const unitRaw=String(medicineUnitRaw||fallbackUnit).trim().toLowerCase();
         const aliases={
           'pill':'pastilla','pills':'pastilla','pastillas':'pastilla','tableta':'pastilla','tabletas':'pastilla',
           'blister':'blíster','blisters':'blíster','blísteres':'blíster','blisteres':'blíster',
@@ -270,10 +264,6 @@
         const unit=aliases[unitRaw]||(unitRaw||'unidad');
         const stock=it?.stock_qty??it?.stockQty;
         const qtyRaw=Number(it?.qty??it?.quantity??1);
-
-        // stock_qty representa el descuento del inventario base. Para un medicamento
-        // puede ser 100 pastillas aunque el cliente haya comprado 1 caja. El reporte
-        // debe mostrar la cantidad vendida en la presentación elegida, es decir qty.
         const quantity=medicineUnitRaw
           ?qtyRaw
           :((stock!==undefined&&stock!==null&&stock!==''&&Number.isFinite(Number(stock)))
