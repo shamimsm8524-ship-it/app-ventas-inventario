@@ -55,11 +55,11 @@
 
 // Un solo bloque visual para Compra y Venta por presentación.
 (()=>{
-  if(document.querySelector('script[data-varelia-medicine-price-layout-v1]'))return;
+  if(document.querySelector('script[data-varelia-medicine-price-layout-v2]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-price-layout.js?v=20261020-v1';
+  s.src='/medicine-price-layout.js?v=20261020-v2';
   s.async=false;
-  s.dataset.vareliaMedicinePriceLayoutV1='1';
+  s.dataset.vareliaMedicinePriceLayoutV2='1';
   document.head.appendChild(s);
 })();
 
