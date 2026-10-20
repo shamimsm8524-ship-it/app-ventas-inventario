@@ -53,6 +53,17 @@
   document.head.appendChild(s);
 })();
 
+// Persistencia fuerte: captura los costos antes del submit y los guarda en el
+// producto local y en el metadato que viaja a Supabase.
+(()=>{
+  if(document.querySelector('script[data-varelia-medicine-purchase-save-fix-v1]'))return;
+  const s=document.createElement('script');
+  s.src='/medicine-purchase-save-fix.js?v=20261020-v1';
+  s.async=false;
+  s.dataset.vareliaMedicinePurchaseSaveFixV1='1';
+  document.head.appendChild(s);
+})();
+
 // Un solo bloque visual para Compra y Venta por presentación.
 (()=>{
   if(document.querySelector('script[data-varelia-medicine-price-layout-v2]'))return;
