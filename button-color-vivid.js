@@ -175,7 +175,8 @@
         const qty=Number(raw);
         if(!Number.isFinite(qty))return;
         const shown=Number(qty.toFixed(3)).toLocaleString('es-PE',{maximumFractionDigits:3});
-        right.textContent=shown+' '+plural(unit,qty);
+        const desired=shown+' '+plural(unit,qty);
+        if(String(right.textContent||'')!==desired)right.textContent=desired;
       });
     });
   }
