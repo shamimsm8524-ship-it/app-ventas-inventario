@@ -107,7 +107,9 @@
 
   const boot=()=>{wire();delayedApply()};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
-  document.addEventListener('click',e=>{if(e.target?.closest?.('[data-view="appearance"],button'))setTimeout(()=>{wire();delayedApply()},0)},true);
+  document.addEventListener('click',e=>{
+    if(e.target?.closest?.('[data-view="appearance"],#applyCustomColor,#customColor,#colorWheel,#lightSlider'))setTimeout(()=>{wire();delayedApply()},0);
+  },true);
   new MutationObserver(()=>setTimeout(wire,0)).observe(document.documentElement,{childList:true,subtree:true});
   setInterval(()=>{if(document.getElementById('appearance')?.classList.contains('active'))apply()},180);
 })();
