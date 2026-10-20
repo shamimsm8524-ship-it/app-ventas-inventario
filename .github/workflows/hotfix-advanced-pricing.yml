@@ -1,0 +1,211 @@
+name: One-time Varelia advanced pricing integration
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hotfix-advanced-pricing.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Integrate dozen wholesale and promotions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # ---------- central-stock-sync.js ----------
+          path=Path('central-stock-sync.js')
+          s=path.read_text(encoding='utf-8')
+          anchor="  const isOwner=()=>role==='owner';\n\n  async function waitClient(){"
+          if anchor not in s:
+              raise SystemExit('central-stock-sync: helper anchor not found')
+          helpers=r'''  const isOwner=()=>role==='owner';
+
+  const ADV_PRICING_RE=/\s*\[\[VARELIA_ADV_PRICING_V1:([^\]]+)\]\]\s*$/;
+  function stripAdvancedPricing(value){return String(value||'').replace(ADV_PRICING_RE,'').trimEnd()}
+  function normalizeAdvancedPricing(raw){
+    const r=raw&&typeof raw==='object'?raw:{};
+    return {
+      version:1,proxy:!!r.proxy,
+      dozenEnabled:!!r.dozenEnabled,dozenPrice:Math.max(0,Number(r.dozenPrice)||0),
+      wholesaleEnabled:!!r.wholesaleEnabled,wholesaleMinQty:Math.max(2,Math.floor(Number(r.wholesaleMinQty)||12)),wholesalePrice:Math.max(0,Number(r.wholesalePrice)||0),
+      promoEnabled:!!r.promoEnabled,promoType:['percent','fixed'].includes(String(r.promoType))?String(r.promoType):'percent',promoValue:Math.max(0,Number(r.promoValue)||0),
+      promoStart:String(r.promoStart||''),promoEnd:String(r.promoEnd||''),promoName:String(r.promoName||'Promoción').trim()||'Promoción',
+      baseSellPrice:Math.max(0,Number(r.baseSellPrice)||0),baseBuyPrice:Math.max(0,Number(r.baseBuyPrice)||0),baseUnit:String(r.baseUnit||'Unidad')
+    };
+  }
+  function readAdvancedPricing(value){
+    const m=String(value||'').match(ADV_PRICING_RE);if(!m)return null;
+    try{return normalizeAdvancedPricing(JSON.parse(decodeURIComponent(m[1])))}catch{return null}
+  }
+  function localDay(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+  function advancedPromoActive(c){const day=localDay();return !!(c?.promoEnabled&&Number(c.promoValue)>0&&(!c.promoStart||day>=c.promoStart)&&(!c.promoEnd||day<=c.promoEnd))}
+  function advancedPromoPrice(base,c){base=Math.max(0,Number(base)||0);if(!advancedPromoActive(c))return Math.round(base*100)/100;const out=c.promoType==='fixed'?Math.max(.01,base-c.promoValue):Math.max(.01,base*(1-Math.min(100,c.promoValue)/100));return Math.round(out*100)/100}
+  function pricingProxyFor(p){const c=normalizeAdvancedPricing(p?.advancedPricing||{});return !p?.medicine&&(c.dozenEnabled||c.wholesaleEnabled||c.promoEnabled)?c:null}
+  function writeAdvancedPricing(spec,p,c){
+    const clean=stripAdvancedPricing(spec);if(!c)return clean;
+    const meta={...c,proxy:true,baseSellPrice:Math.max(0,Number(p.sellPrice)||0),baseBuyPrice:Math.max(0,Number(p.buyPrice)||0),baseUnit:String(p.unit||'Unidad')};
+    const tag='[[VARELIA_ADV_PRICING_V1:'+encodeURIComponent(JSON.stringify(meta))+']]';
+    return clean?clean+'\n'+tag:tag;
+  }
+
+  async function waitClient(){'''
+          s=s.replace(anchor,helpers,1)
+
+          pattern=re.compile(r"  function productPayload\(p,categoryId\)\{.*?\n  \}\n\n  async function seedIfNeeded\(\)\{",re.S)
+          m=pattern.search(s)
+          if not m:
+              raise SystemExit('central-stock-sync: productPayload block not found')
+          replacement=r'''  function productPayload(p,categoryId){
+    const pricing=pricingProxyFor(p);
+    const regularBase=Math.max(0,Number(p.sellPrice)||0);
+    const regularEffective=pricing?advancedPromoPrice(regularBase,pricing):regularBase;
+    const wholesaleEffective=pricing&&pricing.wholesaleEnabled?advancedPromoPrice(pricing.wholesalePrice,pricing):regularEffective;
+    const dozenEffective=pricing&&pricing.dozenEnabled?advancedPromoPrice(pricing.dozenPrice,pricing):0;
+    const baseBuy=Math.max(0,Number(p.buyPrice)||0);
+    return {
+      business_id:businessId,
+      category_id:categoryId||null,
+      legacy_id:String(p.id||''),
+      barcode:String(p.barcode||'').trim()||null,
+      name:String(p.name||'Producto').trim()||'Producto',
+      description:String(p.description||''),
+      specifications:writeAdvancedPricing(String(p.specifications||''),p,pricing),
+      variants:String(p.variants||''),
+      characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
+      variant_combinations:Array.isArray(p.variantCombinations)?p.variantCombinations:[],
+      // Para productos con precios por cantidad se reutiliza de forma interna el
+      // motor atómico de presentaciones: 12 unidades = 1 docena. El costo remoto
+      // de "caja" equivale a 12 costos unitarios; localmente sigue siendo por unidad.
+      buy_price:pricing?baseBuy*12:baseBuy,
+      sell_price:pricing?regularEffective:regularBase,
+      stock:Math.max(0,Number(p.stock)||0),
+      unit:String(p.unit||'Unidad'),
+      reorder_level:Math.max(0,Number(p.reorderLevel)||0),
+      image_data:String(p.image||''),
+      medicine:pricing?true:!!p.medicine,
+      laboratory:pricing?null:(String(p.laboratory||'').trim()||null),
+      medicine_presentation:pricing?'Varelia precios por cantidad':(String(p.medicinePresentation||'').trim()||null),
+      batch:pricing?null:(String(p.batch||'').trim()||null),
+      expiry_date:pricing?null:(String(p.expiryDate||'').trim()||null),
+      blisters_per_box:pricing?12:Math.max(1,Math.floor(Number(p.blistersPerBox)||1)),
+      units_per_blister:pricing?1:Math.max(1,Math.floor(Number(p.unitsPerBlister)||1)),
+      box_price:pricing?dozenEffective:Math.max(0,Number(p.boxPrice)||0),
+      blister_price:pricing?wholesaleEffective:Math.max(0,Number(p.blisterPrice)||0),
+      unit_medicine_price:pricing?regularEffective:Math.max(0,Number(p.unitMedicinePrice)||0),
+      medicine_stock_boxes:pricing?Math.floor(Math.max(0,Number(p.stock)||0)/12):Math.max(0,Math.floor(Number(p.medicineStockBoxes)||0))
+    };
+  }
+
+  async function seedIfNeeded(){'''
+          s=pattern.sub(replacement,s,count=1)
+
+          stock_anchor="      const stock=(pending&&Date.now()-pending.at<5000)?pending.stock:effectiveRemoteStock;\n      return {"
+          if stock_anchor not in s:
+              raise SystemExit('central-stock-sync: mapped stock anchor not found')
+          s=s.replace(stock_anchor,"      const stock=(pending&&Date.now()-pending.at<5000)?pending.stock:effectiveRemoteStock;\n      const advanced=readAdvancedPricing(p.specifications);\n      const pricingProxy=!!advanced?.proxy;\n      return {",1)
+
+          replacements={
+            "      buyPrice:Number(p.buy_price)||0,":"      buyPrice:pricingProxy?Math.max(0,Number(advanced.baseBuyPrice)||0):(Number(p.buy_price)||0),",
+            "      sellPrice:Number(p.sell_price)||0,":"      sellPrice:pricingProxy?Math.max(0,Number(advanced.baseSellPrice)||0):(Number(p.sell_price)||0),",
+            "      specifications:String(p.specifications||''),":"      specifications:stripAdvancedPricing(String(p.specifications||'')),\n      advancedPricing:pricingProxy?normalizeAdvancedPricing(advanced):null,",
+            "      medicine:!!p.medicine,":"      medicine:pricingProxy?false:!!p.medicine,",
+            "      blistersPerBox:Number(p.blisters_per_box)||1,":"      blistersPerBox:pricingProxy?12:(Number(p.blisters_per_box)||1),",
+            "      unitsPerBlister:Number(p.units_per_blister)||1,":"      unitsPerBlister:pricingProxy?1:(Number(p.units_per_blister)||1),",
+            "      boxPrice:Number(p.box_price)||0,":"      boxPrice:pricingProxy?(Number(advanced.dozenPrice)||0):(Number(p.box_price)||0),",
+            "      blisterPrice:Number(p.blister_price)||0,":"      blisterPrice:pricingProxy?(Number(advanced.wholesalePrice)||0):(Number(p.blister_price)||0),",
+            "      unitMedicinePrice:Number(p.unit_medicine_price)||0,":"      unitMedicinePrice:pricingProxy?(Number(advanced.baseSellPrice)||0):(Number(p.unit_medicine_price)||0),",
+            "      medicineStockBoxes:Number(p.medicine_stock_boxes)||0":"      medicineStockBoxes:pricingProxy?Math.floor(stock/12):(Number(p.medicine_stock_boxes)||0)"
+          }
+          for old,new in replacements.items():
+              if old not in s:
+                  raise SystemExit('central-stock-sync missing mapping: '+old)
+              s=s.replace(old,new,1)
+
+          end_anchor="  setTimeout(init,350);\n})();"
+          if end_anchor not in s:
+              raise SystemExit('central-stock-sync: end anchor not found')
+          s=s.replace(end_anchor,"  // API segura para módulos que guardan campos adicionales del producto.\n  window.vareliaSyncProduct=syncProduct;\n  setTimeout(init,350);\n})();",1)
+          path.write_text(s,encoding='utf-8')
+
+          # ---------- index.html ----------
+          path=Path('index.html')
+          s=path.read_text(encoding='utf-8')
+          old_build="20261020-INVENTORY-VALUE-V13"
+          if old_build not in s:
+              raise SystemExit('index: build marker not found')
+          s=s.replace(old_build,'20261020-ADVANCED-PRICING-V14',1)
+
+          old_stock="      p.stock = Math.max(0, before - i.qty);\n      addMovement(p,'sale',i.qty,before,p.stock,'Venta');"
+          new_stock="      const stockQty=(Number(i.qty)||0)*Math.max(1,Number(i.medicineMultiplier||1));\n      p.stock = Math.max(0, before - stockQty);\n      addMovement(p,'sale',stockQty,before,p.stock,'Venta');"
+          if old_stock not in s:
+              raise SystemExit('index: legacy stock subtraction not found')
+          s=s.replace(old_stock,new_stock,1)
+
+          if 'src="advanced-pricing.js' not in s:
+              if '</body>' not in s:
+                  raise SystemExit('index: closing body not found')
+              s=s.replace('</body>','<script src="advanced-pricing.js?v=20261020-v14"></script>\n</body>',1)
+          path.write_text(s,encoding='utf-8')
+
+          # ---------- cash-consistency-fix.js ----------
+          path=Path('cash-consistency-fix.js')
+          s=path.read_text(encoding='utf-8')
+          old="        else if(/^(m2|m²|metro cuadrado|metros cuadrados)$/.test(u))add('m2','m²',q,3);\n        else discrete+=q;"
+          new="        else if(/^(m2|m²|metro cuadrado|metros cuadrados)$/.test(u))add('m2','m²',q,3);\n        else if(/^(docena|docenas)$/.test(u))add('docena','doc.',q,2);\n        else discrete+=q;"
+          if old not in s:
+              raise SystemExit('cash consistency: unit bucket anchor not found')
+          s=s.replace(old,new,1)
+          path.write_text(s,encoding='utf-8')
+
+          # ---------- stability audit ----------
+          path=Path('scripts/stability-audit.mjs')
+          s=path.read_text(encoding='utf-8')
+          old="  'medicine-purchase-save-fix.js','medicine-price-layout.js','sw.js'"
+          new="  'medicine-purchase-save-fix.js','medicine-price-layout.js','advanced-pricing.js','sw.js'"
+          if old not in s:
+              raise SystemExit('audit: critical list anchor not found')
+          s=s.replace(old,new,1)
+          insert="""
+const advanced=read('advanced-pricing.js');
+if(!scriptRefs.includes('advanced-pricing.js'))errors.push('index.html no carga advanced-pricing.js.');
+if(!advanced.includes('VareliaAdvancedPricing'))errors.push('advanced-pricing.js no expone el motor de precios por cantidad.');
+const central=read('central-stock-sync.js');
+if(!central.includes('VARELIA_ADV_PRICING_V1'))errors.push('central-stock-sync.js no conserva la configuración de docena/mayorista/promoción en la nube.');
+if(index.includes("p.stock = Math.max(0, before - i.qty);"))errors.push('El checkout local aún descuenta presentaciones en vez de unidades reales de stock.');
+"""
+          marker="const profit=read('reports-profit.js');"
+          if marker not in s:
+              raise SystemExit('audit: profit marker not found')
+          s=s.replace(marker,insert+'\n'+marker,1)
+          path.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check advanced-pricing.js
+          node --check central-stock-sync.js
+          node --check cash-consistency-fix.js
+          node --check scripts/stability-audit.mjs
+
+      - name: Run stability audit
+        run: node scripts/stability-audit.mjs
+
+      - name: Commit integration
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add advanced-pricing.js central-stock-sync.js index.html cash-consistency-fix.js scripts/stability-audit.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "Add dozen wholesale and promotion sales"
+          git push origin main
