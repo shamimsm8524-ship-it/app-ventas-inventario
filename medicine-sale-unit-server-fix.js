@@ -84,6 +84,16 @@
   document.head.appendChild(s);
 })();
 
+// Ganancias: stock_qty son pastillas descontadas, no la cantidad de cajas/blísteres vendida.
+(()=>{
+  if(document.querySelector('script[data-varelia-medicine-profit-history-fix-v5]'))return;
+  const s=document.createElement('script');
+  s.src='/medicine-profit-history-fix.js?v=20261020-v5';
+  s.async=false;
+  s.dataset.vareliaMedicineProfitHistoryFixV5='1';
+  document.head.appendChild(s);
+})();
+
 // Solo mejora el texto de la tarjeta de ganancias; no cambia importes.
 (()=>{
   if(document.querySelector('script[data-varelia-profit-label-copy-fix-v1]'))return;
