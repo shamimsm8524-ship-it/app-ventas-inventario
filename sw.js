@@ -85,6 +85,23 @@ self.addEventListener('fetch', (e) => {
         const newQty="const medicinePresentation=['caja','cajas','box','boxes','blister','blisters','blíster','blísteres','blisteres','pastilla','pastillas','pill','pills','tableta','tabletas'].includes(unitRaw);const quantity=medicinePresentation?qtyRaw:((stock!==undefined&&stock!==null&&stock!==''&&Number.isFinite(Number(stock)))\n          ?Number(stock):(unitRaw==='g'||unitRaw==='gr'||unitRaw==='gramo'||unitRaw==='gramos'?qtyRaw/1000:qtyRaw));";
         if(body.includes(oldQty))body=body.replace(oldQty,newQty);
 
+        // Ganancia por producto: usar la presentación real de medicina.
+        const oldGainUnit="const rawUnit=String(item.sale_unit??item.saleUnit??item.unit??match?.unit??'Unidad').trim().toLowerCase();";
+        const newGainUnit="const medicineNameUnit=(String(item.name??item.product_name??item.productName??'').match(/(?:·|-)\\s*(caja|cajas|bl[ií]ster(?:es)?|pastilla|pastillas)\\s*$/i)||[])[1]||'';const medicineExplicit=item.medicineSaleUnit??item.medicine_sale_unit;const rawUnit=String((medicineExplicit!=null&&String(medicineExplicit).trim())?medicineExplicit:(medicineNameUnit||item.sale_unit||item.saleUnit||item.unit||match?.unit||'Unidad')).trim().toLowerCase();";
+        if(body.includes(oldGainUnit))body=body.replace(oldGainUnit,newGainUnit);
+
+        // En Ganancias, stock_qty puede ser 10 pastillas por 1 blíster.
+        // La cantidad vendida debe ser qty (presentaciones), no stock_qty.
+        const oldGainQty="const qty=Number.isFinite(stockNumber)?stockNumber:((rawUnit==='g'||rawUnit==='gr'||rawUnit==='gramo'||rawUnit==='gramos')?saleQty/1000:saleQty);";
+        const newGainQty="const medicineGainPresentation=['caja','cajas','box','boxes','blister','blisters','blíster','blísteres','blisteres','pastilla','pastillas','pill','pills','tableta','tabletas'].includes(rawUnit);const qty=medicineGainPresentation?saleQty:(Number.isFinite(stockNumber)?stockNumber:((rawUnit==='g'||rawUnit==='gr'||rawUnit==='gramo'||rawUnit==='gramos')?saleQty/1000:saleQty));";
+        if(body.includes(oldGainQty))body=body.replace(oldGainQty,newGainQty);
+
+        // El precio mostrado por presentación debe salir del importe realmente cobrado.
+        // Ej.: 3 blísteres por S/30 => S/10 por blíster, no S/30.
+        const oldGainSell="if(Number.isFinite(it.sell)&&Number.isFinite(it.saleQty)&&it.saleQty>0){\n          p.sellWeighted+=it.sell*it.saleQty;p.sellQty+=it.saleQty;\n          p.minSell=Math.min(p.minSell,it.sell);p.maxSell=Math.max(p.maxSell,it.sell);\n        }else {p.missing++;missing++}";
+        const newGainSell="const effectiveSell=(Number.isFinite(lineRevenue)&&Number.isFinite(it.saleQty)&&it.saleQty>0)?lineRevenue/it.saleQty:it.sell;\n        if(Number.isFinite(effectiveSell)&&Number.isFinite(it.saleQty)&&it.saleQty>0){\n          p.sellWeighted+=effectiveSell*it.saleQty;p.sellQty+=it.saleQty;\n          p.minSell=Math.min(p.minSell,effectiveSell);p.maxSell=Math.max(p.maxSell,effectiveSell);\n        }else {p.missing++;missing++}";
+        if(body.includes(oldGainSell))body=body.replace(oldGainSell,newGainSell);
+
         // Un mismo medicamento vendido como caja/blíster/pastilla debe mantenerse
         // separado por presentación dentro de "Productos más vendidos".
         const oldKey="const key=id||name.toLowerCase()+'|'+unit;";
