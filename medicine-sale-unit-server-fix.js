@@ -43,3 +43,15 @@
     if(e.target?.closest?.('#checkout'))prepareServerUnits();
   },true);
 })();
+
+// Corregir el cálculo visible de ganancias de medicamentos vendidos por
+// caja/blíster/pastilla, incluso para ventas históricas guardadas con el
+// multiplicador de stock como si fuera cantidad vendida.
+(()=>{
+  if(document.querySelector('script[data-varelia-medicine-profit-history-fix-v1]'))return;
+  const s=document.createElement('script');
+  s.src='/medicine-profit-history-fix.js?v=20261020-v1';
+  s.async=false;
+  s.dataset.vareliaMedicineProfitHistoryFixV1='1';
+  document.head.appendChild(s);
+})();
