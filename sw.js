@@ -41,7 +41,7 @@ self.addEventListener('fetch', (e) => {
       try{
         const base=await fetch(e.request,{cache:'no-store'});
         if(!base.ok)return base;
-        const helper=await fetch('/button-color-vivid.js?v=20261016-v1',{cache:'no-store'});
+        const helper=await fetch('/button-color-vivid.js?v=20261020-stability-v7',{cache:'no-store'});
         const body=(await base.text())+(helper.ok?'\n;\n'+(await helper.text()):'');
         return new Response(body,{
           status:base.status,
