@@ -672,6 +672,7 @@
             finish(100);return;
           }
           legacyCheckout.click();
+          showPaidReceipt(before,p,state);
           // Abrir el comprobante en el mismo flujo del botón, sin esperar módulos externos.
           // Si el registro ya aparece, usarlo; si no, construir el ticket con la venta visible.
           let receiptSale=null;
