@@ -1,0 +1,104 @@
+name: Fix Ganancias filter flash v27
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Ganancias filter stabilization
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('reports-profit.js')
+          s=p.read_text(encoding='utf-8')
+
+          old1="""      if(panel.querySelector('[data-gain-period-buttons]')){
+        const selected=reportHistoryFilter();
+        const day=selected.mode==='day'?(gainHistoryDate()||selected.date||''):'';
+        const marker=selected.mode+':'+day;
+        if(marker!==panel.dataset.gainHistoryMarker){
+          panel.dataset.gainHistoryMarker=marker;
+          if(typeof panel.__gainUseHistoryDate==='function')panel.__gainUseHistoryDate(selected,day);
+        }
+        continue;
+      }
+"""
+          new1="""      if(panel.querySelector('[data-gain-period-buttons]')){
+        const selected=reportHistoryFilter();
+        // Mientras Historial todavía está montando sus botones, reportHistoryFilter()
+        // devuelve Todo/known:false. No debemos interpretar ese estado transitorio
+        // como si el usuario hubiera elegido Todo, porque hace aparecer ventas de
+        // otros días y luego las borra cuando finalmente se detecta Hoy.
+        if(selected.known){
+          const day=selected.mode==='day'?(gainHistoryDate()||selected.date||''):'';
+          const marker=selected.mode+':'+day;
+          if(marker!==panel.dataset.gainHistoryMarker){
+            panel.dataset.gainHistoryMarker=marker;
+            if(typeof panel.__gainUseHistoryDate==='function')panel.__gainUseHistoryDate(selected,day);
+          }
+        }
+        continue;
+      }
+"""
+          if old1 not in s:
+              raise SystemExit('No se encontró bloque existing-panel para parchear')
+          s=s.replace(old1,new1,1)
+
+          old2="""      let activePeriod=selectedHistory.mode==='day'?'day':
+        selectedHistory.mode==='today'?'today':
+        selectedHistory.mode==='month'?'month':
+        selectedHistory.mode==='all'?'all':'today';
+"""
+          new2="""      let activePeriod=selectedHistory.mode==='day'&&selectedHistory.known?'day':
+        selectedHistory.mode==='today'?'today':
+        selectedHistory.mode==='month'?'month':
+        selectedHistory.mode==='all'&&selectedHistory.known?'all':'today';
+"""
+          if old2 not in s:
+              raise SystemExit('No se encontró inicialización activePeriod para parchear')
+          s=s.replace(old2,new2,1)
+
+          old3="""      panel.__gainUseHistoryDate=(selected,date)=>{
+        if(selected.mode==='day'){
+"""
+          new3="""      panel.__gainUseHistoryDate=(selected,date)=>{
+        // Ignorar el estado transitorio Todo/known:false mientras Historial termina
+        // de renderizar. El filtro visible real llegará en la siguiente mutación.
+        if(!selected?.known)return;
+        if(selected.mode==='day'){
+"""
+          if old3 not in s:
+              raise SystemExit('No se encontró __gainUseHistoryDate para parchear')
+          s=s.replace(old3,new3,1)
+
+          p.write_text(s,encoding='utf-8')
+
+          idx=Path('index.html')
+          h=idx.read_text(encoding='utf-8')
+          old='reports-profit.js?v=20261021-profit-live-v26'
+          new='reports-profit.js?v=20261021-filter-stable-v27'
+          if old not in h:
+              raise SystemExit('No se encontró versión v26 de reports-profit.js en index.html')
+          idx.write_text(h.replace(old,new,1),encoding='utf-8')
+          PY
+
+          node --check reports-profit.js
+
+      - name: Commit patch and remove one-time workflow
+        shell: bash
+        run: |
+          rm -f .github/workflows/fix-gain-filter-flash-v27.yml
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add reports-profit.js index.html .github/workflows/fix-gain-filter-flash-v27.yml
+          git commit -m "Fix Ganancias transient filter flash"
+          git push
