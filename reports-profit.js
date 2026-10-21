@@ -77,6 +77,39 @@
     return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
       !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
   }
+  // Conservar las ventas que Ganancias ya vio durante esta sesión.
+  // Una recarga asíncrona de perfil/Supabase no puede convertirlas en cero.
+  let gainStickyLocalSales=[];
+  const gainSaleIdentity=s=>{
+    const ids=[s?.cloudSaleId,s?.cloud_sale_id,s?.saleId,s?.sale_id,s?.id,s?.receiptNumber,s?.receipt_number,s?.receiptNo,s?.ticketNumber,s?.ticket_number].map(v=>String(v??'').trim()).filter(Boolean);
+    if(ids.length)return 'id:'+ids[0];
+    return 'fallback:'+String(s?.date??s?.created_at??s?.createdAt??'')+'|'+String(Number(s?.total)||0);
+  };
+  const gainIsValidSale=s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&!['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase());
+  function gainRememberLocalSales(list){
+    for(const sale of Array.isArray(list)?list:[]){
+      if(!gainIsValidSale(sale))continue;
+      const key=gainSaleIdentity(sale);
+      const at=gainStickyLocalSales.findIndex(x=>gainSaleIdentity(x)===key);
+      if(at>=0)gainStickyLocalSales[at]={...gainStickyLocalSales[at],...sale};else gainStickyLocalSales.push({...sale});
+    }
+    return gainStickyLocalSales;
+  }
+  function gainStoredSales(){
+    try{
+      const key=(typeof K!=='undefined'&&K?.sales)?K.sales:'';
+      if(!key)return [];
+      const parsed=JSON.parse(localStorage.getItem(key)||'[]');
+      return Array.isArray(parsed)?parsed.filter(gainIsValidSale):[];
+    }catch{return []}
+  }
+  function gainLocalSales(){
+    gainRememberLocalSales(gainStoredSales());
+    gainRememberLocalSales(gainValidSales());
+    return [...gainStickyLocalSales];
+  }
+  gainRememberLocalSales(gainStoredSales());
+  gainRememberLocalSales(gainValidSales());
   // Leer la fecha escogida en Historial, no la fecha de hoy ni la de un ticket.
   function gainHistoryDate(){
     const months=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
@@ -273,7 +306,11 @@
   }
   window.addEventListener('varelia:sale-recorded',event=>{
     const detail=event?.detail||{};
+    if(detail.sale)gainRememberLocalSales([detail.sale]);
     if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();
+  });
+  window.addEventListener('varelia:checkout-confirmed',event=>{
+    if(event?.detail?.sale)gainRememberLocalSales([event.detail.sale]);
   });
   function enhanceGainPopup(){
     const headings=[...document.querySelectorAll('h1,h2,h3,h4')].filter(
@@ -292,7 +329,7 @@
         const selected=reportHistoryFilter();
         const day=selected.mode==='day'?(gainHistoryDate()||selected.date||''):'';
         const marker=selected.mode+':'+day;
-        if(marker!==panel.dataset.gainHistoryMarker){
+        if(selected.known&&marker!==panel.dataset.gainHistoryMarker){
           panel.dataset.gainHistoryMarker=marker;
           if(typeof panel.__gainUseHistoryDate==='function')panel.__gainUseHistoryDate(selected,day);
         }
@@ -315,10 +352,10 @@
       if(!revValue||!gainValue)continue;
       const selectedHistory=reportHistoryFilter();
       let chosenDay=selectedHistory.mode==='day'?(gainHistoryDate()||selectedHistory.date||''):'';
-      let activePeriod=selectedHistory.mode==='day'?'day':
+      let activePeriod=selectedHistory.known&&selectedHistory.mode==='day'?'day':
         selectedHistory.mode==='today'?'today':
         selectedHistory.mode==='month'?'month':
-        selectedHistory.mode==='all'?'all':'today';
+        selectedHistory.known&&selectedHistory.mode==='all'?'all':'today';
       const dateBar=document.createElement('div');
       dateBar.dataset.gainDatePicker='true';
       dateBar.style.cssText='display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin:12px 0 7px;width:100%;box-sizing:border-box;min-width:0;';
@@ -371,7 +408,7 @@
       const draw=()=>{
         if(!document.contains(selector))return;
         const usingCloud=Array.isArray(gainCloud.sales);
-        const localSales=window.vareliaCurrentUserProfile?.role==='owner'?gainValidSales():[];
+        const localSales=gainLocalSales();
         let sourceSales=usingCloud?[...gainCloud.sales]:localSales;
         let pendingLocal=0;
         if(usingCloud&&localSales.length){
@@ -483,6 +520,7 @@
         activePeriod=btn.dataset.gainPeriod;draw();gainLoadCloud(draw);
       }));
       panel.__gainUseHistoryDate=(selected,date)=>{
+        if(!selected?.known)return;
         if(selected.mode==='day'){
           chosenDay=date||'';
           dateInput.value=chosenDay||dateInput.value;
