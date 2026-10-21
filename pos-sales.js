@@ -630,7 +630,7 @@
 
       // Interceptar el botón visible en captura y conservar el comprobante de respaldo.
       // showPaidReceipt abre el ticket incluso si el historial tarda en actualizar la venta.
-      checkoutBtn.addEventListener('click',event=>{
+      checkoutBtn.addEventListener('click',async event=>{
         event.preventDefault();
         event.stopImmediatePropagation();
         if(window.__vareliaSafeCheckoutBusy)return;
@@ -671,6 +671,15 @@
             window.vareliaToast?.('El carrito está vacío. Vuelve a agregar el producto antes de cobrar.','warn');
             finish(100);return;
           }
+          if(typeof window.vareliaCentralCheckout==='function'){
+            const cloudOk=await window.vareliaCentralCheckout();
+            if(!cloudOk){finish(100);return;}
+            try{sync();renderPay()}catch{}
+            try{if(typeof renderSales==='function')renderSales()}catch{}
+            finish(1200);
+            return;
+          }
+          // Respaldo solo para instalaciones antiguas donde el módulo central aún no existe.
           legacyCheckout.click();
           showPaidReceipt(before,p,state);
           // Abrir el comprobante en el mismo flujo del botón, sin esperar módulos externos.

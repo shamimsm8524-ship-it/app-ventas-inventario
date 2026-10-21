@@ -456,7 +456,11 @@
   }
 
   async function centralCheckout(){
-    if(saleBusy)return;
+    if(saleBusy)return false;
+    if(!sb)await waitClient();
+    if(!sb)throw new Error('Supabase todavía no está disponible.');
+    if(!businessId)await loadProfile();
+    if(!businessId)throw new Error('La cuenta no tiene un negocio activo.');
     // Congelar el método elegido ANTES de cualquier espera de red.
     const pay={...(window.VareliaPaymentSnapshot||{})};
     const fiado=pay.method==='Fiado'&&Date.now()-Number(pay.at||0)<30000;
@@ -635,16 +639,22 @@
       try{await refreshCloud()}catch(err){console.warn('Inventario pendiente tras venta confirmada',err)}
       try{await refreshPublicStock()}catch(err){console.warn('Stock público pendiente',err)}
       try{window.vareliaSound?.('sale')}catch{}
+      return true;
     }catch(e){
       console.error(e);
       toast(e?.message||'No se pudo registrar la venta.','warn');
       await refreshCloud().catch(()=>{});
+      return false;
     }finally{
       saleBusy=false;
       if(legacy){legacy.disabled=false;if(legacyLabel)legacy.textContent=legacyLabel;}
       if(pos){pos.disabled=false;pos.textContent=posLabel||'💳 Cobrar venta';}
     }
   }
+
+  // API directa para el POS visible: evita que una venta pase por el flujo local
+  // mientras el puente del botón oculto todavía está terminando de instalarse.
+  window.vareliaCentralCheckout=centralCheckout;
 
   function installCategoryBridge(){
     const btn=document.getElementById('addCategory');

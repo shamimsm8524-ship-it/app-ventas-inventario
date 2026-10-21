@@ -271,7 +271,10 @@
       reportEnhancePopup();
     }
   }
-  window.addEventListener('varelia:sale-recorded',gainInvalidateAndRefresh);
+  window.addEventListener('varelia:sale-recorded',event=>{
+    const detail=event?.detail||{};
+    if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();
+  });
   function enhanceGainPopup(){
     const headings=[...document.querySelectorAll('h1,h2,h3,h4')].filter(
       el=>el.textContent.trim().endsWith('Ganancias')&&!el.textContent.includes(' y ')
@@ -368,11 +371,30 @@
       const draw=()=>{
         if(!document.contains(selector))return;
         const usingCloud=Array.isArray(gainCloud.sales);
-        const periodSales=gainSalesPeriod(usingCloud?gainCloud.sales:(window.vareliaCurrentUserProfile?.role==='owner'?gainValidSales():[]),activePeriod,new Date(),chosenDay);
+        const localSales=window.vareliaCurrentUserProfile?.role==='owner'?gainValidSales():[];
+        let sourceSales=usingCloud?[...gainCloud.sales]:localSales;
+        let pendingLocal=0;
+        if(usingCloud&&localSales.length){
+          const ids=s=>[s?.cloudSaleId,s?.cloud_sale_id,s?.saleId,s?.sale_id,s?.id].map(v=>String(v??'').trim()).filter(Boolean);
+          const sameSale=(a,b)=>{
+            const A=new Set(ids(a));
+            if(ids(b).some(id=>A.has(id)))return true;
+            const ta=new Date(a?.date??a?.created_at??'').getTime(),tb=new Date(b?.date??b?.created_at??'').getTime();
+            const va=Number(a?.total),vb=Number(b?.total);
+            return Number.isFinite(ta)&&Number.isFinite(tb)&&Math.abs(ta-tb)<=120000&&Number.isFinite(va)&&Number.isFinite(vb)&&Math.abs(va-vb)<0.001;
+          };
+          for(const sale of localSales){
+            if(sourceSales.some(remote=>sameSale(remote,sale)))continue;
+            sourceSales.push({...sale,__vareliaPendingCloud:true});
+            pendingLocal++;
+          }
+        }
+        const periodSales=gainSalesPeriod(sourceSales,activePeriod,new Date(),chosenDay);
+        const pendingPeriod=periodSales.filter(s=>s?.__vareliaPendingCloud).length;
         const result=gainProductSummary(periodSales);
         const complete=result.missing===0;
         const estimated=result.estimated>0;
-        const verifiedHistorical=usingCloud&&complete&&!estimated;
+        const verifiedHistorical=usingCloud&&pendingPeriod===0&&complete&&!estimated;
         revValue.textContent=money(result.revenue);
         gainValue.textContent=complete?money(result.revenue-result.cost):'Sin datos';
         gainLabel.textContent=verifiedHistorical?'Ganancia bruta':'Ganancia estimada';
@@ -394,7 +416,7 @@
         costCard.caption.textContent='Costo total de productos vendidos'+suffix;
         costCard.amount.textContent=complete?money(result.cost):'Sin datos';
         const dayBadge=activePeriod==='day'?(chosenDay?' · Fecha: '+chosenDay:' · Elige una fecha válida'):'';
-        sourceNote.textContent=(usingCloud?'Costos históricos de Supabase':'Datos locales; esperando costos históricos de la nube')+
+        sourceNote.textContent=(usingCloud?(pendingPeriod?'Supabase + '+pendingPeriod+' venta(s) local(es) pendiente(s) de sincronizar':'Costos históricos de Supabase'):'Datos locales; esperando costos históricos de la nube')+
           dayBadge+' · '+result.count+' venta(s)'+
           (result.missing?' · ⚠️ Faltan datos en '+result.missing+' línea(s)':'')+
           (estimated?' · ⚠️ '+result.estimated+' costo(s) calculado(s) con precio actual':'')+
