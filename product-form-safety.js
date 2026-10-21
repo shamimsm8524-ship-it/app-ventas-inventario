@@ -1,7 +1,7 @@
 (()=>{
-  if(window.__vareliaProductFormSafetyV20)return;
-  window.__vareliaProductFormSafetyV20=true;
-  window.__VARELIA_PRODUCT_FORM_SAFETY_BUILD__='20261021-v20';
+  if(window.__vareliaProductFormSafetyV21)return;
+  window.__vareliaProductFormSafetyV21=true;
+  window.__VARELIA_PRODUCT_FORM_SAFETY_BUILD__='20261021-v21';
   const $=id=>document.getElementById(id);
   const list=()=>{try{return Array.isArray(products)?products:[]}catch{return Array.isArray(window.products)?window.products:[]}};
   const medCategory=()=>/^(pastillas?|medicinas?|medicamentos?)$/i.test(String($('productCategory')?.value||'').trim());
@@ -24,8 +24,7 @@
     applyVisibility();
   }
 
-  // Precio mayorista automático: si el mínimo coincide con una presentación,
-  // el precio por unidad siempre se deriva de Precio / Unidades.
+  // Precio mayorista automático cuando el mínimo coincide con una presentación.
   function commercialRows(){return [...document.querySelectorAll('#vCommercialRows [data-crow]')]}
   function rowValues(row){
     return {
@@ -59,6 +58,40 @@
     row.dataset.vareliaWholesaleOldUnits=String(rowValues(row).units||'');
   }
 
+  // Si una presentación de varias unidades quedó guardada con el mismo precio
+  // que una sola unidad (ej. S/ 2.50 para un Six Pack x6), la venta debe calcular
+  // automáticamente el precio de la presentación: 2.50 x 6 = 15.00.
+  function repairPresentationTotals(p){
+    if(!p||!Array.isArray(p.salePresentations)||!p.salePresentations.length)return false;
+    const unitPrice=Math.max(0,Number(p.sellPrice)||0);if(unitPrice<=0)return false;
+    let changed=false;
+    p.salePresentations=p.salePresentations.map(x=>{
+      const units=Math.max(1,Math.floor(Number(x?.units)||1));
+      const price=Math.max(0,Number(x?.price)||0);
+      if(units>1&&price>0&&price<=unitPrice+0.000001){
+        const total=round2(price*units);
+        if(Math.abs(total-price)>0.000001){changed=true;return {...x,price:total,__vareliaAutoPresentationTotal:true,__vareliaAutoUnitPrice:price}}
+      }
+      return x;
+    });
+    return changed;
+  }
+  function pickerProduct(){
+    const layer=$('vCommercialSalePicker');if(!layer||layer.style.display==='none')return null;
+    const name=String($('vCSName')?.textContent||'').trim().toLowerCase();if(!name)return null;
+    return list().find(p=>String(p?.name||'').trim().toLowerCase()===name)||null;
+  }
+  function repairOpenPicker(){
+    const p=pickerProduct();if(!p)return false;
+    const changed=repairPresentationTotals(p);
+    if(changed){
+      // No forzamos una escritura a la nube aquí; se corrige la venta visible y
+      // el carrito inmediatamente. Al volver a guardar el producto quedará persistido.
+      try{if(typeof save==='function')save()}catch{}
+    }
+    return changed;
+  }
+
   document.addEventListener('focusin',e=>{
     if(e.target?.matches?.('[data-cunits],[data-cprice]'))rememberRowUnits(e.target);
   },true);
@@ -81,6 +114,7 @@
   document.addEventListener('click',e=>{
     if(e.target.closest?.('[data-edit]'))[20,80,180,360].forEach(ms=>setTimeout(()=>{syncFromProduct();syncWholesaleByMinimum()},ms));
     if(e.target.closest?.('#newProduct,#inventoryNewProduct'))[20,80,180].forEach(ms=>setTimeout(()=>{const t=$('vMedicineToggle');if(t)t.checked=medCategory();applyVisibility();syncWholesaleByMinimum()},ms));
+    if(e.target.closest?.('#vCSModes [data-cmode]'))repairOpenPicker();
   },true);
   document.addEventListener('change',e=>{
     if(e.target?.id==='vMedicineToggle'){applyVisibility();return}
@@ -97,7 +131,7 @@
     if(e.target?.id!=='productForm')return;
     const form=e.target;
     const med=!!$('vMedicineToggle')?.checked||medCategory();
-    if(med)return; // Los medicamentos tienen su flujo de guardado/sincronización propio.
+    if(med)return;
     queueMicrotask(()=>{
       const dlg=$('productDialog');
       if(!dlg?.open)return;
@@ -108,6 +142,7 @@
         ||(barcode&&list().find(p=>String(p?.barcode||'').trim()===barcode))
         ||(name&&[...list()].reverse().find(p=>String(p?.name||'').trim().toLowerCase()===name));
       if(!saved)return;
+      repairPresentationTotals(saved);
       try{dlg.close()}catch{}
       window.vareliaToast?.('Producto guardado. Sincronizando en segundo plano…','ok');
       form.querySelectorAll('button[type="submit"],input[type="submit"]').forEach(btn=>{btn.disabled=false});
@@ -117,6 +152,11 @@
   const boot=()=>{
     const dlg=$('productDialog');
     if(dlg)new MutationObserver(()=>{if(dlg.open)[0,60,180].forEach(ms=>setTimeout(()=>{syncFromProduct();syncWholesaleByMinimum()},ms))}).observe(dlg,{attributes:true,attributeFilter:['open']});
+    const observer=new MutationObserver(()=>{
+      const layer=$('vCommercialSalePicker');
+      if(layer&&layer.style.display!=='none')queueMicrotask(repairOpenPicker);
+    });
+    observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['style']});
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
