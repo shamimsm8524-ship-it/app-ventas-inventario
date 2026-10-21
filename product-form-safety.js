@@ -1,7 +1,7 @@
 (()=>{
-  if(window.__vareliaProductFormSafetyV21)return;
-  window.__vareliaProductFormSafetyV21=true;
-  window.__VARELIA_PRODUCT_FORM_SAFETY_BUILD__='20261021-v21';
+  if(window.__vareliaProductFormSafetyV22)return;
+  window.__vareliaProductFormSafetyV22=true;
+  window.__VARELIA_PRODUCT_FORM_SAFETY_BUILD__='20261021-v22';
   const $=id=>document.getElementById(id);
   const list=()=>{try{return Array.isArray(products)?products:[]}catch{return Array.isArray(window.products)?window.products:[]}};
   const medCategory=()=>/^(pastillas?|medicinas?|medicamentos?)$/i.test(String($('productCategory')?.value||'').trim());
@@ -58,22 +58,30 @@
     row.dataset.vareliaWholesaleOldUnits=String(rowValues(row).units||'');
   }
 
-  // Si una presentación de varias unidades quedó guardada con el mismo precio
-  // que una sola unidad (ej. S/ 2.50 para un Six Pack x6), la venta debe calcular
-  // automáticamente el precio de la presentación: 2.50 x 6 = 15.00.
+  // Si una presentación de varias unidades quedó con un precio por unidad
+  // (ej. S/ 2.50 para Six Pack x6), convertirlo al total de la presentación.
+  // Se modifica el mismo objeto EN SITIO porque el selector comercial conserva
+  // la misma referencia del arreglo aunque haya abierto una copia del producto.
   function repairPresentationTotals(p){
     if(!p||!Array.isArray(p.salePresentations)||!p.salePresentations.length)return false;
-    const unitPrice=Math.max(0,Number(p.sellPrice)||0);if(unitPrice<=0)return false;
+    const unitPrice=Math.max(0,Number(p.sellPrice)||0);
+    const wholesaleUnit=Math.max(0,Number(p.commercialPricing?.wholesalePrice)||0);
     let changed=false;
-    p.salePresentations=p.salePresentations.map(x=>{
-      const units=Math.max(1,Math.floor(Number(x?.units)||1));
-      const price=Math.max(0,Number(x?.price)||0);
-      if(units>1&&price>0&&price<=unitPrice+0.000001){
-        const total=round2(price*units);
-        if(Math.abs(total-price)>0.000001){changed=true;return {...x,price:total,__vareliaAutoPresentationTotal:true,__vareliaAutoUnitPrice:price}}
-      }
-      return x;
-    });
+    for(const x of p.salePresentations){
+      if(!x||typeof x!=='object')continue;
+      const units=Math.max(1,Math.floor(Number(x.units)||1));
+      const price=Math.max(0,Number(x.price)||0);
+      if(units<=1||price<=0)continue;
+      const matchesWholesale=wholesaleUnit>0&&Math.abs(price-wholesaleUnit)<0.000001;
+      const looksLikeUnitPrice=matchesWholesale||(unitPrice>0&&price<=unitPrice+0.000001);
+      if(!looksLikeUnitPrice)continue;
+      const total=round2(price*units);
+      if(Math.abs(total-price)<=0.000001)continue;
+      x.__vareliaAutoPresentationTotal=true;
+      x.__vareliaAutoUnitPrice=price;
+      x.price=total;
+      changed=true;
+    }
     return changed;
   }
   function pickerProduct(){
@@ -81,13 +89,17 @@
     const name=String($('vCSName')?.textContent||'').trim().toLowerCase();if(!name)return null;
     return list().find(p=>String(p?.name||'').trim().toLowerCase()===name)||null;
   }
+  function redrawPicker(){
+    const qty=$('vCSQty');
+    if(!qty)return;
+    try{qty.dispatchEvent(new Event('input',{bubbles:true}))}catch{}
+  }
   function repairOpenPicker(){
     const p=pickerProduct();if(!p)return false;
     const changed=repairPresentationTotals(p);
     if(changed){
-      // No forzamos una escritura a la nube aquí; se corrige la venta visible y
-      // el carrito inmediatamente. Al volver a guardar el producto quedará persistido.
       try{if(typeof save==='function')save()}catch{}
+      queueMicrotask(redrawPicker);
     }
     return changed;
   }
