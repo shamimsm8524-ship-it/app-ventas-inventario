@@ -1,0 +1,65 @@
+name: One-time direct commercial cart hotfix
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hotfix-commercial-cart-v22.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Make commercial picker write directly to cart
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('advanced-pricing.js')
+          s=p.read_text(encoding='utf-8')
+          start_marker="const beforeReserved=reservedStock(p.id);const prepared="
+          end_marker="toast((p.name||'Producto')+' agregado a la venta.','ok')"
+          start=s.find(start_marker)
+          if start<0:
+              raise SystemExit('commercial cart start marker not found')
+          end=s.find(end_marker,start)
+          if end<0:
+              raise SystemExit('commercial cart end marker not found')
+          end+=len(end_marker)
+
+          replacement=r'''const beforeReserved=reservedStock(p.id),selectionLabel=r.label+(r.promoLabel?' · '+r.promoLabel:''),cartKey=String(p.id)+'::'+selectionLabel,c=listCart();let item=c.find(x=>String(x.cartKey||x.id)===cartKey);const extraStock=n*r.units;if(beforeReserved+extraStock>Number(p.stock||0))return draw();if(item){item.qty=Math.max(0,Number(item.qty)||0)+n;item.price=r.price;item.unit=o.kind==='presentation'?r.label:(p.unit||'Unidad');item.selectionLabel=selectionLabel;item.originalPrice=r.basePrice;item.discountLabel=r.promoLabel;item.pricingMode=r.mode;item.advancedPricingMode=r.mode;item.salePresentationId=r.presentationId;item.presentationId=r.presentationId;item.salePresentationUnits=r.units;item.medicineMultiplier=r.units;item.medicineSaleUnit='';item.advancedServerSaleUnit='';item.baseUnit=p.unit||'Unidad'}else{item={id:p.id,cartKey,name:p.name+(selectionLabel?' · '+selectionLabel:''),baseName:p.name,selectionLabel,selectedCharacteristics:p.selectedCharacteristics||[],barcode:p.barcode||'',price:r.price,qty:n,unit:o.kind==='presentation'?r.label:(p.unit||'Unidad'),medicineMultiplier:r.units,medicineSaleUnit:'',originalPrice:r.basePrice,discountLabel:r.promoLabel,pricingMode:r.mode,advancedPricingMode:r.mode,salePresentationId:r.presentationId,presentationId:r.presentationId,salePresentationUnits:r.units,advancedServerSaleUnit:'',baseUnit:p.unit||'Unidad'};c.push(item)}try{if(typeof persistSaleCart==='function')persistSaleCart();if(typeof renderCart==='function')renderCart()}catch(err){console.error('Renderizar carrito comercial',err)}const afterReserved=reservedStock(p.id);if(afterReserved<=beforeReserved){toast('No se pudo agregar el producto al carrito.','warn');draw();return}closePicker();try{if(typeof openSale==='function')openSale(false);else window.openSale?.(false)}catch(err){console.warn('Abrir venta',err)}const syncVisible=()=>{try{if(typeof renderCart==='function')renderCart();if(typeof window.VareliaPOS?.sync==='function')window.VareliaPOS.sync();window.dispatchEvent(new CustomEvent('varelia:cart-changed'))}catch(err){console.warn('Sincronizar carrito visible',err)}};syncVisible();setTimeout(syncVisible,60);setTimeout(syncVisible,220);toast((p.name||'Producto')+' agregado a la venta.','ok')'''
+          s=s[:start]+replacement+s[end:]
+          p.write_text(s,encoding='utf-8')
+
+          idx=Path('index.html')
+          h=idx.read_text(encoding='utf-8')
+          import re
+          h,n=re.subn(r"const BUILD='[^']+'", "const BUILD='20261021-DIRECT-COMMERCIAL-CART-V22'", h, count=1)
+          if n!=1:
+              raise SystemExit('build marker not found')
+          h,n=re.subn(r'advanced-pricing\.js\?v=[^\"\']+', 'advanced-pricing.js?v=20261021-direct-cart-v22', h, count=1)
+          if n!=1:
+              raise SystemExit('advanced pricing script tag not found')
+          idx.write_text(h,encoding='utf-8')
+          PY
+
+      - name: Validate JavaScript
+        run: |
+          node --check advanced-pricing.js
+          node scripts/stability-audit.mjs
+
+      - name: Commit fix
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add advanced-pricing.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Write commercial selections directly into sale cart"
+          git push origin main
