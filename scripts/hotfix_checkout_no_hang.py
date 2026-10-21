@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# trigger checkout no-hang patch
 p = Path('central-stock-sync.js')
 s = p.read_text(encoding='utf-8')
 
