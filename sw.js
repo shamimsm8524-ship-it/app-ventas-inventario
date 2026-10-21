@@ -1,3 +1,4 @@
+// Varelia SW 20261021 ganancias-stable-v27
 self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
@@ -107,6 +108,31 @@ self.addEventListener('fetch', (e) => {
         const oldKey="const key=id||name.toLowerCase()+'|'+unit;";
         const newKey="const key=(id||name.toLowerCase())+'|'+unit;";
         if(body.includes(oldKey))body=body.replace(oldKey,newKey);
+
+        // Ganancias v27: no borrar la venta local mientras perfil/Supabase terminan de cargar.
+        // El arreglo local ya corresponde a la sesión activa de la aplicación y Reportes usa
+        // la misma fuente. Antes se vaciaba si el perfil todavía no decía literalmente "owner".
+        const oldLocalSales="const localSales=window.vareliaCurrentUserProfile?.role==='owner'?gainValidSales():[];";
+        const newLocalSales="const localSales=gainValidSales();";
+        if(body.includes(oldLocalSales))body=body.replace(oldLocalSales,newLocalSales);
+
+        // Si Historial todavía está montando sus botones, reportHistoryFilter devuelve
+        // known:false. No convertir ese instante transitorio en un cambio real de período.
+        const oldMarker="if(marker!==panel.dataset.gainHistoryMarker){";
+        const newMarker="if(selected.known&&marker!==panel.dataset.gainHistoryMarker){";
+        if(body.includes(oldMarker))body=body.replace(oldMarker,newMarker);
+
+        // Al abrir Ganancias, el período transitorio/desconocido debe empezar en Hoy,
+        // no en Todo, para que luego no parezca que una venta desaparece.
+        const oldActive="let activePeriod=selectedHistory.mode==='day'?'day':\n        selectedHistory.mode==='today'?'today':\n        selectedHistory.mode==='month'?'month':\n        selectedHistory.mode==='all'?'all':'today';";
+        const newActive="let activePeriod=selectedHistory.known&&selectedHistory.mode==='day'?'day':\n        selectedHistory.mode==='today'?'today':\n        selectedHistory.mode==='month'?'month':\n        selectedHistory.known&&selectedHistory.mode==='all'?'all':'today';";
+        if(body.includes(oldActive))body=body.replace(oldActive,newActive);
+
+        // Y tampoco aceptar después un estado desconocido como si el usuario hubiera
+        // elegido otro período. Solo sincronizar con Historial cuando su filtro sea real.
+        const oldUseHistory="panel.__gainUseHistoryDate=(selected,date)=>{\n        if(selected.mode==='day'){";
+        const newUseHistory="panel.__gainUseHistoryDate=(selected,date)=>{\n        if(!selected?.known)return;\n        if(selected.mode==='day'){";
+        if(body.includes(oldUseHistory))body=body.replace(oldUseHistory,newUseHistory);
 
         return new Response(body,{
           status:base.status,
