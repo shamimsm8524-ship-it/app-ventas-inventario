@@ -1,0 +1,45 @@
+name: One-time POS cart sync hotfix
+on:
+  push:
+    paths:
+      - '.github/workflows/hotfix-commercial-pos-sync-v21.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch commercial add-to-sale sync
+        shell: python
+        run: |
+          from pathlib import Path
+
+          adv = Path('advanced-pricing.js')
+          s = adv.read_text(encoding='utf-8')
+          old = "$('vCSAdd').onclick=()=>{if(!picker)return;const o=picker.selected,n=Math.max(1,Math.floor(Number($('vCSQty').value)||1)),r=quote(p,o.kind,o.ref,n);if(!r||n*r.units+reservedStock(p.id)>Number(p.stock||0)||(o.kind==='wholesale'&&n<r.min))return draw();const prepared={...p,__commercialPrepared:true,selectionLabel:r.label+(r.promoLabel?' · '+r.promoLabel:''),sellPrice:r.price,medicine:false,medicineMultiplier:r.units,medicineSaleUnit:'',advancedServerSaleUnit:'',unit:o.kind==='presentation'?r.label:p.unit};closePicker();try{if(typeof openSale==='function')openSale(false);else window.openSale?.(false)}catch{}const add=originalAdd||window.addToCart;add.call(window,prepared,n);try{const item=[...listCart()].reverse().find(x=>String(x.id)===String(p.id)&&String(x.selectionLabel||'').startsWith(r.label));if(item){item.originalPrice=r.basePrice;item.discountLabel=r.promoLabel;item.pricingMode=r.mode;item.advancedPricingMode=r.mode;item.salePresentationId=r.presentationId;item.presentationId=r.presentationId;item.salePresentationUnits=r.units;item.medicineMultiplier=r.units;item.medicineSaleUnit='';item.advancedServerSaleUnit='';item.baseUnit=p.unit||'Unidad';if(typeof persistSaleCart==='function')persistSaleCart();if(typeof renderCart==='function')renderCart()}}catch(err){console.warn(err)}};draw();l.style.display='flex';return true}"
+          new = "$('vCSAdd').onclick=()=>{if(!picker)return;const o=picker.selected,n=Math.max(1,Math.floor(Number($('vCSQty').value)||1)),r=quote(p,o.kind,o.ref,n);if(!r||n*r.units+reservedStock(p.id)>Number(p.stock||0)||(o.kind==='wholesale'&&n<r.min))return draw();const beforeReserved=reservedStock(p.id);const prepared={...p,__commercialPrepared:true,selectionLabel:r.label+(r.promoLabel?' · '+r.promoLabel:''),sellPrice:r.price,medicine:false,medicineMultiplier:r.units,medicineSaleUnit:'',advancedServerSaleUnit:'',unit:o.kind==='presentation'?r.label:p.unit};try{if(typeof openSale==='function')openSale(false);else window.openSale?.(false)}catch{}const add=originalAdd||window.addToCart;try{add.call(window,prepared,n)}catch(err){console.error('Agregar presentación a venta',err);toast('No se pudo agregar el producto a la venta.','warn');return}try{const item=[...listCart()].reverse().find(x=>String(x.id)===String(p.id)&&String(x.selectionLabel||'').startsWith(r.label));if(item){item.originalPrice=r.basePrice;item.discountLabel=r.promoLabel;item.pricingMode=r.mode;item.advancedPricingMode=r.mode;item.salePresentationId=r.presentationId;item.presentationId=r.presentationId;item.salePresentationUnits=r.units;item.medicineMultiplier=r.units;item.medicineSaleUnit='';item.advancedServerSaleUnit='';item.baseUnit=p.unit||'Unidad';if(typeof persistSaleCart==='function')persistSaleCart();if(typeof renderCart==='function')renderCart()}}catch(err){console.warn(err)}const afterReserved=reservedStock(p.id);if(afterReserved<=beforeReserved){toast('No se pudo agregar el producto al carrito. Revisa el stock.','warn');draw();return}closePicker();const syncVisible=()=>{try{if(typeof window.VareliaPOS?.sync==='function')window.VareliaPOS.sync();else window.dispatchEvent(new CustomEvent('varelia:cart-changed'))}catch(err){console.warn('Sincronizar carrito visible',err)}};syncVisible();setTimeout(syncVisible,60);setTimeout(syncVisible,220);toast((p.name||'Producto')+' agregado a la venta.','ok')};draw();l.style.display='flex';return true}"
+          if old not in s:
+              raise SystemExit('Commercial add handler pattern not found; refusing unsafe patch')
+          s = s.replace(old, new, 1)
+          adv.write_text(s, encoding='utf-8')
+
+          idx = Path('index.html')
+          h = idx.read_text(encoding='utf-8')
+          h = h.replace("const BUILD='20261021-COMMERCIAL-CART-V20'", "const BUILD='20261021-POS-CART-SYNC-V21'", 1)
+          h = h.replace('advanced-pricing.js?v=20261021-commercial-cart-v20', 'advanced-pricing.js?v=20261021-pos-cart-sync-v21', 1)
+          idx.write_text(h, encoding='utf-8')
+      - name: Validate JavaScript
+        run: |
+          node --check advanced-pricing.js
+          node scripts/stability-audit.mjs
+      - name: Commit hotfix
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add advanced-pricing.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Sync commercial items into visible POS cart"
+          git push origin main
