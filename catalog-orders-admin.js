@@ -11,7 +11,7 @@ async function req(path,opt={}){
  if(!r.ok)throw Error(await r.text()||r.status);
  return r.status===204?null:r.json();
 }
-function items(v){if(!Array.isArray(v))return'';return v.map(x=>'<div style="padding:7px 0;border-top:1px dashed var(--line)"><b>'+esc(x.name||'Producto')+'</b>'+(Array.isArray(x.characteristics)&&x.characteristics.length?'<div class="notice">'+x.characteristics.map(esc).join(' · ')+'</div>':'')+'<div>'+Number(x.qty||0)+' × '+money(x.unit_price)+' = <b>'+money(x.subtotal)+'</b></div></div>').join('')}
+function items(v){if(!Array.isArray(v))return'';return v.map(x=>'<div style="padding:7px 0;border-top:1px dashed var(--line)"><b>'+esc(x.name||'Producto')+'</b>'+(x.presentation_name?'<div class="notice">📦 '+esc(x.presentation_name)+' · '+Number(x.presentation_units||1)+' unidades</div>':'')+(Array.isArray(x.characteristics)&&x.characteristics.length?'<div class="notice">'+x.characteristics.map(esc).join(' · ')+'</div>':'')+'<div>'+Number(x.qty||0)+' × '+money(x.unit_price)+' = <b>'+money(x.subtotal)+'</b></div></div>').join('')}
 async function load(){
  const el=list();if(!el)return;el.innerHTML='<div class="empty">Cargando pedidos...</div>';
  try{
@@ -32,7 +32,8 @@ async function pay(id){
    const name=String(it.name||'').trim();if(!name)continue;
    const ps=await req('varelia_products?select=id,stock,characteristics,variant_combinations&business_id=eq.'+encodeURIComponent(BID)+'&name=eq.'+encodeURIComponent(name)+'&limit=1');
    const p=ps&&ps[0];if(!p)continue;
-   const qty=Math.max(0,Number(it.qty)||0);
+   const multiplier=Math.max(1,Number(it.presentation_units||it.stock_multiplier||it.medicine_multiplier)||1);
+   const qty=Math.max(0,Number(it.qty)||0)*multiplier;
    let combos=Array.isArray(p.variant_combinations)?p.variant_combinations:[];
    const picked=Array.isArray(it.characteristics)?it.characteristics.map(v=>String(v).replace(/^[^:]+:\\s*/,'').trim()):[];
    if(combos.length&&picked.length){
