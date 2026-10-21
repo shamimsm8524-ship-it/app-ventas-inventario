@@ -207,3 +207,15 @@
     if(document.querySelector('[data-report-synced]'))fixVisibleReport();
   },800);
 })();
+
+// Ganancias: respetar la lógica real de cada tipo de venta. Para presentaciones
+// comerciales (Six Pack, caja, paquete, etc.) recupera las unidades configuradas
+// del producto antes de que Reportes/Ganancias calcule el costo.
+(()=>{
+  if(document.querySelector('script[data-varelia-sale-profit-logic-v30]'))return;
+  const s=document.createElement('script');
+  s.src='/sale-profit-logic-fix.js?v=20261021-v30';
+  s.async=false;
+  s.dataset.vareliaSaleProfitLogicV30='1';
+  document.head.appendChild(s);
+})();
