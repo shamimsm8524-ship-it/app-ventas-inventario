@@ -1,0 +1,112 @@
+name: Fix checkout and profit stability v26
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-checkout-profit-v26.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Apply checkout and profit fixes
+        shell: python
+        run: |
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              p = Path(path)
+              s = p.read_text(encoding='utf-8')
+              if old not in s:
+                  raise SystemExit(f'{label}: anchor not found')
+              p.write_text(s.replace(old, new, 1), encoding='utf-8')
+
+          # 1) Make the cloud checkout callable directly from the visible POS.
+          replace_once(
+              'central-stock-sync.js',
+              "  async function centralCheckout(){\n    if(saleBusy)return;\n",
+              "  async function centralCheckout(){\n    if(saleBusy)return false;\n    if(!sb)await waitClient();\n    if(!sb)throw new Error('Supabase todavía no está disponible.');\n    if(!businessId)await loadProfile();\n    if(!businessId)throw new Error('La cuenta no tiene un negocio activo.');\n",
+              'central checkout start'
+          )
+          replace_once(
+              'central-stock-sync.js',
+              "      try{window.vareliaSound?.('sale')}catch{}\n    }catch(e){\n      console.error(e);\n      toast(e?.message||'No se pudo registrar la venta.','warn');\n      await refreshCloud().catch(()=>{});\n    }finally{\n",
+              "      try{window.vareliaSound?.('sale')}catch{}\n      return true;\n    }catch(e){\n      console.error(e);\n      toast(e?.message||'No se pudo registrar la venta.','warn');\n      await refreshCloud().catch(()=>{});\n      return false;\n    }finally{\n",
+              'central checkout result'
+          )
+          replace_once(
+              'central-stock-sync.js',
+              "  function installCategoryBridge(){\n",
+              "  // API directa para el POS visible: evita que una venta pase por el flujo local\n  // mientras el puente del botón oculto todavía está terminando de instalarse.\n  window.vareliaCentralCheckout=centralCheckout;\n\n  function installCategoryBridge(){\n",
+              'central checkout export'
+          )
+
+          # 2) The visible POS must await the cloud transaction instead of blindly
+          # clicking the legacy button. This prevents local-only sales.
+          replace_once(
+              'pos-sales.js',
+              "      checkoutBtn.addEventListener('click',event=>{\n",
+              "      checkoutBtn.addEventListener('click',async event=>{\n",
+              'pos async checkout'
+          )
+          replace_once(
+              'pos-sales.js',
+              "          legacyCheckout.click();\n          showPaidReceipt(before,p,state);\n          // Abrir el comprobante en el mismo flujo del botón, sin esperar módulos externos.\n",
+              "          if(typeof window.vareliaCentralCheckout==='function'){\n            const cloudOk=await window.vareliaCentralCheckout();\n            if(!cloudOk){finish(100);return;}\n            try{sync();renderPay()}catch{}\n            try{if(typeof renderSales==='function')renderSales()}catch{}\n            finish(1200);\n            return;\n          }\n          // Respaldo solo para instalaciones antiguas donde el módulo central aún no existe.\n          legacyCheckout.click();\n          showPaidReceipt(before,p,state);\n          // Abrir el comprobante en el mismo flujo del botón, sin esperar módulos externos.\n",
+              'pos direct cloud checkout'
+          )
+
+          # 3) Do not wipe the profit view on provisional receipt events. Only a
+          # confirmed sale should invalidate and reload the cloud history.
+          replace_once(
+              'reports-profit.js',
+              "  window.addEventListener('varelia:sale-recorded',gainInvalidateAndRefresh);\n",
+              "  window.addEventListener('varelia:sale-recorded',event=>{\n    const detail=event?.detail||{};\n    if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();\n  });\n",
+              'profit confirmed event guard'
+          )
+
+          # 4) Merge local sales that have not appeared in the cloud response yet,
+          # instead of replacing the visible sale with S/ 0.00. They remain marked
+          # as pending and are de-duplicated once Supabase returns them.
+          replace_once(
+              'reports-profit.js',
+              "        const usingCloud=Array.isArray(gainCloud.sales);\n        const periodSales=gainSalesPeriod(usingCloud?gainCloud.sales:(window.vareliaCurrentUserProfile?.role==='owner'?gainValidSales():[]),activePeriod,new Date(),chosenDay);\n        const result=gainProductSummary(periodSales);\n        const complete=result.missing===0;\n        const estimated=result.estimated>0;\n        const verifiedHistorical=usingCloud&&complete&&!estimated;\n",
+              "        const usingCloud=Array.isArray(gainCloud.sales);\n        const localSales=window.vareliaCurrentUserProfile?.role==='owner'?gainValidSales():[];\n        let sourceSales=usingCloud?[...gainCloud.sales]:localSales;\n        let pendingLocal=0;\n        if(usingCloud&&localSales.length){\n          const ids=s=>[s?.cloudSaleId,s?.cloud_sale_id,s?.saleId,s?.sale_id,s?.id].map(v=>String(v??'').trim()).filter(Boolean);\n          const sameSale=(a,b)=>{\n            const A=new Set(ids(a));\n            if(ids(b).some(id=>A.has(id)))return true;\n            const ta=new Date(a?.date??a?.created_at??'').getTime(),tb=new Date(b?.date??b?.created_at??'').getTime();\n            const va=Number(a?.total),vb=Number(b?.total);\n            return Number.isFinite(ta)&&Number.isFinite(tb)&&Math.abs(ta-tb)<=120000&&Number.isFinite(va)&&Number.isFinite(vb)&&Math.abs(va-vb)<0.001;\n          };\n          for(const sale of localSales){\n            if(sourceSales.some(remote=>sameSale(remote,sale)))continue;\n            sourceSales.push({...sale,__vareliaPendingCloud:true});\n            pendingLocal++;\n          }\n        }\n        const periodSales=gainSalesPeriod(sourceSales,activePeriod,new Date(),chosenDay);\n        const pendingPeriod=periodSales.filter(s=>s?.__vareliaPendingCloud).length;\n        const result=gainProductSummary(periodSales);\n        const complete=result.missing===0;\n        const estimated=result.estimated>0;\n        const verifiedHistorical=usingCloud&&pendingPeriod===0&&complete&&!estimated;\n",
+              'profit merge local/cloud'
+          )
+          replace_once(
+              'reports-profit.js',
+              "        sourceNote.textContent=(usingCloud?'Costos históricos de Supabase':'Datos locales; esperando costos históricos de la nube')+\n          dayBadge+' · '+result.count+' venta(s)'+\n",
+              "        sourceNote.textContent=(usingCloud?(pendingPeriod?'Supabase + '+pendingPeriod+' venta(s) local(es) pendiente(s) de sincronizar':'Costos históricos de Supabase'):'Datos locales; esperando costos históricos de la nube')+\n          dayBadge+' · '+result.count+' venta(s)'+\n",
+              'profit source note'
+          )
+
+          # 5) Force fresh JS in the APK/PWA.
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          replacements={
+            'central-stock-sync.js?v=20261021-checkout-timeout-v20':'central-stock-sync.js?v=20261021-direct-cloud-checkout-v26',
+            'pos-sales.js?v=20261021-receipt-visible-v25':'pos-sales.js?v=20261021-direct-cloud-checkout-v26',
+            'reports-profit.js?v=20261021-presentation-profit-v23':'reports-profit.js?v=20261021-profit-live-v26'
+          }
+          for old,new in replacements.items():
+              if old not in s:
+                  raise SystemExit('index cache anchor missing: '+old)
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+      - name: Commit fixes
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add central-stock-sync.js pos-sales.js reports-profit.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Fix local-only checkout and disappearing profit sale"
+          git push
