@@ -9,7 +9,9 @@
   const toast=(m,t='ok')=>window.vareliaToast?window.vareliaToast(m,t):console.log(m);
   const productList=()=>{try{return Array.isArray(products)?products:[]}catch{return Array.isArray(window.products)?window.products:[]}};
   const cartList=()=>{try{return Array.isArray(cart)?cart:[]}catch{return[]}};
-  const isMedicine=p=>!!p?.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p?.category||'').trim());
+  // Un producto normal con precios por cantidad puede usar internamente el motor remoto de presentaciones,
+  // pero nunca debe comportarse visualmente como medicamento.
+  const isMedicine=p=>(!!p?.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p?.category||'').trim()))&&!getConfig(p);
   const isDiscrete=p=>!['kg','gramo','gramos','g','litro','litros','l','ml','mililitro','mililitros','metro','metros','m²','m2'].includes(String(p?.unit||'').trim().toLowerCase());
   const localDate=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
 
@@ -224,7 +226,7 @@
     modes.onclick=e=>{const b=e.target.closest('[data-adv-mode]');if(!b)return;activePicker.mode=b.dataset.advMode;draw()};qty.oninput=draw;draw();
     q('vAdvSaleAdd').onclick=()=>{
       if(!activePicker)return;const n=Math.max(1,Math.floor(Number(qty.value)||1)),r=quote(p,activePicker.mode,n),needed=n*r.multiplier;if(needed>Number(p.stock||0)){draw();return}
-      const prepared={...p,__advancedPrepared:true,selectionLabel:r.label||((r.mode==='dozen')?'Docena':(r.wholesale?'Mayorista':'')),sellPrice:r.price,medicineMultiplier:r.multiplier,medicineSaleUnit:r.channel,unit:r.mode==='dozen'?'Docena':p.unit};
+      const prepared={...p,__advancedPrepared:true,__medicineSelected:true,medicine:false,selectionLabel:r.label||((r.mode==='dozen')?'Docena':(r.wholesale?'Mayorista':'')),sellPrice:r.price,medicineMultiplier:r.multiplier,advancedServerSaleUnit:r.channel,medicineSaleUnit:'',unit:r.mode==='dozen'?'Docena':p.unit};
       const add=activePicker.originalAdd;layer.style.display='none';activePicker=null;
       try{if(typeof openSale==='function')openSale(false)}catch{}
       add(prepared,n);
@@ -257,11 +259,11 @@
     if(repriceBusy)return;const list=cartList();if(!list.length)return;let changed=false;
     for(const item of list){
       const p=productList().find(x=>String(x.id)===String(item.id));if(!p||!getConfig(p)||isMedicine(p))continue;
-      const mode=(item.advancedPricingMode==='dozen'||String(item.medicineSaleUnit)==='caja'||String(item.unit).toLowerCase()==='docena')?'dozen':'unit';
+      const mode=(item.advancedPricingMode==='dozen'||String(item.advancedServerSaleUnit||item.medicineSaleUnit)==='caja'||String(item.unit).toLowerCase()==='docena')?'dozen':'unit';
       const r=quote(p,mode,item.qty);const label=r.label||((mode==='dozen')?'Docena':(r.wholesale?'Mayorista':''));
       const nextName=p.name+(label?' · '+label:'');
-      if(Number(item.price)!==Number(r.price)||item.medicineSaleUnit!==r.channel||Number(item.medicineMultiplier||1)!==r.multiplier||item.selectionLabel!==label||item.name!==nextName){
-        item.price=r.price;item.originalPrice=r.basePrice;item.discountLabel=r.promoLabel||'';item.medicineSaleUnit=r.channel;item.medicineMultiplier=r.multiplier;item.selectionLabel=label;item.name=nextName;item.unit=mode==='dozen'?'Docena':p.unit;item.baseUnit=p.unit||'Unidad';item.advancedPricingMode=mode;item.advancedPricingWholesale=!!r.wholesale;changed=true;
+      if(Number(item.price)!==Number(r.price)||item.advancedServerSaleUnit!==r.channel||String(item.medicineSaleUnit||'')!==''||Number(item.medicineMultiplier||1)!==r.multiplier||item.selectionLabel!==label||item.name!==nextName){
+        item.price=r.price;item.originalPrice=r.basePrice;item.discountLabel=r.promoLabel||'';item.advancedServerSaleUnit=r.channel;item.medicineSaleUnit='';item.medicine=false;item.medicineMultiplier=r.multiplier;item.selectionLabel=label;item.name=nextName;item.unit=mode==='dozen'?'Docena':p.unit;item.baseUnit=p.unit||'Unidad';item.advancedPricingMode=mode;item.advancedPricingWholesale=!!r.wholesale;changed=true;
       }
     }
     if(changed){repriceBusy=true;try{if(typeof persistSaleCart==='function')persistSaleCart();if(typeof renderCart==='function')renderCart()}finally{setTimeout(()=>{repriceBusy=false;decorateCart()},0)}}else decorateCart();

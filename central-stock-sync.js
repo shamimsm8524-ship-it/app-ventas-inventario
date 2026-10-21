@@ -487,7 +487,7 @@
         if(!p)throw new Error('Producto no encontrado: '+String(item.name||''));
         const cloudId=await ensureCloudProductId(p);
         if(!cloudId)throw new Error('Este producto aún no está sincronizado. Actualiza la página e inténtalo nuevamente.');
-        const unit=String(item.medicineSaleUnit||item.sale_unit||item.saleUnit||'').trim();
+        const unit=String(item.advancedServerSaleUnit||item.medicineSaleUnit||item.sale_unit||item.saleUnit||'').trim();
         payload.push({product_id:cloudId,qty:Math.max(0.001,Number(item.qty)||0),...(unit?{sale_unit:unit}:{})});
       }
 
