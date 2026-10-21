@@ -15,16 +15,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply public catalog presentation patch
+      - name: Apply public catalog presentation visibility patch v85
         run: python scripts/hotfix_public_catalog_presentations.py
       - name: Commit patch
         run: |
           git config user.name "Varelia Stability Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add public-catalog.js catalogo/milagros/catalogo-v2.html catalogo/milagros/index.html catalog-orders-admin.js index.html
+          git add catalogo/milagros/catalogo-v2.html catalogo/milagros/index.html
           if git diff --cached --quiet; then
             echo "No changes"
             exit 0
           fi
-          git commit -m "Add sale presentations to public catalog"
+          git commit -m "Fix sale presentation picker in public catalog"
           git push
