@@ -1,0 +1,255 @@
+from pathlib import Path
+import re
+
+# ---- central-stock-sync.js ----
+p = Path('central-stock-sync.js')
+s = p.read_text(encoding='utf-8')
+
+product_re = re.compile(r"  function productPayload\(p,categoryId\)\{.*?\n  \}\n\n  async function seedIfNeeded", re.S)
+product_new = r'''  function productPayload(p,categoryId){
+    const rawCommercial=p?.commercialPricing||p?.advancedPricing||{};
+    const commercial={
+      version:2,
+      wholesaleEnabled:!!rawCommercial.wholesaleEnabled,
+      wholesaleMinQty:Math.max(2,Math.floor(Number(rawCommercial.wholesaleMinQty)||12)),
+      wholesalePrice:Math.max(0,Number(rawCommercial.wholesalePrice)||0),
+      promoEnabled:!!rawCommercial.promoEnabled,
+      promoType:['percent','fixed'].includes(String(rawCommercial.promoType))?String(rawCommercial.promoType):'percent',
+      promoValue:Math.max(0,Number(rawCommercial.promoValue)||0),
+      promoStart:String(rawCommercial.promoStart||''),
+      promoEnd:String(rawCommercial.promoEnd||''),
+      promoName:String(rawCommercial.promoName||'Promoción').trim()||'Promoción'
+    };
+    const presentations=(Array.isArray(p?.salePresentations)?p.salePresentations:[]).map((x,i)=>({
+      id:String(x?.id||('presentacion_'+(i+1))).trim(),
+      name:String(x?.name||'').trim(),
+      units:Math.max(0,Math.floor(Number(x?.units)||0)),
+      price:Math.max(0,Number(x?.price)||0),
+      active:x?.active!==false
+    })).filter(x=>x.id&&x.name&&x.units>0&&x.price>0);
+    const medicine=!!p.medicine;
+    return {
+      business_id:businessId,
+      category_id:categoryId||null,
+      legacy_id:String(p.id||''),
+      barcode:String(p.barcode||'').trim()||null,
+      name:String(p.name||'Producto').trim()||'Producto',
+      description:String(p.description||''),
+      specifications:stripAdvancedPricing(String(p.specifications||'')),
+      variants:String(p.variants||''),
+      characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
+      variant_combinations:Array.isArray(p.variantCombinations)?p.variantCombinations:[],
+      buy_price:Math.max(0,Number(p.buyPrice)||0),
+      sell_price:Math.max(0,Number(p.sellPrice)||0),
+      stock:Math.max(0,Number(p.stock)||0),
+      unit:String(p.unit||'Unidad'),
+      reorder_level:Math.max(0,Number(p.reorderLevel)||0),
+      image_data:String(p.image||''),
+      medicine,
+      laboratory:medicine?(String(p.laboratory||'').trim()||null):null,
+      medicine_presentation:medicine?(String(p.medicinePresentation||'').trim()||null):null,
+      batch:medicine?(String(p.batch||'').trim()||null):null,
+      expiry_date:medicine?(String(p.expiryDate||'').trim()||null):null,
+      blisters_per_box:medicine?Math.max(1,Math.floor(Number(p.blistersPerBox)||1)):null,
+      units_per_blister:medicine?Math.max(1,Math.floor(Number(p.unitsPerBlister)||1)):null,
+      box_price:medicine?Math.max(0,Number(p.boxPrice)||0):null,
+      blister_price:medicine?Math.max(0,Number(p.blisterPrice)||0):null,
+      unit_medicine_price:medicine?Math.max(0,Number(p.unitMedicinePrice)||0):null,
+      medicine_stock_boxes:medicine?Math.max(0,Math.floor(Number(p.medicineStockBoxes)||0)):null,
+      sale_presentations:medicine?[]:presentations,
+      advanced_pricing:medicine?{}:commercial
+    };
+  }
+
+  async function seedIfNeeded'''
+s, n = product_re.subn(product_new, s, count=1)
+if n != 1:
+    raise SystemExit('central: productPayload block not found')
+
+old_select = "sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes,updated_at')"
+new_select = "sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes,sale_presentations,advanced_pricing,updated_at')"
+if old_select in s:
+    s = s.replace(old_select, new_select, 1)
+elif new_select not in s:
+    raise SystemExit('central: product select not found')
+
+legacy_re = re.compile(r"      let advanced=readAdvancedPricing\(p\.specifications\);.*?      const pricingProxy=!!advanced\?\.proxy\|\|legacyPricingMarker;\n      return \{", re.S)
+legacy_new = """      const rawCommercial=p.advanced_pricing&&typeof p.advanced_pricing==='object'?p.advanced_pricing:{};\n      const commercial={version:2,wholesaleEnabled:!!rawCommercial.wholesaleEnabled,wholesaleMinQty:Math.max(2,Math.floor(Number(rawCommercial.wholesaleMinQty)||12)),wholesalePrice:Math.max(0,Number(rawCommercial.wholesalePrice)||0),promoEnabled:!!rawCommercial.promoEnabled,promoType:['percent','fixed'].includes(String(rawCommercial.promoType))?String(rawCommercial.promoType):'percent',promoValue:Math.max(0,Number(rawCommercial.promoValue)||0),promoStart:String(rawCommercial.promoStart||''),promoEnd:String(rawCommercial.promoEnd||''),promoName:String(rawCommercial.promoName||'Promoción').trim()||'Promoción'};\n      const presentations=Array.isArray(p.sale_presentations)?p.sale_presentations:[];\n      return {"""
+s, n = legacy_re.subn(legacy_new, s, count=1)
+if n != 1:
+    raise SystemExit('central: legacy proxy mapping block not found')
+
+old_map = """      buyPrice:pricingProxy?Math.max(0,Number(advanced.baseBuyPrice)||0):(Number(p.buy_price)||0),
+      sellPrice:pricingProxy?Math.max(0,Number(advanced.baseSellPrice)||0):(Number(p.sell_price)||0),
+      stock:stock,
+      unit:String(p.unit||'Unidad'),
+      reorderLevel:Number(p.reorder_level)||0,
+      description:String(p.description||''),
+      specifications:stripAdvancedPricing(String(p.specifications||'')),
+      advancedPricing:pricingProxy?normalizeAdvancedPricing(advanced):null,
+      variants:String(p.variants||''),
+      characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
+      variantCombinations:Array.isArray(p.variant_combinations)?p.variant_combinations:[],
+      image:String(p.image_data||''),
+      medicine:pricingProxy?false:!!p.medicine,
+      laboratory:String(p.laboratory||''),
+      medicinePresentation:String(p.medicine_presentation||''),
+      batch:String(p.batch||''),
+      expiryDate:String(p.expiry_date||''),
+      blistersPerBox:pricingProxy?12:(Number(p.blisters_per_box)||1),
+      unitsPerBlister:pricingProxy?1:(Number(p.units_per_blister)||1),
+      boxPrice:pricingProxy?(Number(advanced.dozenPrice)||0):(Number(p.box_price)||0),
+      blisterPrice:pricingProxy?(Number(advanced.wholesalePrice)||0):(Number(p.blister_price)||0),
+      unitMedicinePrice:pricingProxy?(Number(advanced.baseSellPrice)||0):(Number(p.unit_medicine_price)||0),
+      medicineStockBoxes:pricingProxy?Math.floor(stock/12):(Number(p.medicine_stock_boxes)||0)"""
+new_map = """      buyPrice:Number(p.buy_price)||0,
+      sellPrice:Number(p.sell_price)||0,
+      stock:stock,
+      unit:String(p.unit||'Unidad'),
+      reorderLevel:Number(p.reorder_level)||0,
+      description:String(p.description||''),
+      specifications:stripAdvancedPricing(String(p.specifications||'')),
+      advancedPricing:null,
+      commercialPricing:commercial,
+      salePresentations:presentations.map((x,i)=>({id:String(x?.id||('presentacion_'+(i+1))),name:String(x?.name||''),units:Math.max(0,Math.floor(Number(x?.units)||0)),price:Math.max(0,Number(x?.price)||0),active:x?.active!==false})).filter(x=>x.name&&x.units>0&&x.price>0),
+      variants:String(p.variants||''),
+      characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
+      variantCombinations:Array.isArray(p.variant_combinations)?p.variant_combinations:[],
+      image:String(p.image_data||''),
+      medicine:!!p.medicine,
+      laboratory:String(p.laboratory||''),
+      medicinePresentation:String(p.medicine_presentation||''),
+      batch:String(p.batch||''),
+      expiryDate:String(p.expiry_date||''),
+      blistersPerBox:Number(p.blisters_per_box)||1,
+      unitsPerBlister:Number(p.units_per_blister)||1,
+      boxPrice:Number(p.box_price)||0,
+      blisterPrice:Number(p.blister_price)||0,
+      unitMedicinePrice:Number(p.unit_medicine_price)||0,
+      medicineStockBoxes:Number(p.medicine_stock_boxes)||0"""
+if old_map not in s:
+    raise SystemExit('central: legacy mapped fields not found')
+s = s.replace(old_map, new_map, 1)
+
+old_payload = """        const unit=String(item.advancedServerSaleUnit||item.medicineSaleUnit||item.sale_unit||item.saleUnit||'').trim();
+        payload.push({product_id:cloudId,qty:Math.max(0.001,Number(item.qty)||0),...(unit?{sale_unit:unit}:{})});"""
+new_payload = """        const unit=String(item.medicineSaleUnit||item.sale_unit||item.saleUnit||'').trim();
+        const presentationId=String(item.salePresentationId||item.presentationId||'').trim();
+        const pricingMode=String(item.pricingMode||item.advancedPricingMode||'').trim();
+        payload.push({
+          product_id:cloudId,
+          qty:Math.max(0.001,Number(item.qty)||0),
+          unit_price:Math.max(0,Number(item.price)||0),
+          ...(unit?{sale_unit:unit}:{}),
+          ...(presentationId?{presentation_id:presentationId}:{}),
+          ...(pricingMode?{pricing_mode:pricingMode}:{})
+        });"""
+if old_payload not in s:
+    raise SystemExit('central: checkout payload block not found')
+s = s.replace(old_payload, new_payload, 1)
+
+old_sold = """        return {
+          ...item,
+          cloudProductId:String(remote.product_id||p?._cloudId||''),
+          cloudSaleItemId:String(remote.sale_item_id||'')
+        };"""
+new_sold = """        return {
+          ...item,
+          price:Number(remote.unit_price??item.price)||0,
+          saleUnit:String(remote.sale_unit||item.saleUnit||item.unit||''),
+          stockQty:Number(remote.stock_qty??item.stockQty??0)||0,
+          salePresentationId:String(remote.presentation_id||item.salePresentationId||''),
+          salePresentationUnits:Number(remote.presentation_units??item.salePresentationUnits??0)||0,
+          cloudProductId:String(remote.product_id||p?._cloudId||''),
+          cloudSaleItemId:String(remote.sale_item_id||'')
+        };"""
+if old_sold not in s:
+    raise SystemExit('central: sold mapping block not found')
+s = s.replace(old_sold, new_sold, 1)
+p.write_text(s, encoding='utf-8')
+
+# ---- medicine-stock-count-fix.js ----
+m = Path('medicine-stock-count-fix.js')
+ms = m.read_text(encoding='utf-8')
+old = "const isMedicine=()=>isMedicineVisible()||!!el('vMedicineToggle')?.checked||medicineCategory();"
+new = "const isMedicine=()=>!!el('vMedicineToggle')?.checked||medicineCategory();"
+if old not in ms:
+    raise SystemExit('medicine: unsafe visibility detector not found')
+ms = ms.replace(old, new, 1)
+m.write_text(ms, encoding='utf-8')
+
+# ---- advanced-pricing.js: mobile-safe presentation rows ----
+a = Path('advanced-pricing.js')
+av = a.read_text(encoding='utf-8')
+render_re = re.compile(r"  function renderDraft\(\)\{.*?\n  function formPricing", re.S)
+render_new = r'''  function renderDraft(){
+    const w=$('vCommercialRows');if(!w)return;
+    if(!draft.length){w.innerHTML='<div class="meta" style="padding:10px;border:1px dashed var(--line);border-radius:13px">Puedes vender solo por unidad o agregar una presentación.</div>';return}
+    w.innerHTML=draft.map((p,i)=>`<div data-crow="${i}" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px;align-items:end;border:1px solid var(--line);padding:11px;border-radius:14px"><label style="grid-column:1/-1;min-width:0">Nombre<input data-cname value="${esc(p.name)}" placeholder="Ej. Cajón"></label><label style="min-width:0">Unidades<input data-cunits type="number" min="1" step="1" value="${esc(p.units)}" placeholder="24"></label><label style="min-width:0">Precio (S/)<input data-cprice type="number" min="0.01" step="0.01" value="${esc(p.price)}" placeholder="0.00"></label><button type="button" class="btn danger" data-cremove="${i}" style="grid-column:1/-1;width:100%;min-height:42px">Eliminar presentación</button></div>`).join('');
+    w.oninput=e=>{const row=e.target.closest('[data-crow]');if(!row)return;const p=draft[Number(row.dataset.crow)];if(e.target.matches('[data-cname]'))p.name=e.target.value;if(e.target.matches('[data-cunits]'))p.units=e.target.value;if(e.target.matches('[data-cprice]'))p.price=e.target.value};
+    w.onclick=e=>{const b=e.target.closest('[data-cremove]');if(!b)return;draft.splice(Number(b.dataset.cremove),1);renderDraft()}
+  }
+  function formPricing'''
+av, n = render_re.subn(render_new, av, count=1)
+if n != 1:
+    raise SystemExit('commercial: renderDraft not found')
+a.write_text(av, encoding='utf-8')
+
+# ---- authoritative product form visibility guard ----
+guard = Path('product-form-safety.js')
+guard.write_text(r'''(()=>{
+  if(window.__vareliaProductFormSafetyV19)return;
+  window.__vareliaProductFormSafetyV19=true;
+  const $=id=>document.getElementById(id);
+  const list=()=>{try{return Array.isArray(products)?products:[]}catch{return Array.isArray(window.products)?window.products:[]}};
+  const medCategory=()=>/^(pastillas?|medicinas?|medicamentos?)$/i.test(String($('productCategory')?.value||'').trim());
+  const continuous=()=>['kg','kilo','kilos','kilogramo','kilogramos','g','gr','gramo','gramos','l','litro','litros','ml','mililitro','mililitros','m','metro','metros','m2','m²'].includes(String($('unit')?.value||'').trim().toLowerCase());
+  function current(){const id=String($('productId')?.value||'');return id?list().find(p=>String(p?.id||'')===id)||null:null}
+  function applyVisibility(){
+    const toggle=$('vMedicineToggle'),fields=$('vMedicineFields'),manual=$('vMedicineManualToggle');
+    if(!toggle||!fields)return;
+    fields.style.display=toggle.checked?'block':'none';
+    if(manual)manual.style.display=medCategory()?'none':'flex';
+    const commercial=$('vCommercialPricingBox');
+    if(commercial)commercial.style.display=(!toggle.checked&&!medCategory()&&!continuous())?'grid':'none';
+  }
+  function syncFromProduct(){
+    const dlg=$('productDialog');if(!dlg?.open)return;
+    const toggle=$('vMedicineToggle');if(!toggle)return;
+    const p=current();
+    toggle.checked=p?!!p.medicine:medCategory();
+    applyVisibility();
+  }
+  document.addEventListener('click',e=>{
+    if(e.target.closest?.('[data-edit]'))[20,80,180,360].forEach(ms=>setTimeout(syncFromProduct,ms));
+    if(e.target.closest?.('#newProduct,#inventoryNewProduct'))[20,80,180].forEach(ms=>setTimeout(()=>{const t=$('vMedicineToggle');if(t)t.checked=medCategory();applyVisibility()},ms));
+  },true);
+  document.addEventListener('change',e=>{
+    if(e.target?.id==='vMedicineToggle'){applyVisibility();return}
+    if(e.target?.id==='productCategory'){
+      const t=$('vMedicineToggle');if(t)t.checked=medCategory();applyVisibility();return
+    }
+    if(e.target?.id==='unit')applyVisibility();
+  },true);
+  const boot=()=>{
+    const dlg=$('productDialog');
+    if(dlg)new MutationObserver(()=>{if(dlg.open)[0,60,180].forEach(ms=>setTimeout(syncFromProduct,ms))}).observe(dlg,{attributes:true,attributeFilter:['open']});
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
+})();
+''', encoding='utf-8')
+
+# ---- index.html: cache bust and retire conflicting flow ----
+idx = Path('index.html')
+h = idx.read_text(encoding='utf-8')
+h = re.sub(r"const BUILD='[^']+'", "const BUILD='20261021-PRODUCT-FORM-COMMERCIAL-V19'", h, count=1)
+h = h.replace('central-stock-sync.js?v=20261020-advanced-pricing-proxy-v16', 'central-stock-sync.js?v=20261021-commercial-v19')
+h = h.replace('<script src="advanced-pricing.js?v=20261020-v16"></script>', '<script src="advanced-pricing.js?v=20261021-commercial-v19"></script>')
+h = h.replace('\n<script src="advanced-pricing-flow-fix.js?v=20261021-v17"></script>', '')
+safety = '<script src="product-form-safety.js?v=20261021-v19"></script>'
+if safety not in h:
+    anchor = '<script src="advanced-pricing.js?v=20261021-commercial-v19"></script>'
+    if anchor not in h:
+        raise SystemExit('index: advanced pricing tag not found')
+    h = h.replace(anchor, anchor + '\n' + safety, 1)
+idx.write_text(h, encoding='utf-8')
