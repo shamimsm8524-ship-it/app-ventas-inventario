@@ -561,6 +561,9 @@
         return {
           ...item,
           price:Number(remote.unit_price??item.price)||0,
+          buyPriceAtSale:(remote.buy_price_at_sale!=null&&remote.buy_price_at_sale!==''&&Number.isFinite(Number(remote.buy_price_at_sale)))
+            ?Number(remote.buy_price_at_sale)
+            :(item.buyPriceAtSale??item.buy_price_at_sale??item.costAtSale),
           saleUnit:String(remote.sale_unit||item.saleUnit||item.unit||''),
           stockQty:Number(remote.stock_qty??item.stockQty??0)||0,
           salePresentationId:String(remote.presentation_id||item.salePresentationId||''),
