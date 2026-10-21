@@ -1,0 +1,68 @@
+name: Ensure sale receipt is visible v25
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/receipt-visible-fallback-v25.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add visible receipt fallback
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('pos-sales.js')
+          s = p.read_text(encoding='utf-8')
+          anchor = "          window.__vareliaLastReceipt=receiptSale;\n          // Si el puente central está instalado, esperar su confirmación real."
+          replacement = """          window.__vareliaLastReceipt=receiptSale;
+
+          // Respaldo definitivo: si el cobro sí terminó pero por alguna razón el
+          // módulo principal no abrió su modal, mostrar el comprobante de respaldo.
+          // No se muestra mientras el carrito siga intacto para evitar enseñar un
+          // ticket de una venta que todavía no fue confirmada.
+          const ensureReceiptVisible=()=>{
+            const mainOpen=!!document.getElementById('vreceiptOverlay')?.classList.contains('show');
+            const backupOpen=!!document.getElementById('vareliaEmergencyReceipt');
+            if(mainOpen||backupOpen)return;
+            let recorded=false,cartCleared=false;
+            try{recorded=Array.isArray(sales)&&sales.length>before}catch{}
+            try{cartCleared=Array.isArray(cart)&&cart.length===0}catch{}
+            if(recorded||cartCleared)showEmergencyReceipt(receiptSale);
+          };
+          [350,800,1600,3000,5000].forEach(ms=>setTimeout(ensureReceiptVisible,ms));
+          // Si el puente central está instalado, esperar su confirmación real."""
+          if 'const ensureReceiptVisible=()=>{' not in s:
+              if anchor not in s:
+                  raise SystemExit('No se encontró el punto para insertar el respaldo del comprobante')
+              s = s.replace(anchor, replacement, 1)
+          p.write_text(s, encoding='utf-8')
+
+          idx = Path('index.html')
+          h = idx.read_text(encoding='utf-8')
+          old = 'pos-sales.js?v=20261021-receipt-open-v24'
+          new = 'pos-sales.js?v=20261021-receipt-visible-v25'
+          if old in h:
+              h = h.replace(old, new, 1)
+          elif new not in h:
+              import re
+              h, n = re.subn(r'pos-sales\\.js\\?v=[^\"\']+', new, h, count=1)
+              if n != 1:
+                  raise SystemExit('No se pudo actualizar la versión de pos-sales.js')
+          idx.write_text(h, encoding='utf-8')
+          PY
+      - name: Commit repair
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add pos-sales.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Guarantee receipt visibility after checkout"
+          git push
