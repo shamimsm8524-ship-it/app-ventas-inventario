@@ -1,0 +1,48 @@
+name: Fix sale receipt open v24
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-sale-receipt-open-v24.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix-receipt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore receipt after checkout
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          p = Path('pos-sales.js')
+          s = p.read_text(encoding='utf-8')
+          marker = "          legacyCheckout.click();\n          // Abrir el comprobante en el mismo flujo del botón, sin esperar módulos externos."
+          replacement = "          legacyCheckout.click();\n          showPaidReceipt(before,p,state);\n          // Abrir el comprobante en el mismo flujo del botón, sin esperar módulos externos."
+          if 'showPaidReceipt(before,p,state);' not in s:
+              if marker not in s:
+                  raise SystemExit('No se encontró el punto de cobro para restaurar el comprobante')
+              s = s.replace(marker, replacement, 1)
+          p.write_text(s, encoding='utf-8')
+
+          idx = Path('index.html')
+          h = idx.read_text(encoding='utf-8')
+          h, n1 = re.subn(r'pos-sales\.js\?v=[^"\']+', 'pos-sales.js?v=20261021-receipt-open-v24', h, count=1)
+          h, n2 = re.subn(r'pos-receipt\.js\?v=[^"\']+', 'pos-receipt.js?v=20261021-receipt-open-v24', h, count=1)
+          if n1 != 1 or n2 != 1:
+              raise SystemExit(f'No se pudieron actualizar las versiones: pos-sales={n1}, pos-receipt={n2}')
+          idx.write_text(h, encoding='utf-8')
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add pos-sales.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Restore receipt after charging sale"
+          git push
