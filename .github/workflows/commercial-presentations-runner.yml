@@ -1,4 +1,4 @@
-name: Run commercial presentations integration
+name: Apply Ganancias stability v28
 
 on:
   push:
@@ -9,146 +9,137 @@ permissions:
   contents: write
 
 jobs:
-  integrate:
+  patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 0
-      - name: Integrate commercial presentations
+
+      - name: Patch Ganancias direct source
+        shell: python
         run: |
-          python3 - <<'PY'
           from pathlib import Path
-          import re
 
-          p=Path('commercial-presentations.js')
-          js=p.read_text(encoding='utf-8')
-          js=js.replace("return round2(Math.max(.01,base*(1-Math.min(100,Number(c.promoValue)||0)/100));", "return round2(Math.max(.01,base*(1-Math.min(100,Number(c.promoValue)||0)/100)));", 1)
-          p.write_text(js,encoding='utf-8')
+          p=Path('reports-profit.js')
+          s=p.read_text(encoding='utf-8')
 
-          c=Path('central-stock-sync.js')
-          s=c.read_text(encoding='utf-8')
-          product_re=re.compile(r"  function productPayload\(p,categoryId\)\{.*?\n  \}\n\n  async function seedIfNeeded",re.S)
-          product_new=r'''  function productPayload(p,categoryId){
-    const advanced=normalizeAdvancedPricing(p?.advancedPricing||{});
-    const presentations=(Array.isArray(p?.salePresentations)?p.salePresentations:[]).map((x,i)=>({id:String(x?.id||('presentacion_'+(i+1))).trim(),name:String(x?.name||'').trim(),units:Math.max(0,Number(x?.units)||0),price:Math.max(0,Number(x?.price)||0),active:x?.active!==false})).filter(x=>x.id&&x.name&&x.units>0&&x.price>0);
-    return {
-      business_id:businessId,category_id:categoryId||null,legacy_id:String(p.id||''),barcode:String(p.barcode||'').trim()||null,name:String(p.name||'Producto').trim()||'Producto',description:String(p.description||''),specifications:stripAdvancedPricing(String(p.specifications||'')),variants:String(p.variants||''),characteristics:Array.isArray(p.characteristics)?p.characteristics:[],variant_combinations:Array.isArray(p.variantCombinations)?p.variantCombinations:[],buy_price:Math.max(0,Number(p.buyPrice)||0),sell_price:Math.max(0,Number(p.sellPrice)||0),stock:Math.max(0,Number(p.stock)||0),unit:String(p.unit||'Unidad'),reorder_level:Math.max(0,Number(p.reorderLevel)||0),image_data:String(p.image||''),medicine:!!p.medicine,laboratory:String(p.laboratory||'').trim()||null,medicine_presentation:String(p.medicinePresentation||'').trim()||null,batch:String(p.batch||'').trim()||null,expiry_date:String(p.expiryDate||'').trim()||null,blisters_per_box:p.medicine?Math.max(1,Math.floor(Number(p.blistersPerBox)||1)):null,units_per_blister:p.medicine?Math.max(1,Math.floor(Number(p.unitsPerBlister)||1)):null,box_price:p.medicine?Math.max(0,Number(p.boxPrice)||0):null,blister_price:p.medicine?Math.max(0,Number(p.blisterPrice)||0):null,unit_medicine_price:p.medicine?Math.max(0,Number(p.unitMedicinePrice)||0):null,medicine_stock_boxes:p.medicine?Math.max(0,Math.floor(Number(p.medicineStockBoxes)||0)):null,
-      sale_presentations:presentations,
-      advanced_pricing:{version:2,wholesaleEnabled:!!advanced.wholesaleEnabled,wholesaleMinQty:Math.max(2,Math.floor(Number(advanced.wholesaleMinQty)||12)),wholesalePrice:Math.max(0,Number(advanced.wholesalePrice)||0),promoEnabled:!!advanced.promoEnabled,promoType:['percent','fixed'].includes(String(advanced.promoType))?String(advanced.promoType):'percent',promoValue:Math.max(0,Number(advanced.promoValue)||0),promoStart:String(advanced.promoStart||''),promoEnd:String(advanced.promoEnd||''),promoName:String(advanced.promoName||'Promoción').trim()||'Promoción'}
-    };
+          old_valid="""  function gainValidSales(){
+    return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
+      !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
   }
+"""
+          new_valid="""  function gainValidSales(){
+    return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
+      !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
+  }
+  // Conservar las ventas que Ganancias ya vio durante esta sesión.
+  // Una recarga asíncrona de perfil/Supabase no puede convertirlas en cero.
+  let gainStickyLocalSales=[];
+  const gainSaleIdentity=s=>{
+    const ids=[s?.cloudSaleId,s?.cloud_sale_id,s?.saleId,s?.sale_id,s?.id,
+      s?.receiptNumber,s?.receipt_number,s?.receiptNo,s?.ticketNumber,s?.ticket_number]
+      .map(v=>String(v??'').trim()).filter(Boolean);
+    if(ids.length)return 'id:'+ids[0];
+    return 'fallback:'+String(s?.date??s?.created_at??s?.createdAt??'')+'|'+String(Number(s?.total)||0);
+  };
+  const gainIsValidSale=s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
+    !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase());
+  function gainRememberLocalSales(list){
+    for(const sale of Array.isArray(list)?list:[]){
+      if(!gainIsValidSale(sale))continue;
+      const key=gainSaleIdentity(sale);
+      const at=gainStickyLocalSales.findIndex(x=>gainSaleIdentity(x)===key);
+      if(at>=0)gainStickyLocalSales[at]={...gainStickyLocalSales[at],...sale};
+      else gainStickyLocalSales.push({...sale});
+    }
+    return gainStickyLocalSales;
+  }
+  function gainStoredSales(){
+    try{
+      const key=(typeof K!=='undefined'&&K?.sales)?K.sales:'';
+      if(!key)return [];
+      const parsed=JSON.parse(localStorage.getItem(key)||'[]');
+      return Array.isArray(parsed)?parsed.filter(gainIsValidSale):[];
+    }catch{return []}
+  }
+  function gainLocalSales(){
+    gainRememberLocalSales(gainStoredSales());
+    gainRememberLocalSales(gainValidSales());
+    return [...gainStickyLocalSales];
+  }
+  gainRememberLocalSales(gainStoredSales());
+  gainRememberLocalSales(gainValidSales());
+"""
+          if 'gainStickyLocalSales' not in s:
+              if old_valid not in s: raise SystemExit('gainValidSales anchor not found')
+              s=s.replace(old_valid,new_valid,1)
 
-  async function seedIfNeeded'''
-          s,n=product_re.subn(product_new,s,count=1)
-          if n!=1: raise SystemExit('productPayload block not found')
+          old_listener="""  window.addEventListener('varelia:sale-recorded',event=>{
+    const detail=event?.detail||{};
+    if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();
+  });
+"""
+          new_listener="""  window.addEventListener('varelia:sale-recorded',event=>{
+    const detail=event?.detail||{};
+    if(detail.sale)gainRememberLocalSales([detail.sale]);
+    if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();
+  });
+  window.addEventListener('varelia:checkout-confirmed',event=>{
+    if(event?.detail?.sale)gainRememberLocalSales([event.detail.sale]);
+  });
+"""
+          if old_listener in s:s=s.replace(old_listener,new_listener,1)
 
-          old_select="sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes,updated_at')"
-          new_select="sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes,sale_presentations,advanced_pricing,updated_at')"
-          if old_select not in s: raise SystemExit('product select not found')
-          s=s.replace(old_select,new_select,1)
+          old_local="const localSales=window.vareliaCurrentUserProfile?.role==='owner'?gainValidSales():[];"
+          if old_local in s:s=s.replace(old_local,"const localSales=gainLocalSales();",1)
+          elif "const localSales=gainLocalSales();" not in s:raise SystemExit('local sales anchor not found')
 
-          legacy_re=re.compile(r"      let advanced=readAdvancedPricing\(p\.specifications\);.*?      const pricingProxy=!!advanced\?\.proxy\|\|legacyPricingMarker;\n      return \{",re.S)
-          s,n=legacy_re.subn("      const advanced=normalizeAdvancedPricing(p.advanced_pricing||{});\n      const presentations=Array.isArray(p.sale_presentations)?p.sale_presentations:[];\n      return {",s,count=1)
-          if n!=1: raise SystemExit('legacy pricing mapping block not found')
+          old_marker="if(marker!==panel.dataset.gainHistoryMarker){"
+          if old_marker in s:s=s.replace(old_marker,"if(selected.known&&marker!==panel.dataset.gainHistoryMarker){",1)
 
-          old_map="""      buyPrice:pricingProxy?Math.max(0,Number(advanced.baseBuyPrice)||0):(Number(p.buy_price)||0),
-      sellPrice:pricingProxy?Math.max(0,Number(advanced.baseSellPrice)||0):(Number(p.sell_price)||0),
-      stock:stock,
-      unit:String(p.unit||'Unidad'),
-      reorderLevel:Number(p.reorder_level)||0,
-      description:String(p.description||''),
-      specifications:stripAdvancedPricing(String(p.specifications||'')),
-      advancedPricing:pricingProxy?normalizeAdvancedPricing(advanced):null,
-      variants:String(p.variants||''),
-      characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
-      variantCombinations:Array.isArray(p.variant_combinations)?p.variant_combinations:[],
-      image:String(p.image_data||''),
-      medicine:pricingProxy?false:!!p.medicine,
-      laboratory:String(p.laboratory||''),
-      medicinePresentation:String(p.medicine_presentation||''),
-      batch:String(p.batch||''),
-      expiryDate:String(p.expiry_date||''),
-      blistersPerBox:pricingProxy?12:(Number(p.blisters_per_box)||1),
-      unitsPerBlister:pricingProxy?1:(Number(p.units_per_blister)||1),
-      boxPrice:pricingProxy?(Number(advanced.dozenPrice)||0):(Number(p.box_price)||0),
-      blisterPrice:pricingProxy?(Number(advanced.wholesalePrice)||0):(Number(p.blister_price)||0),
-      unitMedicinePrice:pricingProxy?(Number(advanced.baseSellPrice)||0):(Number(p.unit_medicine_price)||0),
-      medicineStockBoxes:pricingProxy?Math.floor(stock/12):(Number(p.medicine_stock_boxes)||0)"""
-          new_map="""      buyPrice:Number(p.buy_price)||0,
-      sellPrice:Number(p.sell_price)||0,
-      stock:stock,
-      unit:String(p.unit||'Unidad'),
-      reorderLevel:Number(p.reorder_level)||0,
-      description:String(p.description||''),
-      specifications:stripAdvancedPricing(String(p.specifications||'')),
-      advancedPricing:advanced,
-      salePresentations:presentations.map((x,i)=>({id:String(x?.id||('presentacion_'+(i+1))),name:String(x?.name||''),units:Number(x?.units)||0,price:Number(x?.price)||0,active:x?.active!==false})).filter(x=>x.name&&x.units>0&&x.price>0),
-      variants:String(p.variants||''),
-      characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
-      variantCombinations:Array.isArray(p.variant_combinations)?p.variant_combinations:[],
-      image:String(p.image_data||''),
-      medicine:!!p.medicine,
-      laboratory:String(p.laboratory||''),
-      medicinePresentation:String(p.medicine_presentation||''),
-      batch:String(p.batch||''),
-      expiryDate:String(p.expiry_date||''),
-      blistersPerBox:Number(p.blisters_per_box)||1,
-      unitsPerBlister:Number(p.units_per_blister)||1,
-      boxPrice:Number(p.box_price)||0,
-      blisterPrice:Number(p.blister_price)||0,
-      unitMedicinePrice:Number(p.unit_medicine_price)||0,
-      medicineStockBoxes:Number(p.medicine_stock_boxes)||0"""
-          if old_map not in s: raise SystemExit('legacy mapped fields not found')
-          s=s.replace(old_map,new_map,1)
+          old_active="""      let activePeriod=selectedHistory.mode==='day'?'day':
+        selectedHistory.mode==='today'?'today':
+        selectedHistory.mode==='month'?'month':
+        selectedHistory.mode==='all'?'all':'today';
+"""
+          new_active="""      let activePeriod=selectedHistory.known&&selectedHistory.mode==='day'?'day':
+        selectedHistory.mode==='today'?'today':
+        selectedHistory.mode==='month'?'month':
+        selectedHistory.known&&selectedHistory.mode==='all'?'all':'today';
+"""
+          if old_active in s:s=s.replace(old_active,new_active,1)
 
-          old_payload="""        const unit=String(item.advancedServerSaleUnit||item.medicineSaleUnit||item.sale_unit||item.saleUnit||'').trim();
-        payload.push({product_id:cloudId,qty:Math.max(0.001,Number(item.qty)||0),...(unit?{sale_unit:unit}:{})});"""
-          new_payload="""        const unit=String(item.medicineSaleUnit||item.sale_unit||item.saleUnit||'').trim();
-        const presentationId=String(item.salePresentationId||item.presentationId||'').trim();
-        const pricingMode=String(item.pricingMode||item.advancedPricingMode||'').trim();
-        payload.push({product_id:cloudId,qty:Math.max(0.001,Number(item.qty)||0),unit_price:Math.max(0,Number(item.price)||0),...(unit?{sale_unit:unit}:{}),...(presentationId?{presentation_id:presentationId}:{}),...(pricingMode?{pricing_mode:pricingMode}:{})});"""
-          if old_payload not in s: raise SystemExit('checkout payload block not found')
-          s=s.replace(old_payload,new_payload,1)
+          old_use="""      panel.__gainUseHistoryDate=(selected,date)=>{
+        if(selected.mode==='day'){
+"""
+          new_use="""      panel.__gainUseHistoryDate=(selected,date)=>{
+        if(!selected?.known)return;
+        if(selected.mode==='day'){
+"""
+          if old_use in s:s=s.replace(old_use,new_use,1)
 
-          old_sold="""        return {
-          ...item,
-          cloudProductId:String(remote.product_id||p?._cloudId||''),
-          cloudSaleItemId:String(remote.sale_item_id||'')
-        };"""
-          new_sold="""        return {
-          ...item,
-          price:Number(remote.unit_price??item.price)||0,
-          saleUnit:String(remote.sale_unit||item.saleUnit||item.unit||''),
-          stockQty:Number(remote.stock_qty??item.stockQty??0)||0,
-          salePresentationId:String(remote.presentation_id||item.salePresentationId||''),
-          salePresentationUnits:Number(remote.presentation_units??item.salePresentationUnits??0)||0,
-          cloudProductId:String(remote.product_id||p?._cloudId||''),
-          cloudSaleItemId:String(remote.sale_item_id||'')
-        };"""
-          if old_sold not in s: raise SystemExit('sold item block not found')
-          s=s.replace(old_sold,new_sold,1)
-          c.write_text(s,encoding='utf-8')
+          p.write_text(s,encoding='utf-8')
 
-          idx=Path('index.html');h=idx.read_text(encoding='utf-8')
-          h=h.replace("const BUILD='20261020-ADVANCED-PRICING-V16'","const BUILD='20261021-COMMERCIAL-PRESENTATIONS-V18'",1)
-          h=h.replace('central-stock-sync.js?v=20261020-advanced-pricing-proxy-v16','central-stock-sync.js?v=20261021-commercial-presentations-v18',1)
-          old='<script src="advanced-pricing.js?v=20261020-v16"></script>\n<script src="advanced-pricing-flow-fix.js?v=20261021-v17"></script>'
-          new='<script src="commercial-presentations.js?v=20261021-v18"></script>'
-          if old not in h: raise SystemExit('old pricing script tags not found')
-          h=h.replace(old,new,1);idx.write_text(h,encoding='utf-8')
-          PY
+          idx=Path('index.html')
+          h=idx.read_text(encoding='utf-8')
+          if 'reports-profit.js?v=20261021-profit-live-v26' in h:
+              h=h.replace('reports-profit.js?v=20261021-profit-live-v26','reports-profit.js?v=20261021-profit-sticky-v28',1)
+          elif 'reports-profit.js?v=20261021-profit-sticky-v28' not in h:
+              raise SystemExit('reports cache anchor not found')
+          if "const BUILD='20261021-PROFIT-PRESENTATIONS-V23'" in h:
+              h=h.replace("const BUILD='20261021-PROFIT-PRESENTATIONS-V23'","const BUILD='20261021-GAIN-STICKY-V28'",1)
+          idx.write_text(h,encoding='utf-8')
+
       - name: Validate
-        run: |
-          node --check commercial-presentations.js
-          node --check central-stock-sync.js
-          node scripts/stability-audit.mjs
-      - name: Commit
+        run: node --check reports-profit.js
+
+      - name: Commit direct fix
         run: |
           git config user.name "Varelia Stability Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add commercial-presentations.js central-stock-sync.js index.html
+          git add reports-profit.js index.html
           git diff --cached --quiet && exit 0
-          git commit -m "Integrate commercial pack and wholesale sales"
-          git push origin main
+          git commit -m "Keep Ganancias sale stable during cloud refresh"
+          git push
