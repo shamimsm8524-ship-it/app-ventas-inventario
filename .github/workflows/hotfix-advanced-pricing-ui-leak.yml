@@ -1,0 +1,98 @@
+name: Fix advanced pricing medicine UI leak
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hotfix-advanced-pricing-ui-leak.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Keep advanced pricing separate from medicine UI
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # advanced-pricing.js
+          p=Path('advanced-pricing.js')
+          s=p.read_text(encoding='utf-8')
+          replacements=[
+            ("  const isMedicine=p=>!!p?.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p?.category||'').trim());",
+             "  // Un producto normal con precios por cantidad puede usar internamente el motor remoto de presentaciones,\n  // pero nunca debe comportarse visualmente como medicamento.\n  const isMedicine=p=>(!!p?.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p?.category||'').trim()))&&!getConfig(p);"),
+            ("      const prepared={...p,__advancedPrepared:true,selectionLabel:r.label||((r.mode==='dozen')?'Docena':(r.wholesale?'Mayorista':'')),sellPrice:r.price,medicineMultiplier:r.multiplier,medicineSaleUnit:r.channel,unit:r.mode==='dozen'?'Docena':p.unit};",
+             "      const prepared={...p,__advancedPrepared:true,__medicineSelected:true,medicine:false,selectionLabel:r.label||((r.mode==='dozen')?'Docena':(r.wholesale?'Mayorista':'')),sellPrice:r.price,medicineMultiplier:r.multiplier,advancedServerSaleUnit:r.channel,medicineSaleUnit:'',unit:r.mode==='dozen'?'Docena':p.unit};"),
+            ("      const mode=(item.advancedPricingMode==='dozen'||String(item.medicineSaleUnit)==='caja'||String(item.unit).toLowerCase()==='docena')?'dozen':'unit';",
+             "      const mode=(item.advancedPricingMode==='dozen'||String(item.advancedServerSaleUnit||item.medicineSaleUnit)==='caja'||String(item.unit).toLowerCase()==='docena')?'dozen':'unit';"),
+            ("      if(Number(item.price)!==Number(r.price)||item.medicineSaleUnit!==r.channel||Number(item.medicineMultiplier||1)!==r.multiplier||item.selectionLabel!==label||item.name!==nextName){",
+             "      if(Number(item.price)!==Number(r.price)||item.advancedServerSaleUnit!==r.channel||String(item.medicineSaleUnit||'')!==''||Number(item.medicineMultiplier||1)!==r.multiplier||item.selectionLabel!==label||item.name!==nextName){"),
+            ("        item.price=r.price;item.originalPrice=r.basePrice;item.discountLabel=r.promoLabel||'';item.medicineSaleUnit=r.channel;item.medicineMultiplier=r.multiplier;item.selectionLabel=label;item.name=nextName;item.unit=mode==='dozen'?'Docena':p.unit;item.baseUnit=p.unit||'Unidad';item.advancedPricingMode=mode;item.advancedPricingWholesale=!!r.wholesale;changed=true;",
+             "        item.price=r.price;item.originalPrice=r.basePrice;item.discountLabel=r.promoLabel||'';item.advancedServerSaleUnit=r.channel;item.medicineSaleUnit='';item.medicine=false;item.medicineMultiplier=r.multiplier;item.selectionLabel=label;item.name=nextName;item.unit=mode==='dozen'?'Docena':p.unit;item.baseUnit=p.unit||'Unidad';item.advancedPricingMode=mode;item.advancedPricingWholesale=!!r.wholesale;changed=true;")
+          ]
+          for old,new in replacements:
+              if old not in s:
+                  raise SystemExit('advanced-pricing anchor not found: '+old[:90])
+              s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          # central-stock-sync.js: sale_unit remains an internal server detail only.
+          p=Path('central-stock-sync.js')
+          s=p.read_text(encoding='utf-8')
+          old="        const unit=String(item.medicineSaleUnit||item.sale_unit||item.saleUnit||'').trim();"
+          new="        const unit=String(item.advancedServerSaleUnit||item.medicineSaleUnit||item.sale_unit||item.saleUnit||'').trim();"
+          if old not in s: raise SystemExit('central checkout unit anchor not found')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+
+          # index.html: final client-side guard + cache bust.
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          old="    const med=!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim());"
+          new="    const med=(!!p.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p.category||'').trim()))&&!(p.advancedPricing&&(p.advancedPricing.dozenEnabled||p.advancedPricing.wholesaleEnabled||p.advancedPricing.promoEnabled));"
+          if old not in s: raise SystemExit('product action medicine guard not found')
+          s=s.replace(old,new,1)
+          old="  const isMedicine=!!p.medicine||medicineCategory;"
+          new="  const isMedicine=(!!p.medicine||medicineCategory)&&!(p.advancedPricing&&(p.advancedPricing.dozenEnabled||p.advancedPricing.wholesaleEnabled||p.advancedPricing.promoEnabled));"
+          if old not in s: raise SystemExit('addToCart medicine guard not found')
+          s=s.replace(old,new,1)
+          if '20261020-ADVANCED-PRICING-V14' not in s: raise SystemExit('build V14 marker not found')
+          s=s.replace('20261020-ADVANCED-PRICING-V14','20261020-ADVANCED-PRICING-V15',1)
+          if 'advanced-pricing.js?v=20261020-v14' not in s: raise SystemExit('advanced pricing script v14 marker not found')
+          s=s.replace('advanced-pricing.js?v=20261020-v14','advanced-pricing.js?v=20261020-v15',1)
+          p.write_text(s,encoding='utf-8')
+
+          # Public catalog must never publish a normal advanced-pricing product as medicine.
+          p=Path('public-catalog.js')
+          s=p.read_text(encoding='utf-8')
+          old="medicine:!!p.medicine,blistersPerBox:"
+          new="medicine:!!p.medicine&&!p.advancedPricing,blistersPerBox:"
+          if old not in s: raise SystemExit('public catalog medicine payload anchor not found')
+          s=s.replace(old,new,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Validate JavaScript syntax
+        run: |
+          node --check advanced-pricing.js
+          node --check central-stock-sync.js
+          node --check public-catalog.js
+
+      - name: Run stability audit
+        run: node scripts/stability-audit.mjs
+
+      - name: Commit fix
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add advanced-pricing.js central-stock-sync.js index.html public-catalog.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Keep advanced pricing out of medicine UI"
+          git push origin main
