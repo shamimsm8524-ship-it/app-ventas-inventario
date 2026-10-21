@@ -706,7 +706,22 @@
           receiptSale.changeGiven=Number(p.change)||receiptSale.changeGiven||0;
           receiptSale.paymentBreakdown=p.breakdown||receiptSale.paymentBreakdown||{};
           window.__vareliaLastReceipt=receiptSale;
-          // Si el puente central está instalado, esperar su confirmación real.
+
+// Respaldo definitivo: si el cobro sí terminó pero por alguna razón el
+// módulo principal no abrió su modal, mostrar el comprobante de respaldo.
+// No se muestra mientras el carrito siga intacto para evitar enseñar un
+// ticket de una venta que todavía no fue confirmada.
+const ensureReceiptVisible=()=>{
+  const mainOpen=!!document.getElementById('vreceiptOverlay')?.classList.contains('show');
+  const backupOpen=!!document.getElementById('vareliaEmergencyReceipt');
+  if(mainOpen||backupOpen)return;
+  let recorded=false,cartCleared=false;
+  try{recorded=Array.isArray(sales)&&sales.length>before}catch{}
+  try{cartCleared=Array.isArray(cart)&&cart.length===0}catch{}
+  if(recorded||cartCleared)showEmergencyReceipt(receiptSale);
+};
+[350,800,1600,3000,5000].forEach(ms=>setTimeout(ensureReceiptVisible,ms));
+// Si el puente central está instalado, esperar su confirmación real.
           // En el flujo local antiguo, abrir el comprobante de respaldo aquí.
           if(legacyCheckout.dataset.centralStock!=='1')showEmergencyReceipt(receiptSale);
           setTimeout(()=>{
