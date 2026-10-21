@@ -1,4 +1,4 @@
-name: Fix Ganancias stability v28
+name: Fix Ganancias sale-type logic v29
 
 on:
   push:
@@ -16,140 +16,171 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Patch Ganancias directly
+      - name: Patch sale-type cost logic
         shell: python
         run: |
           from pathlib import Path
 
+          # 1) Persist the historical cost returned by the server in the local sale.
+          # The server already calculates the right cost for Six Pack, kg, units,
+          # medicine presentations, wholesale, etc. Local history must not throw it away.
+          p=Path('central-stock-sync.js')
+          s=p.read_text(encoding='utf-8')
+          old="""          price:Number(remote.unit_price??item.price)||0,
+          saleUnit:String(remote.sale_unit||item.saleUnit||item.unit||''),
+"""
+          new="""          price:Number(remote.unit_price??item.price)||0,
+          buyPriceAtSale:(remote.buy_price_at_sale!=null&&remote.buy_price_at_sale!==''&&Number.isFinite(Number(remote.buy_price_at_sale)))
+            ?Number(remote.buy_price_at_sale)
+            :(item.buyPriceAtSale??item.buy_price_at_sale??item.costAtSale),
+          saleUnit:String(remote.sale_unit||item.saleUnit||item.unit||''),
+"""
+          if old in s:
+            s=s.replace(old,new,1)
+          elif 'buyPriceAtSale:(remote.buy_price_at_sale' not in s:
+            raise SystemExit('central-stock-sync cost anchor not found')
+          p.write_text(s,encoding='utf-8')
+
+          # 2) Reports: each sale type keeps its own quantity/cost logic.
           p=Path('reports-profit.js')
           s=p.read_text(encoding='utf-8')
-
-          old_valid="""  function gainValidSales(){
-    return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
-      !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
-  }
+          old_block="""    const title=name||String(match?.name||'Producto');
+    const rawUnit=String(item.sale_unit??item.saleUnit??item.unit??match?.unit??'Unidad').trim().toLowerCase();
+    const weighted=['kg','kilo','kilos','kilogramo','kilogramos','g','gr','gramo','gramos'].includes(rawUnit);
+    const unit=weighted?'kg':(rawUnit||'unidad');
+    const saleQty=Number(item.qty??item.quantity??1);
+    const stockQty=item.stock_qty??item.stockQty;
+    const stockNumber=stockQty==null||stockQty===''?NaN:Number(stockQty);
+    const presentationId=String(item.sale_presentation_id??item.salePresentationId??item.presentation_id??item.presentationId??'').trim();
+    const presentationUnits=Number(item.sale_presentation_units??item.salePresentationUnits??item.presentation_units??item.presentationUnits??0)||0;
+    const medicinePresentation=['caja','cajas','box','boxes','blister','blisters','blíster','blísteres','blisteres','pastilla','pastillas','pill','pills','tableta','tabletas'].includes(rawUnit);
+    const presentationSale=!!presentationId||presentationUnits>1||medicinePresentation;
+    // qty is the commercial quantity sold; stock_qty is inventory depletion.
+    // Example: 1 Six Pack sold => qty 1, stock_qty 6.
+    const qty=presentationSale?saleQty:(Number.isFinite(stockNumber)?stockNumber:((rawUnit==='g'||rawUnit==='gr'||rawUnit==='gramo'||rawUnit==='gramos')?saleQty/1000:saleQty));
+    // buy_price_at_sale is the cost of the selected commercial presentation.
+    const costQty=presentationSale?saleQty:qty;
+    const rawBuy=item.buyPriceAtSale??item.buy_price_at_sale??item.buyPrice??item.buy_price??item.costAtSale??item.cost;
+    const saved=rawBuy!=null&&rawBuy!==''&&Number.isFinite(Number(rawBuy));
+    const current=match?.buyPrice??match?.buy_price;
+    const buy=saved?Number(rawBuy):(current!=null&&current!==''&&Number.isFinite(Number(current))?Number(current):NaN);
+    const rawPrice=item.unit_price??item.unitPrice??item.sellPrice??item.price??match?.sellPrice??match?.sell_price;
+    const sell=rawPrice!=null&&rawPrice!==''&&Number.isFinite(Number(rawPrice))?Number(rawPrice):NaN;
+    const rawSubtotal=item.subtotal??item.lineTotal??item.line_total;
+    const subtotal=rawSubtotal!=null&&rawSubtotal!==''&&Number.isFinite(Number(rawSubtotal))?Number(rawSubtotal):saleQty*sell;
+    return {id:id||title.toLowerCase(),name:title,unit,qty,costQty,saleQty,buy,sell,subtotal,estimated:!saved,presentationId,presentationUnits,presentationSale};
 """
-          new_valid="""  function gainValidSales(){
-    return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
-      !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
-  }
-  // Ganancias debe conservar cualquier venta válida que ya vio en esta sesión.
-  // La carga asíncrona del perfil o de Supabase nunca debe convertir una venta
-  // visible en S/ 0.00 mientras la misma sesión sigue abierta.
-  let gainStickyLocalSales=[];
-  const gainSaleIdentity=s=>{
-    const ids=[s?.cloudSaleId,s?.cloud_sale_id,s?.saleId,s?.sale_id,s?.id,
-      s?.receiptNumber,s?.receipt_number,s?.receiptNo,s?.ticketNumber,s?.ticket_number]
-      .map(v=>String(v??'').trim()).filter(Boolean);
-    if(ids.length)return 'id:'+ids[0];
-    return 'fallback:'+String(s?.date??s?.created_at??s?.createdAt??'')+'|'+String(Number(s?.total)||0);
-  };
-  const gainIsValidSale=s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
-    !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase());
-  function gainRememberLocalSales(list){
-    for(const sale of Array.isArray(list)?list:[]){
-      if(!gainIsValidSale(sale))continue;
-      const key=gainSaleIdentity(sale);
-      const at=gainStickyLocalSales.findIndex(x=>gainSaleIdentity(x)===key);
-      if(at>=0)gainStickyLocalSales[at]={...gainStickyLocalSales[at],...sale};
-      else gainStickyLocalSales.push({...sale});
+          new_block="""    const title=name||String(match?.name||'Producto');
+    const normalizeUnit=value=>String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');
+    const rawUnit=normalizeUnit(item.sale_unit??item.saleUnit??item.unit??match?.unit??'Unidad');
+    const productUnit=normalizeUnit(match?.unit??item.product_unit??item.productUnit??rawUnit||'unidad');
+    const kgUnits=['kg','kilo','kilos','kilogramo','kilogramos'];
+    const gramUnits=['g','gr','gramo','gramos'];
+    const rawIsKg=kgUnits.includes(rawUnit),rawIsGram=gramUnits.includes(rawUnit);
+    const productIsKg=kgUnits.includes(productUnit),productIsGram=gramUnits.includes(productUnit);
+    // Mostrar la unidad real del inventario. Si el producto vive en kg y se vendió
+    // en gramos, stock_qty ya viene convertido a kg por el servidor.
+    const unit=productIsKg?'kg':productIsGram?'g':(rawIsKg?'kg':rawIsGram?'g':(rawUnit||'unidad'));
+    const saleQty=Number(item.qty??item.quantity??1);
+    const stockQty=item.stock_qty??item.stockQty;
+    const stockNumber=stockQty==null||stockQty===''?NaN:Number(stockQty);
+    const presentationId=String(item.sale_presentation_id??item.salePresentationId??item.presentation_id??item.presentationId??'').trim();
+    const presentationUnits=Number(item.sale_presentation_units??item.salePresentationUnits??item.presentation_units??item.presentationUnits??0)||0;
+    const medicinePresentation=['caja','cajas','box','boxes','blister','blisters','blisteres','pastilla','pastillas','pill','pills','tableta','tabletas'].includes(rawUnit);
+    const presentationSale=!!presentationId||presentationUnits>1||medicinePresentation;
+    // qty es la cantidad que debe ver el usuario en Ganancias:
+    // Six Pack => packs vendidos; Caja/Blíster => presentaciones vendidas;
+    // kg => kg reales que salieron; unidad => unidades reales.
+    let qty;
+    if(presentationSale)qty=saleQty;
+    else if(Number.isFinite(stockNumber))qty=stockNumber;
+    else if(rawIsGram&&productIsKg)qty=saleQty/1000;
+    else qty=saleQty;
+
+    const rawBuy=item.buyPriceAtSale??item.buy_price_at_sale??item.medicineBuyPriceAtSale??item.medicine_buy_price_at_sale??item.buyPrice??item.buy_price??item.costAtSale??item.cost;
+    const saved=rawBuy!=null&&rawBuy!==''&&Number.isFinite(Number(rawBuy));
+    const currentRaw=match?.buyPrice??match?.buy_price;
+    const current=currentRaw!=null&&currentRaw!==''&&Number.isFinite(Number(currentRaw))?Number(currentRaw):NaN;
+    let buy=saved?Number(rawBuy):NaN;
+    let costQty=presentationSale?saleQty:qty;
+
+    if(!saved){
+      if(medicinePresentation){
+        // Medicamentos: cada presentación conserva su propio costo configurado.
+        const medCost=rawUnit==='caja'||rawUnit==='cajas'||rawUnit==='box'||rawUnit==='boxes'
+          ?Number(match?.medicineBuyBoxPrice??match?.medicine_buy_box_price)
+          :(rawUnit==='blister'||rawUnit==='blisters'||rawUnit==='blisteres'
+            ?Number(match?.medicineBuyBlisterPrice??match?.medicine_buy_blister_price)
+            :Number(match?.medicineBuyUnitPrice??match?.medicine_buy_unit_price));
+        if(Number.isFinite(medCost)&&medCost>=0)buy=medCost;
+        else if(Number.isFinite(current))buy=current;
+        costQty=saleQty;
+      }else if(presentationSale){
+        // Presentaciones comerciales: el costo actual del producto es por unidad
+        // de inventario. Convertirlo al costo de UNA presentación completa.
+        let units=presentationUnits;
+        if(!(units>0)&&Number.isFinite(stockNumber)&&Number.isFinite(saleQty)&&saleQty>0)units=stockNumber/saleQty;
+        if(Number.isFinite(current)&&units>0)buy=current*units;
+        else if(Number.isFinite(current))buy=current;
+        costQty=saleQty;
+      }else{
+        // Venta normal / peso: qty ya está expresado en la unidad del inventario.
+        buy=current;
+        costQty=qty;
+      }
     }
-    return gainStickyLocalSales;
-  }
-  function gainStoredSales(){
-    try{
-      const key=(typeof K!=='undefined'&&K?.sales)?K.sales:'';
-      if(!key)return [];
-      const parsed=JSON.parse(localStorage.getItem(key)||'[]');
-      return Array.isArray(parsed)?parsed.filter(gainIsValidSale):[];
-    }catch{return []}
-  }
-  function gainLocalSales(){
-    gainRememberLocalSales(gainStoredSales());
-    gainRememberLocalSales(gainValidSales());
-    return [...gainStickyLocalSales];
-  }
-  gainRememberLocalSales(gainStoredSales());
-  gainRememberLocalSales(gainValidSales());
-"""
-          if 'gainStickyLocalSales' not in s:
-            if old_valid not in s: raise SystemExit('gainValidSales anchor not found')
-            s=s.replace(old_valid,new_valid,1)
 
-          old_listener="""  window.addEventListener('varelia:sale-recorded',event=>{
-    const detail=event?.detail||{};
-    if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();
-  });
+    const rawPrice=item.unit_price??item.unitPrice??item.sellPrice??item.price??match?.sellPrice??match?.sell_price;
+    const sell=rawPrice!=null&&rawPrice!==''&&Number.isFinite(Number(rawPrice))?Number(rawPrice):NaN;
+    const rawSubtotal=item.subtotal??item.lineTotal??item.line_total;
+    const subtotal=rawSubtotal!=null&&rawSubtotal!==''&&Number.isFinite(Number(rawSubtotal))?Number(rawSubtotal):saleQty*sell;
+    return {id:id||title.toLowerCase(),name:title,unit,qty,costQty,saleQty,buy,sell,subtotal,estimated:!saved,presentationId,presentationUnits,presentationSale};
 """
-          new_listener="""  window.addEventListener('varelia:sale-recorded',event=>{
-    const detail=event?.detail||{};
-    if(detail.sale)gainRememberLocalSales([detail.sale]);
-    if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();
-  });
-  window.addEventListener('varelia:checkout-confirmed',event=>{
-    if(event?.detail?.sale)gainRememberLocalSales([event.detail.sale]);
-  });
-"""
-          if old_listener in s:
-            s=s.replace(old_listener,new_listener,1)
+          if old_block in s:
+            s=s.replace(old_block,new_block,1)
+          elif 'const productUnit=normalizeUnit(' not in s:
+            raise SystemExit('reports gainItemData anchor not found')
 
-          old_local="const localSales=window.vareliaCurrentUserProfile?.role==='owner'?gainValidSales():[];"
-          if old_local in s:
-            s=s.replace(old_local,"const localSales=gainLocalSales();",1)
-          elif "const localSales=gainLocalSales();" not in s:
-            raise SystemExit('local sales anchor not found')
-
-          old_marker="if(marker!==panel.dataset.gainHistoryMarker){"
-          if old_marker in s:
-            s=s.replace(old_marker,"if(selected.known&&marker!==panel.dataset.gainHistoryMarker){",1)
-
-          old_active="""      let activePeriod=selectedHistory.mode==='day'?'day':
-        selectedHistory.mode==='today'?'today':
-        selectedHistory.mode==='month'?'month':
-        selectedHistory.mode==='all'?'all':'today';
+          old_sell="""        if(Number.isFinite(it.sell)&&Number.isFinite(it.saleQty)&&it.saleQty>0){
+          p.sellWeighted+=it.sell*it.saleQty;p.sellQty+=it.saleQty;
+          p.minSell=Math.min(p.minSell,it.sell);p.maxSell=Math.max(p.maxSell,it.sell);
+        }else {p.missing++;missing++}
 """
-          new_active="""      let activePeriod=selectedHistory.known&&selectedHistory.mode==='day'?'day':
-        selectedHistory.mode==='today'?'today':
-        selectedHistory.mode==='month'?'month':
-        selectedHistory.known&&selectedHistory.mode==='all'?'all':'today';
+          new_sell="""        // Precio de venta mostrado en la misma unidad que Cantidad vendida.
+        // Ej.: 500 g vendidos de un producto en kg => S/ 12.00 por kg, no S/ 0.012 por g.
+        const reportSell=Number.isFinite(lineRevenue)&&quantity>0
+          ?lineRevenue/quantity
+          :(Number.isFinite(it.subtotal)&&quantity>0?it.subtotal/quantity:it.sell);
+        if(Number.isFinite(reportSell)&&quantity>0){
+          p.sellWeighted+=reportSell*quantity;p.sellQty+=quantity;
+          p.minSell=Math.min(p.minSell,reportSell);p.maxSell=Math.max(p.maxSell,reportSell);
+        }else {p.missing++;missing++}
 """
-          if old_active in s:
-            s=s.replace(old_active,new_active,1)
-
-          old_use="""      panel.__gainUseHistoryDate=(selected,date)=>{
-        if(selected.mode==='day'){
-"""
-          new_use="""      panel.__gainUseHistoryDate=(selected,date)=>{
-        if(!selected?.known)return;
-        if(selected.mode==='day'){
-"""
-          if old_use in s:
-            s=s.replace(old_use,new_use,1)
+          if old_sell in s:
+            s=s.replace(old_sell,new_sell,1)
+          elif 'const reportSell=Number.isFinite(lineRevenue)' not in s:
+            raise SystemExit('reports sell normalization anchor not found')
 
           p.write_text(s,encoding='utf-8')
 
+          # 3) Force a fresh web/APK script load.
           idx=Path('index.html')
           h=idx.read_text(encoding='utf-8')
-          old_cache='reports-profit.js?v=20261021-profit-live-v26'
-          new_cache='reports-profit.js?v=20261021-profit-sticky-v28'
-          if old_cache in h:
-            h=h.replace(old_cache,new_cache,1)
-          elif new_cache not in h:
-            raise SystemExit('reports-profit cache anchor not found')
-          old_build="const BUILD='20261021-PROFIT-PRESENTATIONS-V23'"
-          new_build="const BUILD='20261021-GAIN-STICKY-V28'"
-          if old_build in h:
-            h=h.replace(old_build,new_build,1)
+          h=h.replace('central-stock-sync.js?v=20261021-direct-cloud-checkout-v26','central-stock-sync.js?v=20261021-sale-cost-v29')
+          h=h.replace('reports-profit.js?v=20261021-profit-sticky-v28','reports-profit.js?v=20261021-sale-logic-v29')
+          h=h.replace("const BUILD='20261021-GAIN-STICKY-V28'","const BUILD='20261021-SALE-LOGIC-V29'")
           idx.write_text(h,encoding='utf-8')
 
       - name: Validate JavaScript
-        run: node --check reports-profit.js
+        run: |
+          node --check central-stock-sync.js
+          node --check reports-profit.js
 
-      - name: Commit direct fix
+      - name: Commit sale-type logic fix
         run: |
           git config user.name "Varelia Stability Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add reports-profit.js index.html
+          git add central-stock-sync.js reports-profit.js index.html
           git diff --cached --quiet && exit 0
-          git commit -m "Keep Ganancias sale stable during cloud refresh"
+          git commit -m "Calculate profit by each sale type correctly"
           git push
