@@ -1,1 +1,1 @@
-Trigger one-time Ganancias filter stabilization v27.
+Trigger Ganancias filter stabilization v27 after deploy workflow update.
