@@ -55,6 +55,7 @@ if(!central.includes('VARELIA_ADV_PRICING_V1'))errors.push('central-stock-sync.j
 if(index.includes("p.stock = Math.max(0, before - i.qty);"))errors.push('El checkout local aún descuenta presentaciones en vez de unidades reales de stock.');
 
 const profit=read('reports-profit.js');
+if(!profit.includes('presentationSale')||!profit.includes('costQty')||!profit.includes('sale_presentation_id')) errors.push('reports-profit.js no distingue presentación vendida de unidades de stock para calcular ganancias.'); // presentation profit accounting
 if(profit.includes('const qty=Number.isFinite(stockNumber)?stockNumber')){
   warnings.push('reports-profit.js aún contiene compatibilidad antigua con stock_qty; el corrector de medicamentos debe permanecer activo hasta migrarlo al núcleo.');
 }

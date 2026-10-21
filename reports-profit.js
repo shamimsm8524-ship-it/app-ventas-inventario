@@ -136,7 +136,15 @@
     const saleQty=Number(item.qty??item.quantity??1);
     const stockQty=item.stock_qty??item.stockQty;
     const stockNumber=stockQty==null||stockQty===''?NaN:Number(stockQty);
-    const qty=Number.isFinite(stockNumber)?stockNumber:((rawUnit==='g'||rawUnit==='gr'||rawUnit==='gramo'||rawUnit==='gramos')?saleQty/1000:saleQty);
+    const presentationId=String(item.sale_presentation_id??item.salePresentationId??item.presentation_id??item.presentationId??'').trim();
+    const presentationUnits=Number(item.sale_presentation_units??item.salePresentationUnits??item.presentation_units??item.presentationUnits??0)||0;
+    const medicinePresentation=['caja','cajas','box','boxes','blister','blisters','blíster','blísteres','blisteres','pastilla','pastillas','pill','pills','tableta','tabletas'].includes(rawUnit);
+    const presentationSale=!!presentationId||presentationUnits>1||medicinePresentation;
+    // qty is the commercial quantity sold; stock_qty is inventory depletion.
+    // Example: 1 Six Pack sold => qty 1, stock_qty 6.
+    const qty=presentationSale?saleQty:(Number.isFinite(stockNumber)?stockNumber:((rawUnit==='g'||rawUnit==='gr'||rawUnit==='gramo'||rawUnit==='gramos')?saleQty/1000:saleQty));
+    // buy_price_at_sale is the cost of the selected commercial presentation.
+    const costQty=presentationSale?saleQty:qty;
     const rawBuy=item.buyPriceAtSale??item.buy_price_at_sale??item.buyPrice??item.buy_price??item.costAtSale??item.cost;
     const saved=rawBuy!=null&&rawBuy!==''&&Number.isFinite(Number(rawBuy));
     const current=match?.buyPrice??match?.buy_price;
@@ -145,7 +153,7 @@
     const sell=rawPrice!=null&&rawPrice!==''&&Number.isFinite(Number(rawPrice))?Number(rawPrice):NaN;
     const rawSubtotal=item.subtotal??item.lineTotal??item.line_total;
     const subtotal=rawSubtotal!=null&&rawSubtotal!==''&&Number.isFinite(Number(rawSubtotal))?Number(rawSubtotal):saleQty*sell;
-    return {id:id||title.toLowerCase(),name:title,unit,qty,saleQty,buy,sell,subtotal,estimated:!saved};
+    return {id:id||title.toLowerCase(),name:title,unit,qty,costQty,saleQty,buy,sell,subtotal,estimated:!saved,presentationId,presentationUnits,presentationSale};
   }
   function gainProductSummary(salesList){
     const products=arr('products'),by=new Map();
@@ -170,11 +178,11 @@
         }
         if(Number.isFinite(lineRevenue))p.revenue+=lineRevenue;
         else {p.missing++;unallocated++}
-        if(!Number.isFinite(it.qty)||!Number.isFinite(it.buy)){missing++;p.missing++}
+        if(!Number.isFinite(it.costQty)||!Number.isFinite(it.buy)){missing++;p.missing++}
         else{
-          const lineCost=it.qty*it.buy;
+          const lineCost=it.costQty*it.buy;
           cost+=lineCost;p.cost+=lineCost;
-          p.buyWeighted+=lineCost;p.buyQty+=it.qty;
+          p.buyWeighted+=lineCost;p.buyQty+=it.costQty;
           p.minBuy=Math.min(p.minBuy,it.buy);p.maxBuy=Math.max(p.maxBuy,it.buy);
         }
         if(Number.isFinite(it.sell)&&Number.isFinite(it.saleQty)&&it.saleQty>0){
@@ -219,7 +227,7 @@
     const rows=await paginated('varelia_sales','id,total,created_at,created_by');
     // RLS applies cashier ownership on the server. Repeat the ownership filter defensively.
     const scopedRows=isCashier?rows.filter(s=>String(s.created_by)===String(user.id)):rows;
-    const details=await paginated('varelia_sale_items','sale_id,product_id,product_name,qty,stock_qty,sale_unit,unit_price,buy_price_at_sale');
+    const details=await paginated('varelia_sale_items','sale_id,product_id,product_name,qty,stock_qty,sale_unit,unit_price,buy_price_at_sale,sale_presentation_id,sale_presentation_units');
     const bySale=new Map();
     for(const item of details){
       const k=String(item.sale_id);
