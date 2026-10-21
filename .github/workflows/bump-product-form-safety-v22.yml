@@ -1,0 +1,36 @@
+name: Bump product form safety v22
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'product-form-safety.js'
+      - '.github/workflows/bump-product-form-safety-v22.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  bump-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bump cache key
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          s = p.read_text()
+          s2 = s.replace('product-form-safety.js?v=20261021-v19', 'product-form-safety.js?v=20261021-v22')
+          if s2 == s:
+              s2 = s.replace('product-form-safety.js?v=20261021-v21', 'product-form-safety.js?v=20261021-v22')
+          p.write_text(s2)
+          PY
+      - name: Commit cache bump
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Bump product form safety cache to v22"
+          git push
