@@ -1,0 +1,48 @@
+name: Fix advanced pricing selection flow
+
+on:
+  push:
+    paths:
+      - '.github/workflows/hotfix-advanced-pricing-flow-v17.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Install corrected pricing flow
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('index.html')
+          s=p.read_text(encoding='utf-8')
+          tag='<script src="advanced-pricing-flow-fix.js?v=20261021-v17"></script>'
+          if tag not in s:
+              anchor='<script src="advanced-pricing.js?v=20261020-v16"></script>'
+              if anchor not in s:
+                  raise SystemExit('advanced pricing v16 script tag not found')
+              s=s.replace(anchor, anchor+'\n'+tag, 1)
+          p.write_text(s,encoding='utf-8')
+          PY
+
+      - name: Validate JavaScript syntax
+        run: node --check advanced-pricing-flow-fix.js
+
+      - name: Run stability audit
+        run: node scripts/stability-audit.mjs
+
+      - name: Commit corrected flow
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Load corrected pricing selection flow"
+          git push origin main
