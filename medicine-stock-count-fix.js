@@ -12,7 +12,7 @@
   const text=id=>String(el(id)?.value||'').trim();
   const medicineCategory=()=>/^(pastillas?|medicinas?|medicamentos?)$/i.test(text('productCategory'));
   const isMedicineVisible=()=>{const box=el('vMedicineFields');return !!box&&box.style.display!=='none'};
-  const isMedicine=()=>isMedicineVisible()||!!el('vMedicineToggle')?.checked||medicineCategory();
+  const isMedicine=()=>!!el('vMedicineToggle')?.checked||medicineCategory();
 
   function productList(){
     try{if(typeof products!=='undefined'&&Array.isArray(products))return products}catch{}
