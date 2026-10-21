@@ -1,0 +1,45 @@
+name: Commercial price breakdown v23
+on:
+  push:
+    paths:
+      - '.github/workflows/ui-commercial-price-breakdown-v23.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show unit and presentation prices separately
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+
+          p = Path('advanced-pricing.js')
+          s = p.read_text()
+
+          pattern = re.compile(r"\$\('vCSQuote'\)\.innerHTML=`<div style=\\\"display:flex;justify-content:space-between\\\"><span>Precio aplicado</span><b>\$\{money\(r\.price\)\} / \$\{esc\(r\.label\.toLowerCase\(\)\)\}</b></div>\$\{o\.kind==='presentation'\?`<div class=\\\"meta\\\" style=\\\"margin-top:6px\\\">📦 1 \$\{esc\(r\.label\)\} = \$\{r\.units\} \$\{esc\(p\.unit\|\|'unidades'\)\}</div>`:''\}")
+          replacement = "$('vCSQuote').innerHTML=(o.kind==='presentation'?`<div style=\"display:flex;justify-content:space-between\"><span>Precio por unidad</span><b>${money(r.price/Math.max(1,r.units))}</b></div><div style=\"display:flex;justify-content:space-between;margin-top:6px\"><span>Precio por ${esc(r.label)}</span><b>${money(r.price)}</b></div><div class=\"meta\" style=\"margin-top:6px\">📦 1 ${esc(r.label)} = ${r.units} ${esc(p.unit||'unidades')}</div>`:`<div style=\"display:flex;justify-content:space-between\"><span>Precio por unidad</span><b>${money(r.price)}</b></div>`)+"
+
+          ns, n = pattern.subn(replacement, s, count=1)
+          if n != 1:
+            raise SystemExit(f'No se encontró el bloque de precio esperado: {n}')
+          p.write_text(ns)
+
+          h = Path('index.html')
+          x = h.read_text()
+          x2 = x.replace('advanced-pricing.js?v=20261021-direct-cart-v22','advanced-pricing.js?v=20261021-price-breakdown-v23')
+          if x2 == x:
+            raise SystemExit('No se encontró la versión anterior de advanced-pricing.js en index.html')
+          h.write_text(x2)
+      - name: Validate JavaScript
+        run: node --check advanced-pricing.js
+      - name: Commit hotfix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add advanced-pricing.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Show unit and Six Pack prices separately"
+          git push
