@@ -10,8 +10,10 @@
   const productList=()=>{try{return Array.isArray(products)?products:[]}catch{return Array.isArray(window.products)?window.products:[]}};
   const cartList=()=>{try{return Array.isArray(cart)?cart:[]}catch{return[]}};
   // Un producto normal con precios por cantidad puede usar internamente el motor remoto de presentaciones,
-  // pero nunca debe comportarse visualmente como medicamento.
-  const isMedicine=p=>(!!p?.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p?.category||'').trim()))&&!getConfig(p);
+  // pero nunca debe comportarse visualmente como medicamento. Algunas filas antiguas
+  // conservan el marcador remoto aunque advancedPricing todavía no haya sido reconstruido.
+  const isPricingProxyMarker=p=>/^varelia precios por cantidad$/i.test(String(p?.medicinePresentation||p?.medicine_presentation||'').trim());
+  const isMedicine=p=>(!!p?.medicine||/^(pastillas?|medicinas?|medicamentos?)$/i.test(String(p?.category||'').trim()))&&!getConfig(p)&&!isPricingProxyMarker(p);
   const isDiscrete=p=>!['kg','gramo','gramos','g','litro','litros','l','ml','mililitro','mililitros','metro','metros','m²','m2'].includes(String(p?.unit||'').trim().toLowerCase());
   const localDate=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')};
 
@@ -34,9 +36,25 @@
     };
   }
   function getConfig(p){
-    const c=normalizeConfig(p?.advancedPricing||{});
-    if(!(c.dozenEnabled||c.wholesaleEnabled||c.promoEnabled))return null;
-    return c;
+    let c=normalizeConfig(p?.advancedPricing||{});
+    if(c.dozenEnabled||c.wholesaleEnabled||c.promoEnabled)return c;
+    // Compatibilidad con filas que ya fueron guardadas usando el proxy remoto.
+    // El marcador es exclusivo de Precios por cantidad; no clasifica medicamentos reales.
+    if(!isPricingProxyMarker(p))return null;
+    const regular=Math.max(0,Number(p?.unitMedicinePrice||p?.sellPrice)||0);
+    const wholesale=Math.max(0,Number(p?.blisterPrice)||0);
+    const dozen=Math.max(0,Number(p?.boxPrice)||0);
+    const hasWholesale=wholesale>0&&regular>0&&Math.abs(wholesale-regular)>0.009;
+    c=normalizeConfig({
+      proxy:true,
+      dozenEnabled:dozen>0,
+      dozenPrice:dozen,
+      wholesaleEnabled:hasWholesale,
+      wholesaleMinQty:12,
+      wholesalePrice:hasWholesale?wholesale:0,
+      promoEnabled:false
+    });
+    return (c.dozenEnabled||c.wholesaleEnabled||c.promoEnabled)?c:null;
   }
   function promoActive(c,date=localDate()){
     if(!c?.promoEnabled||!(Number(c.promoValue)>0))return false;

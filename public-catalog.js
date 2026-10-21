@@ -111,7 +111,7 @@
     }
     async function payload(){
       const available=products;
-      return Promise.all(available.map(async p=>({id:String(p.id||''),name:String(p.name||''),category:String(p.category||''),sellPrice:+p.sellPrice||0,stock:+p.stock||0,unit:String(p.unit||'Unidad'),description:String(p.description||''),specifications:specFor(p),characteristics:Array.isArray(p.characteristics)?p.characteristics:[],variantCombinations:Array.isArray(p.variantCombinations)?p.variantCombinations:[],medicine:!!p.medicine&&!p.advancedPricing,blistersPerBox:+p.blistersPerBox||0,unitsPerBlister:+p.unitsPerBlister||0,boxPrice:+p.boxPrice||0,blisterPrice:+p.blisterPrice||0,unitMedicinePrice:+p.unitMedicinePrice||0,image:await compressImage(p.image||'')})));
+      return Promise.all(available.map(async p=>({id:String(p.id||''),name:String(p.name||''),category:String(p.category||''),sellPrice:+p.sellPrice||0,stock:+p.stock||0,unit:String(p.unit||'Unidad'),description:String(p.description||''),specifications:specFor(p),characteristics:Array.isArray(p.characteristics)?p.characteristics:[],variantCombinations:Array.isArray(p.variantCombinations)?p.variantCombinations:[],medicine:!!p.medicine&&!p.advancedPricing&&!/^varelia precios por cantidad$/i.test(String(p.medicinePresentation||p.medicine_presentation||'').trim()),blistersPerBox:+p.blistersPerBox||0,unitsPerBlister:+p.unitsPerBlister||0,boxPrice:+p.boxPrice||0,blisterPrice:+p.blisterPrice||0,unitMedicinePrice:+p.unitMedicinePrice||0,image:await compressImage(p.image||'')})));
     }
     async function waitSb(){for(let i=0;i<60&&!window.vareliaSupabase;i++)await new Promise(r=>setTimeout(r,120));return window.vareliaSupabase}
     async function syncNow(force=false){

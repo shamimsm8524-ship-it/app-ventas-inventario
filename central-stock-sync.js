@@ -230,8 +230,27 @@
       const key=String(p.id||'');
       const pending=lastProductStockWrite.get(key);
       const stock=(pending&&Date.now()-pending.at<5000)?pending.stock:effectiveRemoteStock;
-      const advanced=readAdvancedPricing(p.specifications);
-      const pricingProxy=!!advanced?.proxy;
+      let advanced=readAdvancedPricing(p.specifications);
+      const legacyPricingMarker=/^varelia precios por cantidad$/i.test(String(p.medicine_presentation||'').trim());
+      if(!advanced&&legacyPricingMarker){
+        const regular=Math.max(0,Number(p.unit_medicine_price||p.sell_price)||0);
+        const wholesale=Math.max(0,Number(p.blister_price)||0);
+        const dozen=Math.max(0,Number(p.box_price)||0);
+        const hasWholesale=wholesale>0&&regular>0&&Math.abs(wholesale-regular)>0.009;
+        advanced=normalizeAdvancedPricing({
+          proxy:true,
+          dozenEnabled:dozen>0,
+          dozenPrice:dozen,
+          wholesaleEnabled:hasWholesale,
+          wholesaleMinQty:12,
+          wholesalePrice:hasWholesale?wholesale:0,
+          promoEnabled:false,
+          baseSellPrice:regular,
+          baseBuyPrice:Math.max(0,Number(p.buy_price)||0)/12,
+          baseUnit:String(p.unit||'Unidad')
+        });
+      }
+      const pricingProxy=!!advanced?.proxy||legacyPricingMarker;
       return {
       id:String(p.legacy_id||p.id),
       _cloudId:String(p.id),
