@@ -18,121 +18,74 @@ jobs:
           fetch-depth: 0
 
       - name: Patch Ganancias direct source
-        shell: python
+        shell: bash
         run: |
+          python3 - <<'PY'
           from pathlib import Path
-
           p=Path('reports-profit.js')
           s=p.read_text(encoding='utf-8')
-
-          old_valid="""  function gainValidSales(){
-    return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
-      !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
-  }
-"""
-          new_valid="""  function gainValidSales(){
-    return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
-      !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));
-  }
-  // Conservar las ventas que Ganancias ya vio durante esta sesión.
-  // Una recarga asíncrona de perfil/Supabase no puede convertirlas en cero.
-  let gainStickyLocalSales=[];
-  const gainSaleIdentity=s=>{
-    const ids=[s?.cloudSaleId,s?.cloud_sale_id,s?.saleId,s?.sale_id,s?.id,
-      s?.receiptNumber,s?.receipt_number,s?.receiptNo,s?.ticketNumber,s?.ticket_number]
-      .map(v=>String(v??'').trim()).filter(Boolean);
-    if(ids.length)return 'id:'+ids[0];
-    return 'fallback:'+String(s?.date??s?.created_at??s?.createdAt??'')+'|'+String(Number(s?.total)||0);
-  };
-  const gainIsValidSale=s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&
-    !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase());
-  function gainRememberLocalSales(list){
-    for(const sale of Array.isArray(list)?list:[]){
-      if(!gainIsValidSale(sale))continue;
-      const key=gainSaleIdentity(sale);
-      const at=gainStickyLocalSales.findIndex(x=>gainSaleIdentity(x)===key);
-      if(at>=0)gainStickyLocalSales[at]={...gainStickyLocalSales[at],...sale};
-      else gainStickyLocalSales.push({...sale});
-    }
-    return gainStickyLocalSales;
-  }
-  function gainStoredSales(){
-    try{
-      const key=(typeof K!=='undefined'&&K?.sales)?K.sales:'';
-      if(!key)return [];
-      const parsed=JSON.parse(localStorage.getItem(key)||'[]');
-      return Array.isArray(parsed)?parsed.filter(gainIsValidSale):[];
-    }catch{return []}
-  }
-  function gainLocalSales(){
-    gainRememberLocalSales(gainStoredSales());
-    gainRememberLocalSales(gainValidSales());
-    return [...gainStickyLocalSales];
-  }
-  gainRememberLocalSales(gainStoredSales());
-  gainRememberLocalSales(gainValidSales());
-"""
           if 'gainStickyLocalSales' not in s:
-              if old_valid not in s: raise SystemExit('gainValidSales anchor not found')
-              s=s.replace(old_valid,new_valid,1)
-
-          old_listener="""  window.addEventListener('varelia:sale-recorded',event=>{
-    const detail=event?.detail||{};
-    if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();
-  });
-"""
-          new_listener="""  window.addEventListener('varelia:sale-recorded',event=>{
-    const detail=event?.detail||{};
-    if(detail.sale)gainRememberLocalSales([detail.sale]);
-    if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();
-  });
-  window.addEventListener('varelia:checkout-confirmed',event=>{
-    if(event?.detail?.sale)gainRememberLocalSales([event.detail.sale]);
-  });
-"""
+              anchor="  function gainValidSales(){\n    return arr('sales').filter(s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&\n      !['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase()));\n  }\n"
+              if anchor not in s: raise SystemExit('gainValidSales anchor not found')
+              extra=(
+                  "  // Conservar las ventas que Ganancias ya vio durante esta sesión.\n"
+                  "  // Una recarga asíncrona de perfil/Supabase no puede convertirlas en cero.\n"
+                  "  let gainStickyLocalSales=[];\n"
+                  "  const gainSaleIdentity=s=>{\n"
+                  "    const ids=[s?.cloudSaleId,s?.cloud_sale_id,s?.saleId,s?.sale_id,s?.id,s?.receiptNumber,s?.receipt_number,s?.receiptNo,s?.ticketNumber,s?.ticket_number].map(v=>String(v??'').trim()).filter(Boolean);\n"
+                  "    if(ids.length)return 'id:'+ids[0];\n"
+                  "    return 'fallback:'+String(s?.date??s?.created_at??s?.createdAt??'')+'|'+String(Number(s?.total)||0);\n"
+                  "  };\n"
+                  "  const gainIsValidSale=s=>s&&!s.cancelled&&!s.canceled&&!s.voided&&!['cancelada','anulada','cancelled','voided'].includes(String(s.status||s.state||'').toLowerCase());\n"
+                  "  function gainRememberLocalSales(list){\n"
+                  "    for(const sale of Array.isArray(list)?list:[]){\n"
+                  "      if(!gainIsValidSale(sale))continue;\n"
+                  "      const key=gainSaleIdentity(sale);\n"
+                  "      const at=gainStickyLocalSales.findIndex(x=>gainSaleIdentity(x)===key);\n"
+                  "      if(at>=0)gainStickyLocalSales[at]={...gainStickyLocalSales[at],...sale};else gainStickyLocalSales.push({...sale});\n"
+                  "    }\n"
+                  "    return gainStickyLocalSales;\n"
+                  "  }\n"
+                  "  function gainStoredSales(){\n"
+                  "    try{\n"
+                  "      const key=(typeof K!=='undefined'&&K?.sales)?K.sales:'';\n"
+                  "      if(!key)return [];\n"
+                  "      const parsed=JSON.parse(localStorage.getItem(key)||'[]');\n"
+                  "      return Array.isArray(parsed)?parsed.filter(gainIsValidSale):[];\n"
+                  "    }catch{return []}\n"
+                  "  }\n"
+                  "  function gainLocalSales(){\n"
+                  "    gainRememberLocalSales(gainStoredSales());\n"
+                  "    gainRememberLocalSales(gainValidSales());\n"
+                  "    return [...gainStickyLocalSales];\n"
+                  "  }\n"
+                  "  gainRememberLocalSales(gainStoredSales());\n"
+                  "  gainRememberLocalSales(gainValidSales());\n"
+              )
+              s=s.replace(anchor,anchor+extra,1)
+          old_listener="  window.addEventListener('varelia:sale-recorded',event=>{\n    const detail=event?.detail||{};\n    if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();\n  });\n"
+          new_listener="  window.addEventListener('varelia:sale-recorded',event=>{\n    const detail=event?.detail||{};\n    if(detail.sale)gainRememberLocalSales([detail.sale]);\n    if(detail.sale||detail.source==='cloud-confirmed')gainInvalidateAndRefresh();\n  });\n  window.addEventListener('varelia:checkout-confirmed',event=>{\n    if(event?.detail?.sale)gainRememberLocalSales([event.detail.sale]);\n  });\n"
           if old_listener in s:s=s.replace(old_listener,new_listener,1)
-
           old_local="const localSales=window.vareliaCurrentUserProfile?.role==='owner'?gainValidSales():[];"
           if old_local in s:s=s.replace(old_local,"const localSales=gainLocalSales();",1)
           elif "const localSales=gainLocalSales();" not in s:raise SystemExit('local sales anchor not found')
-
-          old_marker="if(marker!==panel.dataset.gainHistoryMarker){"
-          if old_marker in s:s=s.replace(old_marker,"if(selected.known&&marker!==panel.dataset.gainHistoryMarker){",1)
-
-          old_active="""      let activePeriod=selectedHistory.mode==='day'?'day':
-        selectedHistory.mode==='today'?'today':
-        selectedHistory.mode==='month'?'month':
-        selectedHistory.mode==='all'?'all':'today';
-"""
-          new_active="""      let activePeriod=selectedHistory.known&&selectedHistory.mode==='day'?'day':
-        selectedHistory.mode==='today'?'today':
-        selectedHistory.mode==='month'?'month':
-        selectedHistory.known&&selectedHistory.mode==='all'?'all':'today';
-"""
+          if "if(marker!==panel.dataset.gainHistoryMarker){" in s:s=s.replace("if(marker!==panel.dataset.gainHistoryMarker){","if(selected.known&&marker!==panel.dataset.gainHistoryMarker){",1)
+          old_active="      let activePeriod=selectedHistory.mode==='day'?'day':\n        selectedHistory.mode==='today'?'today':\n        selectedHistory.mode==='month'?'month':\n        selectedHistory.mode==='all'?'all':'today';\n"
+          new_active="      let activePeriod=selectedHistory.known&&selectedHistory.mode==='day'?'day':\n        selectedHistory.mode==='today'?'today':\n        selectedHistory.mode==='month'?'month':\n        selectedHistory.known&&selectedHistory.mode==='all'?'all':'today';\n"
           if old_active in s:s=s.replace(old_active,new_active,1)
-
-          old_use="""      panel.__gainUseHistoryDate=(selected,date)=>{
-        if(selected.mode==='day'){
-"""
-          new_use="""      panel.__gainUseHistoryDate=(selected,date)=>{
-        if(!selected?.known)return;
-        if(selected.mode==='day'){
-"""
+          old_use="      panel.__gainUseHistoryDate=(selected,date)=>{\n        if(selected.mode==='day'){\n"
+          new_use="      panel.__gainUseHistoryDate=(selected,date)=>{\n        if(!selected?.known)return;\n        if(selected.mode==='day'){\n"
           if old_use in s:s=s.replace(old_use,new_use,1)
-
           p.write_text(s,encoding='utf-8')
-
           idx=Path('index.html')
           h=idx.read_text(encoding='utf-8')
-          if 'reports-profit.js?v=20261021-profit-live-v26' in h:
-              h=h.replace('reports-profit.js?v=20261021-profit-live-v26','reports-profit.js?v=20261021-profit-sticky-v28',1)
-          elif 'reports-profit.js?v=20261021-profit-sticky-v28' not in h:
-              raise SystemExit('reports cache anchor not found')
-          if "const BUILD='20261021-PROFIT-PRESENTATIONS-V23'" in h:
-              h=h.replace("const BUILD='20261021-PROFIT-PRESENTATIONS-V23'","const BUILD='20261021-GAIN-STICKY-V28'",1)
+          if 'reports-profit.js?v=20261021-profit-live-v26' in h:h=h.replace('reports-profit.js?v=20261021-profit-live-v26','reports-profit.js?v=20261021-profit-sticky-v28',1)
+          elif 'reports-profit.js?v=20261021-profit-sticky-v28' not in h:raise SystemExit('reports cache anchor not found')
+          if "const BUILD='20261021-PROFIT-PRESENTATIONS-V23'" in h:h=h.replace("const BUILD='20261021-PROFIT-PRESENTATIONS-V23'","const BUILD='20261021-GAIN-STICKY-V28'",1)
           idx.write_text(h,encoding='utf-8')
+          PY
 
-      - name: Validate
+      - name: Validate JavaScript
         run: node --check reports-profit.js
 
       - name: Commit direct fix
