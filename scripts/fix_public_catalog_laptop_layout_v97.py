@@ -8,23 +8,18 @@ h = CATALOG.read_text(encoding='utf-8')
 h = re.sub(r'<style id="varelia-(?:desktop|laptop)-brand-[^"]+">.*?</style>', '', h, flags=re.S)
 h = re.sub(r'<script id="varelia-(?:desktop|laptop)-brand-[^"]+">.*?</script>', '', h, flags=re.S)
 
-# Restore the original hero DOM. Existing catalog JS expects #business, #heroSlogan
-# and the subtitle to be direct children of .hero.
+# Keep the original DOM expected by the catalog JavaScript.
 h = h.replace('<header class="hero"><div class="hero-inner">', '<header class="hero">', 1)
 h = h.replace('</div></header><section class="seller">', '</header><section class="seller">', 1)
 
-style = r'''<style id="varelia-laptop-brand-v99">
-/* Laptop/desktop visual refinement only. No catalog functions or data are changed.
-   CONTACTO content left guide is:
-   - 38px on laptop widths below the 1100px card maximum
-   - centered 1100px card + 20px internal padding on wider screens.
-   The hero uses that exact same guide without changing the DOM. */
+style = r'''<style id="varelia-laptop-brand-v100">
+/* Laptop/desktop visual refinement only. No catalog functions or data are changed. */
 @media (min-width:760px), (hover:hover) and (pointer:fine){
   .hero{
     display:block!important;
     position:relative!important;
     padding-top:30px!important;
-    padding-bottom:72px!important;
+    padding-bottom:48px!important;
     padding-left:max(38px,calc((100vw - 1100px)/2 + 20px))!important;
     padding-right:max(38px,calc((100vw - 1100px)/2 + 20px))!important;
   }
@@ -86,28 +81,28 @@ style = r'''<style id="varelia-laptop-brand-v99">
   }
   .hero>div:last-child{margin:5px 0 0!important}
 
-  /* The slogan already lives in the dark hero on laptop. Do not duplicate it
-     inside the contact/location card. */
+  /* Slogan already belongs in the dark hero; never duplicate it in the card. */
   #businessSlogan{display:none!important}
 
-  /* Card crosses the end of the dark hero, with CONTACTO and UBICACION close
-     to that boundary and vertically balanced. */
+  /* CONTACTO / UBICACION stays completely OUTSIDE the dark hero. */
   .seller{
     box-sizing:border-box!important;
+    position:relative!important;
     width:calc(100% - 36px)!important;
     max-width:1100px!important;
-    margin:-52px auto 0!important;
+    margin:18px auto 0!important;
     padding:18px 20px!important;
     border-radius:20px!important;
+    background:var(--card)!important;
   }
   .seller .facts{
     display:grid!important;
     grid-template-columns:1fr 1fr!important;
     gap:18px!important;
-    align-items:stretch!important;
+    align-items:center!important;
   }
   .seller .fact{
-    min-height:52px!important;
+    min-height:54px!important;
     padding-top:8px!important;
     display:flex!important;
     flex-direction:column!important;
@@ -141,28 +136,28 @@ style = r'''<style id="varelia-laptop-brand-v99">
 h = h.replace('</head>', style + '</head>', 1)
 CATALOG.write_text(h, encoding='utf-8')
 
-# Keep all public entry points on the same real catalog file; only bump cache version.
+# Keep public entry points on the same file; only bump cache version.
 idx = Path('catalogo/milagros/index.html')
-idx.write_text('''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Catálogo Milagros</title><script>location.replace('/catalogo/milagros/catalogo-v2.html?v=20261022-contact-card-v99');</script></head><body><a href="/catalogo/milagros/catalogo-v2.html?v=20261022-contact-card-v99">Abrir catálogo</a></body></html>''', encoding='utf-8')
+idx.write_text('''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Catálogo Milagros</title><script>location.replace('/catalogo/milagros/catalogo-v2.html?v=20261022-contact-below-v100');</script></head><body><a href="/catalogo/milagros/catalogo-v2.html?v=20261022-contact-below-v100">Abrir catálogo</a></body></html>''', encoding='utf-8')
 
 link_file = Path('catalogo-enlace.html')
 if link_file.exists():
     s = link_file.read_text(encoding='utf-8')
-    s = re.sub(r"/catalogo/milagros/catalogo-v(?:2|9[0-9])\.html", "/catalogo/milagros/catalogo-v2.html", s)
-    s = re.sub(r"20261022-[A-Za-z0-9_-]+", "20261022-contact-card-v99", s)
+    s = re.sub(r"/catalogo/milagros/catalogo-v(?:2|9[0-9]|100)\.html", "/catalogo/milagros/catalogo-v2.html", s)
+    s = re.sub(r"20261022-[A-Za-z0-9_-]+", "20261022-contact-below-v100", s)
     link_file.write_text(s, encoding='utf-8')
 
 pc = Path('public-catalog.js')
 if pc.exists():
     s = pc.read_text(encoding='utf-8')
-    s = re.sub(r"/catalogo/milagros/catalogo-v(?:2|9[0-9])\.html\?c=", "/catalogo/milagros/catalogo-v2.html?c=", s)
-    s = re.sub(r"20261022-[A-Za-z0-9_-]+", "20261022-contact-card-v99", s)
+    s = re.sub(r"/catalogo/milagros/catalogo-v(?:2|9[0-9]|100)\.html\?c=", "/catalogo/milagros/catalogo-v2.html?c=", s)
+    s = re.sub(r"20261022-[A-Za-z0-9_-]+", "20261022-contact-below-v100", s)
     pc.write_text(s, encoding='utf-8')
 
 root = Path('index.html')
 if root.exists():
     s = root.read_text(encoding='utf-8')
-    s = re.sub(r"public-catalog\.js\?v=[^\"']+", "public-catalog.js?v=20261022-contact-card-v99", s)
+    s = re.sub(r"public-catalog\.js\?v=[^\"']+", "public-catalog.js?v=20261022-contact-below-v100", s)
     root.write_text(s, encoding='utf-8')
 
-print('v99: original hero DOM restored; duplicate seller slogan hidden on laptop; contact/location refined')
+print('v100: contact/location card placed fully below dark hero; functions untouched')
