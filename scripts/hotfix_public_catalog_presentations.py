@@ -2,11 +2,14 @@ from pathlib import Path
 import re
 
 
-# Public storefront: keep the existing presentation fixes, then build a
-# completely fresh desktop catalog URL so browsers cannot reuse catalog-v2.
-p = Path('catalogo/milagros/catalogo-v2.html')
-h = p.read_text(encoding='utf-8')
+# Use the latest physical catalog as source so this correction is isolated
+# from older cached catalog-v2/v92 files.
+source = Path('catalogo/milagros/catalogo-v92.html')
+if not source.exists():
+    source = Path('catalogo/milagros/catalogo-v2.html')
+h = source.read_text(encoding='utf-8')
 
+# Preserve the sale-presentation fixes when the source is older.
 old_photo = "var ph=e.target.closest&&e.target.closest('.productPhoto');if(ph){openViewer(product(ph.dataset.id));return}"
 new_photo = "var ph=e.target.closest&&e.target.closest('.productPhoto');if(ph){var photoProduct=product(ph.dataset.id);if(isMedicine(photoProduct)){openMedicinePicker(photoProduct);return}if(salePresentations(photoProduct).length){openPresentationPicker(photoProduct);return}openViewer(photoProduct);return}"
 if old_photo in h:
@@ -22,21 +25,20 @@ new_add = "function add(id){var p=product(id),cs=chars(p),kg=String(p.unit||'').
 if old_add in h:
     h = h.replace(old_add, new_add, 1)
 
-# Remove all previous desktop-brand attempts. v92 uses only deterministic CSS:
-# the hero content line equals the seller card CONTENT line (card edge + 20px).
+# Remove every previous desktop-brand attempt.
 brand_pattern = re.compile(r'<style id="varelia-desktop-brand-v\d+">.*?</style>', re.S)
 h = brand_pattern.sub('', h)
 align_pattern = re.compile(r'<script id="varelia-desktop-brand-align-v\d+">.*?</script>', re.S)
 h = align_pattern.sub('', h)
 
-desktop_brand_style = '''<style id="varelia-desktop-brand-v92">
+# Desktop only: keep the logo at 110 px and the three brand elements stacked.
+# Horizontal alignment is NOT estimated in CSS anymore; JS below aligns them
+# to the real CONTACTO content column from the seller card.
+desktop_brand_style = '''<style id="varelia-desktop-brand-v93">
 @media (min-width:760px){
   .hero{
     display:block!important;
-    padding-top:28px!important;
-    padding-bottom:64px!important;
-    padding-left:max(20px,calc((100vw - 1100px)/2 + 20px))!important;
-    padding-right:max(20px,calc((100vw - 1100px)/2 + 20px))!important;
+    padding:28px 20px 64px!important;
   }
   .hero .top{
     display:flex!important;
@@ -45,6 +47,7 @@ desktop_brand_style = '''<style id="varelia-desktop-brand-v92">
   }
   .hero .top>b{
     width:110px!important;
+    min-width:110px!important;
     height:70px!important;
     display:flex!important;
     align-items:center!important;
@@ -53,6 +56,7 @@ desktop_brand_style = '''<style id="varelia-desktop-brand-v92">
     border-radius:14px!important;
     background:transparent!important;
     line-height:1!important;
+    transform:none;
   }
   .hero .top>b img{
     display:block!important;
@@ -73,6 +77,7 @@ desktop_brand_style = '''<style id="varelia-desktop-brand-v92">
     font-size:38px!important;
     line-height:1.08!important;
     letter-spacing:-1px!important;
+    transform:none;
   }
   #heroSlogan{
     margin:0!important;
@@ -80,44 +85,94 @@ desktop_brand_style = '''<style id="varelia-desktop-brand-v92">
     font-size:21px!important;
     line-height:1.25!important;
     font-weight:800!important;
+    transform:none;
   }
-  .hero>div:last-child{
-    margin:0!important;
-  }
+  .hero>div:last-child{margin:0!important}
 }
 </style>'''
 h = h.replace('</head>', desktop_brand_style + '</head>', 1)
 
-# Keep the old route corrected too, but publish an entirely new file path.
-p.write_text(h, encoding='utf-8')
-Path('catalogo/milagros/catalogo-v92.html').write_text(h, encoding='utf-8')
+# Exact laptop alignment: use the real seller-card position after layout.
+# The target is seller left edge + seller left padding, i.e. the same x-axis
+# where the word CONTACTO begins. The same delta is applied to logo/name/slogan.
+desktop_brand_align = '''<script id="varelia-desktop-brand-align-v93">
+(function(){
+  function alignBrandToContact(){
+    if(window.innerWidth < 760) return;
+    var seller = document.querySelector('.seller');
+    var logo = document.querySelector('.hero .top>b');
+    var name = document.getElementById('business');
+    var slogan = document.getElementById('heroSlogan');
+    if(!seller || !logo || !name) return;
 
-# Milagros entry page now opens the NEW physical file, not catalog-v2.
+    logo.style.setProperty('transform','none','important');
+    name.style.setProperty('transform','none','important');
+    if(slogan) slogan.style.setProperty('transform','none','important');
+
+    var sellerRect = seller.getBoundingClientRect();
+    var sellerCss = getComputedStyle(seller);
+    var sellerPad = parseFloat(sellerCss.paddingLeft) || 0;
+    var targetX = Math.round(sellerRect.left + sellerPad);
+
+    var nameX = Math.round(name.getBoundingClientRect().left);
+    var shift = targetX - nameX;
+    var move = 'translateX(' + shift + 'px)';
+
+    logo.style.setProperty('transform',move,'important');
+    name.style.setProperty('transform',move,'important');
+    if(slogan) slogan.style.setProperty('transform',move,'important');
+  }
+
+  function runAlignment(){
+    alignBrandToContact();
+    requestAnimationFrame(alignBrandToContact);
+    setTimeout(alignBrandToContact,80);
+    setTimeout(alignBrandToContact,300);
+    setTimeout(alignBrandToContact,800);
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded',runAlignment,{once:true});
+  }else{
+    runAlignment();
+  }
+  window.addEventListener('load',runAlignment,{once:true});
+  window.addEventListener('pageshow',runAlignment);
+  window.addEventListener('resize',alignBrandToContact,{passive:true});
+})();
+</script>'''
+
+head, sep, tail = h.rpartition('</body>')
+if not sep:
+    raise SystemExit('real closing </body> not found')
+h = head + desktop_brand_align + sep + tail
+
+# Publish another physical file so the user cannot land on the old layout.
+Path('catalogo/milagros/catalogo-v93.html').write_text(h, encoding='utf-8')
+
+# Keep the old route usable too, but all current entry points go to v93.
 p = Path('catalogo/milagros/index.html')
 r = p.read_text(encoding='utf-8')
-r = re.sub(r'catalogo-v(?:2|92)\.html\?v=[^\"\']+', 'catalogo-v92.html?v=20261022-desktop-brand-v92', r)
+r = re.sub(r'catalogo-v(?:2|92|93)\.html\?v=[^\"\']+', 'catalogo-v93.html?v=20261022-desktop-brand-v93', r)
 p.write_text(r, encoding='utf-8')
 
-# Varelia direct/fallback links also use the new physical file.
 p = Path('public-catalog.js')
 j = p.read_text(encoding='utf-8')
-j = j.replace('/catalogo/milagros/catalogo-v2.html?c=', '/catalogo/milagros/catalogo-v92.html?c=')
-j = j.replace('/catalogo/milagros/catalogo-v92.html?c='+"'", '/catalogo/milagros/catalogo-v92.html?c='+"'")
-j = re.sub(r'&_v=20261022-desktop-brand-v\d+', '&_v=20261022-desktop-brand-v92', j)
+j = j.replace('/catalogo/milagros/catalogo-v2.html?c=', '/catalogo/milagros/catalogo-v93.html?c=')
+j = j.replace('/catalogo/milagros/catalogo-v92.html?c=', '/catalogo/milagros/catalogo-v93.html?c=')
+j = re.sub(r'&_v=20261022-desktop-brand-v\d+', '&_v=20261022-desktop-brand-v93', j)
 p.write_text(j, encoding='utf-8')
 
-# Existing /c/<slug> links redirect to the new physical file too.
 p = Path('catalogo-enlace.html')
 e = p.read_text(encoding='utf-8')
-e = e.replace("new URL('/catalogo/milagros/catalogo-v2.html',location.origin)", "new URL('/catalogo/milagros/catalogo-v92.html',location.origin)")
-e = e.replace("new URL('/catalogo/milagros/catalogo-v91.html',location.origin)", "new URL('/catalogo/milagros/catalogo-v92.html',location.origin)")
-e = re.sub(r"target\.searchParams\.set\('_v','20261022-desktop-brand-v\d+'\)", "target.searchParams.set('_v','20261022-desktop-brand-v92')", e)
+e = e.replace("new URL('/catalogo/milagros/catalogo-v2.html',location.origin)", "new URL('/catalogo/milagros/catalogo-v93.html',location.origin)")
+e = e.replace("new URL('/catalogo/milagros/catalogo-v92.html',location.origin)", "new URL('/catalogo/milagros/catalogo-v93.html',location.origin)")
+e = re.sub(r"target\.searchParams\.set\('_v','20261022-desktop-brand-v\d+'\)", "target.searchParams.set('_v','20261022-desktop-brand-v93')", e)
 p.write_text(e, encoding='utf-8')
 
-# Main app loads the refreshed public catalog link generator.
 p = Path('index.html')
 i = p.read_text(encoding='utf-8')
-i = re.sub(r'public-catalog\.js\?v=[^\"\']+', 'public-catalog.js?v=20261022-desktop-brand-v92-fresh-file', i, count=1)
+i = re.sub(r'public-catalog\.js\?v=[^\"\']+', 'public-catalog.js?v=20261022-desktop-brand-v93-exact-contact', i, count=1)
 p.write_text(i, encoding='utf-8')
 
-print('public catalog v92 fresh physical file + desktop brand alignment applied')
+print('public catalog v93 exact CONTACTO-column alignment applied')
