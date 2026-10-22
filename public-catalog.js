@@ -136,7 +136,7 @@
       return syncing;
     }
     window.vareliaPublicCatalogSync=()=>syncNow(true);
-    const link=()=>publicSlug&&/^[a-z0-9][a-z0-9-]{0,99}$/.test(publicSlug)?location.origin+'/c/'+encodeURIComponent(publicSlug):location.origin+'/catalogo/milagros/catalogo-v105.html?c='+encodeURIComponent(publicId)+'&_v=20261022-short-hero-v109';
+    const link=()=>publicSlug&&/^[a-z0-9][a-z0-9-]{0,99}$/.test(publicSlug)?location.origin+'/c/'+encodeURIComponent(publicSlug):location.origin+'/catalogo/milagros/catalogo-v105.html?c='+encodeURIComponent(publicId)+'&_v=20261022-short-hero-v110';
     function deadline(promise){
       let timer;
       return Promise.race([promise,new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('La actualización tarda demasiado. Revisa tu conexión e inténtalo nuevamente.')),15000)})]).finally(()=>clearTimeout(timer));
