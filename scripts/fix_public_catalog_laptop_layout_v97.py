@@ -14,12 +14,9 @@ if 'class="hero-inner"' not in h:
     h = h.replace('<header class="hero">', '<header class="hero"><div class="hero-inner">', 1)
     h = h.replace('</header><section class="seller">', '</div></header><section class="seller">', 1)
 
-style = r'''<style id="varelia-laptop-brand-v97">
-/* Laptop/desktop: one shared geometry for brand, CONTACTO card and shop.
-   Seller outer width = viewport - 36px, with 20px inner padding.
-   Therefore seller content width = viewport - 76px.
-   The hero-inner uses exactly that same content width, so its left/right
-   guides are mathematically identical to CONTACTO/UBICACION content. */
+style = r'''<style id="varelia-laptop-brand-v98">
+/* Laptop/desktop only. One shared geometry for brand, CONTACTO card and shop.
+   This patch is visual only: it does not change catalog data or functions. */
 @media (min-width:760px), (hover:hover) and (pointer:fine){
   .hero{
     display:block!important;
@@ -31,7 +28,7 @@ style = r'''<style id="varelia-laptop-brand-v97">
     width:calc(100% - 76px)!important;
     max-width:1060px!important;
     margin:0 auto!important;
-    padding:30px 0 66px!important;
+    padding:30px 0 82px!important;
     position:relative!important;
   }
   .hero-inner .top{
@@ -92,13 +89,41 @@ style = r'''<style id="varelia-laptop-brand-v97">
   }
   .hero-inner>div:last-child{margin:5px 0 0!important}
 
+  /* Contact/location card: overlap the end of the dark hero cleanly. */
   .seller{
     box-sizing:border-box!important;
     width:calc(100% - 36px)!important;
     max-width:1100px!important;
-    margin:-42px auto 0!important;
-    padding:20px!important;
+    margin:-62px auto 0!important;
+    padding:24px 20px!important;
+    border-radius:20px!important;
   }
+  .seller .facts{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:18px!important;
+    align-items:stretch!important;
+  }
+  .seller .fact{
+    min-height:64px!important;
+    padding-top:10px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+  }
+  .seller .fact small{
+    display:block!important;
+    margin-bottom:6px!important;
+    font-size:10px!important;
+    line-height:1.1!important;
+    font-weight:800!important;
+  }
+  .seller .fact b{
+    display:block!important;
+    font-size:15px!important;
+    line-height:1.25!important;
+  }
+
   .shop{
     box-sizing:border-box!important;
     width:calc(100% - 36px)!important;
@@ -114,28 +139,28 @@ style = r'''<style id="varelia-laptop-brand-v97">
 h = h.replace('</head>', style + '</head>', 1)
 CATALOG.write_text(h, encoding='utf-8')
 
-# Standardize every public entry point on the same real file the user's laptop opens.
+# Keep all public entry points on the same file; only bump the cache version.
 idx = Path('catalogo/milagros/index.html')
-idx.write_text('''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Catálogo Milagros</title><script>location.replace('/catalogo/milagros/catalogo-v2.html?v=20261022-laptop-layout-v97');</script></head><body><a href="/catalogo/milagros/catalogo-v2.html?v=20261022-laptop-layout-v97">Abrir catálogo</a></body></html>''', encoding='utf-8')
+idx.write_text('''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Catálogo Milagros</title><script>location.replace('/catalogo/milagros/catalogo-v2.html?v=20261022-contact-card-v98');</script></head><body><a href="/catalogo/milagros/catalogo-v2.html?v=20261022-contact-card-v98">Abrir catálogo</a></body></html>''', encoding='utf-8')
 
 link_file = Path('catalogo-enlace.html')
 if link_file.exists():
     s = link_file.read_text(encoding='utf-8')
     s = re.sub(r"/catalogo/milagros/catalogo-v(?:2|9[0-9])\.html", "/catalogo/milagros/catalogo-v2.html", s)
-    s = re.sub(r"20261022-[A-Za-z0-9_-]+", "20261022-laptop-layout-v97", s)
+    s = re.sub(r"20261022-[A-Za-z0-9_-]+", "20261022-contact-card-v98", s)
     link_file.write_text(s, encoding='utf-8')
 
 pc = Path('public-catalog.js')
 if pc.exists():
     s = pc.read_text(encoding='utf-8')
     s = re.sub(r"/catalogo/milagros/catalogo-v(?:2|9[0-9])\.html\?c=", "/catalogo/milagros/catalogo-v2.html?c=", s)
-    s = re.sub(r"20261022-[A-Za-z0-9_-]+", "20261022-laptop-layout-v97", s)
+    s = re.sub(r"20261022-[A-Za-z0-9_-]+", "20261022-contact-card-v98", s)
     pc.write_text(s, encoding='utf-8')
 
 root = Path('index.html')
 if root.exists():
     s = root.read_text(encoding='utf-8')
-    s = re.sub(r"public-catalog\.js\?v=[^\"']+", "public-catalog.js?v=20261022-laptop-layout-v97", s)
+    s = re.sub(r"public-catalog\.js\?v=[^\"']+", "public-catalog.js?v=20261022-contact-card-v98", s)
     root.write_text(s, encoding='utf-8')
 
-print('public catalog laptop layout v97 applied cleanly')
+print('public catalog laptop contact/location card refined v98; catalog functions untouched')
