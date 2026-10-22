@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Build catalog and match internal presentation pricing v111
+      - name: Build catalog and match internal presentation pricing v111 retry
         run: |
           python scripts/fix_public_catalog_laptop_layout_v97.py
           python - <<'PY'
