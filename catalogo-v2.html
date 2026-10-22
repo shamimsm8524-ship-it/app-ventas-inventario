@@ -486,10 +486,10 @@ $('order').onclick=async function(){if(window.__vareliaOrderSubmitting)return;wi
   var a=await get('public_catalogs?select=business_name,business_info,social_links,theme_color&public_id=eq.'+encodeURIComponent(PID)+'&enabled=eq.true&limit=1');
   if(a&&a[0]){
    var x=a[0];business=x.business_name||business;info=x.business_info||info;$('business').textContent=business;
-   var slogan=String(info.slogan||'').trim();if(slogan.toLowerCase()==='calidad y buenos precios')slogan='';
+   var slogan=String(info.slogan||'').trim();
    $('heroSlogan').textContent=slogan;$('heroSlogan').style.display=slogan?'block':'none';$('businessSloganText').textContent=slogan;$('businessSlogan').style.display='none';
    if(/^#[0-9a-f]{6}$/i.test(x.theme_color||''))document.documentElement.style.setProperty('--b',x.theme_color);
-   var f=[];if(info.phone)f.push(['CONTACTO',info.phone]);if(info.address)f.push(['UBICACIÓN',info.address]);if(info.hours)f.push(['HORARIO',info.hours]);
+   var f=[];if(info.ruc)f.push(['RUC / DOCUMENTO',info.ruc]);if(info.phone)f.push(['CONTACTO',info.phone]);if(info.address)f.push(['UBICACIÓN',info.address]);if(info.hours)f.push(['HORARIO',info.hours]);
    $('facts').innerHTML=f.map(function(z){return'<div class="fact"><small>'+z[0]+'</small><b>'+esc(z[1])+'</b></div>'}).join('');
    $('socials').innerHTML=(x.social_links||[]).map(function(y){return'<a class="pill" href="'+esc(y.url)+'" target="_blank">'+esc(y.label||y.type)+'</a>'}).join('');
    $('waTop').href='https://wa.me/'+String(info.whatsapp||info.phone||'919757859').replace(/\D/g,'');
