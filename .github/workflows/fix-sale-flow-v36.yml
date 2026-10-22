@@ -1,0 +1,32 @@
+name: Fix sale flow V36
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-sale-flow-v36.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply isolated V36 patch
+        run: python scripts/fix_sale_flow_v36.py
+      - name: Validate JavaScript syntax
+        run: |
+          node --check central-stock-sync.js
+          node --check pos-sales.js
+          node --check advanced-pricing.js
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add central-stock-sync.js pos-sales.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Fix commercial selector, duplicate receipt and sale reset'
+          git push
