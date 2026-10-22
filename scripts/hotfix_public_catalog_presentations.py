@@ -110,4 +110,15 @@ r = r.replace('catalogo-v2.html?v=20261021-presentations-v84', 'catalogo-v2.html
 r = r.replace('catalogo-v2.html?v=20261021-presentations-v85', 'catalogo-v2.html?v=20261022-desktop-brand-v86')
 p.write_text(r, encoding='utf-8')
 
-print('public catalog presentation + desktop brand layout patch applied')
+# The app sometimes publishes the direct ?c= link (exactly the URL visible in
+# the laptop screenshot). Give that direct URL its own version parameter too,
+# so opening "Ver catálogo" cannot reuse an older cached catalog document.
+p = Path('public-catalog.js')
+j = p.read_text(encoding='utf-8')
+old_direct = "location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)"
+new_direct = "location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261022-desktop-brand-v86'"
+if old_direct in j and new_direct not in j:
+    j = j.replace(old_direct, new_direct, 1)
+p.write_text(j, encoding='utf-8')
+
+print('public catalog presentation + desktop brand layout + direct-link cache patch applied')
