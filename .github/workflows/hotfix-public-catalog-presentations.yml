@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply clean laptop catalog layout v97
+      - name: Apply laptop contact card refinement v98
         run: python scripts/fix_public_catalog_laptop_layout_v97.py
       - name: Commit patch
         run: |
@@ -26,5 +26,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          git commit -m "Clean and align laptop public catalog layout v97"
+          git commit -m "Refine laptop contact and location card v98"
           git push
