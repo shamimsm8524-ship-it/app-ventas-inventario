@@ -1,57 +1,29 @@
-name: Public catalog presentations hotfix
+name: Public catalog pricing verification
 
 on:
   push:
     paths:
-      - '.github/workflows/hotfix-public-catalog-presentations.yml'
+      - 'catalogo/milagros/catalogo-v2.html'
+      - 'catalogo/milagros/catalogo-v104.html'
+      - 'catalogo/milagros/catalogo-v105.html'
+      - 'catalogo/milagros/catalogo-v112.html'
+      - 'catalogo/milagros/catalogo-base-v110.html'
+      - 'catalogo-enlace.html'
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Build catalog and shorten dark header v110
+      - name: Verify public catalog pricing files
         run: |
-          python scripts/fix_public_catalog_laptop_layout_v97.py
-          python - <<'PY'
-          from pathlib import Path
-          paths = [
-              Path('catalogo/milagros/catalogo-v2.html'),
-              Path('catalogo/milagros/catalogo-v104.html'),
-              Path('catalogo/milagros/catalogo-v105.html'),
-          ]
-          for p in paths:
-              s = p.read_text(encoding='utf-8')
-              s = s.replace('padding-bottom:76px!important', 'padding-bottom:8px!important')
-              s = s.replace('padding-bottom:36px!important', 'padding-bottom:8px!important')
-              s = s.replace('padding-bottom:20px!important', 'padding-bottom:8px!important')
-              p.write_text(s, encoding='utf-8')
-          version='20261022-short-hero-v110'
-          for name in ('catalogo/milagros/index.html','catalogo-enlace.html','public-catalog.js','index.html','index-1.html'):
-              p=Path(name)
-              if not p.exists():
-                  continue
-              s=p.read_text(encoding='utf-8')
-              import re
-              s=re.sub(r'20261022-[A-Za-z0-9_-]+', version, s)
-              if name in ('index.html','index-1.html'):
-                  s=re.sub(r"const BUILD='[^']+'", "const BUILD='20261022-SHORT-HERO-V110'", s, count=1)
-              p.write_text(s, encoding='utf-8')
-          print('v110: laptop dark hero bottom padding reduced to 8px only')
-          PY
-      - name: Commit patch
-        run: |
-          git config user.name "Varelia Stability Bot"
-          git config user.email "actions@users.noreply.github.com"
-          git add catalogo/milagros/catalogo-v2.html catalogo/milagros/catalogo-v104.html catalogo/milagros/catalogo-v105.html catalogo/milagros/index.html catalogo-enlace.html public-catalog.js index.html index-1.html
-          if git diff --cached --quiet; then
-            echo "No changes"
-            exit 0
-          fi
-          git commit -m "Reduce public catalog dark header to 8px v110"
-          git push
+          test -f catalogo/milagros/catalogo-v112.html
+          grep -q "catalogo-v112.html" catalogo/milagros/catalogo-v104.html
+          grep -q "catalogo-v112.html" catalogo/milagros/catalogo-v105.html
+          grep -q "catalogo-v112.html" catalogo/milagros/catalogo-v2.html
+          grep -q "total/units" catalogo/milagros/catalogo-v112.html
+          grep -q "catalogo-v112.html" catalogo-enlace.html
+          echo "Public catalog routes and presentation pricing verified"
