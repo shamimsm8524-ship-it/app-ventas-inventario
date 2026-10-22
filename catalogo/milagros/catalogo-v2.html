@@ -105,12 +105,9 @@ body{background:#f7f7f5}
 .grid{gap:16px 12px}.photo{border-radius:16px;background:#f0f0ee}.name{font-family:Arial,sans-serif;font-size:16px;font-weight:800}
 .add{border-radius:12px;background:#111827;color:#fff;border-color:#111827}.bar{border-radius:16px}
 @media(max-width:560px){.hero h1{font-size:36px}.seller{margin-left:14px;margin-right:14px}.shop{padding-left:14px;padding-right:14px}.grid{gap:18px 10px}.add{padding:10px}}
-</style><style id="varelia-laptop-brand-v97">
-/* Laptop/desktop: one shared geometry for brand, CONTACTO card and shop.
-   Seller outer width = viewport - 36px, with 20px inner padding.
-   Therefore seller content width = viewport - 76px.
-   The hero-inner uses exactly that same content width, so its left/right
-   guides are mathematically identical to CONTACTO/UBICACION content. */
+</style><style id="varelia-laptop-brand-v98">
+/* Laptop/desktop only. One shared geometry for brand, CONTACTO card and shop.
+   This patch is visual only: it does not change catalog data or functions. */
 @media (min-width:760px), (hover:hover) and (pointer:fine){
   .hero{
     display:block!important;
@@ -122,7 +119,7 @@ body{background:#f7f7f5}
     width:calc(100% - 76px)!important;
     max-width:1060px!important;
     margin:0 auto!important;
-    padding:30px 0 66px!important;
+    padding:30px 0 82px!important;
     position:relative!important;
   }
   .hero-inner .top{
@@ -183,13 +180,41 @@ body{background:#f7f7f5}
   }
   .hero-inner>div:last-child{margin:5px 0 0!important}
 
+  /* Contact/location card: overlap the end of the dark hero cleanly. */
   .seller{
     box-sizing:border-box!important;
     width:calc(100% - 36px)!important;
     max-width:1100px!important;
-    margin:-42px auto 0!important;
-    padding:20px!important;
+    margin:-62px auto 0!important;
+    padding:24px 20px!important;
+    border-radius:20px!important;
   }
+  .seller .facts{
+    display:grid!important;
+    grid-template-columns:1fr 1fr!important;
+    gap:18px!important;
+    align-items:stretch!important;
+  }
+  .seller .fact{
+    min-height:64px!important;
+    padding-top:10px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    justify-content:center!important;
+  }
+  .seller .fact small{
+    display:block!important;
+    margin-bottom:6px!important;
+    font-size:10px!important;
+    line-height:1.1!important;
+    font-weight:800!important;
+  }
+  .seller .fact b{
+    display:block!important;
+    font-size:15px!important;
+    line-height:1.25!important;
+  }
+
   .shop{
     box-sizing:border-box!important;
     width:calc(100% - 36px)!important;
