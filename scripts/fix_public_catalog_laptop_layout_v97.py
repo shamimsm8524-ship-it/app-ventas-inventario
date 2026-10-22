@@ -10,9 +10,11 @@ h = source.read_text(encoding='utf-8')
 h = re.sub(r'<style id="varelia-(?:desktop|laptop)-brand-[^"]+">.*?</style>', '', h, flags=re.S)
 h = re.sub(r'<script id="varelia-(?:desktop|laptop)-brand-[^"]+">.*?</script>', '', h, flags=re.S)
 
-# Keep the original DOM expected by the catalog JavaScript.
+# Keep the original DOM expected by the catalog JavaScript and repair any old
+# malformed hero close left by previous hotfixes.
 h = h.replace('<header class="hero"><div class="hero-inner">', '<header class="hero">', 1)
 h = h.replace('</div></header><section class="seller">', '</header><section class="seller">', 1)
+h = h.replace('<div>Catálogo oficial · Stock actualizado</header>', '<div>Catálogo oficial · Stock actualizado</div></header>', 1)
 
 style = r'''<style id="varelia-laptop-brand-v103">
 /* Laptop/desktop visual refinement only. No catalog functions or data are changed. */
@@ -46,7 +48,6 @@ style = r'''<style id="varelia-laptop-brand-v103">
 h = h.replace('</head>', style + '</head>', 1)
 NEW_CATALOG.write_text(h, encoding='utf-8')
 
-# Old URL becomes a hard redirect to the fresh physical file while preserving ?c=...
 OLD_CATALOG.write_text('''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Actualizando catálogo</title></head><body><script>(function(){var u=new URL('/catalogo/milagros/catalogo-v103.html',location.origin);new URLSearchParams(location.search).forEach(function(v,k){u.searchParams.set(k,v)});u.searchParams.set('_v','20261022-force-v103');location.replace(u.href)})();</script></body></html>''', encoding='utf-8')
 
 idx = Path('catalogo/milagros/index.html')
@@ -75,4 +76,4 @@ for root_name in ('index.html','index-1.html'):
     s = re.sub(r"/sw\.js\?v=[^\"']+", "/sw.js?v=20261022-force-v103", s)
     root.write_text(s, encoding='utf-8')
 
-print('v103: fresh physical catalog filename forced; old v2 redirects; 2cm slogan gap preserved')
+print('v103: forced fresh file, old v2 redirect, repaired hero markup, 2cm slogan gap preserved')
