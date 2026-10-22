@@ -1,0 +1,32 @@
+name: Fix box inventory V42B
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-box-inventory-v42b.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply final stock guard patch
+        run: python3 scripts/fix_box_inventory_v42b.py
+      - name: Validate JavaScript
+        run: |
+          node --check advanced-pricing.js
+          node scripts/stability-audit.mjs
+      - name: Commit only requested files
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html advanced-pricing.js
+          git diff --cached --quiet && exit 0
+          git commit -m "Finish box stock conversion in sale selector"
+          git push origin main
