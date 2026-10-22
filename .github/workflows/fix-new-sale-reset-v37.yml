@@ -1,4 +1,4 @@
-name: Fix new sale reset V37
+name: Fix completed sale reentry reset
 on:
   push:
     branches: [ main ]
@@ -12,34 +12,65 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Patch only Nueva venta reset
+      - name: Patch only completed sale reentry reset
         run: |
           python3 - <<'PY'
           from pathlib import Path
 
           p=Path('pos-sales.js')
           s=p.read_text()
-          old="function goSales(){const nav=document.querySelector('.nav [data-view=\"sales\"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew();root.scrollIntoView({behavior:'smooth',block:'start'})},80)}"
-          new="function goSales(){const nav=document.querySelector('.nav [data-view=\"sales\"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew(true);root.scrollIntoView({behavior:'smooth',block:'start'})},80)}"
+          old="""            const cloudOk=await window.vareliaCentralCheckout();
+            if(!cloudOk){finish(100);return;}
+
+            // Venta confirmada: dejar preparada una venta NUEVA detrás del comprobante."""
+          new="""            const cloudOk=await window.vareliaCentralCheckout();
+            if(!cloudOk){finish(100);return;}
+            window.__vareliaSaleCompletedPendingReset=true;
+            try{localStorage.setItem('varelia_sale_completed_pending_reset_v1','1')}catch{}
+
+            // Venta confirmada: dejar preparada una venta NUEVA detrás del comprobante."""
           if old in s:
               s=s.replace(old,new,1)
-          elif new not in s:
-              raise SystemExit('Target goSales line not found; refusing broad edit')
+          elif "varelia_sale_completed_pending_reset_v1" not in s:
+              raise SystemExit('Checkout anchor not found; refusing broad edit')
+
+          old2="""      document.addEventListener('click',e=>{const b=e.target.closest('.nav [data-view=\"sales\"]');if(!b)return;setTimeout(()=>input.focus(),120)},true);"""
+          new2="""      document.addEventListener('click',e=>{
+        const b=e.target.closest('.nav [data-view=\"sales\"],#vmobileNav button,.vmobileNav button,.mobileNav button');
+        if(!b)return;
+        const target=String(b.dataset.view||b.dataset.mobileTab||b.dataset.mobileView||'').trim().toLowerCase();
+        const label=String(b.textContent||'').replace(/\\s+/g,' ').trim().toLowerCase();
+        const isSales=b.matches('.nav [data-view=\"sales\"]')||target==='sales'||label==='venta'||label==='ventas';
+        if(!isSales)return;
+        let completed=!!window.__vareliaSaleCompletedPendingReset;
+        try{completed=completed||localStorage.getItem('varelia_sale_completed_pending_reset_v1')==='1'}catch{}
+        if(completed){
+          window.__vareliaSaleCompletedPendingReset=false;
+          try{localStorage.removeItem('varelia_sale_completed_pending_reset_v1')}catch{}
+          setTimeout(()=>{startNew(true);input.focus()},100);
+          return;
+        }
+        setTimeout(()=>input.focus(),120);
+      },true);"""
+          if old2 in s:
+              s=s.replace(old2,new2,1)
+          elif "const isSales=" not in s:
+              raise SystemExit('Sales entry anchor not found; refusing broad edit')
           p.write_text(s)
 
           p=Path('index.html')
           s=p.read_text()
-          s=s.replace("const BUILD='20261022-SALE-FLOW-V36'","const BUILD='20261022-NEW-SALE-RESET-V37'",1)
-          s=s.replace('pos-sales.js?v=20261022-sale-reset-v36','pos-sales.js?v=20261022-new-sale-reset-v37',1)
+          s=s.replace("const BUILD='20261022-NEW-SALE-RESET-V37'","const BUILD='20261022-COMPLETED-SALE-RESET-V38'",1)
+          s=s.replace('pos-sales.js?v=20261022-new-sale-reset-v37','pos-sales.js?v=20261022-completed-sale-reset-v38',1)
           p.write_text(s)
           PY
       - name: Validate JavaScript syntax
         run: node --check pos-sales.js
-      - name: Commit only isolated reset change
+      - name: Commit isolated completed-sale reset
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add pos-sales.js index.html
           git diff --cached --quiet && exit 0
-          git commit -m 'Reset cart when starting a new sale'
+          git commit -m 'Reset completed sale when re-entering sales'
           git push
