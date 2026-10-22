@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Build canonical public catalog v105
+      - name: Separate image details from Elegir v106
         run: python scripts/fix_public_catalog_laptop_layout_v97.py
       - name: Commit patch
         run: |
@@ -26,5 +26,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          git commit -m "Canonicalize public catalog hero and seller v105"
+          git commit -m "Separate product image details from choose action v106"
           git push
