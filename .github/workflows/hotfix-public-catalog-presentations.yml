@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Force fresh physical public catalog v103
+      - name: Force fresh physical public catalog v103 with repaired hero
         run: python scripts/fix_public_catalog_laptop_layout_v97.py
       - name: Commit patch
         run: |
@@ -26,5 +26,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          git commit -m "Force fresh public catalog filename v103"
+          git commit -m "Force repaired fresh public catalog v103"
           git push
