@@ -269,6 +269,46 @@
     const list=[...by.values()].sort((a,b)=>b.revenue-a.revenue||a.name.localeCompare(b.name,'es'));
     return {revenue,cost,count:salesList.length,estimated,missing,unallocated,list};
   }
+  // Detalle de Ganancias por venta real. Mantiene la misma lógica de costo/precio
+  // de gainItemData, pero no suma transacciones distintas entre sí.
+  function gainSaleDetailLines(salesList){
+    const products=arr('products'),lines=[];
+    for(const sale of salesList){
+      const items=(Array.isArray(sale.items)?sale.items:[]).map(it=>gainItemData(it,products));
+      if(!items.length)continue;
+      const total=Number(sale.total)||0;
+      const preTotal=items.reduce((sum,it)=>sum+(Number.isFinite(it.subtotal)?Math.max(0,it.subtotal):0),0);
+      const date=new Date(sale.date??sale.created_at??sale.createdAt??'');
+      const saleTs=Number.isFinite(date.getTime())?date.getTime():0;
+      const saleTime=saleTs?date.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit',hour12:false}):'Sin hora';
+      items.forEach((it,itemIndex)=>{
+        const quantity=Number.isFinite(it.qty)?it.qty:0;
+        let lineRevenue=NaN;
+        if(preTotal>0&&Number.isFinite(it.subtotal))lineRevenue=total*Math.max(0,it.subtotal)/preTotal;
+        else if(items.length===1)lineRevenue=total;
+        const hasCost=Number.isFinite(it.costQty)&&Number.isFinite(it.buy);
+        const lineCost=hasCost?it.costQty*it.buy:NaN;
+        const reportSell=Number.isFinite(lineRevenue)&&quantity>0
+          ?lineRevenue/quantity
+          :(Number.isFinite(it.subtotal)&&quantity>0?it.subtotal/quantity:it.sell);
+        const hasSell=Number.isFinite(reportSell)&&quantity>0;
+        let missing=0;
+        if(!Number.isFinite(lineRevenue))missing++;
+        if(!hasCost)missing++;
+        if(!hasSell)missing++;
+        lines.push({
+          name:it.name,unit:it.unit,qty:quantity,
+          cost:hasCost?lineCost:0,revenue:Number.isFinite(lineRevenue)?lineRevenue:0,
+          buyWeighted:hasCost?lineCost:0,buyQty:hasCost?it.costQty:0,
+          sellWeighted:hasSell?reportSell*quantity:0,sellQty:hasSell?quantity:0,
+          minBuy:hasCost?it.buy:Infinity,maxBuy:hasCost?it.buy:-Infinity,
+          minSell:hasSell?reportSell:Infinity,maxSell:hasSell?reportSell:-Infinity,
+          estimated:it.estimated?1:0,missing,saleTime,saleTs,itemIndex
+        });
+      });
+    }
+    return lines.sort((a,b)=>b.saleTs-a.saleTs||a.itemIndex-b.itemIndex);
+  }
   function gainPeriodTotals(salesList){
     const d=gainProductSummary(salesList);
     return {revenue:d.revenue,cost:d.cost,count:d.count,estimated:d.estimated,missing:d.missing};
@@ -470,6 +510,7 @@
         const periodSales=gainSalesPeriod(sourceSales,activePeriod,new Date(),chosenDay);
         const pendingPeriod=periodSales.filter(s=>s?.__vareliaPendingCloud).length;
         const result=gainProductSummary(periodSales);
+        const saleLines=gainSaleDetailLines(periodSales);
         const complete=result.missing===0;
         const estimated=result.estimated>0;
         const verifiedHistorical=usingCloud&&pendingPeriod===0&&complete&&!estimated;
@@ -509,7 +550,7 @@
           btn.setAttribute('aria-pressed',String(active));
         });
         itemsBox.replaceChildren();
-        if(!result.list.length){
+        if(!saleLines.length){
           const empty=document.createElement('p');empty.textContent='No hay productos vendidos en este período.';
           empty.style.cssText='color:#64748b;font-size:13px;margin:5px 0;';
           itemsBox.append(empty);
@@ -520,11 +561,13 @@
           const big=document.createElement('strong');big.style.cssText='font-size:15px;line-height:1.4;overflow-wrap:anywhere;color:'+(highlight?'#16803b':'inherit')+';';
           big.textContent=value;el.append(cap,big);container.append(el);
         }
-        for(const item of result.list){
+        for(const item of saleLines){
           const card=document.createElement('article');
           card.style.cssText='border:1px solid #ddd;border-radius:17px;padding:13px;min-width:0;box-sizing:border-box;';
           const name=document.createElement('h4');name.textContent=item.name;
-          name.style.cssText='font-size:15px;margin:0 0 11px;font-weight:900;overflow-wrap:anywhere;';
+          name.style.cssText='font-size:15px;margin:0 0 4px;font-weight:900;overflow-wrap:anywhere;';
+          const time=document.createElement('div');time.textContent='Hora de venta: '+item.saleTime;
+          time.style.cssText='font-size:11px;color:#64748b;font-weight:700;margin:0 0 11px;';
           const grid=document.createElement('div');
           grid.style.cssText='display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;min-width:0;';
           const avgBuy=item.buyQty>0?item.buyWeighted/item.buyQty:NaN;
@@ -542,7 +585,7 @@
           valueRow(grid,'Total vendido',money(item.revenue));
           valueRow(grid,'Costo total de compra',valid?money(item.cost):'Sin datos');
           valueRow(grid,'Ganancia total',valid?money(item.revenue-item.cost):'Sin datos',true);
-          card.append(name,grid);
+          card.append(name,time,grid);
           if((item.maxBuy-item.minBuy)>0.000001||(item.maxSell-item.minSell)>0.000001){
             const note=document.createElement('div');note.style.cssText='font-size:11px;color:#64748b;margin-top:8px;';
             note.textContent='Precios unitarios promedio ponderados del período.';
