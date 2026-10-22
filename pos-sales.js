@@ -790,7 +790,7 @@ const ensureReceiptVisible=()=>{
         }
       },true);
 
-      function goSales(){const nav=document.querySelector('.nav [data-view="sales"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew();root.scrollIntoView({behavior:'smooth',block:'start'})},80)}
+      function goSales(){const nav=document.querySelector('.nav [data-view="sales"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew(true);root.scrollIntoView({behavior:'smooth',block:'start'})},80)}
       document.addEventListener('click',e=>{const b=e.target.closest('#newSaleTop,#newSaleFab');if(!b)return;e.preventDefault();e.stopImmediatePropagation();goSales()},true);
       document.addEventListener('click',e=>{const b=e.target.closest('.nav [data-view="sales"]');if(!b)return;setTimeout(()=>input.focus(),120)},true);
 
