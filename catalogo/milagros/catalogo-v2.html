@@ -105,14 +105,15 @@ body{background:#f7f7f5}
 .grid{gap:16px 12px}.photo{border-radius:16px;background:#f0f0ee}.name{font-family:Arial,sans-serif;font-size:16px;font-weight:800}
 .add{border-radius:12px;background:#111827;color:#fff;border-color:#111827}.bar{border-radius:16px}
 @media(max-width:560px){.hero h1{font-size:36px}.seller{margin-left:14px;margin-right:14px}.shop{padding-left:14px;padding-right:14px}.grid{gap:18px 10px}.add{padding:10px}}
-</style><style id="varelia-laptop-brand-v101">
+</style><style id="varelia-laptop-brand-v102">
 /* Laptop/desktop visual refinement only. No catalog functions or data are changed. */
 @media (min-width:760px), (hover:hover) and (pointer:fine){
   .hero{
     display:block!important;
     position:relative!important;
     padding-top:30px!important;
-    padding-bottom:18px!important;
+    /* ~2 cm at standard browser density below the slogan */
+    padding-bottom:76px!important;
     padding-left:max(38px,calc((100vw - 1100px)/2 + 20px))!important;
     padding-right:max(38px,calc((100vw - 1100px)/2 + 20px))!important;
   }
