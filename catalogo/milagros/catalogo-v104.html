@@ -105,17 +105,18 @@ body{background:#f7f7f5}
 .grid{gap:16px 12px}.photo{border-radius:16px;background:#f0f0ee}.name{font-family:Arial,sans-serif;font-size:16px;font-weight:800}
 .add{border-radius:12px;background:#111827;color:#fff;border-color:#111827}.bar{border-radius:16px}
 @media(max-width:560px){.hero h1{font-size:36px}.seller{margin-left:14px;margin-right:14px}.shop{padding-left:14px;padding-right:14px}.grid{gap:18px 10px}.add{padding:10px}}
-</style><style id="varelia-laptop-brand-v104">
-/* Laptop only. Presentation changes only; catalog functions/data untouched. */
-@media (min-width:760px), (hover:hover) and (pointer:fine){
+</style><style id="varelia-laptop-brand-v105">
+/* Laptop/desktop presentation only. Catalog functions/data are untouched. */
+@media (min-width:640px), (hover:hover) and (pointer:fine){
   .hero{
     display:block!important;
     position:relative!important;
+    box-sizing:border-box!important;
+    margin:0!important;
     padding-top:30px!important;
     padding-bottom:76px!important;
     padding-left:max(38px,calc((100vw - 1100px)/2 + 20px))!important;
     padding-right:max(38px,calc((100vw - 1100px)/2 + 20px))!important;
-    margin:0!important;
     overflow:visible!important;
   }
   .hero .top{display:flex!important;justify-content:space-between!important;align-items:flex-start!important;width:100%!important;margin:0!important}
@@ -124,10 +125,11 @@ body{background:#f7f7f5}
   .hero .top>div{display:flex!important;align-items:center!important;gap:8px!important;margin:0!important}
   .hero h1#business{margin:14px 0 5px!important;font-size:38px!important;line-height:1.08!important;letter-spacing:-1px!important;transform:none!important}
   .hero #heroSlogan{margin:0!important;max-width:720px!important;font-size:21px!important;line-height:1.3!important;font-weight:800!important;transform:none!important}
-  .hero>div:last-child{margin:5px 0 0!important}
+  /* When a business slogan exists, this generic line is unnecessary and must not add height. */
+  .hero>div:last-child{display:none!important}
   #businessSlogan{display:none!important}
 
-  /* Critical fix: white contact card is fully OUTSIDE the dark hero. */
+  /* The white card starts AFTER the dark hero; no overlap is allowed. */
   .seller{
     box-sizing:border-box!important;
     position:relative!important;
@@ -145,7 +147,7 @@ body{background:#f7f7f5}
     padding:18px 20px!important;
     border-radius:20px!important;
     background:var(--card)!important;
-    z-index:1!important;
+    z-index:2!important;
   }
   .seller .facts{display:grid!important;grid-template-columns:1fr 1fr!important;gap:18px!important;align-items:center!important}
   .seller .fact{min-height:54px!important;padding-top:8px!important;display:flex!important;flex-direction:column!important;justify-content:center!important}
