@@ -105,6 +105,74 @@ body{background:#f7f7f5}
 .grid{gap:16px 12px}.photo{border-radius:16px;background:#f0f0ee}.name{font-family:Arial,sans-serif;font-size:16px;font-weight:800}
 .add{border-radius:12px;background:#111827;color:#fff;border-color:#111827}.bar{border-radius:16px}
 @media(max-width:560px){.hero h1{font-size:36px}.seller{margin-left:14px;margin-right:14px}.shop{padding-left:14px;padding-right:14px}.grid{gap:18px 10px}.add{padding:10px}}
+</style><style id="varelia-desktop-brand-v86">
+@media (min-width:760px){
+  .hero{
+    display:grid;
+    grid-template-columns:96px minmax(0,1fr) auto;
+    grid-template-rows:auto auto;
+    column-gap:22px;
+    row-gap:3px;
+    align-items:center;
+    padding:30px max(34px,calc((100vw - 1100px)/2)) 78px;
+  }
+  .hero .top{display:contents}
+  .hero .top>b{
+    grid-column:1;
+    grid-row:1/3;
+    width:96px;
+    height:96px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    align-self:center;
+    overflow:hidden;
+    border-radius:18px;
+    background:#ffffff12;
+    font-size:30px;
+    line-height:1;
+  }
+  .hero .top>b img{
+    width:96px!important;
+    height:96px!important;
+    max-width:none!important;
+    max-height:none!important;
+    object-fit:contain!important;
+    border-radius:16px!important;
+  }
+  .hero .top>div{
+    grid-column:3;
+    grid-row:1;
+    display:flex;
+    gap:8px;
+    justify-self:end;
+    align-self:start;
+  }
+  .hero h1#business{
+    grid-column:2;
+    grid-row:1;
+    margin:0!important;
+    align-self:end;
+    font-size:42px;
+    line-height:1.06;
+    letter-spacing:-1px;
+  }
+  #heroSlogan{
+    grid-column:2;
+    grid-row:2;
+    margin:3px 0 0!important;
+    max-width:720px;
+    font-size:20px!important;
+    line-height:1.3!important;
+    font-weight:700!important;
+  }
+  .hero>div:last-child{
+    grid-column:2;
+    grid-row:2;
+    margin:3px 0 0;
+    color:#e5e7eb;
+  }
+}
 </style></head><body><header class="hero"><div class="top"><b>V</b><div><a id="waTop" href="#">WhatsApp</a> <button id="share">Compartir</button></div></div><h1 id="business">Mi negocio</h1><div id="heroSlogan" style="display:none;color:#fff;font-size:21px;font-weight:800;line-height:1.25;margin:5px 0 8px"></div><div>Catálogo oficial · Stock actualizado</div></header><section class="seller"><div id="businessSlogan" class="fact" style="display:none;margin:0 0 12px"><b id="businessSloganText"></b></div><div class="facts" id="facts"></div><div class="pills" id="socials"></div></section><section class="shop"><h2>Descubre nuestros productos</h2><input class="search" id="q" placeholder="Buscar en la colección"><div class="cats" id="cats"></div><div class="grid" id="grid"><p>Cargando productos…</p></div></section><div class="bar" id="bar"><div><b id="count">0 productos</b><div id="sum">S/ 0.00</div></div><button id="view">VER PEDIDO</button></div><div class="modal" id="productViewer"><div class="sheet" style="max-width:560px"><button id="viewerClose" style="float:right;border:0;background:#f1f1f1;border-radius:50%;width:38px;height:38px;font-size:22px;cursor:pointer">×</button><div id="viewerContent"></div></div></div><div class="modal" id="modal"><div class="sheet"><h2>Tu selección</h2><div class="sheetSub">Modifica cantidades, talla y color antes de enviar tu pedido.</div><div class="cartList" id="items"></div><div class="box"><b>DATOS DEL CLIENTE</b><input id="cname" placeholder="Nombre y apellido *"><input id="phone" placeholder="Celular / WhatsApp *"><input id="city" placeholder="Distrito / ciudad *"><textarea id="address" placeholder="Dirección de entrega *"></textarea><input id="shalom" placeholder="Sucursal / agencia Shalom" hidden><input id="ref" placeholder="Referencia (opcional)"></div><div class="box"><b>FORMA DE ENTREGA</b><select id="delivery"></select><div class="note" id="note"></div></div><div class="box"><b>MÉTODO DE PAGO</b><select id="payment"></select><div class="note" id="paynote"></div><div id="paymentQr"></div></div><div class="summary"><div class="sumRow"><span>Productos</span><span class="amt" id="subtotal"></span></div><div class="sumRow"><span>Envío</span><span class="amt" id="ship"></span></div><div class="sumDivider"></div><div class="sumRow sumTotal"><span>TOTAL</span><span class="amt" id="total"></span></div></div><button class="primary" id="order">Enviar pedido</button><button class="close" id="receipt">Comprobante de pedido / PDF</button><button class="close" id="close">Seguir comprando</button></div></div><script>(function(){let c=null;function snd(k){try{c=c||new(window.AudioContext||window.webkitAudioContext)();if(c.state==='suspended')c.resume();let o=c.createOscillator(),g=c.createGain(),n=c.currentTime;o.type='sine';o.frequency.value=k==='plus'?720:k==='minus'?420:560;g.gain.setValueAtTime(.0001,n);g.gain.exponentialRampToValueAtTime(.05,n+.008);g.gain.exponentialRampToValueAtTime(.0001,n+.07);o.connect(g);g.connect(c.destination);o.start(n);o.stop(n+.075)}catch(e){}}document.addEventListener('click',function(e){let b=e.target.closest('button,.add,a');if(!b)return;let t=(b.textContent||'').trim();snd(t==='+'?'plus':t==='-'?'minus':'click');b.classList.add('tap');setTimeout(()=>b.classList.remove('tap'),80)},true)})();</script><script>/** @license
  *
  * jsPDF - PDF Document creation from JavaScript
