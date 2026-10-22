@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 def replace_required(text, old, new, label):
@@ -28,104 +29,111 @@ new_add = "function add(id){var p=product(id),cs=chars(p),kg=String(p.unit||'').
 if old_add in h:
     h = h.replace(old_add, new_add, 1)
 
-# Desktop/laptop only: keep the dynamic logo, business name and slogan together
-# as one compact brand block. Mobile styles remain untouched.
-desktop_brand_style = '''<style id="varelia-desktop-brand-v86">
-@media (min-width:760px){
+# Laptop/desktop only: keep the existing stacked brand layout (logo, name,
+# slogan), but align its left edge EXACTLY with the Contact content inside the
+# white seller card. The seller card is max-width:1100px with 20px padding, so
+# the matching left inset is ((viewport - 1100px)/2 + 20px) on wide screens and
+# 20px on narrower laptop widths. Use 600px instead of 760px so browser zoom on
+# a laptop cannot accidentally fall back to the mobile alignment.
+desktop_brand_style = '''<style id="varelia-desktop-brand-v89">
+@media (min-width:600px){
   .hero{
-    display:grid;
-    grid-template-columns:96px minmax(0,1fr) auto;
-    grid-template-rows:auto auto;
-    column-gap:22px;
-    row-gap:3px;
-    align-items:center;
-    padding:30px max(34px,calc((100vw - 1100px)/2)) 78px;
+    display:block!important;
+    padding-top:24px!important;
+    padding-right:max(20px,calc((100vw - 1100px)/2 + 20px))!important;
+    padding-bottom:64px!important;
+    padding-left:max(20px,calc((100vw - 1100px)/2 + 20px))!important;
   }
-  .hero .top{display:contents}
+  .hero .top{
+    display:flex!important;
+    justify-content:space-between!important;
+    align-items:flex-start!important;
+  }
   .hero .top>b{
-    grid-column:1;
-    grid-row:1/3;
-    width:96px;
-    height:96px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    align-self:center;
-    overflow:hidden;
-    border-radius:18px;
-    background:#ffffff12;
-    font-size:30px;
-    line-height:1;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    width:auto!important;
+    height:auto!important;
+    display:block!important;
+    align-self:auto!important;
+    overflow:visible!important;
+    border-radius:0!important;
+    background:transparent!important;
+    font-size:inherit!important;
+    line-height:normal!important;
   }
   .hero .top>b img{
-    width:96px!important;
-    height:96px!important;
-    max-width:none!important;
-    max-height:none!important;
+    width:auto!important;
+    height:auto!important;
+    max-width:92px!important;
+    max-height:56px!important;
     object-fit:contain!important;
-    border-radius:16px!important;
+    border-radius:12px!important;
   }
   .hero .top>div{
-    grid-column:3;
-    grid-row:1;
-    display:flex;
-    gap:8px;
-    justify-self:end;
-    align-self:start;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    display:flex!important;
+    gap:8px!important;
+    justify-self:auto!important;
+    align-self:auto!important;
   }
   .hero h1#business{
-    grid-column:2;
-    grid-row:1;
-    margin:0!important;
-    align-self:end;
-    font-size:42px;
-    line-height:1.06;
-    letter-spacing:-1px;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    margin:38px 0 7px!important;
+    align-self:auto!important;
+    font-size:38px!important;
+    line-height:1.08!important;
+    letter-spacing:-1px!important;
   }
   #heroSlogan{
-    grid-column:2;
-    grid-row:2;
-    margin:3px 0 0!important;
-    max-width:720px;
-    font-size:20px!important;
-    line-height:1.3!important;
-    font-weight:700!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    margin:5px 0 8px!important;
+    max-width:720px!important;
+    font-size:21px!important;
+    line-height:1.25!important;
+    font-weight:800!important;
   }
   .hero>div:last-child{
-    grid-column:2;
-    grid-row:2;
-    margin:3px 0 0;
-    color:#e5e7eb;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    margin:0!important;
   }
 }
 </style>'''
-if 'id="varelia-desktop-brand-v86"' not in h:
+brand_pattern = re.compile(r'<style id="varelia-desktop-brand-v(?:86|89)">.*?</style>', re.S)
+if brand_pattern.search(h):
+    h = brand_pattern.sub(desktop_brand_style, h, count=1)
+else:
     h = h.replace('</head>', desktop_brand_style + '</head>', 1)
 
 p.write_text(h, encoding='utf-8')
 
 p = Path('catalogo/milagros/index.html')
 r = p.read_text(encoding='utf-8')
-r = r.replace('catalogo-v2.html?v=20261021-presentations-v84', 'catalogo-v2.html?v=20261022-desktop-brand-v86')
-r = r.replace('catalogo-v2.html?v=20261021-presentations-v85', 'catalogo-v2.html?v=20261022-desktop-brand-v86')
+r = r.replace('catalogo-v2.html?v=20261021-presentations-v84', 'catalogo-v2.html?v=20261022-desktop-brand-v89')
+r = r.replace('catalogo-v2.html?v=20261021-presentations-v85', 'catalogo-v2.html?v=20261022-desktop-brand-v89')
+r = r.replace('catalogo-v2.html?v=20261022-desktop-brand-v86', 'catalogo-v2.html?v=20261022-desktop-brand-v89')
 p.write_text(r, encoding='utf-8')
 
-# The app sometimes publishes the direct ?c= link (exactly the URL visible in
-# the laptop screenshot). Give that direct URL its own version parameter too,
-# so opening "Ver catálogo" cannot reuse an older cached catalog document.
+# The app sometimes publishes the direct ?c= link. Force this alignment build
+# so the laptop never reuses the earlier v86 document.
 p = Path('public-catalog.js')
 j = p.read_text(encoding='utf-8')
+j = j.replace("&_v=20261022-desktop-brand-v86", "&_v=20261022-desktop-brand-v89")
 old_direct = "location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)"
-new_direct = "location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261022-desktop-brand-v86'"
+new_direct = "location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261022-desktop-brand-v89'"
 if old_direct in j and new_direct not in j:
     j = j.replace(old_direct, new_direct, 1)
 p.write_text(j, encoding='utf-8')
 
-# Force the main Varelia app to load the corrected generator instead of a
-# cached older public-catalog.js file.
+# Force the main Varelia app to load the corrected generator too.
 p = Path('index.html')
 i = p.read_text(encoding='utf-8')
-i = i.replace('public-catalog.js?v=202610220105-presentations-v2', 'public-catalog.js?v=20261022-desktop-brand-v86-linkfix')
+i = i.replace('public-catalog.js?v=202610220105-presentations-v2', 'public-catalog.js?v=20261022-desktop-brand-v89-align-contact')
+i = i.replace('public-catalog.js?v=20261022-desktop-brand-v86-linkfix', 'public-catalog.js?v=20261022-desktop-brand-v89-align-contact')
 p.write_text(i, encoding='utf-8')
 
-print('public catalog desktop brand + direct link + app script cache patch applied')
+print('public catalog desktop brand aligned with contact card + cache patch applied')
