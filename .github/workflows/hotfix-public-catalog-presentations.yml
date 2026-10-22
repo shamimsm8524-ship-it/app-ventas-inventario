@@ -15,16 +15,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Build fresh public catalog desktop layout v92
+      - name: Build exact CONTACTO-column desktop alignment v93
         run: python scripts/hotfix_public_catalog_presentations.py
       - name: Commit patch
         run: |
           git config user.name "Varelia Stability Bot"
           git config user.email "actions@users.noreply.github.com"
-          git add catalogo/milagros/catalogo-v2.html catalogo/milagros/catalogo-v92.html catalogo/milagros/index.html catalogo-enlace.html public-catalog.js index.html
+          git add catalogo/milagros/catalogo-v93.html catalogo/milagros/index.html catalogo-enlace.html public-catalog.js index.html
           if git diff --cached --quiet; then
             echo "No changes"
             exit 0
           fi
-          git commit -m "Publish fresh public catalog desktop layout v92"
+          git commit -m "Align desktop catalog brand exactly above contact"
           git push
