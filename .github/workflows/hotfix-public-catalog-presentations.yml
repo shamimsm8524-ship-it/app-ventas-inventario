@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply public catalog measured desktop alignment patch v90
+      - name: Apply corrected public catalog measured desktop alignment v91
         run: python scripts/hotfix_public_catalog_presentations.py
       - name: Commit patch
         run: |
@@ -26,5 +26,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          git commit -m "Measure public catalog brand alignment from contact card"
+          git commit -m "Place measured catalog alignment at real page close"
           git push
