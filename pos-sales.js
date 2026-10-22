@@ -679,6 +679,10 @@
           if(typeof window.vareliaCentralCheckout==='function'){
             const cloudOk=await window.vareliaCentralCheckout();
             if(!cloudOk){finish(100);return;}
+            // Recordar que esta venta ya fue cobrada. Solo en ese caso, al volver
+            // a entrar a Venta, se inicia una caja nueva. Un carrito pendiente se conserva.
+            window.__vareliaSaleCompletedPendingReset=true;
+            try{localStorage.setItem('varelia_sale_completed_pending_reset_v1','1')}catch{}
 
             // Venta confirmada: dejar preparada una venta NUEVA detrás del comprobante.
             // No conservar producto, cantidad, dinero recibido, vuelto ni pago mixto.
@@ -792,7 +796,23 @@ const ensureReceiptVisible=()=>{
 
       function goSales(){const nav=document.querySelector('.nav [data-view="sales"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew(true);root.scrollIntoView({behavior:'smooth',block:'start'})},80)}
       document.addEventListener('click',e=>{const b=e.target.closest('#newSaleTop,#newSaleFab');if(!b)return;e.preventDefault();e.stopImmediatePropagation();goSales()},true);
-      document.addEventListener('click',e=>{const b=e.target.closest('.nav [data-view="sales"]');if(!b)return;setTimeout(()=>input.focus(),120)},true);
+      document.addEventListener('click',e=>{
+        const b=e.target.closest('.nav [data-view="sales"],#vmobileNav button,.vmobileNav button,.mobileNav button');
+        if(!b)return;
+        const target=String(b.dataset.view||b.dataset.mobileTab||b.dataset.mobileView||'').trim().toLowerCase();
+        const label=String(b.textContent||'').replace(/\s+/g,' ').trim().toLowerCase();
+        const isSales=b.matches('.nav [data-view="sales"]')||target==='sales'||label==='venta'||label==='ventas';
+        if(!isSales)return;
+        let completed=!!window.__vareliaSaleCompletedPendingReset;
+        try{completed=completed||localStorage.getItem('varelia_sale_completed_pending_reset_v1')==='1'}catch{}
+        if(completed){
+          window.__vareliaSaleCompletedPendingReset=false;
+          try{localStorage.removeItem('varelia_sale_completed_pending_reset_v1')}catch{}
+          setTimeout(()=>{startNew(true);input.focus()},100);
+          return;
+        }
+        setTimeout(()=>input.focus(),120);
+      },true);
 
       window.VareliaPOS={addProduct,startNew,sync,getCartItems:()=>{try{return sync().rows.map(r=>r.item).filter(Boolean).map(x=>({...x}))}catch(e){console.warn('No se pudo leer el carrito visible',e);return[]}},isActive:()=>salesSec.classList.contains('active'),focus:()=>input.focus()};
       renderPay();sync();setTimeout(sync,350);setTimeout(()=>salesSec.querySelectorAll(':scope > .flowRole').forEach(el=>el.remove()),1200);
