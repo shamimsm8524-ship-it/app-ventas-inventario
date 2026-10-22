@@ -105,63 +105,102 @@ body{background:#f7f7f5}
 .grid{gap:16px 12px}.photo{border-radius:16px;background:#f0f0ee}.name{font-family:Arial,sans-serif;font-size:16px;font-weight:800}
 .add{border-radius:12px;background:#111827;color:#fff;border-color:#111827}.bar{border-radius:16px}
 @media(max-width:560px){.hero h1{font-size:36px}.seller{margin-left:14px;margin-right:14px}.shop{padding-left:14px;padding-right:14px}.grid{gap:18px 10px}.add{padding:10px}}
-</style><style id="varelia-laptop-brand-v96">
-html.varelia-laptop-brand-v96 .hero{
-  display:block!important;
-  position:relative!important;
-  padding-top:30px!important;
-  padding-bottom:66px!important;
+</style><style id="varelia-laptop-brand-v97">
+/* Laptop/desktop: one shared geometry for brand, CONTACTO card and shop.
+   Seller outer width = viewport - 36px, with 20px inner padding.
+   Therefore seller content width = viewport - 76px.
+   The hero-inner uses exactly that same content width, so its left/right
+   guides are mathematically identical to CONTACTO/UBICACION content. */
+@media (min-width:760px), (hover:hover) and (pointer:fine){
+  .hero{
+    display:block!important;
+    position:relative!important;
+    padding:0!important;
+  }
+  .hero-inner{
+    box-sizing:border-box!important;
+    width:calc(100% - 76px)!important;
+    max-width:1060px!important;
+    margin:0 auto!important;
+    padding:30px 0 66px!important;
+    position:relative!important;
+  }
+  .hero-inner .top{
+    display:flex!important;
+    justify-content:space-between!important;
+    align-items:flex-start!important;
+    width:100%!important;
+    margin:0!important;
+  }
+  .hero-inner .top>b{
+    width:110px!important;
+    min-width:110px!important;
+    height:110px!important;
+    min-height:110px!important;
+    max-width:110px!important;
+    max-height:110px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    overflow:hidden!important;
+    border-radius:16px!important;
+    background:transparent!important;
+    line-height:1!important;
+    transform:none!important;
+  }
+  .hero-inner .top>b img{
+    display:block!important;
+    width:110px!important;
+    height:110px!important;
+    min-width:110px!important;
+    min-height:110px!important;
+    max-width:110px!important;
+    max-height:110px!important;
+    object-fit:contain!important;
+    object-position:left center!important;
+    border-radius:16px!important;
+  }
+  .hero-inner .top>div{
+    display:flex!important;
+    align-items:center!important;
+    gap:8px!important;
+    margin:0!important;
+  }
+  .hero-inner h1#business{
+    margin:14px 0 5px!important;
+    font-size:38px!important;
+    line-height:1.08!important;
+    letter-spacing:-1px!important;
+    transform:none!important;
+  }
+  .hero-inner #heroSlogan{
+    margin:0!important;
+    max-width:720px!important;
+    font-size:21px!important;
+    line-height:1.3!important;
+    font-weight:800!important;
+    transform:none!important;
+  }
+  .hero-inner>div:last-child{margin:5px 0 0!important}
+
+  .seller{
+    box-sizing:border-box!important;
+    width:calc(100% - 36px)!important;
+    max-width:1100px!important;
+    margin:-42px auto 0!important;
+    padding:20px!important;
+  }
+  .shop{
+    box-sizing:border-box!important;
+    width:calc(100% - 36px)!important;
+    max-width:1100px!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+    padding-left:20px!important;
+    padding-right:20px!important;
+  }
 }
-html.varelia-laptop-brand-v96 .hero .top{
-  display:flex!important;
-  justify-content:space-between!important;
-  align-items:flex-start!important;
-}
-html.varelia-laptop-brand-v96 .hero .top>b{
-  width:110px!important;
-  min-width:110px!important;
-  height:110px!important;
-  min-height:110px!important;
-  max-width:110px!important;
-  max-height:110px!important;
-  display:flex!important;
-  align-items:center!important;
-  justify-content:flex-start!important;
-  overflow:hidden!important;
-  border-radius:16px!important;
-  background:transparent!important;
-  line-height:1!important;
-  transform:none!important;
-}
-html.varelia-laptop-brand-v96 .hero .top>b img{
-  display:block!important;
-  width:110px!important;
-  height:110px!important;
-  min-width:110px!important;
-  min-height:110px!important;
-  max-width:110px!important;
-  max-height:110px!important;
-  object-fit:contain!important;
-  object-position:left center!important;
-  border-radius:16px!important;
-}
-html.varelia-laptop-brand-v96 .hero h1#business{
-  margin:14px 0 5px!important;
-  font-size:38px!important;
-  line-height:1.08!important;
-  letter-spacing:-1px!important;
-  transform:none!important;
-}
-html.varelia-laptop-brand-v96 #heroSlogan{
-  margin:0!important;
-  max-width:720px!important;
-  font-size:21px!important;
-  line-height:1.3!important;
-  font-weight:800!important;
-  transform:none!important;
-}
-html.varelia-laptop-brand-v96 .hero>div:last-child{margin:5px 0 0!important}
-</style></head><body><header class="hero"><div class="top"><b>V</b><div><a id="waTop" href="#">WhatsApp</a> <button id="share">Compartir</button></div></div><h1 id="business">Mi negocio</h1><div id="heroSlogan" style="display:none;color:#fff;font-size:21px;font-weight:800;line-height:1.25;margin:5px 0 8px"></div><div>Catálogo oficial · Stock actualizado</div></header><section class="seller"><div id="businessSlogan" class="fact" style="display:none;margin:0 0 12px"><b id="businessSloganText"></b></div><div class="facts" id="facts"></div><div class="pills" id="socials"></div></section><section class="shop"><h2>Descubre nuestros productos</h2><input class="search" id="q" placeholder="Buscar en la colección"><div class="cats" id="cats"></div><div class="grid" id="grid"><p>Cargando productos…</p></div></section><div class="bar" id="bar"><div><b id="count">0 productos</b><div id="sum">S/ 0.00</div></div><button id="view">VER PEDIDO</button></div><div class="modal" id="productViewer"><div class="sheet" style="max-width:560px"><button id="viewerClose" style="float:right;border:0;background:#f1f1f1;border-radius:50%;width:38px;height:38px;font-size:22px;cursor:pointer">×</button><div id="viewerContent"></div></div></div><div class="modal" id="modal"><div class="sheet"><h2>Tu selección</h2><div class="sheetSub">Modifica cantidades, talla y color antes de enviar tu pedido.</div><div class="cartList" id="items"></div><div class="box"><b>DATOS DEL CLIENTE</b><input id="cname" placeholder="Nombre y apellido *"><input id="phone" placeholder="Celular / WhatsApp *"><input id="city" placeholder="Distrito / ciudad *"><textarea id="address" placeholder="Dirección de entrega *"></textarea><input id="shalom" placeholder="Sucursal / agencia Shalom" hidden><input id="ref" placeholder="Referencia (opcional)"></div><div class="box"><b>FORMA DE ENTREGA</b><select id="delivery"></select><div class="note" id="note"></div></div><div class="box"><b>MÉTODO DE PAGO</b><select id="payment"></select><div class="note" id="paynote"></div><div id="paymentQr"></div></div><div class="summary"><div class="sumRow"><span>Productos</span><span class="amt" id="subtotal"></span></div><div class="sumRow"><span>Envío</span><span class="amt" id="ship"></span></div><div class="sumDivider"></div><div class="sumRow sumTotal"><span>TOTAL</span><span class="amt" id="total"></span></div></div><button class="primary" id="order">Enviar pedido</button><button class="close" id="receipt">Comprobante de pedido / PDF</button><button class="close" id="close">Seguir comprando</button></div></div><script>(function(){let c=null;function snd(k){try{c=c||new(window.AudioContext||window.webkitAudioContext)();if(c.state==='suspended')c.resume();let o=c.createOscillator(),g=c.createGain(),n=c.currentTime;o.type='sine';o.frequency.value=k==='plus'?720:k==='minus'?420:560;g.gain.setValueAtTime(.0001,n);g.gain.exponentialRampToValueAtTime(.05,n+.008);g.gain.exponentialRampToValueAtTime(.0001,n+.07);o.connect(g);g.connect(c.destination);o.start(n);o.stop(n+.075)}catch(e){}}document.addEventListener('click',function(e){let b=e.target.closest('button,.add,a');if(!b)return;let t=(b.textContent||'').trim();snd(t==='+'?'plus':t==='-'?'minus':'click');b.classList.add('tap');setTimeout(()=>b.classList.remove('tap'),80)},true)})();</script><script>/** @license
+</style></head><body><header class="hero"><div class="hero-inner"><div class="top"><b>V</b><div><a id="waTop" href="#">WhatsApp</a> <button id="share">Compartir</button></div></div><h1 id="business">Mi negocio</h1><div id="heroSlogan" style="display:none;color:#fff;font-size:21px;font-weight:800;line-height:1.25;margin:5px 0 8px"></div><div>Catálogo oficial · Stock actualizado</div></div></header><section class="seller"><div id="businessSlogan" class="fact" style="display:none;margin:0 0 12px"><b id="businessSloganText"></b></div><div class="facts" id="facts"></div><div class="pills" id="socials"></div></section><section class="shop"><h2>Descubre nuestros productos</h2><input class="search" id="q" placeholder="Buscar en la colección"><div class="cats" id="cats"></div><div class="grid" id="grid"><p>Cargando productos…</p></div></section><div class="bar" id="bar"><div><b id="count">0 productos</b><div id="sum">S/ 0.00</div></div><button id="view">VER PEDIDO</button></div><div class="modal" id="productViewer"><div class="sheet" style="max-width:560px"><button id="viewerClose" style="float:right;border:0;background:#f1f1f1;border-radius:50%;width:38px;height:38px;font-size:22px;cursor:pointer">×</button><div id="viewerContent"></div></div></div><div class="modal" id="modal"><div class="sheet"><h2>Tu selección</h2><div class="sheetSub">Modifica cantidades, talla y color antes de enviar tu pedido.</div><div class="cartList" id="items"></div><div class="box"><b>DATOS DEL CLIENTE</b><input id="cname" placeholder="Nombre y apellido *"><input id="phone" placeholder="Celular / WhatsApp *"><input id="city" placeholder="Distrito / ciudad *"><textarea id="address" placeholder="Dirección de entrega *"></textarea><input id="shalom" placeholder="Sucursal / agencia Shalom" hidden><input id="ref" placeholder="Referencia (opcional)"></div><div class="box"><b>FORMA DE ENTREGA</b><select id="delivery"></select><div class="note" id="note"></div></div><div class="box"><b>MÉTODO DE PAGO</b><select id="payment"></select><div class="note" id="paynote"></div><div id="paymentQr"></div></div><div class="summary"><div class="sumRow"><span>Productos</span><span class="amt" id="subtotal"></span></div><div class="sumRow"><span>Envío</span><span class="amt" id="ship"></span></div><div class="sumDivider"></div><div class="sumRow sumTotal"><span>TOTAL</span><span class="amt" id="total"></span></div></div><button class="primary" id="order">Enviar pedido</button><button class="close" id="receipt">Comprobante de pedido / PDF</button><button class="close" id="close">Seguir comprando</button></div></div><script>(function(){let c=null;function snd(k){try{c=c||new(window.AudioContext||window.webkitAudioContext)();if(c.state==='suspended')c.resume();let o=c.createOscillator(),g=c.createGain(),n=c.currentTime;o.type='sine';o.frequency.value=k==='plus'?720:k==='minus'?420:560;g.gain.setValueAtTime(.0001,n);g.gain.exponentialRampToValueAtTime(.05,n+.008);g.gain.exponentialRampToValueAtTime(.0001,n+.07);o.connect(g);g.connect(c.destination);o.start(n);o.stop(n+.075)}catch(e){}}document.addEventListener('click',function(e){let b=e.target.closest('button,.add,a');if(!b)return;let t=(b.textContent||'').trim();snd(t==='+'?'plus':t==='-'?'minus':'click');b.classList.add('tap');setTimeout(()=>b.classList.remove('tap'),80)},true)})();</script><script>/** @license
  *
  * jsPDF - PDF Document creation from JavaScript
  * Version 2.5.2 Built on 2024-09-17T13:29:57.856Z
@@ -664,53 +703,4 @@ $('order').onclick=async function(){if(window.__vareliaOrderSubmitting)return;wi
   console.error('catalog products',e);
   $('grid').innerHTML='<p>No se pudo cargar los productos. Error: '+esc(e&&e.message||'desconocido')+'</p>';
  }
-})();})();</script><script id="varelia-laptop-brand-v96">
-(function(){
-  function isLaptop(){
-    var fine = window.matchMedia && window.matchMedia('(pointer:fine)').matches;
-    var hover = window.matchMedia && window.matchMedia('(hover:hover)').matches;
-    return (fine || hover) && Math.max(screen.width||0, screen.availWidth||0) >= 800;
-  }
-
-  function align(){
-    if(!isLaptop()){
-      document.documentElement.classList.remove('varelia-laptop-brand-v96');
-      return;
-    }
-    document.documentElement.classList.add('varelia-laptop-brand-v96');
-
-    var hero = document.querySelector('.hero');
-    var seller = document.querySelector('.seller');
-    if(!hero || !seller) return;
-
-    var rect = seller.getBoundingClientRect();
-    var css = getComputedStyle(seller);
-    var padL = parseFloat(css.paddingLeft) || 0;
-    var padR = parseFloat(css.paddingRight) || 0;
-
-    // Exact same vertical guides as CONTACTO/UBICACIÓN content.
-    var left = Math.round(rect.left + padL);
-    var right = Math.round((window.innerWidth - rect.right) + padR);
-
-    hero.style.setProperty('padding-left', left + 'px', 'important');
-    hero.style.setProperty('padding-right', Math.max(20,right) + 'px', 'important');
-  }
-
-  function run(){
-    align();
-    requestAnimationFrame(align);
-    setTimeout(align,100);
-    setTimeout(align,350);
-    setTimeout(align,900);
-  }
-
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', run, {once:true});
-  }else{
-    run();
-  }
-  window.addEventListener('load', run, {once:true});
-  window.addEventListener('pageshow', run);
-  window.addEventListener('resize', align, {passive:true});
-})();
-</script></body></html>
+})();})();</script></body></html>
