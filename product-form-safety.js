@@ -1,13 +1,45 @@
 (()=>{
   if(window.__vareliaProductFormSafetyV23)return;
   window.__vareliaProductFormSafetyV23=true;
-  window.__VARELIA_PRODUCT_FORM_SAFETY_BUILD__='20261022-v24-price-literal';
+  window.__VARELIA_PRODUCT_FORM_SAFETY_BUILD__='20261022-v25-clear-unit-price';
   const $=id=>document.getElementById(id);
   const list=()=>{try{return Array.isArray(products)?products:[]}catch{return Array.isArray(window.products)?window.products:[]}};
   const medCategory=()=>/^(pastillas?|medicinas?|medicamentos?)$/i.test(String($('productCategory')?.value||'').trim());
   const continuous=()=>['kg','kilo','kilos','kilogramo','kilogramos','g','gr','gramo','gramos','l','litro','litros','ml','mililitro','mililitros','m','metro','metros','m2','m²'].includes(String($('unit')?.value||'').trim().toLowerCase());
   const round2=n=>Math.round((Number(n)||0)*100)/100;
   function current(){const id=String($('productId')?.value||'');return id?list().find(p=>String(p?.id||'')===id)||null:null}
+
+  function commercialRows(){return [...document.querySelectorAll('#vCommercialRows [data-crow]')]}
+  function currentUnitLabel(){return String($('unit')?.value||'Unidad').trim()||'Unidad'}
+  function ensurePriceMeaning(){
+    const price=$('sellPrice'),label=price?.closest('label'),unit=currentUnitLabel();
+    const title=label?.querySelector('span');
+    if(title)title.textContent=`Precio por 1 ${unit} (S/)`;
+    if(label){
+      let help=$('vUnitPriceHelp');
+      if(!help){
+        help=document.createElement('div');help.id='vUnitPriceHelp';help.className='meta';
+        help.style.cssText='margin-top:7px;line-height:1.35;color:var(--muted)';
+        label.appendChild(help);
+      }
+      help.textContent=`Este precio es solo para vender 1 ${unit}. No pongas aquí el precio del cajón, docena o media docena; esos precios se escriben abajo y cada uno es independiente.`;
+    }
+    commercialRows().forEach(row=>{
+      const input=row.querySelector('[data-cprice]'),l=input?.closest('label');if(!l)return;
+      const first=[...l.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);
+      if(first)first.nodeValue='Precio total (S/)';
+    });
+    const box=$('vCommercialPricingBox');
+    if(box){
+      let note=$('vPresentationPriceHelp');
+      if(!note){
+        note=document.createElement('div');note.id='vPresentationPriceHelp';note.className='meta';
+        note.style.cssText='padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--p) 7%,transparent);font-weight:750;line-height:1.4';
+        const rows=$('vCommercialRows');if(rows)box.insertBefore(note,rows);
+      }
+      note.textContent='Cada presentación tiene su propio precio TOTAL. Ejemplo: Unidad S/10, Media docena S/55, Docena S/100 y Cajón S/250. Varelia no debe multiplicar ni reemplazar esos precios.';
+    }
+  }
 
   function ensureCommercialAccordion(){
     const box=$('vCommercialPricingBox');if(!box)return false;
@@ -68,17 +100,17 @@
     if(manual)manual.style.display=medCategory()?'none':'flex';
     const commercial=$('vCommercialPricingBox');
     if(commercial){commercial.style.display=(!toggle.checked&&!medCategory()&&!continuous())?'grid':'none';ensureCommercialAccordion()}
+    ensurePriceMeaning();
   }
   function syncFromProduct(){
     const dlg=$('productDialog');if(!dlg?.open)return;
     const toggle=$('vMedicineToggle');if(!toggle)return;
     const p=current();
     toggle.checked=p?!!p.medicine:medCategory();
-    applyVisibility();
+    applyVisibility();ensurePriceMeaning();
   }
 
   // Precio mayorista automático cuando el mínimo coincide con una presentación.
-  function commercialRows(){return [...document.querySelectorAll('#vCommercialRows [data-crow]')]}
   function rowValues(row){
     return {
       units:Math.max(0,Math.floor(Number(row?.querySelector('[data-cunits]')?.value||0))),
@@ -144,6 +176,7 @@
     if(e.target?.matches?.('[data-cunits],[data-cprice]')){
       const row=e.target.closest('[data-crow]');
       setWholesaleFromRow(row,{followUnits:e.target.matches('[data-cunits]')});
+      ensurePriceMeaning();
       return;
     }
     if(e.target?.id==='vCommercialWholesaleMin')syncWholesaleByMinimum();
@@ -157,8 +190,8 @@
   },true);
 
   document.addEventListener('click',e=>{
-    if(e.target.closest?.('[data-edit]'))[20,80,180,360].forEach(ms=>setTimeout(()=>{syncFromProduct();syncWholesaleByMinimum();ensureCommercialAccordion()},ms));
-    if(e.target.closest?.('#newProduct,#inventoryNewProduct'))[20,80,180].forEach(ms=>setTimeout(()=>{const t=$('vMedicineToggle');if(t)t.checked=medCategory();applyVisibility();syncWholesaleByMinimum();ensureCommercialAccordion()},ms));
+    if(e.target.closest?.('[data-edit]'))[20,80,180,360].forEach(ms=>setTimeout(()=>{syncFromProduct();syncWholesaleByMinimum();ensureCommercialAccordion();ensurePriceMeaning()},ms));
+    if(e.target.closest?.('#newProduct,#inventoryNewProduct'))[20,80,180].forEach(ms=>setTimeout(()=>{const t=$('vMedicineToggle');if(t)t.checked=medCategory();applyVisibility();syncWholesaleByMinimum();ensureCommercialAccordion();ensurePriceMeaning()},ms));
     if(e.target.closest?.('#vCSModes [data-cmode]'))repairOpenPicker();
   },true);
   document.addEventListener('change',e=>{
@@ -166,7 +199,7 @@
     if(e.target?.id==='productCategory'){
       const t=$('vMedicineToggle');if(t)t.checked=medCategory();applyVisibility();return
     }
-    if(e.target?.id==='unit')applyVisibility();
+    if(e.target?.id==='unit'){applyVisibility();ensurePriceMeaning()}
   },true);
 
   // Guardar producto debe sentirse como una sola acción. El guardado local del
@@ -195,15 +228,16 @@
   },false);
 
   const boot=()=>{
+    ensurePriceMeaning();
     const dlg=$('productDialog');
-    if(dlg)new MutationObserver(()=>{if(dlg.open)[0,60,180].forEach(ms=>setTimeout(()=>{syncFromProduct();syncWholesaleByMinimum();ensureCommercialAccordion()},ms))}).observe(dlg,{attributes:true,attributeFilter:['open']});
+    if(dlg)new MutationObserver(()=>{if(dlg.open)[0,60,180].forEach(ms=>setTimeout(()=>{syncFromProduct();syncWholesaleByMinimum();ensureCommercialAccordion();ensurePriceMeaning()},ms))}).observe(dlg,{attributes:true,attributeFilter:['open']});
     const observer=new MutationObserver(()=>{
-      ensureCommercialAccordion();
+      ensureCommercialAccordion();ensurePriceMeaning();
       const layer=$('vCommercialSalePicker');
       if(layer&&layer.style.display!=='none')queueMicrotask(repairOpenPicker);
     });
     observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['style']});
-    let tries=0;const accordionTimer=setInterval(()=>{tries++;if(ensureCommercialAccordion()||tries>80)clearInterval(accordionTimer)},100);
+    let tries=0;const accordionTimer=setInterval(()=>{tries++;ensurePriceMeaning();if(ensureCommercialAccordion()||tries>80)clearInterval(accordionTimer)},100);
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
 })();
