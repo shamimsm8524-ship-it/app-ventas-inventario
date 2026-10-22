@@ -1,0 +1,155 @@
+name: Hotfix public catalog business info
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hotfix-public-catalog-business-info.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Patch public catalog business identity
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          def replace_all(text, old, new, label, required=False):
+              count = text.count(old)
+              if count:
+                  text = text.replace(old, new)
+                  print(f"{label}: {count} replacement(s)")
+              elif required:
+                  raise SystemExit(f"Required target not found: {label}")
+              else:
+                  print(f"{label}: already patched or not present")
+              return text
+
+          # Publish every business field configured in Ajustes, including RUC.
+          pub = Path('public-catalog.js')
+          text = pub.read_text(encoding='utf-8')
+          if "ruc:String(s.ruc||'').trim()" not in text:
+              old = "slogan:String(s.businessSlogan||'').trim(),phone:String(s.phone||'').trim(),address:String(s.address||'').trim(),hours:String(s.businessHours||'').trim(),map_url:String(s.publicMapUrl||'').trim(),logo:logo"
+              new = "slogan:String(s.businessSlogan||'').trim(),ruc:String(s.ruc||'').trim(),phone:String(s.phone||'').trim(),address:String(s.address||'').trim(),hours:String(s.businessHours||'').trim(),map_url:String(s.publicMapUrl||'').trim(),logo:logo"
+              text = replace_all(text, old, new, 'publish RUC', required=True)
+          pub.write_text(text, encoding='utf-8')
+
+          catalog_paths = [Path('catalogo-v2.html'), Path('catalogo/milagros/catalogo-v2.html')]
+          patched_any = False
+
+          for path in catalog_paths:
+              if not path.exists():
+                  print(f"skip missing {path}")
+                  continue
+              text = path.read_text(encoding='utf-8')
+              before = text
+
+              # Never fall back to another account/catalog when ?c= is absent.
+              text = re.sub(
+                  r"PID=\(QS\.get\('c'\)\|\|'[^']*'\)\.split\('&'\)\[0\],BID='[^']*'",
+                  "PID=(QS.get('c')||'').split('&')[0],BID=''",
+                  text
+              )
+
+              # Remove old business identity defaults from the public UI.
+              text = text.replace("business='Milagros Quispe'", "business='Mi negocio'")
+              text = text.replace('<div class="top"><b>MQ</b><div>', '<div class="top"><b id="brandMark">V</b><div>')
+              text = text.replace('<h1 id="business">Milagros Quispe</h1>', '<h1 id="business">Mi negocio</h1>')
+              text = text.replace('<div>Catálogo oficial · Stock actualizado</div></header>', '<div id="heroSubtitle">Catálogo oficial · Stock actualizado</div></header>')
+
+              # The catalog row must provide its real business_id; products then stay isolated per account.
+              text = text.replace(
+                  'public_catalogs?select=business_name,business_info,social_links,theme_color&public_id=eq.',
+                  'public_catalogs?select=business_id,business_name,business_info,social_links,theme_color&public_id=eq.'
+              )
+              marker = "if(!x)throw Error('Catálogo no encontrado');business=x.business_name||business;"
+              if marker in text:
+                  text = text.replace(marker, "if(!x)throw Error('Catálogo no encontrado');BID=String(x.business_id||'');business=x.business_name||business;", 1)
+              elif "BID=String(x.business_id||'')" not in text:
+                  marker2 = "if(!x)throw Error(\"Catálogo no encontrado\");business=x.business_name||business;"
+                  if marker2 in text:
+                      text = text.replace(marker2, "if(!x)throw Error(\"Catálogo no encontrado\");BID=String(x.business_id||'');business=x.business_name||business;", 1)
+
+              # Never suppress a legitimate slogan configured by the administrator.
+              text = text.replace("if(slogan.toLowerCase()==='calidad y buenos precios')slogan='';", "")
+
+              # Add dynamic brand/logo handling after the slogan is rendered.
+              old_render = "$('heroSlogan').textContent=slogan;$('heroSlogan').style.display=slogan?'block':'none';$('businessSloganText').textContent=slogan;$('businessSlogan').style.display='none';"
+              if old_render in text and "var brandMark=$('brandMark')" not in text:
+                  new_render = "$('heroSlogan').textContent=slogan;$('heroSlogan').style.display=slogan?'block':'none';$('businessSloganText').textContent=slogan;$('businessSlogan').style.display='none';if($('heroSubtitle'))$('heroSubtitle').style.display=slogan?'none':'';var brandMark=$('brandMark');if(brandMark){var brandWords=String(business||'').trim().split(/\\s+/).filter(Boolean),brandInitials=(brandWords.length>1?(brandWords[0].charAt(0)+brandWords[1].charAt(0)):String(business||'V').trim().slice(0,2)).toUpperCase(),brandLogo=String(info.logo||'').trim(),safeLogo=/^data:image\\/(?:png|jpe?g|webp|gif);base64,/i.test(brandLogo)||/^https:\\/\\//i.test(brandLogo);brandMark.textContent=safeLogo?'':brandInitials;if(safeLogo){var logoImg=document.createElement('img');logoImg.src=brandLogo;logoImg.alt='Logo de '+business;logoImg.style.maxWidth='92px';logoImg.style.maxHeight='56px';logoImg.style.objectFit='contain';logoImg.style.borderRadius='12px';brandMark.appendChild(logoImg)}}document.title=business+' | Catálogo';"
+                  text = text.replace(old_render, new_render, 1)
+
+              # Show RUC with the other business facts.
+              text = text.replace(
+                  "var f=[];if(info.phone)f.push(['CONTACTO',info.phone]);",
+                  "var f=[];if(info.ruc)f.push(['RUC / DOCUMENTO',info.ruc]);if(info.phone)f.push(['CONTACTO',info.phone]);"
+              )
+
+              # Add the Google Maps link when configured.
+              old_social = "$('socials').innerHTML=(x.social_links||[]).map(function(y){return'<a class=\"pill\" href=\"'+esc(y.url)+'\" target=\"_blank\">'+esc(y.label||y.type)+'</a>'}).join('');"
+              if old_social in text and "mapUrl=String(info.map_url||'').trim()" not in text:
+                  new_social = "var socialHtml=(x.social_links||[]).map(function(y){return'<a class=\"pill\" href=\"'+esc(y.url)+'\" target=\"_blank\" rel=\"noopener\">'+esc(y.label||y.type)+'</a>'}).join(''),mapUrl=String(info.map_url||'').trim();if(/^https?:\\/\\//i.test(mapUrl))socialHtml+='<a class=\"pill\" href=\"'+esc(mapUrl)+'\" target=\"_blank\" rel=\"noopener\">📍 Ver ubicación</a>';$('socials').innerHTML=socialHtml;"
+                  text = text.replace(old_social, new_social, 1)
+
+              # Remove the stale hardcoded WhatsApp fallback from another account.
+              old_wa = "$('waTop').href='https://wa.me/'+String(info.whatsapp||info.phone||'919757859').replace(/\\D/g,'');"
+              if old_wa in text:
+                  new_wa = "var wa=String(info.whatsapp||info.phone||'').replace(/\\D/g,'');if(wa){$('waTop').href='https://wa.me/'+wa;$('waTop').style.display=''}else{$('waTop').removeAttribute('href');$('waTop').style.display='none'}"
+                  text = text.replace(old_wa, new_wa)
+
+              if text != before:
+                  patched_any = True
+                  path.write_text(text, encoding='utf-8')
+                  print(f"patched {path}")
+              else:
+                  print(f"no changes needed in {path}")
+
+          # Bust browser cache for the publisher script.
+          index = Path('index.html')
+          index_text = index.read_text(encoding='utf-8')
+          index_text, n = re.subn(r'public-catalog\.js\?v=\d+', 'public-catalog.js?v=202610211951', index_text, count=1)
+          if n:
+              index.write_text(index_text, encoding='utf-8')
+              print('updated public-catalog.js cache key')
+
+          # Validate the pieces that protect account isolation and business identity.
+          pub_text = pub.read_text(encoding='utf-8')
+          if "ruc:String(s.ruc||'').trim()" not in pub_text:
+              raise SystemExit('RUC publisher validation failed')
+
+          for path in catalog_paths:
+              if not path.exists():
+                  continue
+              current = path.read_text(encoding='utf-8')
+              if "if(slogan.toLowerCase()==='calidad y buenos precios')slogan=''" in current:
+                  raise SystemExit(f'slogan suppression still present in {path}')
+              if "info.whatsapp||info.phone||'919757859'" in current:
+                  raise SystemExit(f'stale WhatsApp fallback still present in {path}')
+              if "public_catalogs?select=business_id,business_name,business_info,social_links,theme_color" in current and "BID=String(x.business_id||'')" not in current:
+                  raise SystemExit(f'business isolation validation failed in {path}')
+
+          print('public catalog hotfix validation OK')
+          PY
+
+      - name: Commit hotfix
+        run: |
+          rm -f .github/workflows/hotfix-public-catalog-business-info.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Fix public catalog business info sync"
+          git push origin HEAD:main
