@@ -121,4 +121,11 @@ if old_direct in j and new_direct not in j:
     j = j.replace(old_direct, new_direct, 1)
 p.write_text(j, encoding='utf-8')
 
-print('public catalog presentation + desktop brand layout + direct-link cache patch applied')
+# Force the main Varelia app to load the corrected generator instead of a
+# cached older public-catalog.js file.
+p = Path('index.html')
+i = p.read_text(encoding='utf-8')
+i = i.replace('public-catalog.js?v=202610220105-presentations-v2', 'public-catalog.js?v=20261022-desktop-brand-v86-linkfix')
+p.write_text(i, encoding='utf-8')
+
+print('public catalog desktop brand + direct link + app script cache patch applied')
