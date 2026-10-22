@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Raise dark hero bottom edge v101
+      - name: Set dark hero to end 2cm below slogan v102
         run: python scripts/fix_public_catalog_laptop_layout_v97.py
       - name: Commit patch
         run: |
@@ -26,5 +26,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          git commit -m "Raise dark hero bottom edge on laptop v101"
+          git commit -m "Set dark hero 2cm below slogan on laptop v102"
           git push
