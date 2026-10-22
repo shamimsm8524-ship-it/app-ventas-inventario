@@ -2,13 +2,8 @@ from pathlib import Path
 import re
 
 
-def replace_required(text, old, new, label):
-    if old not in text:
-        raise SystemExit(f'pattern not found: {label}')
-    return text.replace(old, new, 1)
-
-# Public storefront: make sale presentations visible from both the product card
-# and the product image/detail entry point. Also force a fresh public URL.
+# Public storefront: keep the existing presentation fixes, then build a
+# completely fresh desktop catalog URL so browsers cannot reuse catalog-v2.
 p = Path('catalogo/milagros/catalogo-v2.html')
 h = p.read_text(encoding='utf-8')
 
@@ -22,22 +17,26 @@ new_card = "<small>'+esc(p.category||'Producto')+'</small>'+(salePresentations(p
 if old_card in h:
     h = h.replace(old_card, new_card, 1)
 
-# Ensure the Add/Elegir action prioritizes a configured presentation for
-# products without medicine flow. This keeps Six Pack/Docena/Cajón accessible.
 old_add = "function add(id){var p=product(id),cs=chars(p),kg=String(p.unit||'').toLowerCase()==='kg';if(isMedicine(p)){openMedicinePicker(p);return}if(cs.length||kg){openViewer(p);return}if(salePresentations(p).length){openPresentationPicker(p);return}var defaults=[];cart.push({lineId:'L'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),id:String(id),qty:1,chars:defaults});draw()}"
 new_add = "function add(id){var p=product(id),cs=chars(p),kg=String(p.unit||'').toLowerCase()==='kg';if(isMedicine(p)){openMedicinePicker(p);return}if(salePresentations(p).length){openPresentationPicker(p);return}if(cs.length||kg){openViewer(p);return}var defaults=[];cart.push({lineId:'L'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),id:String(id),qty:1,chars:defaults});draw()}"
 if old_add in h:
     h = h.replace(old_add, new_add, 1)
 
-# Laptop/desktop: keep logo, business name and slogan stacked, exactly as the
-# user requested. Their horizontal position is measured from the real seller
-# card instead of estimated from viewport width.
-desktop_brand_style = '''<style id="varelia-desktop-brand-v91">
-@media (min-width:560px){
+# Remove all previous desktop-brand attempts. v92 uses only deterministic CSS:
+# the hero content line equals the seller card CONTENT line (card edge + 20px).
+brand_pattern = re.compile(r'<style id="varelia-desktop-brand-v\d+">.*?</style>', re.S)
+h = brand_pattern.sub('', h)
+align_pattern = re.compile(r'<script id="varelia-desktop-brand-align-v\d+">.*?</script>', re.S)
+h = align_pattern.sub('', h)
+
+desktop_brand_style = '''<style id="varelia-desktop-brand-v92">
+@media (min-width:760px){
   .hero{
     display:block!important;
-    padding-top:24px!important;
+    padding-top:28px!important;
     padding-bottom:64px!important;
+    padding-left:max(20px,calc((100vw - 1100px)/2 + 20px))!important;
+    padding-right:max(20px,calc((100vw - 1100px)/2 + 20px))!important;
   }
   .hero .top{
     display:flex!important;
@@ -45,144 +44,80 @@ desktop_brand_style = '''<style id="varelia-desktop-brand-v91">
     align-items:flex-start!important;
   }
   .hero .top>b{
-    grid-column:auto!important;
-    grid-row:auto!important;
-    width:auto!important;
-    height:auto!important;
-    display:block!important;
-    align-self:auto!important;
-    overflow:visible!important;
-    border-radius:0!important;
+    width:110px!important;
+    height:70px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    overflow:hidden!important;
+    border-radius:14px!important;
     background:transparent!important;
-    font-size:inherit!important;
-    line-height:normal!important;
+    line-height:1!important;
   }
   .hero .top>b img{
-    width:auto!important;
-    height:auto!important;
-    max-width:92px!important;
-    max-height:56px!important;
+    display:block!important;
+    width:110px!important;
+    height:70px!important;
+    max-width:110px!important;
+    max-height:70px!important;
     object-fit:contain!important;
-    border-radius:12px!important;
+    object-position:left center!important;
+    border-radius:14px!important;
   }
   .hero .top>div{
-    grid-column:auto!important;
-    grid-row:auto!important;
     display:flex!important;
     gap:8px!important;
-    justify-self:auto!important;
-    align-self:auto!important;
   }
   .hero h1#business{
-    grid-column:auto!important;
-    grid-row:auto!important;
-    margin:38px 0 7px!important;
-    align-self:auto!important;
+    margin:14px 0 5px!important;
     font-size:38px!important;
     line-height:1.08!important;
     letter-spacing:-1px!important;
   }
   #heroSlogan{
-    grid-column:auto!important;
-    grid-row:auto!important;
-    margin:5px 0 8px!important;
+    margin:0!important;
     max-width:720px!important;
     font-size:21px!important;
     line-height:1.25!important;
     font-weight:800!important;
   }
   .hero>div:last-child{
-    grid-column:auto!important;
-    grid-row:auto!important;
     margin:0!important;
   }
 }
 </style>'''
-brand_pattern = re.compile(r'<style id="varelia-desktop-brand-v(?:86|89|90|91)">.*?</style>', re.S)
-if brand_pattern.search(h):
-    h = brand_pattern.sub(desktop_brand_style, h, count=1)
-else:
-    h = h.replace('</head>', desktop_brand_style + '</head>', 1)
+h = h.replace('</head>', desktop_brand_style + '</head>', 1)
 
-# Remove any earlier misplaced alignment block. The catalog contains literal
-# </body> text inside the embedded jsPDF library, so inserting at the FIRST
-# occurrence is unsafe. v91 always inserts immediately before the LAST real
-# closing body tag.
-align_pattern = re.compile(r'<script id="varelia-desktop-brand-align-v\d+">.*?</script>', re.S)
-h = align_pattern.sub('', h)
-
-desktop_brand_align = '''<script id="varelia-desktop-brand-align-v91">
-(function(){
-  function alignBrand(){
-    if(window.innerWidth<560)return;
-    var hero=document.querySelector('.hero');
-    var seller=document.querySelector('.seller');
-    if(!hero||!seller)return;
-    var rect=seller.getBoundingClientRect();
-    var css=getComputedStyle(seller);
-    var padL=parseFloat(css.paddingLeft)||0;
-    var padR=parseFloat(css.paddingRight)||0;
-    var left=Math.max(20,Math.round(rect.left+padL));
-    var right=Math.max(20,Math.round((window.innerWidth-rect.right)+padR));
-    hero.style.setProperty('padding-left',left+'px','important');
-    hero.style.setProperty('padding-right',right+'px','important');
-  }
-  function run(){
-    alignBrand();
-    requestAnimationFrame(alignBrand);
-    setTimeout(alignBrand,80);
-    setTimeout(alignBrand,500);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true});else run();
-  window.addEventListener('resize',alignBrand,{passive:true});
-  window.addEventListener('pageshow',run);
-})();
-</script>'''
-head, sep, tail = h.rpartition('</body>')
-if not sep:
-    raise SystemExit('real closing </body> not found')
-h = head + desktop_brand_align + sep + tail
-
+# Keep the old route corrected too, but publish an entirely new file path.
 p.write_text(h, encoding='utf-8')
+Path('catalogo/milagros/catalogo-v92.html').write_text(h, encoding='utf-8')
 
+# Milagros entry page now opens the NEW physical file, not catalog-v2.
 p = Path('catalogo/milagros/index.html')
 r = p.read_text(encoding='utf-8')
-for old in [
-    'catalogo-v2.html?v=20261021-presentations-v84',
-    'catalogo-v2.html?v=20261021-presentations-v85',
-    'catalogo-v2.html?v=20261022-desktop-brand-v86',
-    'catalogo-v2.html?v=20261022-desktop-brand-v89',
-    'catalogo-v2.html?v=20261022-desktop-brand-v90',
-]:
-    r = r.replace(old, 'catalogo-v2.html?v=20261022-desktop-brand-v91')
+r = re.sub(r'catalogo-v(?:2|92)\.html\?v=[^\"\']+', 'catalogo-v92.html?v=20261022-desktop-brand-v92', r)
 p.write_text(r, encoding='utf-8')
 
-# Force direct catalog links to request the corrected runtime-measured build.
+# Varelia direct/fallback links also use the new physical file.
 p = Path('public-catalog.js')
 j = p.read_text(encoding='utf-8')
-for old in [
-    '&_v=20261022-desktop-brand-v86',
-    '&_v=20261022-desktop-brand-v89',
-    '&_v=20261022-desktop-brand-v90',
-]:
-    j = j.replace(old, '&_v=20261022-desktop-brand-v91')
+j = j.replace('/catalogo/milagros/catalogo-v2.html?c=', '/catalogo/milagros/catalogo-v92.html?c=')
+j = j.replace('/catalogo/milagros/catalogo-v92.html?c='+"'", '/catalogo/milagros/catalogo-v92.html?c='+"'")
+j = re.sub(r'&_v=20261022-desktop-brand-v\d+', '&_v=20261022-desktop-brand-v92', j)
 p.write_text(j, encoding='utf-8')
 
-# Existing /c/<slug> shared links must also land on the same corrected build.
+# Existing /c/<slug> links redirect to the new physical file too.
 p = Path('catalogo-enlace.html')
 e = p.read_text(encoding='utf-8')
-for old in [
-    "target.searchParams.set('_v','20261022-desktop-brand-v86')",
-    "target.searchParams.set('_v','20261022-desktop-brand-v89')",
-    "target.searchParams.set('_v','20261022-desktop-brand-v90')",
-]:
-    e = e.replace(old, "target.searchParams.set('_v','20261022-desktop-brand-v91')")
+e = e.replace("new URL('/catalogo/milagros/catalogo-v2.html',location.origin)", "new URL('/catalogo/milagros/catalogo-v92.html',location.origin)")
+e = e.replace("new URL('/catalogo/milagros/catalogo-v91.html',location.origin)", "new URL('/catalogo/milagros/catalogo-v92.html',location.origin)")
+e = re.sub(r"target\.searchParams\.set\('_v','20261022-desktop-brand-v\d+'\)", "target.searchParams.set('_v','20261022-desktop-brand-v92')", e)
 p.write_text(e, encoding='utf-8')
 
-# Force the main Varelia app to load the corrected link generator.
+# Main app loads the refreshed public catalog link generator.
 p = Path('index.html')
 i = p.read_text(encoding='utf-8')
-i = re.sub(r'public-catalog\.js\?v=[^\"\']+', 'public-catalog.js?v=20261022-desktop-brand-v91-measured', i, count=1)
+i = re.sub(r'public-catalog\.js\?v=[^\"\']+', 'public-catalog.js?v=20261022-desktop-brand-v92-fresh-file', i, count=1)
 p.write_text(i, encoding='utf-8')
 
-print('public catalog v91 measured alignment placed at real body close')
+print('public catalog v92 fresh physical file + desktop brand alignment applied')
