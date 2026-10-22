@@ -1,0 +1,30 @@
+name: Fix presentation price literal V41
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-presentation-price-literal-v41.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply isolated presentation price fix
+        run: python3 scripts/fix_presentation_price_literal_v41.py
+      - name: Validate JavaScript
+        run: node --check product-form-safety.js
+      - name: Commit fix
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add product-form-safety.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Preserve presentation prices exactly as entered"
+          git push origin main
