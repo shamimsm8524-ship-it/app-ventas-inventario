@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Build catalog and shorten dark header v109
+      - name: Build catalog and shorten dark header v110
         run: |
           python scripts/fix_public_catalog_laptop_layout_v97.py
           python - <<'PY'
@@ -27,10 +27,11 @@ jobs:
           ]
           for p in paths:
               s = p.read_text(encoding='utf-8')
-              s = s.replace('padding-bottom:76px!important', 'padding-bottom:20px!important')
-              s = s.replace('padding-bottom:36px!important', 'padding-bottom:20px!important')
+              s = s.replace('padding-bottom:76px!important', 'padding-bottom:8px!important')
+              s = s.replace('padding-bottom:36px!important', 'padding-bottom:8px!important')
+              s = s.replace('padding-bottom:20px!important', 'padding-bottom:8px!important')
               p.write_text(s, encoding='utf-8')
-          version='20261022-short-hero-v109'
+          version='20261022-short-hero-v110'
           for name in ('catalogo/milagros/index.html','catalogo-enlace.html','public-catalog.js','index.html','index-1.html'):
               p=Path(name)
               if not p.exists():
@@ -39,9 +40,9 @@ jobs:
               import re
               s=re.sub(r'20261022-[A-Za-z0-9_-]+', version, s)
               if name in ('index.html','index-1.html'):
-                  s=re.sub(r"const BUILD='[^']+'", "const BUILD='20261022-SHORT-HERO-V109'", s, count=1)
+                  s=re.sub(r"const BUILD='[^']+'", "const BUILD='20261022-SHORT-HERO-V110'", s, count=1)
               p.write_text(s, encoding='utf-8')
-          print('v109: laptop dark hero bottom padding reduced to 20px only')
+          print('v110: laptop dark hero bottom padding reduced to 8px only')
           PY
       - name: Commit patch
         run: |
@@ -52,5 +53,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          git commit -m "Reduce public catalog dark header to 20px v109"
+          git commit -m "Reduce public catalog dark header to 8px v110"
           git push
