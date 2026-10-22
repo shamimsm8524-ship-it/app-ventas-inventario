@@ -39,11 +39,8 @@ style = r'''<style id="varelia-laptop-brand-v105">
   .hero .top>div{display:flex!important;align-items:center!important;gap:8px!important;margin:0!important}
   .hero h1#business{margin:14px 0 5px!important;font-size:38px!important;line-height:1.08!important;letter-spacing:-1px!important;transform:none!important}
   .hero #heroSlogan{margin:0!important;max-width:720px!important;font-size:21px!important;line-height:1.3!important;font-weight:800!important;transform:none!important}
-  /* When a business slogan exists, this generic line is unnecessary and must not add height. */
   .hero>div:last-child{display:none!important}
   #businessSlogan{display:none!important}
-
-  /* The white card starts AFTER the dark hero; no overlap is allowed. */
   .seller{
     box-sizing:border-box!important;
     position:relative!important;
@@ -73,28 +70,46 @@ style = r'''<style id="varelia-laptop-brand-v105">
 
 h = h.replace('</head>', style + '</head>', 1)
 
-# IMPORTANT: all known physical catalog URLs receive the SAME corrected full page.
-# No redirect is required for old copied v2 links.
+# Product interaction split:
+# - Clicking the product IMAGE opens information/description only.
+# - Clicking Elegir/Añadir keeps the existing purchase/variant flow unchanged.
+details_fn = r'''function openProductDetails(p){if(!p)return;var desc=String(p.description||'').trim(),spec=String(p.specifications||'').trim();$('viewerContent').innerHTML='<div style="clear:both;text-align:center;padding-top:8px">'+(p.image_data?'<img src="'+esc(p.image_data)+'" style="width:100%;max-height:55vh;object-fit:contain;border-radius:16px;background:#fff">':'')+'<h2 style="margin:18px 0 6px">'+esc(p.name)+'</h2><div class="price" style="font-size:22px;margin-bottom:14px">'+money(p.sell_price)+'</div><div style="text-align:left;margin-top:10px;background:#fff;padding:14px;border:1px solid #e5e7eb;border-radius:12px"><b>Descripción</b><div style="margin-top:7px;line-height:1.55;white-space:pre-wrap">'+(desc?esc(desc):'Sin descripción disponible.')+'</div></div>'+(spec?'<div style="text-align:left;margin-top:10px;background:#f7f7f7;padding:14px;border-radius:12px"><b>Especificaciones</b><div style="margin-top:7px;line-height:1.5;white-space:pre-wrap">'+esc(spec)+'</div></div>':'')+'</div>';$('productViewer').classList.add('on')}
+'''
+if 'function openProductDetails(p)' not in h:
+    marker = 'function openViewer(vp){'
+    if marker not in h:
+        raise SystemExit('Could not find openViewer marker')
+    h = h.replace(marker, details_fn + marker, 1)
+
+old_photo_handler = "var ph=e.target.closest&&e.target.closest('.productPhoto');if(ph){var photoProduct=product(ph.dataset.id);if(isMedicine(photoProduct)){openMedicinePicker(photoProduct);return}if(salePresentations(photoProduct).length){openPresentationPicker(photoProduct);return}openViewer(photoProduct);return}"
+new_photo_handler = "var ph=e.target.closest&&e.target.closest('.productPhoto');if(ph){openProductDetails(product(ph.dataset.id));return}"
+if old_photo_handler in h:
+    h = h.replace(old_photo_handler, new_photo_handler, 1)
+elif new_photo_handler not in h:
+    raise SystemExit('Could not replace product image click handler')
+
+# All known physical catalog URLs receive the same full page and behavior.
 for p in (V2, V104, V105):
     p.write_text(h, encoding='utf-8')
 
+version = '20261022-image-details-v106'
 idx = Path('catalogo/milagros/index.html')
-idx.write_text('''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Catálogo Milagros</title><script>location.replace('/catalogo/milagros/catalogo-v105.html?_v=20261022-canonical-v105');</script></head><body></body></html>''', encoding='utf-8')
+idx.write_text(f'''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Catálogo Milagros</title><script>location.replace('/catalogo/milagros/catalogo-v105.html?_v={version}');</script></head><body></body></html>''', encoding='utf-8')
 
 for path in ('catalogo-enlace.html','public-catalog.js'):
     p=Path(path)
     if p.exists():
         s=p.read_text(encoding='utf-8')
         s=re.sub(r'/catalogo/milagros/catalogo-v(?:2|10[0-9]|9[0-9])\.html', '/catalogo/milagros/catalogo-v105.html', s)
-        s=re.sub(r'20261022-[A-Za-z0-9_-]+', '20261022-canonical-v105', s)
+        s=re.sub(r'20261022-[A-Za-z0-9_-]+', version, s)
         p.write_text(s, encoding='utf-8')
 
 for root_name in ('index.html','index-1.html'):
     p=Path(root_name)
     if p.exists():
         s=p.read_text(encoding='utf-8')
-        s=re.sub(r'public-catalog\.js\?v=[^\"\']+', 'public-catalog.js?v=20261022-canonical-v105', s)
-        s=re.sub(r'/sw\.js\?v=[^\"\']+', '/sw.js?v=20261022-canonical-v105', s)
+        s=re.sub(r'public-catalog\.js\?v=[^\"\']+', 'public-catalog.js?v='+version, s)
+        s=re.sub(r'/sw\.js\?v=[^\"\']+', '/sw.js?v='+version, s)
         p.write_text(s, encoding='utf-8')
 
-print('v105: canonical closed hero + seller sibling; v2/v104/v105 identical; no overlap')
+print('v106 behavior: image opens product description only; Elegir/Añadir purchase flow unchanged')
