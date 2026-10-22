@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply public catalog presentation visibility patch v85
+      - name: Apply public catalog presentation and desktop brand patch v86
         run: python scripts/hotfix_public_catalog_presentations.py
       - name: Commit patch
         run: |
@@ -26,5 +26,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          git commit -m "Fix sale presentation picker in public catalog"
+          git commit -m "Fix desktop public catalog logo name and slogan layout"
           git push
