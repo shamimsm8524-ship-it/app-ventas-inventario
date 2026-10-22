@@ -228,7 +228,12 @@
             document.getElementById('vCash')?.value
           ];
           const raw=cashCandidates.find(v=>String(v??'').trim()!=='');
-          received=Math.max(0,Number(String(raw??'').replace(',','.'))||0);
+          // En efectivo, dejar el campo vacío significa pago exacto. Solo un valor
+          // escrito explícitamente se usa para calcular faltante/vuelto.
+          const cashBlank=raw==null||String(raw).trim()==='';
+          received=(visibleMethod==='Efectivo'&&cashBlank)
+            ? total
+            : Math.max(0,Number(String(raw??'').replace(',','.'))||0);
           if(visibleMethod==='Efectivo'){
             if(received)breakdown.Efectivo=received;
           }else if(visibleMethod!=='Fiado'){
@@ -676,6 +681,17 @@
             if(!cloudOk){finish(100);return;}
             try{sync();renderPay()}catch{}
             try{if(typeof renderSales==='function')renderSales()}catch{}
+            // La venta ya fue confirmada por el flujo central. Abrir el comprobante
+            // también desde el botón visible para no depender de un único listener.
+            showPaidReceipt(before,p,state);
+            setTimeout(()=>{
+              const mainOpen=!!document.getElementById('vreceiptOverlay')?.classList.contains('show');
+              const backupOpen=!!document.getElementById('vareliaEmergencyReceipt')||!!document.getElementById('vareliaReceiptWatchdog');
+              if(mainOpen||backupOpen)return;
+              let confirmed=window.__vareliaLastReceipt||null;
+              try{if(!confirmed&&Array.isArray(sales)&&sales.length>before)confirmed=sales[sales.length-1]}catch{}
+              if(confirmed)showEmergencyReceipt(confirmed);
+            },450);
             finish(1200);
             return;
           }
