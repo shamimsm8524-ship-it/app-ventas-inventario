@@ -29,20 +29,15 @@ new_add = "function add(id){var p=product(id),cs=chars(p),kg=String(p.unit||'').
 if old_add in h:
     h = h.replace(old_add, new_add, 1)
 
-# Laptop/desktop only: keep the existing stacked brand layout (logo, name,
-# slogan), but align its left edge EXACTLY with the Contact content inside the
-# white seller card. The seller card is max-width:1100px with 20px padding, so
-# the matching left inset is ((viewport - 1100px)/2 + 20px) on wide screens and
-# 20px on narrower laptop widths. Use 600px instead of 760px so browser zoom on
-# a laptop cannot accidentally fall back to the mobile alignment.
-desktop_brand_style = '''<style id="varelia-desktop-brand-v89">
-@media (min-width:600px){
+# Laptop/desktop: preserve the stacked layout from the APK-style storefront.
+# The actual horizontal alignment is measured at runtime from the white seller
+# card below, so browser zoom and laptop viewport size cannot desynchronize it.
+desktop_brand_style = '''<style id="varelia-desktop-brand-v90">
+@media (min-width:560px){
   .hero{
     display:block!important;
     padding-top:24px!important;
-    padding-right:max(20px,calc((100vw - 1100px)/2 + 20px))!important;
     padding-bottom:64px!important;
-    padding-left:max(20px,calc((100vw - 1100px)/2 + 20px))!important;
   }
   .hero .top{
     display:flex!important;
@@ -103,37 +98,74 @@ desktop_brand_style = '''<style id="varelia-desktop-brand-v89">
   }
 }
 </style>'''
-brand_pattern = re.compile(r'<style id="varelia-desktop-brand-v(?:86|89)">.*?</style>', re.S)
+brand_pattern = re.compile(r'<style id="varelia-desktop-brand-v(?:86|89|90)">.*?</style>', re.S)
 if brand_pattern.search(h):
     h = brand_pattern.sub(desktop_brand_style, h, count=1)
 else:
     h = h.replace('</head>', desktop_brand_style + '</head>', 1)
 
+# Measure the real Contact card position instead of estimating it with vw math.
+# This is the important v90 fix: logo, name and slogan inherit the exact same
+# left content edge as CONTACTO at any desktop zoom level.
+desktop_brand_align = '''<script id="varelia-desktop-brand-align-v90">
+(function(){
+  function alignBrand(){
+    if(window.innerWidth<560)return;
+    var hero=document.querySelector('.hero');
+    var seller=document.querySelector('.seller');
+    if(!hero||!seller)return;
+    var rect=seller.getBoundingClientRect();
+    var css=getComputedStyle(seller);
+    var padL=parseFloat(css.paddingLeft)||0;
+    var padR=parseFloat(css.paddingRight)||0;
+    var left=Math.max(20,Math.round(rect.left+padL));
+    var right=Math.max(20,Math.round((window.innerWidth-rect.right)+padR));
+    hero.style.setProperty('padding-left',left+'px','important');
+    hero.style.setProperty('padding-right',right+'px','important');
+  }
+  function run(){alignBrand();requestAnimationFrame(alignBrand);setTimeout(alignBrand,80);setTimeout(alignBrand,500)}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true});else run();
+  window.addEventListener('resize',alignBrand,{passive:true});
+  window.addEventListener('pageshow',run);
+})();
+</script>'''
+align_pattern = re.compile(r'<script id="varelia-desktop-brand-align-v\d+">.*?</script>', re.S)
+if align_pattern.search(h):
+    h = align_pattern.sub(desktop_brand_align, h, count=1)
+else:
+    h = h.replace('</body>', desktop_brand_align + '</body>', 1)
+
 p.write_text(h, encoding='utf-8')
 
 p = Path('catalogo/milagros/index.html')
 r = p.read_text(encoding='utf-8')
-r = r.replace('catalogo-v2.html?v=20261021-presentations-v84', 'catalogo-v2.html?v=20261022-desktop-brand-v89')
-r = r.replace('catalogo-v2.html?v=20261021-presentations-v85', 'catalogo-v2.html?v=20261022-desktop-brand-v89')
-r = r.replace('catalogo-v2.html?v=20261022-desktop-brand-v86', 'catalogo-v2.html?v=20261022-desktop-brand-v89')
+for old in [
+    'catalogo-v2.html?v=20261021-presentations-v84',
+    'catalogo-v2.html?v=20261021-presentations-v85',
+    'catalogo-v2.html?v=20261022-desktop-brand-v86',
+    'catalogo-v2.html?v=20261022-desktop-brand-v89',
+]:
+    r = r.replace(old, 'catalogo-v2.html?v=20261022-desktop-brand-v90')
 p.write_text(r, encoding='utf-8')
 
-# The app sometimes publishes the direct ?c= link. Force this alignment build
-# so the laptop never reuses the earlier v86 document.
+# Force direct catalog links to request the runtime-measured alignment build.
 p = Path('public-catalog.js')
 j = p.read_text(encoding='utf-8')
-j = j.replace("&_v=20261022-desktop-brand-v86", "&_v=20261022-desktop-brand-v89")
-old_direct = "location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)"
-new_direct = "location.origin+'/catalogo/milagros/catalogo-v2.html?c='+encodeURIComponent(publicId)+'&_v=20261022-desktop-brand-v89'"
-if old_direct in j and new_direct not in j:
-    j = j.replace(old_direct, new_direct, 1)
+j = j.replace('&_v=20261022-desktop-brand-v86', '&_v=20261022-desktop-brand-v90')
+j = j.replace('&_v=20261022-desktop-brand-v89', '&_v=20261022-desktop-brand-v90')
 p.write_text(j, encoding='utf-8')
 
-# Force the main Varelia app to load the corrected generator too.
+# Existing /c/<slug> shared links must also land on the same fresh build.
+p = Path('catalogo-enlace.html')
+e = p.read_text(encoding='utf-8')
+e = e.replace("target.searchParams.set('_v','20261022-desktop-brand-v86')", "target.searchParams.set('_v','20261022-desktop-brand-v90')")
+e = e.replace("target.searchParams.set('_v','20261022-desktop-brand-v89')", "target.searchParams.set('_v','20261022-desktop-brand-v90')")
+p.write_text(e, encoding='utf-8')
+
+# Force the main Varelia app to load the corrected link generator.
 p = Path('index.html')
 i = p.read_text(encoding='utf-8')
-i = i.replace('public-catalog.js?v=202610220105-presentations-v2', 'public-catalog.js?v=20261022-desktop-brand-v89-align-contact')
-i = i.replace('public-catalog.js?v=20261022-desktop-brand-v86-linkfix', 'public-catalog.js?v=20261022-desktop-brand-v89-align-contact')
+i = re.sub(r'public-catalog\.js\?v=[^\"\']+', 'public-catalog.js?v=20261022-desktop-brand-v90-measured', i, count=1)
 p.write_text(i, encoding='utf-8')
 
-print('public catalog desktop brand aligned with contact card + cache patch applied')
+print('public catalog v90 runtime alignment + fresh link patch applied')
