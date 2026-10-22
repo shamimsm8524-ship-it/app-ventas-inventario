@@ -15,34 +15,42 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Build catalog and shorten dark header v110
+      - name: Build catalog and match internal presentation pricing v111
         run: |
           python scripts/fix_public_catalog_laptop_layout_v97.py
           python - <<'PY'
           from pathlib import Path
+          import re
+
           paths = [
               Path('catalogo/milagros/catalogo-v2.html'),
               Path('catalogo/milagros/catalogo-v104.html'),
               Path('catalogo/milagros/catalogo-v105.html'),
           ]
+
+          presentation_fn = """function salePresentations(p){return (Array.isArray(p&&p.sale_presentations)?p.sale_presentations:[]).map(function(x,i){var units=Math.max(1,Math.floor(Number(x&&x.units)||1)),total=Math.max(0,Number(x&&x.price)||0),unitPrice=units?total/units:total;return{id:String(x&&x.id||('presentacion_'+(i+1))),name:String(x&&x.name||'Presentación'),units:units,price:Math.round(total*100)/100,unitPrice:Math.round(unitPrice*100)/100,active:!x||x.active!==false}}).filter(function(x){return x.active&&x.units>1&&x.price>0})}
+function cartPrice"""
+
           for p in paths:
               s = p.read_text(encoding='utf-8')
               s = s.replace('padding-bottom:76px!important', 'padding-bottom:8px!important')
               s = s.replace('padding-bottom:36px!important', 'padding-bottom:8px!important')
               s = s.replace('padding-bottom:20px!important', 'padding-bottom:8px!important')
+              s = re.sub(r"function salePresentations\(p\)\{.*?\}\nfunction cartPrice", presentation_fn, s, count=1, flags=re.S)
               p.write_text(s, encoding='utf-8')
-          version='20261022-short-hero-v110'
+
+          version='20261022-public-presentation-total-v111'
           for name in ('catalogo/milagros/index.html','catalogo-enlace.html','public-catalog.js','index.html','index-1.html'):
               p=Path(name)
               if not p.exists():
                   continue
               s=p.read_text(encoding='utf-8')
-              import re
               s=re.sub(r'20261022-[A-Za-z0-9_-]+', version, s)
               if name in ('index.html','index-1.html'):
-                  s=re.sub(r"const BUILD='[^']+'", "const BUILD='20261022-SHORT-HERO-V110'", s, count=1)
+                  s=re.sub(r"const BUILD='[^']+'", "const BUILD='20261022-PUBLIC-PRESENTATION-TOTAL-V111'", s, count=1)
               p.write_text(s, encoding='utf-8')
-          print('v110: laptop dark hero bottom padding reduced to 8px only')
+
+          print('v111: public catalog uses saved presentation price as total, matching internal catalog')
           PY
       - name: Commit patch
         run: |
@@ -53,5 +61,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          git commit -m "Reduce public catalog dark header to 8px v110"
+          git commit -m "Match public presentation prices to internal catalog v111"
           git push
