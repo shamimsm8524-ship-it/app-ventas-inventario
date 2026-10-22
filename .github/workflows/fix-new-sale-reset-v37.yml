@@ -1,0 +1,45 @@
+name: Fix new sale reset V37
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - '.github/workflows/fix-new-sale-reset-v37.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch only Nueva venta reset
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p=Path('pos-sales.js')
+          s=p.read_text()
+          old="function goSales(){const nav=document.querySelector('.nav [data-view=\"sales\"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew();root.scrollIntoView({behavior:'smooth',block:'start'})},80)}"
+          new="function goSales(){const nav=document.querySelector('.nav [data-view=\"sales\"]');if(nav)nav.click();else try{switchView('sales')}catch{}setTimeout(()=>{startNew(true);root.scrollIntoView({behavior:'smooth',block:'start'})},80)}"
+          if old in s:
+              s=s.replace(old,new,1)
+          elif new not in s:
+              raise SystemExit('Target goSales line not found; refusing broad edit')
+          p.write_text(s)
+
+          p=Path('index.html')
+          s=p.read_text()
+          s=s.replace("const BUILD='20261022-SALE-FLOW-V36'","const BUILD='20261022-NEW-SALE-RESET-V37'",1)
+          s=s.replace('pos-sales.js?v=20261022-sale-reset-v36','pos-sales.js?v=20261022-new-sale-reset-v37',1)
+          p.write_text(s)
+          PY
+      - name: Validate JavaScript syntax
+        run: node --check pos-sales.js
+      - name: Commit only isolated reset change
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add pos-sales.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Reset cart when starting a new sale'
+          git push
