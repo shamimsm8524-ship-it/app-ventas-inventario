@@ -1,7 +1,7 @@
 (()=>{
   if(window.__vareliaProductFormSafetyV23)return;
   window.__vareliaProductFormSafetyV23=true;
-  window.__VARELIA_PRODUCT_FORM_SAFETY_BUILD__='20261021-v23';
+  window.__VARELIA_PRODUCT_FORM_SAFETY_BUILD__='20261022-v24-price-literal';
   const $=id=>document.getElementById(id);
   const list=()=>{try{return Array.isArray(products)?products:[]}catch{return Array.isArray(window.products)?window.products:[]}};
   const medCategory=()=>/^(pastillas?|medicinas?|medicamentos?)$/i.test(String($('productCategory')?.value||'').trim());
@@ -111,31 +111,11 @@
     row.dataset.vareliaWholesaleOldUnits=String(rowValues(row).units||'');
   }
 
-  // Si una presentación de varias unidades quedó con un precio por unidad
-  // (ej. S/ 2.50 para Six Pack x6), convertirlo al total de la presentación.
-  // Se modifica el mismo objeto EN SITIO porque el selector comercial conserva
-  // la misma referencia del arreglo aunque haya abierto una copia del producto.
+  // Los precios de las presentaciones son valores LITERALES escritos por el usuario.
+  // Nunca multiplicarlos ni recalcularlos automáticamente según unidades, precio base
+  // o precio mayorista. Si el usuario escribe 36, al volver a abrir debe seguir en 36.
   function repairPresentationTotals(p){
-    if(!p||!Array.isArray(p.salePresentations)||!p.salePresentations.length)return false;
-    const unitPrice=Math.max(0,Number(p.sellPrice)||0);
-    const wholesaleUnit=Math.max(0,Number(p.commercialPricing?.wholesalePrice)||0);
-    let changed=false;
-    for(const x of p.salePresentations){
-      if(!x||typeof x!=='object')continue;
-      const units=Math.max(1,Math.floor(Number(x.units)||1));
-      const price=Math.max(0,Number(x.price)||0);
-      if(units<=1||price<=0)continue;
-      const matchesWholesale=wholesaleUnit>0&&Math.abs(price-wholesaleUnit)<0.000001;
-      const looksLikeUnitPrice=matchesWholesale||(unitPrice>0&&price<=unitPrice+0.000001);
-      if(!looksLikeUnitPrice)continue;
-      const total=round2(price*units);
-      if(Math.abs(total-price)<=0.000001)continue;
-      x.__vareliaAutoPresentationTotal=true;
-      x.__vareliaAutoUnitPrice=price;
-      x.price=total;
-      changed=true;
-    }
-    return changed;
+    return false;
   }
   function pickerProduct(){
     const layer=$('vCommercialSalePicker');if(!layer||layer.style.display==='none')return null;
