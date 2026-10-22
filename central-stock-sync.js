@@ -336,9 +336,19 @@
       }
       const payload=productPayload(p,categoryId);
       const legacy=String(p.id||'');
-      const existingBefore=await sb.from('varelia_products').select('id,stock').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
+      const existingBefore=await sb.from('varelia_products').select('id,stock,sale_presentations,advanced_pricing,medicine').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
       if(existingBefore.error)throw existingBefore.error;
       const existedBefore=!!existingBefore.data?.id;
+      // Presentaciones comerciales y precio mayorista tienen su propio módulo de guardado.
+      // En productos normales ya existentes, la sincronización general NO debe escribir
+      // estos dos campos porque un objeto local todavía no hidratado puede venir vacío
+      // y borrar Six Pack/Docena/Mayorista que sí están correctamente guardados en nube.
+      // Si el producto se convierte en medicamento, sí permitimos limpiarlos porque
+      // los medicamentos usan su modelo Caja / Blíster / Pastilla.
+      if(existedBefore&&!p.medicine){
+        delete payload.sale_presentations;
+        delete payload.advanced_pricing;
+      }
       // Upsert atómico por negocio + id local: evita dos INSERT simultáneos
       // cuando el formulario y las características se guardan en el mismo instante.
       let up=await sb.from('varelia_products').upsert(payload,{onConflict:'business_id,legacy_id'}).select('id').single();

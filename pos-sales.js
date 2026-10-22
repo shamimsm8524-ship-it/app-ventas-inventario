@@ -679,19 +679,44 @@
           if(typeof window.vareliaCentralCheckout==='function'){
             const cloudOk=await window.vareliaCentralCheckout();
             if(!cloudOk){finish(100);return;}
-            try{sync();renderPay()}catch{}
+
+            // Venta confirmada: dejar preparada una venta NUEVA detrás del comprobante.
+            // No conservar producto, cantidad, dinero recibido, vuelto ni pago mixto.
+            try{
+              if(Array.isArray(cart))cart.splice(0,cart.length);
+              if(typeof renderCart==='function')renderCart();
+              if(typeof persistSaleCart==='function')persistSaleCart();
+            }catch(err){console.warn('Limpiar carrito confirmado',err)}
+            try{localStorage.removeItem('varelia_scanner_cart_backup_v1')}catch{}
+            try{legacyCart.innerHTML=''}catch{}
+            input.value='';hideSuggestions();
+            resetPaymentInputs(true,true);
+            try{renderPay();sync()}catch(err){console.warn('Reiniciar caja después del cobro',err)}
             try{if(typeof renderSales==='function')renderSales()}catch{}
-            // La venta ya fue confirmada por el flujo central. Abrir el comprobante
-            // también desde el botón visible para no depender de un único listener.
-            showPaidReceipt(before,p,state);
-            setTimeout(()=>{
+
+            // El flujo central ya emite varelia:checkout-confirmed y el módulo oficial
+            // abre el comprobante CON logo. No crear aquí un segundo ticket de respaldo.
+            // Solo reintentar el mismo comprobante oficial si por carga lenta aún no abrió.
+            const retryOfficialReceipt=()=>{
               const mainOpen=!!document.getElementById('vreceiptOverlay')?.classList.contains('show');
-              const backupOpen=!!document.getElementById('vareliaEmergencyReceipt')||!!document.getElementById('vareliaReceiptWatchdog');
-              if(mainOpen||backupOpen)return;
+              const emergencyOpen=!!document.getElementById('vareliaEmergencyReceipt');
+              if(mainOpen||emergencyOpen)return;
               let confirmed=window.__vareliaLastReceipt||null;
               try{if(!confirmed&&Array.isArray(sales)&&sales.length>before)confirmed=sales[sales.length-1]}catch{}
-              if(confirmed)showEmergencyReceipt(confirmed);
-            },450);
+              if(!confirmed)return;
+              if(typeof window.VareliaReceipt?.show==='function'){
+                try{window.VareliaReceipt.show(confirmed);return}catch(err){console.warn('Reintento de comprobante oficial',err)}
+              }
+              if(!document.getElementById('vareliaReceiptOfficialRetry')){
+                const loader=document.createElement('script');
+                loader.id='vareliaReceiptOfficialRetry';
+                loader.src='pos-receipt.js?v=20261022-single-receipt-v36&ts='+Date.now();
+                loader.onload=()=>{try{window.VareliaReceipt?.show?.(confirmed)}catch{}};
+                document.head.appendChild(loader);
+              }
+            };
+            setTimeout(retryOfficialReceipt,180);
+            setTimeout(retryOfficialReceipt,900);
             finish(1200);
             return;
           }
