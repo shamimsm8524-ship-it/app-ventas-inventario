@@ -105,12 +105,14 @@ body{background:#f7f7f5}
 .grid{gap:16px 12px}.photo{border-radius:16px;background:#f0f0ee}.name{font-family:Arial,sans-serif;font-size:16px;font-weight:800}
 .add{border-radius:12px;background:#111827;color:#fff;border-color:#111827}.bar{border-radius:16px}
 @media(max-width:560px){.hero h1{font-size:36px}.seller{margin-left:14px;margin-right:14px}.shop{padding-left:14px;padding-right:14px}.grid{gap:18px 10px}.add{padding:10px}}
-</style><style id="varelia-desktop-brand-v91">
-@media (min-width:560px){
+</style><style id="varelia-desktop-brand-v92">
+@media (min-width:760px){
   .hero{
     display:block!important;
-    padding-top:24px!important;
+    padding-top:28px!important;
     padding-bottom:64px!important;
+    padding-left:max(20px,calc((100vw - 1100px)/2 + 20px))!important;
+    padding-right:max(20px,calc((100vw - 1100px)/2 + 20px))!important;
   }
   .hero .top{
     display:flex!important;
@@ -118,55 +120,44 @@ body{background:#f7f7f5}
     align-items:flex-start!important;
   }
   .hero .top>b{
-    grid-column:auto!important;
-    grid-row:auto!important;
-    width:auto!important;
-    height:auto!important;
-    display:block!important;
-    align-self:auto!important;
-    overflow:visible!important;
-    border-radius:0!important;
+    width:110px!important;
+    height:70px!important;
+    display:flex!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    overflow:hidden!important;
+    border-radius:14px!important;
     background:transparent!important;
-    font-size:inherit!important;
-    line-height:normal!important;
+    line-height:1!important;
   }
   .hero .top>b img{
-    width:auto!important;
-    height:auto!important;
-    max-width:92px!important;
-    max-height:56px!important;
+    display:block!important;
+    width:110px!important;
+    height:70px!important;
+    max-width:110px!important;
+    max-height:70px!important;
     object-fit:contain!important;
-    border-radius:12px!important;
+    object-position:left center!important;
+    border-radius:14px!important;
   }
   .hero .top>div{
-    grid-column:auto!important;
-    grid-row:auto!important;
     display:flex!important;
     gap:8px!important;
-    justify-self:auto!important;
-    align-self:auto!important;
   }
   .hero h1#business{
-    grid-column:auto!important;
-    grid-row:auto!important;
-    margin:38px 0 7px!important;
-    align-self:auto!important;
+    margin:14px 0 5px!important;
     font-size:38px!important;
     line-height:1.08!important;
     letter-spacing:-1px!important;
   }
   #heroSlogan{
-    grid-column:auto!important;
-    grid-row:auto!important;
-    margin:5px 0 8px!important;
+    margin:0!important;
     max-width:720px!important;
     font-size:21px!important;
     line-height:1.25!important;
     font-weight:800!important;
   }
   .hero>div:last-child{
-    grid-column:auto!important;
-    grid-row:auto!important;
     margin:0!important;
   }
 }
@@ -673,30 +664,4 @@ $('order').onclick=async function(){if(window.__vareliaOrderSubmitting)return;wi
   console.error('catalog products',e);
   $('grid').innerHTML='<p>No se pudo cargar los productos. Error: '+esc(e&&e.message||'desconocido')+'</p>';
  }
-})();})();</script><script id="varelia-desktop-brand-align-v91">
-(function(){
-  function alignBrand(){
-    if(window.innerWidth<560)return;
-    var hero=document.querySelector('.hero');
-    var seller=document.querySelector('.seller');
-    if(!hero||!seller)return;
-    var rect=seller.getBoundingClientRect();
-    var css=getComputedStyle(seller);
-    var padL=parseFloat(css.paddingLeft)||0;
-    var padR=parseFloat(css.paddingRight)||0;
-    var left=Math.max(20,Math.round(rect.left+padL));
-    var right=Math.max(20,Math.round((window.innerWidth-rect.right)+padR));
-    hero.style.setProperty('padding-left',left+'px','important');
-    hero.style.setProperty('padding-right',right+'px','important');
-  }
-  function run(){
-    alignBrand();
-    requestAnimationFrame(alignBrand);
-    setTimeout(alignBrand,80);
-    setTimeout(alignBrand,500);
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run,{once:true});else run();
-  window.addEventListener('resize',alignBrand,{passive:true});
-  window.addEventListener('pageshow',run);
-})();
-</script></body></html>
+})();})();</script></body></html>

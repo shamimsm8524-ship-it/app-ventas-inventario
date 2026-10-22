@@ -14,7 +14,7 @@ async function open(){
   if(!response.ok)throw new Error('No se pudo consultar el catálogo.');
   const rows=await response.json(),id=rows[0]?.public_id;
   if(!id)throw new Error('Este catálogo no existe o no está disponible.');
-  const target=new URL('/catalogo/milagros/catalogo-v2.html',location.origin);target.searchParams.set('c',id);target.searchParams.set('_v','20261022-desktop-brand-v91');
+  const target=new URL('/catalogo/milagros/catalogo-v92.html',location.origin);target.searchParams.set('c',id);target.searchParams.set('_v','20261022-desktop-brand-v92');
   location.replace(target.href);
  }catch(e){state.textContent=e.name==='AbortError'?'La conexión tarda demasiado. Inténtalo otra vez.':e.message;retry.hidden=false;}
  finally{clearTimeout(timer);}
