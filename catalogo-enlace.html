@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Abriendo catálogo</title><style>body{font-family:system-ui;max-width:520px;margin:15vh auto;padding:24px;color:#172554}a{color:#2563eb}button{padding:12px;border-radius:10px;border:0;background:#2563eb;color:white}</style><h1>Catálogo del negocio</h1><p id="state">Abriendo catálogo…</p><button id="retry" hidden>Volver a intentar</button><script>
+<html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Abriendo catálogo</title><style>body{font-family:system-ui;max-width:520px;margin:15vh auto;padding:24px;color:#172554}a{color:#2563eb}button{padding:12px;border-radius:10px;border:0;background:#2563eb;color:white}</style><h1>Catálogo del negocio</h1><p id="state">Abriendo catálogo…</p><button id="retry" hidden>Volver a intentar</button><script>
 (()=>{
 const API="https://onvdcaohnftrjunwdvjp.supabase.co/rest/v1/",KEY="sb_publishable_bz2z5uglf_EALJezqv4rCw_S73GMNrh",state=document.getElementById('state'),retry=document.getElementById('retry');
 async function open(){
@@ -10,11 +10,11 @@ async function open(){
   const slug=match?decodeURIComponent(match[1]):'';
   if(!/^[a-z0-9][a-z0-9-]{0,99}$/.test(slug))throw new Error('Este enlace no es válido.');
   const query=new URLSearchParams({select:'public_id',public_slug:'eq.'+slug,enabled:'eq.true',limit:'1'});
-  const response=await fetch(API+'public_catalogs?'+query,{headers:{apikey:KEY},signal:controller.signal});
+  const response=await fetch(API+'public_catalogs?'+query,{headers:{apikey:KEY},signal:controller.signal,cache:'no-store'});
   if(!response.ok)throw new Error('No se pudo consultar el catálogo.');
   const rows=await response.json(),id=rows[0]?.public_id;
   if(!id)throw new Error('Este catálogo no existe o no está disponible.');
-  const target=new URL('/catalogo/milagros/catalogo-v105.html',location.origin);target.searchParams.set('c',id);target.searchParams.set('_v','20261022-short-hero-v110');
+  const target=new URL('/catalogo/milagros/catalogo-v112.html',location.origin);target.searchParams.set('c',id);target.searchParams.set('_v','20261022-public-price-v112');
   location.replace(target.href);
  }catch(e){state.textContent=e.name==='AbortError'?'La conexión tarda demasiado. Inténtalo otra vez.':e.message;retry.hidden=false;}
  finally{clearTimeout(timer);}
