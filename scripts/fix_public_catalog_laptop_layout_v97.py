@@ -1,32 +1,34 @@
 from pathlib import Path
 import re
 
-OLD_CATALOG = Path('catalogo/milagros/catalogo-v2.html')
-NEW_CATALOG = Path('catalogo/milagros/catalogo-v103.html')
-source = NEW_CATALOG if NEW_CATALOG.exists() else OLD_CATALOG
-h = source.read_text(encoding='utf-8')
+SRC = Path('catalogo/milagros/catalogo-v103.html')
+OUT = Path('catalogo/milagros/catalogo-v104.html')
+OLD = Path('catalogo/milagros/catalogo-v2.html')
 
-# Remove previous desktop/laptop visual patches only.
+h = SRC.read_text(encoding='utf-8')
+
+# Remove only our previous laptop/desktop visual hotfixes.
 h = re.sub(r'<style id="varelia-(?:desktop|laptop)-brand-[^"]+">.*?</style>', '', h, flags=re.S)
 h = re.sub(r'<script id="varelia-(?:desktop|laptop)-brand-[^"]+">.*?</script>', '', h, flags=re.S)
 
-# Keep the original DOM expected by the catalog JavaScript and repair any old
-# malformed hero close left by previous hotfixes.
-h = h.replace('<header class="hero"><div class="hero-inner">', '<header class="hero">', 1)
-h = h.replace('</div></header><section class="seller">', '</header><section class="seller">', 1)
+# Repair malformed hero markup from older hotfixes. The seller MUST be a sibling
+# after </header>, never a child of the dark hero.
 h = h.replace('<div>Catálogo oficial · Stock actualizado</header>', '<div>Catálogo oficial · Stock actualizado</div></header>', 1)
+h = h.replace('<div>Catálogo oficial · Stock actualizado</div></div></header>', '<div>Catálogo oficial · Stock actualizado</div></header>', 1)
+h = h.replace('</header><section class="seller">', '</header><section class="seller">', 1)
 
-style = r'''<style id="varelia-laptop-brand-v103">
-/* Laptop/desktop visual refinement only. No catalog functions or data are changed. */
+style = r'''<style id="varelia-laptop-brand-v104">
+/* Laptop only. Presentation changes only; catalog functions/data untouched. */
 @media (min-width:760px), (hover:hover) and (pointer:fine){
   .hero{
     display:block!important;
     position:relative!important;
     padding-top:30px!important;
-    /* Approx. 2 cm below the slogan at standard browser density. */
     padding-bottom:76px!important;
     padding-left:max(38px,calc((100vw - 1100px)/2 + 20px))!important;
     padding-right:max(38px,calc((100vw - 1100px)/2 + 20px))!important;
+    margin:0!important;
+    overflow:visible!important;
   }
   .hero .top{display:flex!important;justify-content:space-between!important;align-items:flex-start!important;width:100%!important;margin:0!important}
   .hero .top>b{width:110px!important;min-width:110px!important;height:110px!important;min-height:110px!important;max-width:110px!important;max-height:110px!important;display:flex!important;align-items:center!important;justify-content:flex-start!important;overflow:hidden!important;border-radius:16px!important;background:transparent!important;line-height:1!important;transform:none!important}
@@ -36,7 +38,27 @@ style = r'''<style id="varelia-laptop-brand-v103">
   .hero #heroSlogan{margin:0!important;max-width:720px!important;font-size:21px!important;line-height:1.3!important;font-weight:800!important;transform:none!important}
   .hero>div:last-child{margin:5px 0 0!important}
   #businessSlogan{display:none!important}
-  .seller{box-sizing:border-box!important;position:relative!important;width:calc(100% - 36px)!important;max-width:1100px!important;margin:18px auto 0!important;padding:18px 20px!important;border-radius:20px!important;background:var(--card)!important}
+
+  /* Critical fix: white contact card is fully OUTSIDE the dark hero. */
+  .seller{
+    box-sizing:border-box!important;
+    position:relative!important;
+    display:block!important;
+    clear:both!important;
+    top:auto!important;
+    bottom:auto!important;
+    left:auto!important;
+    right:auto!important;
+    transform:none!important;
+    translate:none!important;
+    width:calc(100% - 36px)!important;
+    max-width:1100px!important;
+    margin:18px auto 0!important;
+    padding:18px 20px!important;
+    border-radius:20px!important;
+    background:var(--card)!important;
+    z-index:1!important;
+  }
   .seller .facts{display:grid!important;grid-template-columns:1fr 1fr!important;gap:18px!important;align-items:center!important}
   .seller .fact{min-height:54px!important;padding-top:8px!important;display:flex!important;flex-direction:column!important;justify-content:center!important}
   .seller .fact small{display:block!important;margin-bottom:5px!important;font-size:10px!important;line-height:1.1!important;font-weight:800!important}
@@ -46,34 +68,29 @@ style = r'''<style id="varelia-laptop-brand-v103">
 </style>'''
 
 h = h.replace('</head>', style + '</head>', 1)
-NEW_CATALOG.write_text(h, encoding='utf-8')
+OUT.write_text(h, encoding='utf-8')
 
-OLD_CATALOG.write_text('''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Actualizando catálogo</title></head><body><script>(function(){var u=new URL('/catalogo/milagros/catalogo-v103.html',location.origin);new URLSearchParams(location.search).forEach(function(v,k){u.searchParams.set(k,v)});u.searchParams.set('_v','20261022-force-v103');location.replace(u.href)})();</script></body></html>''', encoding='utf-8')
+redirect = '''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Actualizando catálogo</title></head><body><script>(function(){var u=new URL('/catalogo/milagros/catalogo-v104.html',location.origin);new URLSearchParams(location.search).forEach(function(v,k){u.searchParams.set(k,v)});u.searchParams.set('_v','20261022-card-below-v104');location.replace(u.href)})();</script></body></html>'''
+OLD.write_text(redirect, encoding='utf-8')
+SRC.write_text(redirect, encoding='utf-8')
 
 idx = Path('catalogo/milagros/index.html')
-idx.write_text('''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Catálogo Milagros</title><script>location.replace('/catalogo/milagros/catalogo-v103.html?_v=20261022-force-v103');</script></head><body><a href="/catalogo/milagros/catalogo-v103.html?_v=20261022-force-v103">Abrir catálogo</a></body></html>''', encoding='utf-8')
+idx.write_text('''<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Cache-Control" content="no-cache,no-store,must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"><title>Catálogo Milagros</title><script>location.replace('/catalogo/milagros/catalogo-v104.html?_v=20261022-card-below-v104');</script></head><body></body></html>''', encoding='utf-8')
 
-link_file = Path('catalogo-enlace.html')
-if link_file.exists():
-    s = link_file.read_text(encoding='utf-8')
-    s = re.sub(r"/catalogo/milagros/catalogo-v(?:2|9[0-9]|10[0-9])\.html", "/catalogo/milagros/catalogo-v103.html", s)
-    s = re.sub(r"20261022-[A-Za-z0-9_-]+", "20261022-force-v103", s)
-    link_file.write_text(s, encoding='utf-8')
-
-pc = Path('public-catalog.js')
-if pc.exists():
-    s = pc.read_text(encoding='utf-8')
-    s = re.sub(r"/catalogo/milagros/catalogo-v(?:2|9[0-9]|10[0-9])\.html\?c=", "/catalogo/milagros/catalogo-v103.html?c=", s)
-    s = re.sub(r"20261022-[A-Za-z0-9_-]+", "20261022-force-v103", s)
-    pc.write_text(s, encoding='utf-8')
+for path in ('catalogo-enlace.html','public-catalog.js'):
+    p=Path(path)
+    if p.exists():
+        s=p.read_text(encoding='utf-8')
+        s=re.sub(r'/catalogo/milagros/catalogo-v(?:2|10[0-9]|9[0-9])\.html', '/catalogo/milagros/catalogo-v104.html', s)
+        s=re.sub(r'20261022-[A-Za-z0-9_-]+', '20261022-card-below-v104', s)
+        p.write_text(s, encoding='utf-8')
 
 for root_name in ('index.html','index-1.html'):
-    root = Path(root_name)
-    if not root.exists():
-        continue
-    s = root.read_text(encoding='utf-8')
-    s = re.sub(r"public-catalog\.js\?v=[^\"']+", "public-catalog.js?v=20261022-force-v103", s)
-    s = re.sub(r"/sw\.js\?v=[^\"']+", "/sw.js?v=20261022-force-v103", s)
-    root.write_text(s, encoding='utf-8')
+    p=Path(root_name)
+    if p.exists():
+        s=p.read_text(encoding='utf-8')
+        s=re.sub(r'public-catalog\.js\?v=[^\"\']+', 'public-catalog.js?v=20261022-card-below-v104', s)
+        s=re.sub(r'/sw\.js\?v=[^\"\']+', '/sw.js?v=20261022-card-below-v104', s)
+        p.write_text(s, encoding='utf-8')
 
-print('v103: forced fresh file, old v2 redirect, repaired hero markup, 2cm slogan gap preserved')
+print('v104: seller card fully below dark hero; no overlap; functions untouched')
