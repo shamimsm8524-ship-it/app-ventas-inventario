@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply public catalog desktop brand and cache patch v88
+      - name: Apply public catalog desktop contact alignment patch v89
         run: python scripts/hotfix_public_catalog_presentations.py
       - name: Commit patch
         run: |
@@ -26,5 +26,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          git commit -m "Force Varelia to load fresh public catalog generator"
+          git commit -m "Align desktop public catalog brand with contact card"
           git push
