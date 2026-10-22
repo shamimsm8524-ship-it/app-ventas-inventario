@@ -81,7 +81,7 @@
 })();
 </script>
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261022-PRESENTATION-PRICE-LITERAL-V41';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261022-BOX-INVENTORY-SALE-V42';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <script>
 try{if(new URL(location.href).searchParams.has('native_app'))window.__vareliaNativePdfHookV2=true}catch{}
@@ -410,7 +410,7 @@ function addMovement(p,type,qty,before,after,source){movements.push({id:uid(),da
 function render(){renderProducts();renderInventory();renderCategories();renderSuppliers();renderPurchases();renderSales();renderCash();fillCats();fillPurchaseSelectors();renderInvSelected()}
 function card(p){return `<article class="product"><div class="photo">${p.image?`<img src="${p.image}">`:'Sin imagen'}</div><div class="pb"><h3 style="display:flex;align-items:center;gap:7px">${esc(p.name)} <button type="button" class="btn secondary" data-edit="${p.id}" title="Editar nombre" style="padding:3px 8px;font-size:12px">✏️</button></h3><div class="meta">${esc(p.category)}</div>${p.variants||p.specifications?`<div style="margin-top:4px;font-size:14px;font-weight:800;color:var(--ink)">${esc(p.variants||p.specifications)}</div>`:''}${p.barcode?`<div style="margin-top:5px;font-size:14px;font-weight:900;color:var(--ink);letter-spacing:.02em;line-height:1.3;word-break:break-all"><span style="color:var(--muted);font-weight:800">Código:</span> ${esc(p.barcode)}</div>`:''}<div class="price" style="font-family:Arial,system-ui,sans-serif!important;font-size:22px!important;font-weight:850!important;line-height:1.05!important;letter-spacing:-.02em!important;color:var(--p)!important;white-space:nowrap!important"><span class="catalogSalePriceText" style="font:inherit!important;color:inherit!important;letter-spacing:inherit!important;white-space:nowrap!important">S/&nbsp;${Number(p.sellPrice||0).toFixed(2)}</span></div><div class="actions"><button class="btn secondary" data-edit="${p.id}">Editar</button><button class="btn primary" data-add="${p.id}">Vender</button><button class="btn danger" data-delete="${p.id}">Eliminar</button></div></div></article>`}
 function renderProducts(){let q=search.value.trim().toLowerCase(),a=products.filter(p=>(activeCategory==='Todos'||p.category===activeCategory)&&(!q||[p.name,p.barcode,p.category].some(v=>String(v||'').toLowerCase().includes(q))));productGrid.innerHTML=a.length?a.map(card).join(''):'<div class="empty">No hay productos.</div>';categoryChips.innerHTML=['Todos',...categories].map(c=>`<button class="chip ${activeCategory===c?'active':''}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}
-function renderInventory(){const stockOf=p=>{const vs=Array.isArray(p.variantCombinations)?p.variantCombinations:[];const total=vs.reduce((a,v)=>a+(Number(v?.stock)||0),0);return vs.length&&total>0?total:(Number(p.stock)||0)};let low=products.filter(p=>stockOf(p)<=Math.max(0,+p.reorderLevel||0)).sort((a,b)=>stockOf(a)-stockOf(b));reorderList.innerHTML=low.length?low.map(p=>{const s=stockOf(p);return `<div class="alertrow"><div><strong>⚠️ ${esc(p.name)}</strong><div class="meta">${esc(p.category||'Sin sección')} · Stock actual: <b>${s} ${esc(p.unit)}</b></div></div><div style="text-align:right"><label style="font-size:11px">Alertar en</label><input data-reorder="${p.id}" type="number" min="0" value="${Math.max(0,+p.reorderLevel||0)}"></div></div>`}).join(''):'<div class="empty">✅ No hay productos por reponer.</div>';inventoryProductList.innerHTML=products.length?[...products].sort((a,b)=>(a.category||'').localeCompare(b.category||'')||(a.name||'').localeCompare(b.name||'')).map(p=>{const s=stockOf(p);const low=s<=Math.max(0,+p.reorderLevel||0);return `<div class="row" data-invrow="${p.id}"><div><strong>${esc(p.name)}${low?'<span class="warnbadge">⚠️ Reponer</span>':''}</strong><div><span class="badge">${esc(p.category||'Sin sección')}</span></div><div class="meta">Alerta configurada: ${Math.max(0,+p.reorderLevel||0)} ${esc(p.unit)}</div></div><div style="text-align:right"><strong>${s} ${esc(p.unit)}</strong><div style="display:flex;gap:5px;justify-content:flex-end;margin-top:7px"><button class="btn secondary" data-alertcfg="${p.id}" style="padding:6px 9px">⚙️</button><button class="btn danger" data-deleteinv="${p.id}" style="padding:6px 9px">🗑️</button></div></div></div>`}).join(''):'<div class="empty">Sin productos.</div>';let list=[...movements].reverse().slice(0,100);inventoryMovementList.innerHTML=list.length?list.map(m=>`<div class="row"><div><strong>${esc(m.name)}</strong><div class="meta">${new Date(m.date).toLocaleString('es-PE')} · ${esc(m.source||'')}</div><div class="meta">Stock ${m.before} → ${m.after}</div></div><div><strong>${m.qty}</strong></div></div>`).join(''):'<div class="empty">Sin movimientos.</div>'}
+function renderInventory(){const stockOf=p=>{const vs=Array.isArray(p.variantCombinations)?p.variantCombinations:[];const total=vs.reduce((a,v)=>a+(Number(v?.stock)||0),0);return vs.length&&total>0?total:(Number(p.stock)||0)};let low=products.filter(p=>stockOf(p)<=Math.max(0,+p.reorderLevel||0)).sort((a,b)=>stockOf(a)-stockOf(b));reorderList.innerHTML=low.length?low.map(p=>{const s=stockOf(p);return `<div class="alertrow"><div><strong>⚠️ ${esc(p.name)}</strong><div class="meta">${esc(p.category||'Sin sección')} · Stock actual: <b>${s} ${esc(p.unit)}</b></div></div><div style="text-align:right"><label style="font-size:11px">Alertar en</label><input data-reorder="${p.id}" type="number" min="0" value="${Math.max(0,+p.reorderLevel||0)}"></div></div>`}).join(''):'<div class="empty">✅ No hay productos por reponer.</div>';inventoryProductList.innerHTML=products.length?[...products].sort((a,b)=>(a.category||'').localeCompare(b.category||'')||(a.name||'').localeCompare(b.name||'')).map(p=>{const s=stockOf(p);const low=s<=Math.max(0,+p.reorderLevel||0);return `<div class="row" data-invrow="${p.id}"><div><strong>${esc(p.name)}${low?'<span class="warnbadge">⚠️ Reponer</span>':''}</strong><div><span class="badge">${esc(p.category||'Sin sección')}</span></div><div class="meta">Alerta configurada: ${Math.max(0,+p.reorderLevel||0)} ${esc(p.unit)}</div></div><div style="text-align:right"><strong>${s} ${esc(p.unit)}</strong><div style="display:flex;gap:5px;justify-content:flex-end;margin-top:7px"><button class="btn secondary" data-editinv="${p.id}" style="padding:6px 9px" title="Editar producto">✏️</button><button class="btn secondary" data-alertcfg="${p.id}" style="padding:6px 9px">⚙️</button><button class="btn danger" data-deleteinv="${p.id}" style="padding:6px 9px">🗑️</button></div></div></div>`}).join(''):'<div class="empty">Sin productos.</div>';let list=[...movements].reverse().slice(0,100);inventoryMovementList.innerHTML=list.length?list.map(m=>`<div class="row"><div><strong>${esc(m.name)}</strong><div class="meta">${new Date(m.date).toLocaleString('es-PE')} · ${esc(m.source||'')}</div><div class="meta">Stock ${m.before} → ${m.after}</div></div><div><strong>${m.qty}</strong></div></div>`).join(''):'<div class="empty">Sin movimientos.</div>'}
 
 reorderList.onchange=e=>{if(e.target.dataset.reorder){let p=products.find(x=>String(x.id).trim()===String(e.target.dataset.reorder).trim());if(p){p.reorderLevel=Math.max(0,Math.floor(+e.target.value||0));syncProductToCloud(p);save()}}};
 
@@ -420,6 +420,13 @@ inventoryProductList.onclick=e=>{
     e.stopPropagation();
     e.preventDefault();
     deleteProduct(del.dataset.deleteinv);
+    return;
+  }
+  let edit=e.target.closest('[data-editinv]');
+  if(edit){
+    e.stopPropagation();
+    e.preventDefault();
+    openProduct(edit.dataset.editinv);
     return;
   }
   let a=e.target.closest('[data-alertcfg]');
@@ -745,7 +752,65 @@ function renderInvSelected(){let p=products.find(x=>String(x.id).trim()===String
 inventoryName.oninput=()=>{let q=inventoryName.value.trim().toLowerCase();inventoryNameResults.innerHTML=q?products.filter(p=>p.name.toLowerCase().includes(q)).map(p=>`<button class="result" data-inv="${p.id}">${esc(p.name)}</button>`).join(''):''};
 inventoryNameResults.onclick=e=>{let b=e.target.closest('[data-inv]');if(b)selectInv(products.find(p=>String(p.id).trim()===String(b.dataset.inv).trim()))};
 findInventory.onclick=()=>{let p=products.find(x=>x.barcode===inventoryCode.value.trim());p?selectInv(p):alert('Código no registrado.')};
-applyInventory.onclick=async()=>{let p=products.find(x=>String(x.id).trim()===String(inventoryProductId).trim()),entered=Number(inventoryQty.value);if(!p){alert('Primero selecciona un producto del inventario.');return}if(!Number.isFinite(entered)||entered<=0){alert('Ingresa una cantidad válida mayor que 0.');return}let chosen=document.getElementById('inventoryMovementUnit')?.value||'auto',baseUnit=String(p.unit||'Unidad').trim().toLowerCase(),q=entered,chosenLabel=chosen;const isKg=/^(kg|kilo|kilos|kilogramo|kilogramos)$/.test(baseUnit),isGram=/^(g|gr|gramo|gramos)$/.test(baseUnit);if(chosen==='auto'){chosenLabel=p.unit||'Unidad'}else if(chosen==='g'){chosenLabel='g';if(isKg)q=entered/1000;else if(!isGram){alert('Este producto está configurado en '+(p.unit||'Unidad')+'. Cambia la unidad base del producto a kg para convertir gramos automáticamente.');return}}else if(chosen==='kg'){chosenLabel='kg';if(isGram)q=entered*1000;else if(!isKg){alert('Este producto está configurado en '+(p.unit||'Unidad')+'. Cambia la unidad base del producto a kg para registrar kilogramos.');return}}else{chosenLabel=chosen==='caja'?'caja':chosen==='blister'?'blíster':'unidad';const base=baseUnit.normalize('NFD').replace(/[\u0300-\u036f]/g,'');const matches=chosen==='caja'?/caja|cajas|box/.test(base):chosen==='blister'?/blister|blisters/.test(base):/unidad|unidades|unit/.test(base);if(!matches&&chosen!=='auto'){alert('La unidad base del producto es '+(p.unit||'Unidad')+'. Para evitar un stock incorrecto, configura el producto con unidad '+chosenLabel+' antes de registrar esta cantidad.');return}}let before=Number(p.stock)||0,type=inventoryMode.value==='add'?'add':'subtract';if(type==='subtract'&&q>before+1e-9){alert('No hay suficiente stock. Disponible: '+before+' '+(p.unit||'Unidad'));return}const after=Number((before+(type==='add'?q:-q)).toFixed(6));p.stock=after;addMovement(p,type,q,before,after,'Ajuste manual ('+entered+' '+chosenLabel+')');save();renderInvSelected();inventoryQty.value=1;window.vareliaSound?.('add');window.vareliaToast?.((type==='add'?'Entrada':'Salida')+' registrada localmente. Stock: '+p.stock+' '+(p.unit||'Unidad'),'ok');try{await Promise.resolve(syncProductToCloud(p));window.vareliaToast?.('Stock sincronizado.','ok')}catch(err){console.error(err);window.vareliaToast?.('El stock ya se actualizó aquí, pero falta sincronizarlo con la nube. Revisa tu conexión.','warn')}};
+applyInventory.onclick=async()=>{
+  let p=products.find(x=>String(x.id).trim()===String(inventoryProductId).trim()),entered=Number(inventoryQty.value);
+  if(!p){alert('Primero selecciona un producto del inventario.');return}
+  if(!Number.isFinite(entered)||entered<=0){alert('Ingresa una cantidad válida mayor que 0.');return}
+  let chosen=document.getElementById('inventoryMovementUnit')?.value||'auto';
+  const baseRaw=String(p.unit||'Unidad').trim().toLowerCase();
+  const base=baseRaw.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const unitsPerBox=Math.max(1,Math.floor(Number(p.unitsPerBox)||1));
+  let q=entered,chosenLabel=chosen;
+  const isKg=/^(kg|kilo|kilos|kilogramo|kilogramos)$/.test(base);
+  const isGram=/^(g|gr|gramo|gramos)$/.test(base);
+  const isBox=/^(caja|cajas|box)$/.test(base);
+  const isBlister=/^(blister|blisters)$/.test(base);
+  const isUnit=/^(unidad|unidades|unit)$/.test(base);
+  if(chosen==='auto'){
+    chosenLabel=p.unit||'Unidad';
+  }else if(chosen==='g'){
+    chosenLabel='g';
+    if(isKg)q=entered/1000;
+    else if(!isGram){alert('Este producto está configurado en '+(p.unit||'Unidad')+'. Cambia la unidad base del producto a kg para convertir gramos automáticamente.');return}
+  }else if(chosen==='kg'){
+    chosenLabel='kg';
+    if(isGram)q=entered*1000;
+    else if(!isKg){alert('Este producto está configurado en '+(p.unit||'Unidad')+'. Cambia la unidad base del producto a kg para registrar kilogramos.');return}
+  }else if(chosen==='caja'){
+    chosenLabel='caja';
+    if(!isBox){alert('La unidad base del producto es '+(p.unit||'Unidad')+'. Para registrar cajas, edita el producto y selecciona Caja.');return}
+  }else if(chosen==='unidad'){
+    chosenLabel='unidad';
+    if(isBox){
+      if(unitsPerBox<=1){alert('Primero edita el producto y configura cuántas unidades trae cada caja.');return}
+      q=entered/unitsPerBox;
+    }else if(!isUnit){alert('La unidad base del producto es '+(p.unit||'Unidad')+'. Esta salida no se puede convertir automáticamente a unidades.');return}
+  }else if(chosen==='blister'){
+    chosenLabel='blíster';
+    if(!isBlister){alert('La unidad base del producto es '+(p.unit||'Unidad')+'. Para registrar blísteres, configura el producto con esa unidad.');return}
+  }
+  let before=Number(p.stock)||0,type=inventoryMode.value==='add'?'add':'subtract';
+  if(type==='subtract'&&q>before+1e-9){alert('No hay suficiente stock. Disponible: '+before+' '+(p.unit||'Unidad'));return}
+  const after=Number((before+(type==='add'?q:-q)).toFixed(6));
+  p.stock=after;
+  addMovement(p,type,q,before,after,'Ajuste manual ('+entered+' '+chosenLabel+')');
+  save();renderInvSelected();inventoryQty.value=1;
+  window.vareliaSound?.(type==='add'?'add':'remove');
+  window.vareliaToast?.((type==='add'?'Entrada':'Salida')+' registrada. Stock: '+p.stock+' '+(p.unit||'Unidad'),'ok');
+  try{
+    await Promise.resolve(syncProductToCloud(p));
+    const sb=window.vareliaSupabase,cloudId=String(p._cloudId||'');
+    if(sb&&cloudId){
+      const res=await sb.from('varelia_products').update({stock:after}).eq('id',cloudId).select('stock').maybeSingle();
+      if(res.error)throw res.error;
+      if(res.data&&Number.isFinite(Number(res.data.stock))){p.stock=Number(res.data.stock);save();renderInvSelected()}
+    }
+    window.vareliaToast?.('Stock sincronizado.','ok');
+  }catch(err){
+    console.error(err);
+    window.vareliaToast?.('El stock ya se actualizó aquí, pero falta sincronizarlo con la nube. Revisa tu conexión.','warn');
+  }
+};
 function openSupplier(id){let s=suppliers.find(x=>String(x.id).trim()===String(id).trim());supplierForm.reset();supplierId.value=s?.id||'';supplierTitle.textContent=s?'Editar proveedor':'Nuevo proveedor';supplierName.value=s?.name||'';supplierRuc.value=s?.ruc||'';supplierPhone.value=s?.phone||'';supplierEmail.value=s?.email||'';supplierAddress.value=s?.address||'';supplierNotes.value=s?.notes||'';supplierDialog.showModal()}
 newSupplier.onclick=()=>openSupplier();
 supplierForm.onsubmit=e=>{e.preventDefault();let id=supplierId.value,obj={id:id||uid(),name:supplierName.value.trim(),ruc:supplierRuc.value.trim(),phone:supplierPhone.value.trim(),email:supplierEmail.value.trim(),address:supplierAddress.value.trim(),notes:supplierNotes.value.trim()},old=suppliers.find(x=>String(x.id).trim()===String(id).trim());old?Object.assign(old,obj):suppliers.push(obj);supplierDialog.close();save()};
@@ -948,7 +1013,7 @@ checkout.onclick=()=>{
     let p=products.find(x=>String(x.id).trim()===String(i.id).trim());
     if(p){
       let before = +p.stock||0;
-      const stockQty=(Number(i.qty)||0)*Math.max(1,Number(i.medicineMultiplier||1));
+      const stockQty=(Number(i.qty)||0)*Math.max(0.000001,Number(i.stockQtyPerSale??i.medicineMultiplier??1)||1);
       p.stock = Math.max(0, before - stockQty);
       addMovement(p,'sale',stockQty,before,p.stock,'Venta');
       syncProductToCloud(p);
@@ -1624,7 +1689,7 @@ button.primary:hover,.btn.primary:hover,.primary:hover,#newProduct:hover,#invent
 
 
 <script src="cash-consistency-fix.js?v=20261020-cash-consistency-v1"></script>
-<script src="advanced-pricing.js?v=20261022-commercial-preserve-v36"></script>
+<script src="advanced-pricing.js?v=20261022-box-stock-v42"></script>
 <script src="product-form-safety.js?v=20261022-v24-price-literal"></script>
 </body></html>
 
