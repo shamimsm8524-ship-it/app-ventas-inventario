@@ -15,8 +15,33 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Add visible product description field v107
-        run: python scripts/fix_public_catalog_laptop_layout_v97.py
+      - name: Build catalog and shorten dark header v108
+        run: |
+          python scripts/fix_public_catalog_laptop_layout_v97.py
+          python - <<'PY'
+          from pathlib import Path
+          paths = [
+              Path('catalogo/milagros/catalogo-v2.html'),
+              Path('catalogo/milagros/catalogo-v104.html'),
+              Path('catalogo/milagros/catalogo-v105.html'),
+          ]
+          for p in paths:
+              s = p.read_text(encoding='utf-8')
+              s = s.replace('padding-bottom:76px!important', 'padding-bottom:36px!important')
+              p.write_text(s, encoding='utf-8')
+          version='20261022-short-hero-v108'
+          for name in ('catalogo/milagros/index.html','catalogo-enlace.html','public-catalog.js','index.html','index-1.html'):
+              p=Path(name)
+              if not p.exists():
+                  continue
+              s=p.read_text(encoding='utf-8')
+              import re
+              s=re.sub(r'20261022-[A-Za-z0-9_-]+', version, s)
+              if name in ('index.html','index-1.html'):
+                  s=re.sub(r"const BUILD='[^']+'", "const BUILD='20261022-SHORT-HERO-V108'", s, count=1)
+              p.write_text(s, encoding='utf-8')
+          print('v108: laptop dark hero bottom padding reduced from 76px to 36px only')
+          PY
       - name: Commit patch
         run: |
           git config user.name "Varelia Stability Bot"
@@ -26,5 +51,5 @@ jobs:
             echo "No changes"
             exit 0
           fi
-          git commit -m "Show product description field and sync to public catalog v107"
+          git commit -m "Shorten public catalog dark header v108"
           git push
