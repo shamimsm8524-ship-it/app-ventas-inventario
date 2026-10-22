@@ -161,6 +161,7 @@
       sell_price:Math.max(0,Number(p.sellPrice)||0),
       stock:Math.max(0,Number(p.stock)||0),
       unit:String(p.unit||'Unidad'),
+      units_per_box:String(p.unit||'').trim().toLowerCase()==='caja'?Math.max(1,Math.floor(Number(p.unitsPerBox)||1)):null,
       reorder_level:Math.max(0,Number(p.reorderLevel)||0),
       image_data:String(p.image||''),
       medicine,
@@ -217,7 +218,7 @@
     if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
     const [catsRes,prodRes]=await withTimeout(Promise.all([
       sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
-      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes,sale_presentations,advanced_pricing,updated_at').eq('business_id',businessId).order('created_at')
+      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,units_per_box,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes,sale_presentations,advanced_pricing,updated_at').eq('business_id',businessId).order('created_at')
     ]),15000,'La lectura del inventario en la nube');
     if(catsRes.error)throw catsRes.error;
     if(prodRes.error)throw prodRes.error;
@@ -260,6 +261,7 @@
       sellPrice:Number(p.sell_price)||0,
       stock:stock,
       unit:String(p.unit||'Unidad'),
+      unitsPerBox:Number(p.units_per_box)||0,
       reorderLevel:Number(p.reorder_level)||0,
       description:String(p.description||''),
       specifications:stripAdvancedPricing(String(p.specifications||'')),
