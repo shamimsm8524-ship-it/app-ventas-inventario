@@ -1,0 +1,35 @@
+name: Fix box units V40
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/fix_box_units_v40.py'
+      - '.github/workflows/fix-box-units-v40.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply isolated Caja units patch
+        run: python3 scripts/fix_box_units_v40.py
+      - name: Validate touched JavaScript
+        run: |
+          node --check central-stock-sync.js
+          grep -q 'id="vUnitsPerBox"' index.html
+          grep -q "20261022-BOX-UNITS-V40" index.html
+          grep -q 'units_per_box' central-stock-sync.js
+      - name: Guard changed files
+        run: |
+          changed="$(git diff --name-only | sort)"
+          printf '%s\n' "$changed"
+          test "$changed" = $'central-stock-sync.js\nindex.html'
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add central-stock-sync.js index.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'Add units per box for Caja products'
+          git push
