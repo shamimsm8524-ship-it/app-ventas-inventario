@@ -3,8 +3,10 @@ import re
 
 
 # Use the latest physical catalog as source so this correction is isolated
-# from older cached catalog-v2/v92 files.
-source = Path('catalogo/milagros/catalogo-v92.html')
+# from older cached files.
+source = Path('catalogo/milagros/catalogo-v93.html')
+if not source.exists():
+    source = Path('catalogo/milagros/catalogo-v92.html')
 if not source.exists():
     source = Path('catalogo/milagros/catalogo-v2.html')
 h = source.read_text(encoding='utf-8')
@@ -31,14 +33,14 @@ h = brand_pattern.sub('', h)
 align_pattern = re.compile(r'<script id="varelia-desktop-brand-align-v\d+">.*?</script>', re.S)
 h = align_pattern.sub('', h)
 
-# Desktop only: keep the logo at 110 px and the three brand elements stacked.
-# Horizontal alignment is NOT estimated in CSS anymore; JS below aligns them
-# to the real CONTACTO content column from the seller card.
-desktop_brand_style = '''<style id="varelia-desktop-brand-v93">
-@media (min-width:760px){
+# Laptop/desktop only. Keep the logo at a REAL 110 x 110 px. Do not use
+# transforms for alignment; transforms caused the previous layout to jump back.
+desktop_brand_style = '''<style id="varelia-desktop-brand-v94">
+@media (min-width:600px){
   .hero{
     display:block!important;
-    padding:28px 20px 64px!important;
+    padding-top:28px!important;
+    padding-bottom:64px!important;
   }
   .hero .top{
     display:flex!important;
@@ -48,25 +50,26 @@ desktop_brand_style = '''<style id="varelia-desktop-brand-v93">
   .hero .top>b{
     width:110px!important;
     min-width:110px!important;
-    height:70px!important;
+    height:110px!important;
+    min-height:110px!important;
     display:flex!important;
     align-items:center!important;
     justify-content:flex-start!important;
     overflow:hidden!important;
-    border-radius:14px!important;
+    border-radius:16px!important;
     background:transparent!important;
     line-height:1!important;
-    transform:none;
+    transform:none!important;
   }
   .hero .top>b img{
     display:block!important;
     width:110px!important;
-    height:70px!important;
+    height:110px!important;
     max-width:110px!important;
-    max-height:70px!important;
+    max-height:110px!important;
     object-fit:contain!important;
     object-position:left center!important;
-    border-radius:14px!important;
+    border-radius:16px!important;
   }
   .hero .top>div{
     display:flex!important;
@@ -77,7 +80,7 @@ desktop_brand_style = '''<style id="varelia-desktop-brand-v93">
     font-size:38px!important;
     line-height:1.08!important;
     letter-spacing:-1px!important;
-    transform:none;
+    transform:none!important;
   }
   #heroSlogan{
     margin:0!important;
@@ -85,25 +88,26 @@ desktop_brand_style = '''<style id="varelia-desktop-brand-v93">
     font-size:21px!important;
     line-height:1.25!important;
     font-weight:800!important;
-    transform:none;
+    transform:none!important;
   }
   .hero>div:last-child{margin:0!important}
 }
 </style>'''
 h = h.replace('</head>', desktop_brand_style + '</head>', 1)
 
-# Exact laptop alignment: use the real seller-card position after layout.
-# The target is seller left edge + seller left padding, i.e. the same x-axis
-# where the word CONTACTO begins. The same delta is applied to logo/name/slogan.
-desktop_brand_align = '''<script id="varelia-desktop-brand-align-v93">
+# Exact stable alignment for laptop: move the HERO PADDING itself so logo,
+# business name and slogan naturally begin on the same vertical line as
+# CONTACTO inside the seller card. No translateX and no repeated toggling.
+desktop_brand_align = '''<script id="varelia-desktop-brand-align-v94">
 (function(){
   function alignBrandToContact(){
-    if(window.innerWidth < 760) return;
+    if(window.innerWidth < 600) return;
+    var hero = document.querySelector('.hero');
     var seller = document.querySelector('.seller');
     var logo = document.querySelector('.hero .top>b');
     var name = document.getElementById('business');
     var slogan = document.getElementById('heroSlogan');
-    if(!seller || !logo || !name) return;
+    if(!hero || !seller || !logo || !name) return;
 
     logo.style.setProperty('transform','none','important');
     name.style.setProperty('transform','none','important');
@@ -111,24 +115,21 @@ desktop_brand_align = '''<script id="varelia-desktop-brand-align-v93">
 
     var sellerRect = seller.getBoundingClientRect();
     var sellerCss = getComputedStyle(seller);
-    var sellerPad = parseFloat(sellerCss.paddingLeft) || 0;
-    var targetX = Math.round(sellerRect.left + sellerPad);
+    var padL = parseFloat(sellerCss.paddingLeft) || 0;
+    var padR = parseFloat(sellerCss.paddingRight) || 0;
+    var left = Math.max(20, Math.round(sellerRect.left + padL));
+    var right = Math.max(20, Math.round((window.innerWidth - sellerRect.right) + padR));
 
-    var nameX = Math.round(name.getBoundingClientRect().left);
-    var shift = targetX - nameX;
-    var move = 'translateX(' + shift + 'px)';
-
-    logo.style.setProperty('transform',move,'important');
-    name.style.setProperty('transform',move,'important');
-    if(slogan) slogan.style.setProperty('transform',move,'important');
+    hero.style.setProperty('padding-left', left + 'px', 'important');
+    hero.style.setProperty('padding-right', right + 'px', 'important');
   }
 
   function runAlignment(){
     alignBrandToContact();
     requestAnimationFrame(alignBrandToContact);
-    setTimeout(alignBrandToContact,80);
-    setTimeout(alignBrandToContact,300);
-    setTimeout(alignBrandToContact,800);
+    setTimeout(alignBrandToContact,100);
+    setTimeout(alignBrandToContact,400);
+    setTimeout(alignBrandToContact,1000);
   }
 
   if(document.readyState === 'loading'){
@@ -147,32 +148,36 @@ if not sep:
     raise SystemExit('real closing </body> not found')
 h = head + desktop_brand_align + sep + tail
 
-# Publish another physical file so the user cannot land on the old layout.
-Path('catalogo/milagros/catalogo-v93.html').write_text(h, encoding='utf-8')
+# Publish a fresh physical file.
+Path('catalogo/milagros/catalogo-v94.html').write_text(h, encoding='utf-8')
 
-# Keep the old route usable too, but all current entry points go to v93.
+# All current entry points go to v94.
 p = Path('catalogo/milagros/index.html')
 r = p.read_text(encoding='utf-8')
-r = re.sub(r'catalogo-v(?:2|92|93)\.html\?v=[^\"\']+', 'catalogo-v93.html?v=20261022-desktop-brand-v93', r)
+r = re.sub(r'catalogo-v(?:2|92|93|94)\.html\?v=[^\"\']+', 'catalogo-v94.html?v=20261022-desktop-brand-v94', r)
 p.write_text(r, encoding='utf-8')
 
 p = Path('public-catalog.js')
 j = p.read_text(encoding='utf-8')
-j = j.replace('/catalogo/milagros/catalogo-v2.html?c=', '/catalogo/milagros/catalogo-v93.html?c=')
-j = j.replace('/catalogo/milagros/catalogo-v92.html?c=', '/catalogo/milagros/catalogo-v93.html?c=')
-j = re.sub(r'&_v=20261022-desktop-brand-v\d+', '&_v=20261022-desktop-brand-v93', j)
+for old in [
+    '/catalogo/milagros/catalogo-v2.html?c=',
+    '/catalogo/milagros/catalogo-v92.html?c=',
+    '/catalogo/milagros/catalogo-v93.html?c=',
+]:
+    j = j.replace(old, '/catalogo/milagros/catalogo-v94.html?c=')
+j = re.sub(r'&_v=20261022-desktop-brand-v\d+', '&_v=20261022-desktop-brand-v94', j)
 p.write_text(j, encoding='utf-8')
 
 p = Path('catalogo-enlace.html')
 e = p.read_text(encoding='utf-8')
-e = e.replace("new URL('/catalogo/milagros/catalogo-v2.html',location.origin)", "new URL('/catalogo/milagros/catalogo-v93.html',location.origin)")
-e = e.replace("new URL('/catalogo/milagros/catalogo-v92.html',location.origin)", "new URL('/catalogo/milagros/catalogo-v93.html',location.origin)")
-e = re.sub(r"target\.searchParams\.set\('_v','20261022-desktop-brand-v\d+'\)", "target.searchParams.set('_v','20261022-desktop-brand-v93')", e)
+for old in ['catalogo-v2.html','catalogo-v92.html','catalogo-v93.html']:
+    e = e.replace("new URL('/catalogo/milagros/"+old+"',location.origin)", "new URL('/catalogo/milagros/catalogo-v94.html',location.origin)")
+e = re.sub(r"target\.searchParams\.set\('_v','20261022-desktop-brand-v\d+'\)", "target.searchParams.set('_v','20261022-desktop-brand-v94')", e)
 p.write_text(e, encoding='utf-8')
 
 p = Path('index.html')
 i = p.read_text(encoding='utf-8')
-i = re.sub(r'public-catalog\.js\?v=[^\"\']+', 'public-catalog.js?v=20261022-desktop-brand-v93-exact-contact', i, count=1)
+i = re.sub(r'public-catalog\.js\?v=[^\"\']+', 'public-catalog.js?v=20261022-desktop-brand-v94-stable', i, count=1)
 p.write_text(i, encoding='utf-8')
 
-print('public catalog v93 exact CONTACTO-column alignment applied')
+print('public catalog v94 stable CONTACTO alignment + 110px square logo applied')
