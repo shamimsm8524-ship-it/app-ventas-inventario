@@ -67,3 +67,22 @@ test('free presentation cost remains zero instead of falling back to unit cost',
 test('editing presentation prices never recalculates the wholesale price',()=>{
   assert(!read('product-form-safety.js').includes('unitPrice.value=round2(price/units)'));
 });
+function purchaseHarness(unit,quantity,cost){
+  const html=read('index.html'),start=html.indexOf('addPurchaseItem.onclick='),end=html.indexOf('\nsavePurchase.onclick=',start);
+  const alerts=[];const env={products:[{id:'p',name:'P',unit}],purchaseProduct:{value:'p'},purchaseQty:{value:String(quantity)},purchaseCost:{value:String(cost)},purchaseCart:[],renderPurchaseCart(){},alert:m=>alerts.push(m),addPurchaseItem:{}};
+  vm.createContext(env);vm.runInContext(html.slice(start,end),env);env.addPurchaseItem.onclick();return {env,alerts};
+}
+test('goods receipt preserves fractional kilograms instead of truncating them',()=>{
+  const {env}=purchaseHarness('Kg',2.5,10);assert.equal(env.purchaseCart[0].qty,2.5);
+});
+test('goods receipt rejects negative purchase cost and fractional discrete units',()=>{
+  for(const args of [['Unidad',2,-1],['Unidad',1.5,10],['Unidad',0,10]]){
+    const {env,alerts}=purchaseHarness(...args);assert.equal(env.purchaseCart.length,0);assert.equal(alerts.length,1);
+  }
+});
+test('product names and codes are escaped before rendering HTML',()=>{
+  const html=read('index.html');const start=html.indexOf('esc=s=>'),end=html.indexOf(';',start);
+  // Extract the complete helper line because HTML entities contain semicolons.
+  const line=html.slice(start,html.indexOf('\n',start));const env={};vm.createContext(env);vm.runInContext('const '+line+'\nthis.escape=esc',env);
+  assert.equal(env.escape('<img src=x onerror="alert(1)">'), '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;');
+});

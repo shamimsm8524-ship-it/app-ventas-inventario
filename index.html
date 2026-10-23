@@ -291,7 +291,7 @@ const VARELIA_SCOPE=String(localStorage.getItem('varelia_active_business_id')||'
 const __baseK={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};
 const __sk=k=>k+'__'+VARELIA_SCOPE;
 const K=Object.fromEntries(Object.entries(__baseK).map(([n,k])=>[n,__sk(k)]));
-const $=id=>document.getElementById(id),money=n=>'S/ '+Number(n||0).toFixed(2),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),esc=s=>String(s??'');
+const $=id=>document.getElementById(id),money=n=>'S/ '+Number(n||0).toFixed(2),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function load(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}
 let products=load(K.products,[]),categories=load(K.categories,[]),sales=load(K.sales,[]),closures=load(K.closures,[]),cashStart=load(K.cashStart,new Date().toISOString()),theme=(function(){const t=load(K.theme,{color:'#2563eb',dark:false,updatedAt:0});if(['#be185d','#7c3aed'].includes(String(t?.color||'').toLowerCase()))t.color='#2563eb';return t})(),movements=load(K.movements,[]),suppliers=load(K.suppliers,[]),purchases=load(K.purchases,[]),activeCategory='Todos',cart=load(__sk('varelia_active_sale_cart_v1'),[]),purchaseCart=[],inventoryProductId=null;
 products.forEach(p=>{if(!p.id)p.id=uid();p.id=String(p.id);if(p.reorderLevel==null)p.reorderLevel=5});window.products=products;window.sales=sales;
@@ -833,7 +833,16 @@ supplierForm.onsubmit=e=>{e.preventDefault();let id=supplierId.value,obj={id:id|
 supplierSearch.oninput=renderSuppliers;
 newPurchase.onclick=()=>{purchaseCart=[];fillPurchaseSelectors();purchaseDialog.showModal()};
 function renderPurchaseCart(){purchaseItems.innerHTML=purchaseCart.map(i=>`<div>${esc(i.name)} × ${i.qty}</div>`).join('');purchaseTotal.textContent=money(purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0))}
-addPurchaseItem.onclick=()=>{let p=products.find(x=>String(x.id).trim()===String(purchaseProduct.value).trim()),q=Math.floor(+purchaseQty.value),c=+purchaseCost.value;if(p&&q>0){purchaseCart.push({id:p.id,name:p.name,qty:q,cost:c,unit:p.unit});renderPurchaseCart()}};
+addPurchaseItem.onclick=()=>{
+  const p=products.find(x=>String(x.id).trim()===String(purchaseProduct.value).trim());
+  const q=Number(purchaseQty.value),c=Number(purchaseCost.value);
+  if(!p)return alert('Selecciona un producto.');
+  if(!Number.isFinite(q)||q<=0)return alert('Escribe una cantidad de compra mayor que cero.');
+  if(!Number.isFinite(c)||c<0)return alert('El costo de compra debe ser mayor o igual a cero.');
+  const continuous=/^(kg|kilo|kilos|kilogramos?|g|gr|gramos?|l|litros?|ml|mililitros?|m|metros?|m2|m²)$/i.test(String(p.unit||'').trim());
+  if(!continuous&&!Number.isInteger(q))return alert('Esta presentación requiere una cantidad entera.');
+  purchaseCart.push({id:p.id,name:p.name,qty:q,cost:c,unit:p.unit});renderPurchaseCart();
+};
 savePurchase.onclick=()=>{let s=suppliers.find(x=>String(x.id).trim()===String(purchaseSupplier.value).trim());if(!s||!purchaseCart.length)return;for(const i of purchaseCart){let p=products.find(x=>String(x.id).trim()===String(i.id).trim());if(p){p.stock=(+p.stock||0)+i.qty;syncProductToCloud(p);}}purchases.push({id:uid(),date:new Date().toISOString(),supplierName:s.name,items:purchaseCart,total:purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0)});purchaseDialog.close();save()};
 
 function persistSaleCart(){try{localStorage.setItem(__sk('varelia_active_sale_cart_v1'),JSON.stringify(cart||[]))}catch{}}

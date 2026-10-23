@@ -22,8 +22,8 @@ jobs:
           node --test tests/purchase-cost.test.cjs
       - name: Install browser test tools
         run: |
-          npm install --prefix /tmp/varelia-browser playwright@1.56.1
-          /tmp/varelia-browser/node_modules/.bin/playwright install --with-deps chromium
+          npm install --ignore-scripts --no-audit --no-fund --prefix /tmp/varelia-browser playwright@1.56.1
+          /tmp/varelia-browser/node_modules/.bin/playwright install chromium --only-shell
       - name: Mobile login and product form browser checks
         env:
           PLAYWRIGHT_MODULE: /tmp/varelia-browser/node_modules/playwright
