@@ -190,7 +190,23 @@
     function codeCandidates(v){const n=norm(v),d=digits(n),out=[n];if(d){out.push(d,d.replace(/^0+/,''));if(d.length===14&&d[0]==='0')out.push(d.slice(1));if(d.length===13)out.push(d.slice(1));if(d.length>13)out.push(d.slice(-13),d.slice(-12),d.slice(-8));}return [...new Set(out.filter(Boolean))]}
     function digits(v){return String(v??'').replace(/\D/g,'')}
     function equivalent(a,b){a=norm(a);b=norm(b);if(!a||!b)return false;if(a===b)return true;const ad=digits(a),bd=digits(b);if(ad&&bd){if(ad===bd)return true;if(ad.replace(/^0+/,'')===bd.replace(/^0+/,''))return true;if(ad.length>=12&&bd.length>=12&&ad.slice(-12)===bd.slice(-12))return true}return false}
-    function loadLib(){return new Promise((resolve,reject)=>{if(window.Html5Qrcode)return resolve();let existing=document.querySelector('script[data-varelia-html5qrcode]');if(existing){existing.addEventListener('load',resolve,{once:true});existing.addEventListener('error',reject,{once:true});return}const s=document.createElement('script');s.dataset.vareliaHtml5qrcode='1';s.src='https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
+    let libraryLoading=null;
+    function loadLib(){
+      if(window.Html5Qrcode)return Promise.resolve();
+      if(libraryLoading)return libraryLoading;
+      libraryLoading=(async()=>{
+        for(const src of ['https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js','https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js']){
+          try{await new Promise((resolve,reject)=>{
+            const script=document.createElement('script');let timer;
+            const done=err=>{clearTimeout(timer);script.onload=script.onerror=null;if(err){script.remove();reject(err)}else resolve()};
+            script.src=src;script.dataset.vareliaHtml5qrcode='1';script.onload=()=>done(window.Html5Qrcode?null:new Error('SCANNER_LIBRARY_MISSING'));script.onerror=()=>done(new Error('SCANNER_LIBRARY_FAILED'));
+            timer=setTimeout(()=>done(new Error('SCANNER_LIBRARY_TIMEOUT')),6000);document.head.appendChild(script);
+          });return}catch(e){console.warn('Biblioteca del escáner',e)}
+        }
+        throw new Error('SCANNER_LIBRARY_FAILED');
+      })().finally(()=>{libraryLoading=null});
+      return libraryLoading;
+    }
     function allStoredProducts(){
       const out=[],seen=new Set();
       const looksLikeProduct=x=>!!x&&typeof x==='object'&&!Array.isArray(x)&&(
@@ -253,7 +269,7 @@
       // Fuente de verdad: la clave K.products del usuario autenticado.
       // Si aún no existe una sesión/ámbito activo, no permitir coincidencias.
       const raw=norm(code);
-      const rawDigits=digits(raw);
+      const rawDigits=/^\d{12,14}$/.test(raw)?raw.replace(/^0+/,''):'';
       if(!raw) return null;
       let scope='', storageKey='', current=[];
       try{
@@ -261,26 +277,16 @@
         if(!scope||scope==='no_account') return null;
         storageKey=(typeof K!=='undefined'&&K&&K.products)?String(K.products):'';
         if(!storageKey||!storageKey.endsWith('__'+scope.replace(/[^a-zA-Z0-9_-]/g,'_'))) return null;
-        const saved=localStorage.getItem(storageKey);
-        if(saved!==null){
-          const parsed=JSON.parse(saved);
-          if(!Array.isArray(parsed)) return null;
-          current=parsed;
-          // Mantener la lista global alineada con el inventario del usuario activo.
-          if(typeof products!=='undefined') products=current;
-          window.products=current;
-        }else{
-          // Si no hay datos persistidos, solo aceptar lista vacía; no usar memoria potencialmente vieja.
-          current=[];
-          if(typeof products!=='undefined') products=current;
-          window.products=current;
-        }
+        // The current scoped inventory includes cloud updates that may not yet be persisted.
+        if(typeof products!=='undefined'&&Array.isArray(products))current=products;
+        else{const saved=JSON.parse(localStorage.getItem(storageKey)||'[]');current=Array.isArray(saved)?saved:[]}
+
       }catch(e){console.warn('No se pudo validar el inventario activo para escanear',e);return null}
       return current.find(x=>productCodes(x).some(v=>{
         const candidate=norm(v);
         if(!candidate) return false;
         if(candidate===raw) return true;
-        const candidateDigits=digits(candidate);
+        const candidateDigits=/^\d{12,14}$/.test(candidate)?candidate.replace(/^0+/,''):'';
         return !!rawDigits && !!candidateDigits && candidateDigits===rawDigits;
       }))||null;
     }
@@ -337,7 +343,7 @@
         return true;
       }catch(e){console.warn('Escáner nativo no disponible',e);return false}
     }
-    async function openScanner(which){if(opening)return;target=which;finishing=false;if(openNativeScanner(which))return;opening=true;ensureScannerCartPanel();resetUI();renderScannerCart();try{if(!window.isSecureContext)throw new Error('HTTPS_REQUIRED');if(!navigator.mediaDevices?.getUserMedia)throw new Error('CAMERA_UNSUPPORTED');await loadLib();await stopCamera();if(!dialog.open)dialog.showModal();await sleep(160);await startCamera()}catch(e){console.error('Scanner',e);await stopCamera();try{if(dialog.open)dialog.close()}catch{}const msg=String(e?.name||'')+' '+String(e?.message||e);window.vareliaSound?.('error');if(/NotAllowed|Permission|denied/i.test(msg))alert('Permite la cámara en Chrome para poder escanear.');else if(/NotFound|DevicesNotFound/i.test(msg))alert('No se encontró una cámara disponible en este equipo.');else if(/NotReadable|TrackStart|Could not start video source/i.test(msg))alert('La cámara está ocupada. Cierra otra app que use la cámara y vuelve a intentarlo.');else if(/HTTPS_REQUIRED/.test(msg))alert('Abre Varelia usando https:// para usar la cámara.');else alert('No se pudo iniciar la cámara. Vuelve a tocar Escanear.')}finally{opening=false}}
+    async function openScanner(which){if(opening)return;target=which;finishing=false;if(openNativeScanner(which))return;opening=true;ensureScannerCartPanel();resetUI();renderScannerCart();try{if(!window.isSecureContext)throw new Error('HTTPS_REQUIRED');if(!navigator.mediaDevices?.getUserMedia)throw new Error('CAMERA_UNSUPPORTED');if(!dialog.open)dialog.showModal();await loadLib();await stopCamera();await sleep(160);await startCamera()}catch(e){console.error('Scanner',e);await stopCamera();const msg=String(e?.name||'')+' '+String(e?.message||e);window.vareliaSound?.('error');if(/NotAllowed|Permission|denied/i.test(msg))alert('Permite la cámara en Chrome para poder escanear.');else if(/NotFound|DevicesNotFound/i.test(msg))alert('No se encontró una cámara disponible en este equipo.');else if(/NotReadable|TrackStart|Could not start video source/i.test(msg))alert('La cámara está ocupada. Cierra otra app que use la cámara y vuelve a intentarlo.');else if(/HTTPS_REQUIRED/.test(msg))alert('Abre Varelia usando https:// para usar la cámara.');else alert('No se pudo iniciar la cámara. Puedes escribir el código en esta ventana y pulsar Usar, o volver a intentar.')}finally{opening=false}}
     function renderCard(p,code){const result=document.getElementById('scannerProductResult'),reader=document.getElementById('vareliaReader'),manual=document.querySelector('.scannerManual'),info=document.getElementById('scannerInfo');if(reader)reader.style.display='none';if(manual)manual.style.display='none';if(info)info.style.display='none';const img=p.image?`<img class="scanProductImg" src="${p.image}" alt="">`:'<div class="scanProductImg scanNoImg">Sin imagen</div>';result.innerHTML=`<div class="scanProductTop">${img}<div class="scanProductData"><div class="scanProductName">${esc(p.name||'Producto')}</div><div class="meta">Código: ${esc(code)}</div><div class="scanStock">Stock: <b>${Number(p.stock||0)} ${esc(p.unit||'Unidad')}</b></div><div class="scanPrice">S/ ${Number(p.sellPrice||0).toFixed(2)}</div></div></div><label class="scanQtyLabel">Cantidad<input id="scannerActionQty" type="number" min="1" step="1" value="1"></label><div class="scanActions"><button type="button" class="btn secondary" id="scannerIncrease">➕ Aumentar stock</button><button type="button" class="btn primary" id="scannerSell">🛒 Vender</button></div><button type="button" class="btn secondary scanAgain" id="scannerAgain">📷 Escanear otro producto</button>`;result.hidden=false;
       document.getElementById('scannerIncrease').onclick=()=>{const q=Math.max(1,Math.floor(+document.getElementById('scannerActionQty').value||1)),before=+p.stock||0;p.stock=before+q;persistProducts();window.vareliaSound?.('add');window.vareliaToast?.('Stock actualizado: +'+q,'ok');renderCard(p,code)};
       document.getElementById('scannerSell').onclick=async()=>{const q=Math.max(1,Math.floor(+document.getElementById('scannerActionQty').value||1));if((+p.stock||0)<q){window.vareliaSound?.('error');return alert('Stock insuficiente. Disponible: '+Number(p.stock||0))}await closeScanner();try{if(typeof openSale==='function'&&!saleDialog?.open)openSale();if(typeof addToCart==='function')addToCart(p,q);enhanceCart();window.vareliaSound?.('sale')}catch(e){console.error(e);window.vareliaSound?.('error');alert('No se pudo preparar la venta.')}};
@@ -442,7 +448,7 @@
     };
     async function finish(raw){if(finishing)return;finishing=true;const code=norm(raw);if(!code){finishing=false;return}window.vareliaSound?.('scan');await stopCamera();let p=findProduct(code);
       if(target==='product'){await offerNewProduct(code);finishing=false;return}
-      if(target==='inventory'){const el=document.getElementById('inventoryCode');if(el){el.value=code;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}window.vareliaToast?.('Código leído; todavía NO está guardado. Pulsa Guardar para confirmar.','info');await closeScanner();return}
+      if(target==='inventory'){const el=document.getElementById('inventoryCode');if(el){el.value=code;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}if(p&&typeof selectInv==='function'){selectInv(p);window.vareliaToast?.('Producto encontrado: '+p.name,'ok')}else window.vareliaToast?.('Código leído, pero no corresponde a un producto de este negocio.','warn');await closeScanner();return}
       if(target==='sale'){
         if(p){
           const added=await addSaleScan(p);

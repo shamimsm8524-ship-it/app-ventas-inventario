@@ -154,6 +154,24 @@ const server=http.createServer((req,res)=>{
     }
     await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart();products=window.__beforeMedicineProducts;window.products=products;render()});
     console.log('PASS: Ampicilina catalog button ignores internal cost metadata and sells Caja, Blíster and Pastilla at configured prices');
+    await page.evaluate(()=>{
+      window.__scanOriginalProducts=products.slice();window.__scanOriginalScope=localStorage.getItem('varelia_active_business_id');window.__scanOriginalKey=K.products;
+      localStorage.setItem('varelia_active_business_id','scanner-test');window.vareliaBusinessScope='scanner-test';K.products='miNegocio_products_v1__scanner-test';
+      localStorage.setItem(K.products,JSON.stringify([{id:'stale',barcode:'0123456789012',name:'Old product',stock:0}]));
+      products=[{id:'scan-current',name:'Escaneo actual',barcode:'0123456789012',stock:10,sellPrice:5,unit:'Unidad',category:'General',characteristics:[]}];window.products=products;
+      window.VareliaAndroid={openScanner(which){window.__scanOpened=which}};switchView('inventory');render();
+    });
+    await page.locator('#scanForInventory').click();
+    assert.equal(await page.evaluate(()=>window.__scanOpened),'inventory');
+    await page.evaluate(()=>window.VareliaNativeScanResult('inventory','123456789012'));
+    await page.waitForFunction(()=>inventoryProductId==='scan-current');
+    assert.match(await page.locator('#inventorySelected').innerText(),/Escaneo actual/);
+    assert.equal(await page.evaluate(()=>products[0].stock),10);
+    await page.evaluate(()=>{clearSaleCart();window.VareliaNativeScanResult('sale','0123456789012')});
+    await page.waitForFunction(()=>cart.length===1);
+    assert.equal(await page.evaluate(()=>cart[0].id),'scan-current');assert.equal(await page.evaluate(()=>cart[0].price),5);
+    await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart();delete window.VareliaAndroid;products=window.__scanOriginalProducts;window.products=products;localStorage.removeItem(K.products);K.products=window.__scanOriginalKey;if(window.__scanOriginalScope)localStorage.setItem('varelia_active_business_id',window.__scanOriginalScope);else localStorage.removeItem('varelia_active_business_id');window.vareliaBusinessScope=window.__scanOriginalScope||'';render()});
+    console.log('PASS: mobile native scanner selects current inventory and adds a sale; UPC/EAN leading zero matches without replacing live products with stale storage');
     for(const view of ['products','inventory','sales','cash','suppliers','purchases','categories','appearance']){
       const state=await page.evaluate(id=>{switchView(id);return {target:document.getElementById(id)?.className,active:[...document.querySelectorAll('.view.active')].map(x=>x.id)}},view);
       assert.equal(state.target?.split(' ').includes('active'),true,'view '+view+': '+JSON.stringify(state));
