@@ -145,6 +145,7 @@ const server=http.createServer((req,res)=>{
     for(const [label,price,mult] of [['Caja',60,100],['Blíster',30,10],['Pastilla',3,1]]){
       await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart()});
       await page.locator('[data-add="medicine-fixture"]').click();
+      console.log('MED_DIAGNOSTIC',label,await page.evaluate(()=>({errors:window.__medErrors,product:products.find(p=>p.id==='medicine-fixture'),dialogs:[...document.querySelectorAll('dialog[open]')].map(d=>d.innerText.slice(0,300)),picker:!!document.querySelector('[data-medopts]'),cart})),errors);
       await page.locator('[data-medopts]').waitFor({state:'visible'});
       assert.equal(await page.locator('#vcsDlg[open]').count(),0);
       await page.locator('[data-medopts] button').filter({hasText:new RegExp('^'+label+'S/')}).click();
