@@ -47,7 +47,7 @@
     const unified=document.createElement('section');
     unified.id='vMedicineUnifiedPrices';
     unified.style.cssText='margin:14px 0;padding:14px;border:1px solid var(--line,#e5e7eb);border-radius:18px;background:color-mix(in srgb,var(--card,#fff) 95%,#16a34a 5%);';
-    unified.innerHTML='<div style="font-weight:900;font-size:18px;margin-bottom:4px">💰 Precios del medicamento</div><div style="font-size:12px;color:var(--muted,#64748b);line-height:1.45;margin-bottom:12px">Escribe por separado cuánto te cuesta y a cuánto vendes cada presentación. Varelia no copia ni calcula estos precios automáticamente.</div>';
+    unified.innerHTML='<div style="font-weight:900;font-size:18px;margin-bottom:4px">💰 Precios del medicamento</div><div style="font-size:12px;color:var(--muted,#64748b);line-height:1.45;margin-bottom:12px">Escribe el costo de la caja y cuántos blísteres y pastillas contiene. Los costos por blíster y pastilla se calculan automáticamente. Los precios de venta los eliges tú.</div>';
 
     anchor.parentNode.insertBefore(unified,anchor);
 
@@ -64,7 +64,7 @@
 
       const buy=document.createElement('label');
       const buySpan=document.createElement('span');
-      buySpan.textContent='Compra';
+      buySpan.textContent=r.key==='box'?'Costo de la caja':'Costo calculado';
       buy.appendChild(buySpan);
       buy.appendChild(r.buyEl);
 

@@ -119,7 +119,7 @@
       block.style.cssText='margin:14px 0;padding:14px;border:1px solid var(--line,#e5e7eb);border-radius:18px;background:color-mix(in srgb,var(--card,#fff) 94%,#16a34a 6%);';
       block.innerHTML=`
         <div style="font-weight:900;font-size:16px;margin-bottom:4px">💰 Costos de compra del medicamento</div>
-        <div style="font-size:12px;color:var(--muted,#64748b);line-height:1.45;margin-bottom:12px">Estos costos los escribes tú. Varelia no los divide ni los calcula automáticamente.</div>
+        <div style="font-size:12px;color:var(--muted,#64748b);line-height:1.45;margin-bottom:12px">Escribe el costo de la caja y sus cantidades. Varelia calcula el costo por blíster y por pastilla.</div>
         <div class="two">
           <label><span>Precio de compra por caja</span><input id="${COST_IDS.box}" type="number" min="0" step="0.01" placeholder="S/ 0.00" inputmode="decimal"></label>
           <label><span>Precio de compra por blíster</span><input id="${COST_IDS.blister}" type="number" min="0" step="0.01" placeholder="S/ 0.00" inputmode="decimal"></label>
@@ -154,6 +154,18 @@
       unit:num(document.getElementById(SELL_IDS.unit)?.value)
     };
   }
+  function calculateMedicineCosts(){
+    const box=document.getElementById(COST_IDS.box),blister=document.getElementById(COST_IDS.blister),unit=document.getElementById(COST_IDS.unit);
+    const b=Number(document.getElementById('vMedicineBlistersPerBox')?.value),u=Number(document.getElementById('vMedicineUnitsPerBlister')?.value);
+    if(!box||!blister||!unit)return;
+    blister.readOnly=true;unit.readOnly=true;blister.step=unit.step='any';
+    if(Number.isInteger(b)&&b>0&&Number.isInteger(u)&&u>0&&box.value.trim()!==''){
+      const total=num(box.value);
+      blister.value=String(Math.round(total/b*1e6)/1e6);
+      unit.value=String(Math.round(total/(b*u)*1e6)/1e6);
+      const generic=document.getElementById('buyPrice');if(generic)generic.value=String(total);
+    }else{blister.value='';unit.value=''}
+  }
   function syncRequired(){
     const sells=salePrices();
     for(const k of ['box','blister','unit']){
@@ -161,7 +173,7 @@
       input.required=sells[k]>0;
       input.setCustomValidity('');
       if(input.required&&!(num(input.value)>0)){
-        input.setCustomValidity('Escribe el precio de compra por '+unitLabel(k)+'. Varelia no lo calcula automáticamente.');
+        input.setCustomValidity('Escribe el precio de compra por '+unitLabel(k)+'. Revisa el costo de la caja y las cantidades del medicamento.');
       }
     }
   }
@@ -178,13 +190,13 @@
       const input=document.getElementById(COST_IDS[k]);
       if(input)input.value=c[k]>0?String(c[k]):'';
     }
-    syncRequired();
+    calculateMedicineCosts();syncRequired();
   }
   function applyFormToProduct(p){
     if(!isMedicine(p)||!medicineVisible())return productCosts(p);
     const current=findCurrent();
     if(current&&!sameProduct(current,p))return productCosts(p);
-    const c=readFormCosts();
+    calculateMedicineCosts();const c=readFormCosts();
     applyCosts(p,c,true);
     const generic=document.getElementById('buyPrice');
     if(generic&&c.box>0)generic.value=String(c.box);
@@ -324,6 +336,7 @@
     }).observe(dlg,{attributes:true,attributeFilter:['open']});
 
     document.addEventListener('input',e=>{
+      if(e.target?.matches?.('#vMedicineBuyBoxPrice,#vMedicineBlistersPerBox,#vMedicineUnitsPerBlister'))calculateMedicineCosts();
       if(e.target?.matches?.('#vMedicineBoxPrice,#vMedicineBlisterPrice,#vMedicineUnitPrice,'+
         '#vMedicineBuyBoxPrice,#vMedicineBuyBlisterPrice,#vMedicineBuyUnitPrice'))syncRequired();
     },true);

@@ -162,6 +162,19 @@ const server=http.createServer((req,res)=>{
       window.__beforeMedicineProducts=products.slice();
       products.push({id:'medicine-fixture',name:'Ampicilina',category:'Medicinas',stock:1969,unit:'Caja',medicine:true,blistersPerBox:10,unitsPerBlister:10,boxPrice:60,blisterPrice:30,unitMedicinePrice:3,sellPrice:60,characteristics:[{name:'__varelia_medicine_purchase_costs_v1__',values:[{label:'box:35'},{label:'blister:3.5'},{label:'unit:0.35'}]}]});window.products=products;switchView('products');render();
     });
+    await page.evaluate(()=>openProduct('medicine-fixture'));
+    await page.locator('#vMedicineBuyBoxPrice').waitFor({state:'visible'});
+    await page.locator('#vMedicineBlistersPerBox').fill('10');
+    await page.locator('#vMedicineUnitsPerBlister').fill('10');
+    await page.locator('#vMedicineBuyBoxPrice').fill('40');
+    assert.equal(await page.locator('#vMedicineBuyBlisterPrice').inputValue(),'4');
+    assert.equal(await page.locator('#vMedicineBuyUnitPrice').inputValue(),'0.4');
+    assert.equal(await page.locator('#vMedicineBuyUnitPrice').evaluate(el=>el.readOnly),true);
+    await page.locator('#vMedicineBlistersPerBox').fill('5');
+    assert.equal(await page.locator('#vMedicineBuyBlisterPrice').inputValue(),'8');
+    assert.equal(await page.locator('#vMedicineBuyUnitPrice').inputValue(),'0.8');
+    await page.evaluate(()=>document.getElementById('productDialog').close());
+    console.log('PASS: medicine box cost and configured counts automatically calculate blister and pill costs without changing sale prices');
     for(const [label,price,mult] of [['Caja',60,100],['Blíster',30,10],['Pastilla',3,1]]){
       await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart()});
       await page.locator('[data-add="medicine-fixture"]').click();

@@ -60,7 +60,7 @@
 (()=>{
   if(document.querySelector('script[data-varelia-medicine-purchase-costs-v1]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-purchase-costs.js?v=20261020-v1';
+  s.src='/medicine-purchase-costs.js?v=20261023-auto-cost-v136';
   s.async=false;
   s.dataset.vareliaMedicinePurchaseCostsV1='1';
   document.head.appendChild(s);
@@ -81,7 +81,7 @@
 (()=>{
   if(document.querySelector('script[data-varelia-medicine-price-layout-v2]'))return;
   const s=document.createElement('script');
-  s.src='/medicine-price-layout.js?v=20261020-v2';
+  s.src='/medicine-price-layout.js?v=20261023-auto-cost-v136';
   s.async=false;
   s.dataset.vareliaMedicinePriceLayoutV2='1';
   document.head.appendChild(s);
