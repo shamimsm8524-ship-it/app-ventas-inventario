@@ -320,12 +320,18 @@
 
   const productSyncLocks=new Map();
   async function syncProduct(p){
-    if(!isOwner()||!p)return;
+    if(!p)throw new Error('Selecciona un producto.');
+    if(!sb)await withTimeout(waitClient(),8000,'La conexión');
+    if(!businessId||!profile)await withTimeout(loadProfile(),10000,'La cuenta');
+    if(!isOwner())throw new Error('Solo el propietario puede guardar productos.');
     const key=String(p.id||'');
     if(productSyncLocks.has(key))return productSyncLocks.get(key);
     suppressRefreshUntil=Date.now()+2500;
-    const task=(async()=>{
-      const categoryId=await ensureCategory(p.category);
+    const controller=new AbortController();
+    const deadline=setTimeout(()=>controller.abort(),20000);
+    const task=withTimeout((async()=>{
+      const categoryId=await withTimeout(ensureCategory(p.category),10000,'La categoría');
+      if(controller.signal.aborted)throw new Error('La conexión tardó demasiado. Puedes reintentar Guardar.');
       // Última defensa para productos nuevos: si el objeto llega con stock 0,
       // recuperar la cantidad que el administrador acaba de escribir en el campo visible.
       if(!p._cloudId && Math.max(0,Number(p.stock)||0)===0){
@@ -342,7 +348,7 @@
       }
       const payload=productPayload(p,categoryId);
       const legacy=String(p.id||'');
-      const existingBefore=await sb.from('varelia_products').select('id,stock,sale_presentations,advanced_pricing,medicine,updated_at').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
+      const existingBefore=await sb.from('varelia_products').select('id,stock,sale_presentations,advanced_pricing,medicine,updated_at').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle().abortSignal(controller.signal);
       if(existingBefore.error)throw existingBefore.error;
       const existedBefore=!!existingBefore.data?.id;
       if(existedBefore&&p._cloudUpdatedAt&&p._cloudUpdatedAt!==existingBefore.data.updated_at){
@@ -364,10 +370,10 @@
       if(existedBefore){
         up=await sb.from('varelia_products').update(payload)
           .eq('business_id',businessId).eq('id',existingBefore.data.id)
-          .eq('updated_at',existingBefore.data.updated_at).select('id').maybeSingle();
+          .eq('updated_at',existingBefore.data.updated_at).select('id').maybeSingle().abortSignal(controller.signal);
         if(!up.error&&!up.data?.id)throw new Error('El inventario cambió durante el guardado. Actualiza antes de reintentar.');
       }else{
-        up=await sb.from('varelia_products').insert(payload).select('id').single();
+        up=await sb.from('varelia_products').insert(payload).select('id').single().abortSignal(controller.signal);
       }
       if(up.error)throw up.error;
       if(!up.data?.id)throw new Error('La base de datos no devolvió el producto guardado.');
@@ -377,7 +383,7 @@
         .select('id,legacy_id,business_id,name,stock,sell_price,buy_price,updated_at')
         .eq('business_id',businessId)
         .eq('id',up.data.id)
-        .maybeSingle();
+        .maybeSingle().abortSignal(controller.signal);
       if(verify.error)throw verify.error;
       if(!verify.data?.id)throw new Error('El producto no quedó registrado en la base de datos.');
       if(String(verify.data.business_id)!==String(businessId))throw new Error('El producto quedó asociado a otra cuenta.');
@@ -392,7 +398,7 @@
       // Another sale may commit after our update. The current cloud stock wins;
       // never overwrite it with a second absolute stock update during verification.
       if(!existedBefore&&verifiedStock>0){
-        const mv=await sb.from('varelia_inventory_movements').insert({business_id:businessId,product_id:verify.data.id,product_name:verify.data.name,type:'add',qty:Number(verify.data.stock),stock_before:0,stock_after:Number(verify.data.stock),source:'producto_nuevo'});
+        const mv=await sb.from('varelia_inventory_movements').insert({business_id:businessId,product_id:verify.data.id,product_name:verify.data.name,type:'add',qty:Number(verify.data.stock),stock_before:0,stock_after:Number(verify.data.stock),source:'producto_nuevo'}).abortSignal(controller.signal);
         if(mv.error)throw mv.error;
       }
       p._cloudId=verify.data.id;
@@ -400,9 +406,10 @@
       p.stock=verifiedStock;
       lastProductStockWrite.set(String(verify.data.id),{stock:verifiedStock,at:Date.now()});
       suppressRefreshUntil=Date.now()+5000;
-      await refreshPublicStock();
+      // The product is confirmed. Public catalog work must never hold the form open.
+      void withTimeout(refreshPublicStock(),8000,'El catálogo público').catch(e=>console.warn('Catálogo pendiente',e));
       window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
-    })().finally(()=>productSyncLocks.delete(key));
+    })(),21000,'El guardado del producto').finally(()=>{clearTimeout(deadline);controller.abort();productSyncLocks.delete(key)});
     productSyncLocks.set(key,task);
     return task;
   }

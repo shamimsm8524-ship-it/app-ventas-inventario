@@ -680,7 +680,9 @@ productForm.onsubmit=async e=>{
   obj.variants=String(document.getElementById('vProductVariants')?.value??old?.variants??'').trim();
   obj.specifications=String(document.getElementById('productSpecifications')?.value??old?.specifications??'').trim();
   productForm.dataset.saving='1';
-  const submitButton=productForm.querySelector('[type=submit]');if(submitButton)submitButton.disabled=true;
+  const submitButton=productForm.querySelector('[type=submit]');
+  const submitLabel=submitButton?.textContent||'Guardar producto';
+  if(submitButton){submitButton.disabled=true;submitButton.textContent='Guardando producto…'}
   try{
   try{
     const images=window.VareliaProductImages;
@@ -695,13 +697,13 @@ productForm.onsubmit=async e=>{
     for(let i=0;i<50&&typeof window.vareliaCentralStockSyncProduct!=='function';i++)await new Promise(r=>setTimeout(r,100));
     const syncFn=window.vareliaCentralStockSyncProduct||window.syncProductToCloud;
     if(typeof syncFn!=='function')throw new Error('Sincronización central no disponible');
-    await syncFn(saved);
-    if(typeof window.vareliaPublicCatalogSync==='function')await window.vareliaPublicCatalogSync();
+    await Promise.race([Promise.resolve(syncFn(saved)),new Promise((_,reject)=>setTimeout(()=>reject(new Error('La conexión tardó demasiado. El producto sigue guardado en este dispositivo; puedes reintentar.')),25000))]);
+    if(typeof window.vareliaPublicCatalogSync==='function')Promise.resolve().then(()=>window.vareliaPublicCatalogSync()).catch(err=>console.warn('Catálogo público pendiente',err));
     window.vareliaToast?.('Producto y stock guardados.','ok');
   }catch(err){console.error('Sincronización de características',err);window.vareliaToast?.('Guardado en este dispositivo. No se pudo sincronizar; vuelve a pulsar Guardar para reintentar.','warn');return}
   window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
   productDialog.close();
-  }finally{productForm.dataset.saving='';if(submitButton)submitButton.disabled=false}
+  }finally{productForm.dataset.saving='';if(submitButton){submitButton.disabled=false;submitButton.textContent=submitLabel}}
 };
 
 function productActions(e){

@@ -50,7 +50,7 @@ test('empty payment history formats zero rather than showing template source',()
   assert(src.includes('`<div class="vrefPayment"><span>Sin ventas</span><b>${money(0)}</b></div>`'));
 });
 test('product form saves commercial fields before cloud synchronization',()=>{
-  const src=read('index.html');assert(src.indexOf('obj.commercialPricing=')<src.indexOf('await syncFn(saved)'));
+  const src=read('index.html');assert(src.indexOf('obj.commercialPricing=')<src.indexOf('syncFn(saved)'));
   assert(!read('advanced-pricing.js').includes('setTimeout(apply,120)'));
   assert(read('central-stock-sync.js').includes('!p.__commercialEdited'));
 });

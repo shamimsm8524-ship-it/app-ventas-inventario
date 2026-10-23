@@ -29,7 +29,7 @@ const server=http.createServer((req,res)=>{
       document.getElementById('vareliaAuth').remove();document.body.classList.remove('varelia-auth-locked');
       categories=['General'];products=[];window.products=products;
       window.vareliaCentralStockSyncProduct=async p=>{window.__savedProduct=JSON.parse(JSON.stringify(p))};
-      window.vareliaPublicCatalogSync=async()=>{};
+      window.vareliaPublicCatalogSync=()=>new Promise(()=>{}); // A stalled public catalog must not block product saving.
       openProduct();
     });
     await page.locator('#productName').fill('Vaporera de prueba');
@@ -56,6 +56,27 @@ const server=http.createServer((req,res)=>{
     assert.equal(saved.salePresentations.find(p=>p.id==='media_docena').buyCost,25);
     console.log('PASS: real mobile form preserves independent carton and half-dozen purchase costs');
     await page.waitForFunction(()=>!document.getElementById('productDialog')?.open);
+    assert.equal(await page.locator('#productForm button[type=submit]').isEnabled(),true);
+    console.log('PASS: product save closes and restores its button even when the public catalog never responds');
+    await page.evaluate(()=>{
+      window.__realSaveTimer=window.setTimeout;
+      window.setTimeout=(fn,ms,...args)=>window.__realSaveTimer(fn,ms===25000?80:ms,...args);
+      window.vareliaCentralStockSyncProduct=()=>new Promise(()=>{});
+      openProduct(products[0].id);
+    });
+    await page.locator('#productForm button[type=submit]').click();
+    await page.waitForFunction(()=>document.getElementById('productForm').dataset.saving!=='1');
+    assert.equal(await page.locator('#productDialog').evaluate(d=>d.open),true);
+    assert.equal(await page.locator('#productForm button[type=submit]').isEnabled(),true);
+    assert.equal(await page.evaluate(()=>products.length),1);
+    await page.evaluate(()=>{
+      window.setTimeout=window.__realSaveTimer;
+      window.vareliaCentralStockSyncProduct=async p=>{window.__savedProduct=JSON.parse(JSON.stringify(p))};
+    });
+    await page.locator('#productForm button[type=submit]').click();
+    await page.waitForFunction(()=>!document.getElementById('productDialog').open);
+    assert.equal(await page.evaluate(()=>products.length),1);
+    console.log('PASS: stalled cloud save releases the button, keeps the form and allows retry without duplicating the product');
     await page.evaluate(()=>document.querySelectorAll('dialog[open]').forEach(d=>d.close()));
     for(const view of ['products','inventory','sales','cash','suppliers','purchases','categories','appearance']){
       const state=await page.evaluate(id=>{switchView(id);return {target:document.getElementById(id)?.className,active:[...document.querySelectorAll('.view.active')].map(x=>x.id)}},view);
