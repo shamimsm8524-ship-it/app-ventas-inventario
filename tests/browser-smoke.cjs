@@ -287,8 +287,21 @@ const server=http.createServer((req,res)=>{
     assert.match(await externalPreview.locator('#status').innerText(),/3 etiqueta/);
     await externalPreview.locator('#print').click();
     assert.equal(await externalPreview.evaluate(()=>window.__printInvoked),true);
+    const imageDownload=externalPreview.waitForEvent('download');
+    await externalPreview.locator('#download').click();const downloaded=await imageDownload;
+    assert.equal(downloaded.suggestedFilename(),'codigo-zanahoria.png');
+    const downloadedPng=fs.readFileSync(await downloaded.path());assert.equal(downloadedPng.subarray(1,4).toString(),'PNG');
+    assert.equal(downloadedPng.readUInt32BE(16),1400);assert.equal(downloadedPng.readUInt32BE(20),760);
+
     await externalPreview.close();
     assert.equal(await labelRow.locator('.bc-print').isEnabled(),true);
+    await page.evaluate(()=>{window.VareliaAndroid={saveDataUrl(data,name){window.__nativePng={data,name}}}});
+    await labelRow.locator('.bc-img').click();await page.waitForFunction(()=>!!window.__nativePng);
+    const nativeImage=await page.evaluate(()=>window.__nativePng);
+    assert.equal(nativeImage.name,'codigo-zanahoria.png');assert.ok(nativeImage.data.startsWith('data:image/png;base64,'));
+    const nativeBytes=Buffer.from(nativeImage.data.split(',')[1],'base64');assert.equal(nativeBytes.subarray(1,4).toString(),'PNG');assert.equal(nativeBytes.readUInt32BE(16),1400);
+    assert.equal(await labelRow.locator('input').inputValue(),'3');
+    console.log('PASS: PNG uses Android saveDataUrl without WebView download manager; external browser downloads a valid 1400x760 PNG and copy count stays intact');
     await page.locator('.bc-close').click();
     await page.evaluate(()=>{delete window.VareliaAndroid;products=products.filter(p=>p.id!=='label-fixture');window.products=products;render()});
     console.log('PASS: printing loads actual barcode generator locally with external CDNs blocked; native bridge receives copies and paper settings; old APK opens standalone browser label page and its print button invokes printing');
