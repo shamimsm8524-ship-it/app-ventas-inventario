@@ -201,10 +201,66 @@
     function renderList(){
       const list=document.getElementById('vsellersList');if(!list)return;
       if(!sellers.length){list.innerHTML='<div class="vsellerEmpty"><b>Aún no tienes vendedores.</b><br><span style="font-size:11px">Toca “Agregar vendedor” para crear el primero.</span></div>';return}
-      list.innerHTML='<div class="vsellersGrid">'+sellers.map(s=>`<article class="vsellerCard" data-id="${s.id}"><div class="vsellerTop"><div class="vsellerAvatar">${initials(s.name)}</div><div class="vsellerInfo"><b>${String(s.name||'Vendedor').replace(/[&<>"]/g,'')}</b><small>${String(s.email||'').replace(/[&<>"]/g,'')}</small></div></div><div class="vsellerPerms">${permsText(s.permissions).map(x=>'<span>'+x+'</span>').join('')||'<span>Sin permisos</span>'}</div><div class="vsellerActions"><button type="button" data-edit>Editar</button><button type="button" class="danger" data-delete>Eliminar</button></div></article>`).join('')+'</div>';
+      list.innerHTML='<div class="vsellersGrid">'+sellers.map(s=>`<article class="vsellerCard" data-id="${s.id}"><div class="vsellerTop"><div class="vsellerAvatar">${initials(s.name)}</div><div class="vsellerInfo"><b>${String(s.name||'Vendedor').replace(/[&<>"]/g,'')}</b><small>${String(s.email||'').replace(/[&<>"]/g,'')}</small></div></div><div class="vsellerPerms">${permsText(s.permissions).map(x=>'<span>'+x+'</span>').join('')||'<span>Sin permisos</span>'}</div><button type="button" class="btn secondary" data-seller-history style="width:100%;margin-top:12px">Historial de ventas</button><div class="vsellerActions"><button type="button" data-edit>Editar</button><button type="button" class="danger" data-delete>Eliminar</button></div></article>`).join('')+'</div>';
+      list.querySelectorAll('[data-seller-history]').forEach(b=>b.onclick=()=>openSellerHistory(sellers.find(s=>s.id===b.closest('[data-id]').dataset.id)));
       list.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openModal(sellers.find(s=>s.id===b.closest('[data-id]').dataset.id)));
       list.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteSeller(b.closest('[data-id]').dataset.id));
     }
+    const historyEsc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const historyMoney=n=>'S/ '+Number(n||0).toFixed(2);
+    let historyVersion=0;
+    async function openSellerHistory(s){
+      if(profile?.role!=='owner'||!profile.business_id||!s)return;
+      document.getElementById('vsellerHistory')?.remove();
+      const modal=document.createElement('dialog');modal.id='vsellerHistory';
+      modal.style.cssText='width:min(94vw,620px);max-height:90dvh;overflow:auto;border:0;border-radius:20px;padding:18px;background:var(--card);color:var(--ink)';
+      modal.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px"><div><h2 style="margin:0">Historial de ventas</h2><p>'+historyEsc(s.name||s.full_name||'Vendedor')+'</p></div><button type="button" data-hclose aria-label="Cerrar historial" class="btn secondary">×</button></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn secondary" data-hperiod="today">Hoy</button><button type="button" class="btn secondary" data-hperiod="month">Este mes</button><button type="button" class="btn secondary" data-hperiod="all">Todo</button></div><div data-hbody style="margin-top:14px"></div><div style="display:flex;justify-content:space-between;gap:10px;margin-top:12px"><button type="button" class="btn secondary" data-hprev>Anterior</button><button type="button" class="btn secondary" data-hnext>Siguiente</button></div>';
+      document.body.appendChild(modal);let period='today',offset=0,rows=[];
+      const business=profile.business_id,owner=profile.id,sellerId=s.id,pageSize=50;
+      const close=()=>{historyVersion++;modal.close();modal.remove()};
+      modal.querySelector('[data-hclose]').onclick=close;modal.addEventListener('cancel',e=>{e.preventDefault();close()});
+      function stillOwner(){const p=window.vareliaCurrentUserProfile;return profile?.id===owner&&profile?.business_id===business&&profile?.role==='owner'&&(!p||(p.id===owner&&p.business_id===business&&p.role==='owner'))}
+      async function read(query){
+        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
+        try{const result=await query.abortSignal(controller.signal);if(result.error)throw result.error;return result.data||[]}finally{clearTimeout(timer)}
+      }
+      async function receipt(row,button){
+        if(!stillOwner())return;button.disabled=true;
+        try{
+          const sb=window.vareliaSupabase;
+          const details=await read(sb.from('varelia_sale_details').select('receipt').eq('business_id',business).eq('seller_id',sellerId).eq('sale_id',row.id).limit(1));
+          let sale={...(details[0]?.receipt||{}),id:row.id,cloudSaleId:row.id,date:row.created_at,total:Number(row.total),sellerId,sellerName:s.name||s.full_name||'Vendedor'};
+          if(!Array.isArray(sale.items)||!sale.items.length){
+            const items=await read(sb.from('varelia_sale_items').select('product_id,product_name,qty,unit_price,sale_unit,stock_qty').eq('business_id',business).eq('sale_id',row.id));
+            sale.items=items.map(i=>({id:i.product_id,name:i.product_name,qty:Number(i.qty),price:Number(i.unit_price),unit:i.sale_unit,subtotal:Number(i.qty)*Number(i.unit_price)}));
+          }
+          if(!stillOwner())return;
+          if(!window.VareliaReceipt?.show)throw new Error('El visor de tickets todavía no está disponible.');
+          // Close the native dialog so it cannot cover the receipt overlay.
+          modal.close();window.VareliaReceipt.show(sale);
+        }catch(e){toast(e.message||'No se pudo abrir el ticket.','warn')}finally{button.disabled=false}
+      }
+      async function load(){
+        const version=++historyVersion,body=modal.querySelector('[data-hbody]');
+        body.textContent='Cargando ventas…';modal.querySelectorAll('[data-hprev],[data-hnext]').forEach(b=>b.disabled=true);
+        modal.querySelectorAll('[data-hperiod]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.hperiod===period)));
+        try{
+          if(!stillOwner())throw new Error('La sesión del negocio cambió. Vuelve a abrir Vendedores.');
+          let query=window.vareliaSupabase.from('varelia_sales').select('id,total,created_at,created_by').eq('business_id',business).eq('created_by',sellerId).order('created_at',{ascending:false}).order('id',{ascending:false}).range(offset,offset+pageSize);
+          if(period!=='all'){const start=new Date();start.setHours(0,0,0,0);if(period==='month')start.setDate(1);query=query.gte('created_at',start.toISOString())}
+          const data=await read(query);if(version!==historyVersion||!modal.isConnected||!stillOwner())return;
+          const hasNext=data.length>pageSize;rows=data.slice(0,pageSize);
+          body.innerHTML=rows.length?'<p><b>'+rows.length+' ticket(s) en esta página · '+historyMoney(rows.reduce((n,r)=>n+Number(r.total||0),0))+'</b></p>'+rows.map((r,i)=>'<article style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px"><div style="display:flex;justify-content:space-between;gap:12px"><span>'+historyEsc(new Date(r.created_at).toLocaleString('es-PE'))+'</span><b>'+historyMoney(r.total)+'</b></div><button type="button" class="btn secondary" data-hticket="'+i+'" style="margin-top:8px">Ver ticket</button></article>').join(''):'<p>No hay ventas de este vendedor en este período.</p>';
+          body.querySelectorAll('[data-hticket]').forEach(b=>b.onclick=()=>receipt(rows[Number(b.dataset.hticket)],b));
+          modal.querySelector('[data-hprev]').disabled=offset===0;modal.querySelector('[data-hnext]').disabled=!hasNext;
+        }catch(e){if(version===historyVersion&&modal.isConnected){body.textContent='No se pudo cargar el historial. '+(e.message||'Revisa la conexión.');const retry=document.createElement('button');retry.type='button';retry.className='btn secondary';retry.textContent='Reintentar';retry.onclick=load;body.appendChild(retry)}}
+      }
+      modal.querySelectorAll('[data-hperiod]').forEach(b=>b.onclick=()=>{period=b.dataset.hperiod;offset=0;load()});
+      modal.querySelector('[data-hprev]').onclick=()=>{offset=Math.max(0,offset-pageSize);load()};
+      modal.querySelector('[data-hnext]').onclick=()=>{offset+=pageSize;load()};
+      modal.showModal();load();
+    }
+
     async function saveSeller(e){
       e.preventDefault();
       const m=ensureModal(),btn=m.querySelector('#vsellerSave'),msg=m.querySelector('#vsellerMsg');

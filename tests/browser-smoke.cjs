@@ -338,6 +338,40 @@ const server=http.createServer((req,res)=>{
 
 
 
+    await page.evaluate(()=>{
+      const sb=window.vareliaSupabase;window.__sellerHistoryReads=[];
+      sb.auth.getUser=async()=>({data:{user:{id:'qa-owner',email:'owner@example.test'}},error:null});
+      sb.functions={invoke:async()=>({data:{sellers:[{id:'qa-seller',full_name:'Caja 2',email:'seller@example.test',permissions:{sales:true}}]},error:null})};
+      sb.from=table=>{const filters=[],q={};let range=[0,50];
+        for(const method of ['select','order','abortSignal','limit'])q[method]=()=>q;
+        q.eq=(k,v)=>{filters.push([k,v]);return q};q.gte=(k,v)=>{filters.push([k,v]);return q};q.range=(a,b)=>{range=[a,b];return q};
+        const result=()=>{if(table==='profiles')return {data:{id:'qa-owner',business_id:'qa-business',role:'owner',full_name:'Dueña',permissions:{}},error:null};
+          if(table==='varelia_sales'){
+            if(!filters.some(([k,v])=>k==='business_id'&&v==='qa-business')||!filters.some(([k,v])=>k==='created_by'&&v==='qa-seller'))throw Error('Missing seller/business scope');
+            window.__sellerHistoryReads.push({table,filters,range});return {data:Array.from({length:52},(_,i)=>({id:'seller-sale-'+i,total:15,created_by:'qa-seller',created_at:new Date().toISOString()})).slice(range[0],range[1]+1),error:null};
+          }
+          if(table==='varelia_sale_details'){if(!filters.some(([k,v])=>k==='seller_id'&&v==='qa-seller'))throw Error('Missing receipt seller scope');return {data:[{receipt:{items:[{name:'Vaporera',qty:1,price:15,subtotal:15}],paymentMethod:'Efectivo'}}],error:null}}
+          return {data:[],error:null};};q.then=(resolve,reject)=>Promise.resolve().then(result).then(resolve,reject);q.maybeSingle=async()=>result();return q;
+      };
+      window.dispatchEvent(new Event('varelia:account-isolation-ready'));
+    });
+    await page.locator('.premiumSellersItem').waitFor({state:'attached'});
+    await page.locator('.premiumSellersItem').evaluate(b=>b.click());
+    await page.locator('[data-seller-history]').waitFor({state:'visible'});
+    await page.locator('[data-seller-history]').click();
+    await page.locator('[data-hticket]').first().waitFor({state:'visible'});
+    assert.match(await page.locator('#vsellerHistory').innerText(),/Caja 2/);
+    assert.equal(await page.locator('[data-hticket]').count(),50);
+    await page.locator('[data-hperiod="all"]').click();
+    await page.waitForFunction(()=>window.__sellerHistoryReads.some(r=>!r.filters.some(([k])=>k==='created_at')));
+    await page.locator('[data-hnext]').click();
+    await page.waitForFunction(()=>document.querySelectorAll('[data-hticket]').length===2);
+    await page.locator('[data-hticket]').first().click();
+    await page.waitForFunction(()=>window.__vareliaCurrentReceiptSale?.id==='seller-sale-50');
+    assert.equal(await page.evaluate(()=>window.__vareliaCurrentReceiptSale.sellerName),'Caja 2');
+    assert.equal(await page.locator('#vsellerHistory').evaluate(d=>d.open),false);
+    console.log('PASS: owner opens seller card history, filters dates, paginates all 52 seller-scoped cloud sales and opens the matching receipt');
+
     await page.waitForTimeout(500);
     assert.deepEqual(errors,[]);
     console.log('PASS: app scripts load without uncaught browser errors');
