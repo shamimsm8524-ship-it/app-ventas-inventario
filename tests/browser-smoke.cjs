@@ -483,7 +483,7 @@ const server=http.createServer((req,res)=>{
       sb.from=table=>{const filters=[],q={};let range=[0,50];
         for(const method of ['select','order','abortSignal','limit'])q[method]=()=>q;
         q.eq=(k,v)=>{filters.push([k,v]);return q};q.gte=(k,v)=>{filters.push([k,v]);return q};q.lt=(k,v)=>{filters.push([k,v]);return q};q.in=(k,v)=>{filters.push([k,v]);return q};q.range=(a,b)=>{range=[a,b];return q};
-        const result=()=>{if(table==='profiles')return {data:{id:'qa-owner',business_id:'qa-business',role:'owner',full_name:'Dueña',permissions:{}},error:null};
+        const result=()=>{if(table==='profiles')return {data:{id:'qa-owner',business_id:'qa-business',role:window.__qaStaffMode?'staff':'owner',full_name:'Dueña',permissions:window.__qaStaffMode?{sales:true,products:true,inventory:true,cash:true,reports:false,profit:false}:{}},error:null};
           if(table==='varelia_sales'){
             if(!filters.some(([k,v])=>k==='business_id'&&v==='qa-business')||!filters.some(([k,v])=>k==='created_by'&&v==='qa-seller'))throw Error('Missing seller/business scope');
             window.__sellerHistoryReads.push({table,filters,range});return {data:Array.from({length:52},(_,i)=>({id:'seller-sale-'+i,total:15,created_by:'qa-seller',created_at:new Date().toISOString()})).slice(range[0],range[1]+1),error:null};
@@ -535,6 +535,16 @@ const server=http.createServer((req,res)=>{
     await page.waitForFunction(()=>document.querySelector('#vmobileNav [aria-current="page"]')?.dataset.mobileTab==='products');
     assert.equal(await page.locator('#dashNewSale').isVisible(),false);
     console.log('PASS: laptop navigation shows one matching screen, synchronizes programmatic routes and hides duplicate new-sale button');
+    await page.evaluate(()=>{window.__qaStaffMode=true;window.dispatchEvent(new Event('varelia:account-isolation-ready'))});
+    await page.waitForFunction(()=>document.body.classList.contains('varelia-seller'));
+    await page.locator('#vmobileNav [data-mobile-tab="mobileHistoryHub"]').click();
+    await page.waitForTimeout(700);
+    assert.equal(await page.locator('main.content .view.active').getAttribute('id'),'mobileHistoryHub');
+    assert.equal(await page.locator('#vmobileNav [aria-current="page"]').getAttribute('data-mobile-tab'),'mobileHistoryHub');
+    await page.evaluate(()=>{window.__qaStaffMode=false;window.dispatchEvent(new Event('varelia:account-isolation-ready'))});
+    await page.waitForFunction(()=>!document.body.classList.contains('varelia-seller'));
+    console.log('PASS: seller with sales permission can stay in ticket history on laptop without the old access guard redirecting to dashboard');
+
     await page.setViewportSize({width:393,height:852});
 
     await page.evaluate(()=>{
