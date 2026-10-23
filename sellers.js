@@ -80,6 +80,7 @@
       const active=document.querySelector('.view.active')?.id||'';
       const allowedActive =
         active==='dashboard'||active==='help'||
+        (active==='mobileHistoryHub'&&(can('sales')||can('reports')||can('cash')))||
         ((active==='products'||active==='categories')&&can('products'))||
         ((active==='inventory'||active==='suppliers'||active==='purchases')&&can('inventory'))||
         (active==='sales'&&can('sales'))||(active==='cash'&&can('cash'))||

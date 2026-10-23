@@ -521,6 +521,23 @@ const server=http.createServer((req,res)=>{
     console.log('PASS: seller history calendar uses day boundaries; full-period summary totals 52 sales across pages, splits mixed cash/Yape, distinguishes credit and missing payments, and opens matching ticket');
 
     await page.evaluate(()=>{
+      document.getElementById('vreceiptOverlay')?.classList.remove('show');
+      document.getElementById('vareliaEmergencyReceipt')?.remove();
+    });
+    await page.setViewportSize({width:1366,height:768});
+    for(const id of ['sales','products','inventory','mobileHistoryHub','mobileAdminHub','mobileSettingsHub']){
+      await page.locator('#vmobileNav [data-mobile-tab="'+id+'"]').click();
+      await page.waitForFunction(id=>document.querySelector('main.content .view.active')?.id===id,id);
+      assert.equal(await page.locator('main.content .view.active').count(),1);
+      assert.equal(await page.locator('#vmobileNav [aria-current="page"]').getAttribute('data-mobile-tab'),id);
+    }
+    await page.evaluate(()=>switchView('products'));
+    await page.waitForFunction(()=>document.querySelector('#vmobileNav [aria-current="page"]')?.dataset.mobileTab==='products');
+    assert.equal(await page.locator('#dashNewSale').isVisible(),false);
+    console.log('PASS: laptop navigation shows one matching screen, synchronizes programmatic routes and hides duplicate new-sale button');
+    await page.setViewportSize({width:393,height:852});
+
+    await page.evaluate(()=>{
       window.__logoutCalls=0;window.vareliaSupabase.auth.signOut=()=>{window.__logoutCalls++;return new Promise(r=>window.__releaseLogout=r)};
       document.getElementById('vareliaLogout').click();
     });
