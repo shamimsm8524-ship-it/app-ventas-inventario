@@ -24,6 +24,7 @@ const server=http.createServer((req,res)=>{
     await page.locator('#vaGoogleBtn').click({timeout:10000});
     assert.equal(await page.evaluate(()=>window.__googleClicked),true);
     console.log('PASS: Google button responds on mobile login');
+    console.log('VISUAL_LOGIN:'+ (await page.screenshot({type:'jpeg',quality:45})).toString('base64'));
     await page.evaluate(()=>{
       document.getElementById('vareliaAuth').remove();document.body.classList.remove('varelia-auth-locked');
       categories=['General'];products=[];window.products=products;
@@ -45,6 +46,7 @@ const server=http.createServer((req,res)=>{
     row=page.locator('[data-crow="1"]');
     await row.locator('[data-cprice]').fill('40');
     await row.locator('[data-ccost]').fill('25');
+    console.log('VISUAL_PRODUCT:'+ (await page.screenshot({type:'jpeg',quality:45})).toString('base64'));
     await page.locator('#productForm button[type=submit]').click();
     await page.waitForFunction(()=>!!window.__savedProduct);
     const saved=await page.evaluate(()=>window.__savedProduct);

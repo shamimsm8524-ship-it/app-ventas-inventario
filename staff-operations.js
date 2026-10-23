@@ -123,7 +123,7 @@
       <form class="vstaffStockForm" id="vstaffStockForm">
         <label>Código de barras<div style="display:grid;grid-template-columns:1fr auto;gap:8px"><input id="vstaffStockBarcode" inputmode="numeric" placeholder="Escanea o escribe el código"><button type="button" class="btn secondary" id="vstaffStockScan">📷 Escanear</button></div></label>
         <label>Producto<select id="vstaffStockProduct"></select></label>
-        <label>Cantidad<input id="vstaffStockQty" type="number" inputmode="numeric" min="1" step="1" value="1" required></label>
+        <label>Cantidad<input id="vstaffStockQty" type="number" inputmode="numeric" min="0.001" step="0.001" value="1" required></label>
         <input id="vstaffStockEvent" type="hidden" value="restock">
         <button class="vstaffStockSave" type="submit">Confirmar</button>
       </form>
@@ -160,7 +160,8 @@
     e.preventDefault();
     const d=ensureDialog();
     const id=d.querySelector('#vstaffStockProduct').value;
-    const qty=Math.max(1,Math.floor(Number(d.querySelector('#vstaffStockQty').value)||1));
+    const qty=Number(d.querySelector('#vstaffStockQty').value);
+    if(!Number.isFinite(qty)||qty<=0){alert('Ingresa una cantidad mayor que cero.');return}
     const event=d.querySelector('#vstaffStockEvent').value==='return'?'return':'restock';
     const p=getProducts().find(x=>String(x.id)===String(id));
     if(!p)return toast('Selecciona un producto.');

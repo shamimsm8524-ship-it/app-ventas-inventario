@@ -468,6 +468,12 @@
     return '';
   }
 
+  function validQuantity(value){
+    const qty=Number(value);
+    if(!Number.isFinite(qty)||qty<=0)throw new Error('La cantidad debe ser un número mayor que cero.');
+    return qty;
+  }
+
   async function centralCheckout(){
     if(saleBusy)return false;
     if(!sb)await waitClient();
@@ -533,7 +539,7 @@
         const pricingMode=String(item.pricingMode||item.advancedPricingMode||'').trim();
         payload.push({
           product_id:cloudId,
-          qty:Math.max(0.001,Number(item.qty)||0),
+          qty:validQuantity(item.qty),
           unit_price:Math.max(0,Number(item.price)||0),
           ...(unit?{sale_unit:unit}:{}),
           ...(presentationId?{presentation_id:presentationId}:{}),
@@ -570,7 +576,7 @@
       const remoteItems=Array.isArray(data?.items)?data.items:[];
       const soldItems=current.map((item,i)=>{
         const p=localProducts().find(x=>String(x.id)===String(item.id));
-        const remote=remoteItems.find(x=>String(x.product_id)===String(p?._cloudId))||remoteItems[i]||{};
+        const remote=remoteItems[i]||{};
         return {
           ...item,
           price:Number(remote.unit_price??item.price)||0,
@@ -746,7 +752,7 @@
     if(!cloudId)throw new Error('El producto todavía no está sincronizado.');
     const {data,error}=await sb.rpc('varelia_staff_stock_in',{
       p_product_id:cloudId,
-      p_qty:Math.max(1,Math.floor(Number(qty)||1)),
+      p_qty:validQuantity(qty),
       p_event:event==='return'?'return':'restock'
     });
     if(error)throw error;
@@ -760,7 +766,7 @@
     const {data,error}=await sb.rpc('varelia_return_sale_item',{
       p_sale_id:saleId,
       p_sale_item_id:saleItemId,
-      p_qty:Math.max(1,Math.floor(Number(qty)||1))
+      p_qty:validQuantity(qty)
     });
     if(error)throw error;
     await refreshCloud();

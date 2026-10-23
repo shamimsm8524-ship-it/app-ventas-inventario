@@ -215,8 +215,32 @@ async function enterWithSession(session){
 auth.addEventListener('click',e=>{const b=e.target.closest('[data-va-tab]');if(!b)return;document.querySelectorAll('.va-tab').forEach(x=>x.classList.toggle('active',x===b));$('#vaLogin').classList.toggle('va-hide',b.dataset.vaTab!=='login');$('#vaRegister').classList.toggle('va-hide',b.dataset.vaTab!=='register');msg('')});
 $('#vaLogin').addEventListener('submit',async e=>{e.preventDefault();const button=$('#vaLogin').querySelector('button[type="submit"]');if(button)button.disabled=true;msg('Ingresando...');try{const {data,error}=await sb.auth.signInWithPassword({email:$('#vaLoginEmail').value.trim(),password:$('#vaLoginPass').value});if(error)throw error;if(!data?.session)throw new Error('El servidor no devolvió una sesión. Comprueba la confirmación de tu correo e inténtalo otra vez.');await enterWithSession(data.session)}catch(err){console.error('Varelia: error al iniciar sesión',err);msg(err?.message||'No se pudo iniciar sesión. Comprueba tu conexión.','error')}finally{if(button)button.disabled=false}});
 $('#vaRegister').addEventListener('submit',async e=>{e.preventDefault();const fullName=$('#vaName').value.trim(),businessName=$('#vaBusiness').value.trim(),email=$('#vaEmail').value.trim(),password=$('#vaPass').value;localStorage.setItem('varelia_pending_account',JSON.stringify({fullName,businessName}));msg('Creando cuenta...');const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:fullName,business_name:businessName}}});if(error){msg(error.message,'error');return}if(data.session){await enterWithSession(data.session)}else{msg('Cuenta creada. Revisa tu correo para confirmar y luego inicia sesión.','ok')}});
-$('#vareliaLogout').addEventListener('click',async()=>{await sb.auth.signOut();localStorage.removeItem('varelia_active_business_id');showAuth();msg('Sesión cerrada.','ok')});
-sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(()=>enterWithSession(session).catch(e=>console.error('Varelia sesión',e)),0)});
+function clearVisibleSession(){
+  window.vareliaCurrentUserProfile=null;
+  window.VareliaPaymentSnapshot=null;
+  window.__vareliaLastReceipt=null;
+  window.vareliaBusinessScope='';
+  try{if(typeof products!=='undefined')products=[];window.products=[]}catch{}
+  try{if(typeof sales!=='undefined')sales=[];window.sales=[]}catch{}
+  try{if(typeof cart!=='undefined')cart=[]}catch{}
+  try{if(typeof purchaseCart!=='undefined')purchaseCart=[]}catch{}
+  try{if(typeof suppliers!=='undefined')suppliers=[];if(typeof purchases!=='undefined')purchases=[]}catch{}
+  try{if(typeof closures!=='undefined')closures=[];if(typeof movements!=='undefined')movements=[]}catch{}
+  document.querySelectorAll('dialog[open]').forEach(d=>d.close());
+  document.getElementById('vreceiptOverlay')?.classList.remove('show');
+  document.getElementById('vareliaEmergencyReceipt')?.remove();
+  try{if(typeof render==='function')render()}catch{}
+  showAuth();
+}
+$('#vareliaLogout').addEventListener('click',async()=>{
+  const result=await sb.auth.signOut();
+  if(result?.error){msg('No se pudo cerrar la sesión. Inténtalo nuevamente.','err');return}
+  clearVisibleSession();msg('Sesión cerrada.','ok');
+});
+sb.auth.onAuthStateChange((event,session)=>{
+  if(event==='SIGNED_OUT'){setTimeout(clearVisibleSession,0);return}
+  if(session)setTimeout(()=>enterWithSession(session).catch(e=>console.error('Varelia sesión',e)),0);
+});
 (async()=>{
   showAuth();
   const params=new URLSearchParams(location.search);

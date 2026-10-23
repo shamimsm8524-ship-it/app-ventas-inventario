@@ -97,10 +97,10 @@
       btn.textContent='Registrar y actualizar stock';
       btn.onclick=async()=>{
         const p=getProducts().find(x=>String(x.id)===String(typeof inventoryProductId!=='undefined'?inventoryProductId:''));
-        const q=Math.floor(Number(qty.value)||0);
+        const q=Number(qty.value);
         const event=mode.value==='return'?'return':'restock';
         if(!p)return toast('Selecciona primero un producto.');
-        if(q<1)return toast('Indica una cantidad mayor a 0.');
+        if(!Number.isFinite(q)||q<=0)return toast('Indica una cantidad mayor a 0.');
         if(typeof window.vareliaCentralStockIn!=='function')return toast('Actualiza la página e inténtalo nuevamente.');
         btn.disabled=true;
         try{
@@ -144,7 +144,7 @@
     if(d)return d;
     d=document.createElement('dialog');
     d.id='vareliaReturnDialog';
-    d.innerHTML=`<div class="vreturnCard"><div class="vreturnHead"><div><h3>Registrar devolución</h3><div class="vreturnInfo" id="vreturnSaleInfo"></div></div><button type="button" class="vreturnClose">×</button></div><form class="vreturnForm" id="vreturnForm"><label>Producto<select id="vreturnItem"></select></label><label>Cantidad que regresa al stock<input id="vreturnQty" type="number" min="1" step="1" value="1" required></label><div class="vreturnInfo" id="vreturnHelp"></div><button class="vreturnSave" type="submit">Confirmar devolución y reponer stock</button></form></div>`;
+    d.innerHTML=`<div class="vreturnCard"><div class="vreturnHead"><div><h3>Registrar devolución</h3><div class="vreturnInfo" id="vreturnSaleInfo"></div></div><button type="button" class="vreturnClose">×</button></div><form class="vreturnForm" id="vreturnForm"><label>Producto<select id="vreturnItem"></select></label><label>Cantidad que regresa al stock<input id="vreturnQty" type="number" min="0.001" step="0.001" value="1" required></label><div class="vreturnInfo" id="vreturnHelp"></div><button class="vreturnSave" type="submit">Confirmar devolución y reponer stock</button></form></div>`;
     document.body.appendChild(d);
     d.querySelector('.vreturnClose').onclick=()=>d.close();
     d.querySelector('#vreturnItem').onchange=()=>syncReturnLimit(d);
@@ -186,8 +186,8 @@
     const index=Number(d.querySelector('#vreturnItem').value);
     const item=sale.items?.[index];if(!item)return;
     const sold=Math.max(0,Number(item.qty)||0),already=Math.max(0,Number(item.returnedQty)||0),remaining=Math.max(0,sold-already);
-    const qty=Math.floor(Number(d.querySelector('#vreturnQty').value)||0);
-    if(qty<1||qty>remaining)return toast('La cantidad a devolver debe estar entre 1 y '+remaining+'.');
+    const qty=Number(d.querySelector('#vreturnQty').value);
+    if(!Number.isFinite(qty)||qty<=0||qty>remaining)return toast('La cantidad debe ser mayor a cero y no superar '+remaining+'.');
 
     const p=getProducts().find(x=>String(x.id)===String(item.id))
       ||getProducts().find(x=>String(x.name||'').trim().toLowerCase()===String(item.name||'').trim().toLowerCase());

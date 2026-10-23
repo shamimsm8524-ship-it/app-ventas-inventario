@@ -103,3 +103,17 @@ test('sidebar section titles resolve a nested submenu to its direct navigation a
   const ctx={nav};vm.createContext(ctx);vm.runInContext('this.anchor=el=>{'+body+'}',ctx);
   assert.equal(ctx.anchor(button),group);
 });
+test('cloud quantities preserve fractions and reject invalid values',()=>{
+  const src=read('central-stock-sync.js');
+  const fn=src.slice(src.indexOf('  function validQuantity('),src.indexOf('  async function centralCheckout('));
+  const env={};vm.createContext(env);vm.runInContext(fn+';this.validate=validQuantity;',env);
+  assert.equal(env.validate(.5),.5);assert.equal(env.validate('0.125'),.125);
+  for(const n of [0,-1,NaN,Infinity,'invalid'])assert.throws(()=>env.validate(n));
+});
+test('confirmed rows preserve separate costs for two presentations of one product',()=>{
+  const src=read('central-stock-sync.js');
+  const body=src.slice(src.indexOf('      const soldItems=current.map'),src.indexOf('      let committedSale=null;'));
+  const env={current:[{id:'p',qty:1},{id:'p',qty:1}],localProducts:()=>[{id:'p',_cloudId:'cloud'}],remoteItems:[{product_id:'cloud',buy_price_at_sale:120,unit_price:180},{product_id:'cloud',buy_price_at_sale:25,unit_price:40}]};
+  vm.createContext(env);vm.runInContext(body+'this.result=soldItems;',env);
+  assert.equal(env.result[0].buyPriceAtSale,120);assert.equal(env.result[1].buyPriceAtSale,25);
+});
