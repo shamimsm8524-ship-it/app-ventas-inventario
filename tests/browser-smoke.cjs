@@ -537,13 +537,16 @@ const server=http.createServer((req,res)=>{
     console.log('PASS: laptop navigation shows one matching screen, synchronizes programmatic routes and hides duplicate new-sale button');
     await page.evaluate(()=>{window.__qaStaffMode=true;window.dispatchEvent(new Event('varelia:account-isolation-ready'))});
     await page.waitForFunction(()=>document.body.classList.contains('varelia-seller'));
-    await page.locator('#vmobileNav [data-mobile-tab="mobileHistoryHub"]').click();
-    await page.waitForTimeout(700);
-    assert.equal(await page.locator('main.content .view.active').getAttribute('id'),'mobileHistoryHub');
-    assert.equal(await page.locator('#vmobileNav [aria-current="page"]').getAttribute('data-mobile-tab'),'mobileHistoryHub');
+    for(const id of ['mobileHistoryHub','mobileAdminHub','mobileSettingsHub']){
+      await page.locator('#vmobileNav [data-mobile-tab="'+id+'"]').click();
+      await page.waitForTimeout(700);
+      assert.equal(await page.locator('main.content .view.active').getAttribute('id'),id);
+      assert.equal(await page.locator('#vmobileNav [aria-current="page"]').getAttribute('data-mobile-tab'),id);
+      assert.equal(await page.locator('main.content .view.active').count(),1);
+    }
     await page.evaluate(()=>{window.__qaStaffMode=false;window.dispatchEvent(new Event('varelia:account-isolation-ready'))});
     await page.waitForFunction(()=>!document.body.classList.contains('varelia-seller'));
-    console.log('PASS: seller with sales permission can stay in ticket history on laptop without the old access guard redirecting to dashboard');
+    console.log('PASS: seller can open History, Admin and Settings on laptop without the old access guard redirecting navigation containers to dashboard');
 
     await page.setViewportSize({width:393,height:852});
 

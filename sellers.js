@@ -80,6 +80,8 @@
       const active=document.querySelector('.view.active')?.id||'';
       const allowedActive =
         active==='dashboard'||active==='help'||
+        // These are navigation containers; their actions keep their own permission checks.
+        active==='mobileAdminHub'||active==='mobileSettingsHub'||
         (active==='mobileHistoryHub'&&(can('sales')||can('reports')||can('cash')))||
         ((active==='products'||active==='categories')&&can('products'))||
         ((active==='inventory'||active==='suppliers'||active==='purchases')&&can('inventory'))||
