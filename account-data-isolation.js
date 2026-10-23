@@ -1,8 +1,8 @@
 (()=>{
   if(window.__vareliaAccountIsolation)return;
   window.__vareliaAccountIsolation=true;
+
   const clean=v=>String(v||'').replace(/[^a-zA-Z0-9_-]/g,'_');
-  const initialScope=clean(localStorage.getItem('varelia_active_business_id')||'');
   const PRIVATE_KEYS=[
     'miNegocio_products_v1','miNegocio_categories_v1','miNegocio_sales_v1',
     'miNegocio_closures_v1','miNegocio_cashStart_v1','miNegocio_theme_v1',
@@ -13,10 +13,12 @@
     'varelia_last_payment_method','varelia_bt_printer_name','varelia_last_weekly_backup',
     'varelia_last_weekly_reset'
   ];
+
   window.vareliaScopedLocalKey=(base)=>{
-    const s=clean(localStorage.getItem('varelia_active_business_id')||window.vareliaBusinessScope||'');
-    return s?base+'__'+s:base+'__no_account';
+    const scope=clean(localStorage.getItem('varelia_active_business_id')||window.vareliaBusinessScope||'');
+    return scope?base+'__'+scope:base+'__no_account';
   };
+
   function migrateLegacy(scope){
     let changed=false;
     const ownerKey='varelia_private_legacy_owner_scope';
@@ -26,25 +28,31 @@
     localStorage.setItem(ownerKey,owner);
     for(const base of PRIVATE_KEYS){
       const target=base+'__'+scope;
-      if(localStorage.getItem(target)==null&&localStorage.getItem(base)!=null){localStorage.setItem(target,localStorage.getItem(base));changed=true;}
+      if(localStorage.getItem(target)==null&&localStorage.getItem(base)!=null){
+        localStorage.setItem(target,localStorage.getItem(base));
+        changed=true;
+      }
     }
     return changed;
   }
-  async function resolve(){
-    const sb=window.vareliaSupabase;
-    if(!sb)return false;
-    const {data:u}=await sb.auth.getUser();
-    if(!u?.user)return false;
-    const {data:p}=await sb.from('profiles').select('business_id').eq('id',u.user.id).maybeSingle();
-    const scope=clean(u.user.id);if(!scope)return false; // Separar por usuario autenticado: dos Gmail nunca comparten inventario aunque coincida business_id.
-    const migrated=migrateLegacy(scope);
-    const prev=clean(localStorage.getItem('varelia_active_business_id')||'');
+
+  function activateFromConfirmedSession(detail){
+    const scope=clean(detail?.userId||detail?.businessId||window.vareliaBusinessScope||'');
+    if(!scope)return false;
+
+    // IMPORTANTE: este módulo ya no llama getUser/getSession ni recarga la página.
+    // supabase-auth.js es el único responsable de confirmar la sesión. Así evitamos
+    // que dos lecturas de Auth compitan durante el arranque del WebView de Android.
+    migrateLegacy(scope);
     localStorage.setItem('varelia_active_business_id',scope);
     window.vareliaBusinessScope=scope;
-    if(initialScope!==scope||prev!==scope||migrated){location.reload();return true}
-    window.dispatchEvent(new CustomEvent('varelia:account-isolation-ready',{detail:{businessId:scope,userId:u.user.id}}));
+    window.dispatchEvent(new CustomEvent('varelia:account-isolation-ready',{
+      detail:{businessId:scope,userId:detail?.userId||scope}
+    }));
     return true;
   }
-  const timer=setInterval(()=>{if(window.vareliaSupabase){clearInterval(timer);resolve().catch(console.error)}},50);
-  addEventListener('varelia:business-scope-ready',()=>resolve().catch(console.error));
+
+  window.addEventListener('varelia:business-scope-ready',e=>{
+    try{activateFromConfirmedSession(e?.detail||{})}catch(err){console.warn('Varelia: no se pudo completar el aislamiento local',err)}
+  });
 })();
