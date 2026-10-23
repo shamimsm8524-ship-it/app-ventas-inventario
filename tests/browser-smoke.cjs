@@ -232,6 +232,12 @@ const server=http.createServer((req,res)=>{
 
     await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart();delete window.VareliaAndroid;products=window.__scanOriginalProducts;window.products=products;localStorage.removeItem(K.products);K.products=window.__scanOriginalKey;if(window.__scanOriginalScope)localStorage.setItem('varelia_active_business_id',window.__scanOriginalScope);else localStorage.removeItem('varelia_active_business_id');window.vareliaBusinessScope=window.__scanOriginalScope||'';render()});
     console.log('PASS: mobile native scanner selects current inventory and adds a sale; UPC/EAN leading zero matches without replacing live products with stale storage');
+    await page.evaluate(()=>{openProduct();document.getElementById('productName').value='Borrador conservado';document.getElementById('sellPrice').value='19';window.VareliaNativeScanResult('product','7750670313537')});
+    await page.waitForFunction(()=>document.getElementById('barcode').value==='7750670313537');
+    assert.equal(await page.locator('#productName').inputValue(),'Borrador conservado');assert.equal(await page.locator('#sellPrice').inputValue(),'19');
+    await page.evaluate(()=>document.getElementById('productDialog').close());
+    console.log('PASS: scanning a product barcode keeps draft name and price and does not wait for external product lookup');
+
     await page.evaluate(()=>{switchView('products');products.push({id:'label-fixture',name:'Zanahoria',barcode:'7750670313537',sellPrice:3,stock:1,unit:'Unidad'});window.products=products;window.VareliaAndroid={printHtmlDocument(title,html){window.__labelPrint={title,html}}};render()});
     await page.locator('#btPrinterBtn').click();
     await page.locator('#btPrintHelp').waitFor({state:'visible'});
@@ -455,6 +461,21 @@ const server=http.createServer((req,res)=>{
     assert.equal(await page.locator('#vsellerHistory').evaluate(d=>d.open),false);
     console.log('PASS: seller history calendar uses day boundaries; full-period summary totals 52 sales across pages, splits mixed cash/Yape, distinguishes credit and missing payments, and opens matching ticket');
 
+    await page.evaluate(()=>{
+      window.__logoutCalls=0;window.vareliaSupabase.auth.signOut=()=>{window.__logoutCalls++;return new Promise(r=>window.__releaseLogout=r)};
+      document.getElementById('vareliaLogout').click();
+    });
+    await page.waitForFunction(()=>!!window.__releaseLogout);
+    assert.equal(await page.evaluate(()=>window.__logoutCalls),1);
+    await page.evaluate(()=>window.__releaseLogout({error:{message:'QA logout network failure'}}));
+    await page.waitForFunction(()=>!document.getElementById('vareliaLogout').disabled);
+    assert.equal(await page.evaluate(()=>window.vareliaCurrentUserProfile?.id),'qa-owner');
+    await page.evaluate(()=>{window.vareliaSupabase.auth.signOut=async()=>{window.__logoutCalls++;return {error:null}};document.getElementById('vareliaLogout').click()});
+    await page.waitForFunction(()=>window.vareliaCurrentUserProfile===null);
+    assert.equal(await page.evaluate(()=>window.__logoutCalls),2);
+    assert.equal(await page.evaluate(()=>products.length+cart.length+sales.length),0);
+    assert.ok(!page.url().includes('/login.html'));
+    console.log('PASS: logout coalesces two UI handlers into one SDK request; failed logout preserves account; successful logout clears visible data without a nonexistent redirect');
     await page.waitForTimeout(500);
     assert.deepEqual(errors,[]);
     console.log('PASS: app scripts load without uncaught browser errors');

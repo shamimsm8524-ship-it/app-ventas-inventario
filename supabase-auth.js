@@ -208,11 +208,19 @@ function clearVisibleSession(){
   try{if(typeof render==='function')render()}catch{}
   showAuth();
 }
-$('#vareliaLogout').addEventListener('click',async()=>{
-  const result=await sb.auth.signOut();
-  if(result?.error){msg('No se pudo cerrar la sesión. Inténtalo nuevamente.','err');return}
-  clearVisibleSession();msg('Sesión cerrada.','ok');
-});
+let signingOut=null;
+window.vareliaSignOut=function(){
+  if(signingOut)return signingOut;
+  signingOut=(async()=>{
+    try{
+      const result=await sb.auth.signOut();
+      if(result?.error)throw result.error;
+      clearVisibleSession();msg('Sesión cerrada.','ok');return true;
+    }catch(e){msg('No se pudo cerrar la sesión. Inténtalo nuevamente.','err');return false}
+  })().finally(()=>{signingOut=null});
+  return signingOut;
+};
+$('#vareliaLogout').addEventListener('click',()=>{window.vareliaSignOut()});
 sb.auth.onAuthStateChange((event,session)=>{
   if(event==='SIGNED_OUT'){setTimeout(clearVisibleSession,0);return}
   if(session)setTimeout(()=>enterWithSession(session).catch(e=>console.error('Varelia sesión',e)),0);

@@ -30,3 +30,4 @@ jobs:
         run: |
           node tests/browser-smoke.cjs
           node tests/barcode-image.cjs
+          node tests/public-catalog-smoke.cjs

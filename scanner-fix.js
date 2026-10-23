@@ -251,7 +251,7 @@
       };
       for(const url of sources){
         try{
-          const res=await fetch(url,{headers:{Accept:'application/json'}});
+          const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),2000);let res;try{res=await fetch(url,{headers:{Accept:'application/json'},signal:controller.signal})}finally{clearTimeout(timer)};
           if(!res.ok)continue;
           const j=await res.json(),x=j?.product;
           if(j?.status!==1||!x)continue;
@@ -267,13 +267,20 @@
       return null;
     }
     async function offerNewProduct(code){
-      const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent='Buscando el nombre comercial del producto…'}
-      const data=await lookupFactoryProduct(code);await closeScanner();
-      if(typeof openProduct==='function')openProduct();else try{document.getElementById('newProduct')?.click()}catch{}
-      await sleep(160);const bc=document.getElementById('barcode'),nm=document.getElementById('productName');
-      if(bc)bc.value=code;
-      if(data){if(nm&&!String(nm.value||'').trim()) {nm.value=data.name;nm.dispatchEvent(new Event('input',{bubbles:true}));nm.dispatchEvent(new Event('change',{bubbles:true}));}window.vareliaToast?.('Nombre encontrado: '+data.name,'ok');}
-      else{window.vareliaToast?.('Código leído, pero no encontramos su nombre en las bases públicas. No se inventó el nombre; escríbelo manualmente.','warn')}
+      await closeScanner();
+      const form=document.getElementById('productDialog');
+      // Scanning from an open product must preserve its name, prices and draft stock.
+      if(!form?.open){if(typeof openProduct==='function')openProduct();else document.getElementById('newProduct')?.click()}
+      const bc=document.getElementById('barcode'),nm=document.getElementById('productName'),id=document.getElementById('productId')?.value||'';
+      if(bc){bc.value=code;bc.dispatchEvent(new Event('input',{bubbles:true}))}
+      window.vareliaToast?.('Código leído. Pulsa Guardar producto para confirmarlo.','info');
+      if(!nm||String(nm.value||'').trim())return;
+      // Optional external name lookup never blocks editing, saving or closing the form.
+      lookupFactoryProduct(code).then(data=>{
+        if(!data||!form?.open||String(document.getElementById('productId')?.value||'')!==String(id)||bc?.value!==code||String(nm.value||'').trim())return;
+        nm.value=data.name;nm.dispatchEvent(new Event('input',{bubbles:true}));
+        window.vareliaToast?.('Nombre encontrado: '+data.name,'ok');
+      }).catch(e=>console.warn('Nombre opcional del producto',e));
     }
     function productCodes(x){
       if(!x||typeof x!=='object')return[];

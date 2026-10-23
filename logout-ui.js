@@ -14,13 +14,14 @@
     const btn=document.getElementById('vareliaLogout')||document.getElementById('vareliaLogoutFallback');
     if(btn){btn.disabled=true;btn.textContent='Cerrando sesión…'}
     try{
-      if(window.vareliaSupabase)await window.vareliaSupabase.auth.signOut();
-    }catch(e){console.warn('Cerrar sesión',e)}
+      if(typeof window.vareliaSignOut==='function'){await window.vareliaSignOut();return}
+      if(window.vareliaSupabase){const result=await window.vareliaSupabase.auth.signOut();if(result?.error)throw result.error}
+    }catch(e){console.warn('Cerrar sesión',e);window.vareliaToast?.('No se pudo cerrar la sesión. Intenta nuevamente.','warn');return}finally{if(btn){btn.disabled=false;btn.textContent='Cerrar sesión'}}
     try{
       Object.keys(localStorage).filter(k=>/^sb-.*-auth-token$/.test(k)).forEach(k=>localStorage.removeItem(k));
       sessionStorage.clear();
     }catch{}
-    location.replace('/login.html');
+    location.replace('/');
   }
 
   function ensure(){
