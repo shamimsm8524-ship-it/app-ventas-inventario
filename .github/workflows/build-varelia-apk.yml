@@ -1,8 +1,5 @@
 name: Varelia 1.0.52 APK
 on:
-  push:
-    branches: [main]
-    paths: [android-native/app/build.gradle]
   workflow_dispatch:
 
 jobs:

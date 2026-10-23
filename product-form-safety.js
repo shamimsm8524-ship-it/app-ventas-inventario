@@ -50,7 +50,7 @@
     commercialRows().forEach(row=>{
       const input=row.querySelector('[data-cprice]'),l=input?.closest('label');if(!l)return;
       const first=[...l.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);
-      if(first&&first.nodeValue!=='Precio total (S/)')first.nodeValue='Precio total (S/)';
+      if(first&&first.nodeValue!=='Precio de venta total (S/)')first.nodeValue='Precio de venta total (S/)';
     });
     const box=$('vCommercialPricingBox');
     if(box){
@@ -60,7 +60,7 @@
         note.style.cssText='padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--p) 7%,transparent);font-weight:750;line-height:1.4';
         const rows=$('vCommercialRows');if(rows)box.insertBefore(note,rows);
       }
-      const noteText='Cada presentación tiene su propio precio TOTAL. Ejemplo: Unidad S/10, Media docena S/55, Docena S/100 y Cajón S/250. Varelia no debe multiplicar ni reemplazar esos precios.';
+      const noteText='Escribe por separado el costo de compra y el precio de venta TOTAL de cada presentación. Cajón, medio cajón, docena y media docena son independientes; cambiar uno no modifica los demás.';
       if(note.textContent!==noteText)note.textContent=noteText;
     }
   }
@@ -140,27 +140,9 @@
       price:Math.max(0,Number(row?.querySelector('[data-cprice]')?.value||0)||0)
     };
   }
-  function setWholesaleFromRow(row,{followUnits=false}={}){
-    const on=$('vCommercialWholesaleOn'),min=$('vCommercialWholesaleMin'),unitPrice=$('vCommercialWholesalePrice');
-    if(!on?.checked||!min||!unitPrice||!row)return false;
-    const {units,price}=rowValues(row);if(units<1||price<=0)return false;
-    const rows=commercialRows();
-    const oldUnits=Math.max(0,Math.floor(Number(row.dataset.vareliaWholesaleOldUnits||0)));
-    const minQty=Math.max(0,Math.floor(Number(min.value||0)));
-    const shouldFollow=rows.length===1||minQty===units||(followUnits&&oldUnits>0&&minQty===oldUnits)||minQty<1;
-    if(!shouldFollow)return false;
-    if(rows.length===1||followUnits||minQty<1)min.value=String(units);
-    unitPrice.value=round2(price/units).toFixed(2);
-    return true;
-  }
-  function syncWholesaleByMinimum(){
-    const on=$('vCommercialWholesaleOn'),min=$('vCommercialWholesaleMin');
-    if(!on?.checked||!min)return false;
-    const minQty=Math.max(0,Math.floor(Number(min.value||0)));
-    const rows=commercialRows();
-    const match=rows.find(r=>rowValues(r).units===minQty)||(rows.length===1?rows[0]:null);
-    return match?setWholesaleFromRow(match,{followUnits:rows.length===1}):false;
-  }
+  // Los precios se escriben por separado; editar una presentación nunca cambia mayorista.
+  function setWholesaleFromRow(){return false}
+  function syncWholesaleByMinimum(){return false}
   function rememberRowUnits(target){
     const row=target?.closest?.('[data-crow]');if(!row)return;
     row.dataset.vareliaWholesaleOldUnits=String(rowValues(row).units||'');

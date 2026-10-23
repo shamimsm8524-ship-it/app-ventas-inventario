@@ -54,3 +54,16 @@ test('product form saves commercial fields before cloud synchronization',()=>{
   assert(!read('advanced-pricing.js').includes('setTimeout(apply,120)'));
   assert(read('central-stock-sync.js').includes('!p.__commercialEdited'));
 });
+test('half-dozen purchase cost is independent from the unit and carton costs',()=>{
+  const p={...product,salePresentations:[{id:'half_dozen',units:6,buyCost:25},{id:'carton',units:36,buyCost:120}]};
+  const row=ctx.gainItemData({id:'local',qty:2,unit_price:40,sale_presentation_id:'half_dozen',sale_presentation_units:6,stock_qty:12},[p]);
+  assert.equal(row.buy,25);assert.equal(row.costQty*row.buy,50);
+  assert.equal(row.subtotal-row.costQty*row.buy,30);
+});
+test('free presentation cost remains zero instead of falling back to unit cost',()=>{
+  const row=ctx.gainItemData({id:'local',qty:1,unit_price:40,sale_presentation_id:'gift',sale_presentation_units:6},[{...product,salePresentations:[{id:'gift',buyCost:0}]}]);
+  assert.equal(row.buy,0);
+});
+test('editing presentation prices never recalculates the wholesale price',()=>{
+  assert(!read('product-form-safety.js').includes('unitPrice.value=round2(price/units)'));
+});

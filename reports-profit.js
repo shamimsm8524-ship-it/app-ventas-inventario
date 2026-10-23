@@ -209,7 +209,10 @@
         // Six Pack, docena y otras presentaciones: costo base por unidad x unidades del pack.
         let units=presentationUnits;
         if(!(units>0)&&Number.isFinite(stockNumber)&&Number.isFinite(saleQty)&&saleQty>0)units=stockNumber/saleQty;
-        if(Number.isFinite(current)&&units>0)buy=current*units;
+        const presentation=(match?.salePresentations||[]).find(p=>String(p.id)===presentationId);
+        const explicitCost=presentation?.buyCost;
+        if(explicitCost!=null&&explicitCost!==''&&Number.isFinite(Number(explicitCost)))buy=Number(explicitCost);
+        else if(Number.isFinite(current)&&units>0)buy=current*units;
         else if(Number.isFinite(current))buy=current;
         costQty=saleQty;
       }else{

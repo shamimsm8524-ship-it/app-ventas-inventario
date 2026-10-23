@@ -143,7 +143,7 @@
       id:String(x?.id||('presentacion_'+(i+1))).trim(),
       name:String(x?.name||'').trim(),
       units:Math.max(0,Math.floor(Number(x?.units)||0)),
-      price:Math.max(0,Number(x?.price)||0),
+      price:Math.max(0,Number(x?.price)||0),buyCost:x?.buyCost!=null&&x.buyCost!==''&&Number.isFinite(Number(x.buyCost))&&Number(x.buyCost)>=0?Number(x.buyCost):null,
       active:x?.active!==false
     })).filter(x=>x.id&&x.name&&x.units>0&&x.price>0);
     const medicine=!!p.medicine;
@@ -268,7 +268,7 @@
       specifications:stripAdvancedPricing(String(p.specifications||'')),
       advancedPricing:null,
       commercialPricing:commercial,
-      salePresentations:presentations.map((x,i)=>({id:String(x?.id||('presentacion_'+(i+1))),name:String(x?.name||''),units:Math.max(0,Math.floor(Number(x?.units)||0)),price:Math.max(0,Number(x?.price)||0),active:x?.active!==false})).filter(x=>x.name&&x.units>0&&x.price>0),
+      salePresentations:presentations.map((x,i)=>({id:String(x?.id||('presentacion_'+(i+1))),name:String(x?.name||''),units:Math.max(0,Math.floor(Number(x?.units)||0)),price:Math.max(0,Number(x?.price)||0),buyCost:x?.buyCost!=null&&x.buyCost!==''&&Number.isFinite(Number(x.buyCost))&&Number(x.buyCost)>=0?Number(x.buyCost):null,active:x?.active!==false})).filter(x=>x.name&&x.units>0&&x.price>0),
       variants:String(p.variants||''),
       characteristics:Array.isArray(p.characteristics)?p.characteristics:[],
       variantCombinations:Array.isArray(p.variant_combinations)?p.variant_combinations:[],
