@@ -92,3 +92,7 @@ test('image persistence module never replaces the product form save handler',()=
   assert(src.includes('VareliaProductImages={put:putImage'));
   assert(read('index.html').includes('await images.put(obj.id,obj.image)'));
 });
+test('mobile navigation waits for DOM readiness without invoking an undefined result',()=>{
+  const env={window:{},document:{readyState:'loading',addEventListener(){}}};vm.createContext(env);
+  assert.doesNotThrow(()=>vm.runInContext(read('simple-mobile-nav.js'),env));
+});
