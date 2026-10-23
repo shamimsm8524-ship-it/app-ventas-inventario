@@ -51,7 +51,8 @@
     if(!sb)return null;
     // La sesión persistida puede estar disponible antes de que /auth/v1/user responda.
     // RLS en Supabase sigue validando el JWT en todas las consultas.
-    const {data:stored}=await withTimeout(sb.auth.getSession(),6000,'La restauración de sesión');
+    const {data:stored,error:sessionError}=await withTimeout(sb.auth.getSession(),10000,'La lectura de sesión');
+    if(sessionError)throw sessionError;
     let user=stored?.session?.user||null;
     // La sesión almacenada no garantiza que el servidor acepte el JWT.
     // Refrescar el token antes de consultar tablas protegidas por RLS.

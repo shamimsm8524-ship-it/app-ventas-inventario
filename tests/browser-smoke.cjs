@@ -215,7 +215,12 @@ const server=http.createServer((req,res)=>{
       const sb=window.vareliaSupabase,existing=products[0];
       window.__syncSessionReader=sb.auth.getSession;window.__syncFrom=sb.from;window.__syncRpc=sb.rpc;
       window.__failSync=true;
-      sb.auth.getSession=async()=>({data:{session:{user:{id:'qa-owner'}}},error:null});
+      sb.auth.getSession=()=>new Promise(()=>{}); // Reproduce the Android session-read hang.
+      const expires=Math.floor(Date.now()/1000)+3600;
+      const token='header.'+btoa(JSON.stringify({sub:'qa-owner',exp:expires})).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_')+'.signature';
+      localStorage.setItem('qa-session-cache',JSON.stringify({access_token:token,refresh_token:'test-refresh',expires_at:expires,user:{id:'qa-owner'}}));
+      window.VareliaSessionState.attach(sb,{key:'qa-session-cache'});
+
       window.vareliaCurrentUserProfile={id:'qa-owner',business_id:'qa-business',role:'owner'};
       products.push({id:'offline-new',name:'Pendiente local',category:'General',stock:3,unit:'Unidad',buyPrice:1,sellPrice:2});window.products=products;
       const remote={id:'00000000-0000-4000-8000-000000000010',legacy_id:existing.id,name:existing.name,unit:'Unidad',stock:existing.stock,sell_price:15,buy_price:120/36,updated_at:'2026-10-23T00:00:00Z',category_id:'qa-cat'};
@@ -234,7 +239,7 @@ const server=http.createServer((req,res)=>{
     await page.evaluate(()=>{
       const sb=window.vareliaSupabase;sb.auth.getSession=window.__syncSessionReader;sb.from=window.__syncFrom;sb.rpc=window.__syncRpc;
     });
-    console.log('PASS: failed cloud read preserves local products; tapping reconnect confirms cloud data without waiting for public catalog maintenance');
+    console.log('PASS: even with a stalled SDK session reader, a valid shared session reconnects; failed reads preserve local products and never show connected');
 
 
 

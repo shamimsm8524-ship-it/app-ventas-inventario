@@ -199,3 +199,35 @@ test('concurrent inventory reads share a request and release it afterwards',asyn
   const first=env.refresh(),second=env.refresh();assert.equal(first,second);assert.equal(calls,1);
   resolve(true);await first;await env.refresh();assert.equal(calls,2);
 });
+function sessionFixture({expired=false,read,timeoutMs=30}={}){
+  const {attachSessionState}=require('../auth-session-state.js');
+  const expiry=Math.floor(Date.now()/1000)+(expired?-100:3600);
+  const session={access_token:'header.'+Buffer.from(JSON.stringify({sub:'qa-user',exp:expiry})).toString('base64url')+'.signature',refresh_token:'test-refresh',expires_at:expiry,user:{id:'qa-user'}};
+  const storage=new Map([['session',JSON.stringify(session)]]);let callback,calls=0;
+  const client={auth:{getSession(){calls++;return read?read():new Promise(()=>{})},onAuthStateChange(fn){callback=fn}}};
+  attachSessionState(client,{storage:{getItem:key=>storage.get(key)||null},key:'session',timeoutMs});
+  return {client,session,storage,calls:()=>calls,event:(name,value)=>callback(name,value)};
+}
+test('valid persisted session is immediately available when SDK session initialization stalls',async()=>{
+  const fixture=sessionFixture();
+  const results=await Promise.all(Array.from({length:20},()=>fixture.client.auth.getSession()));
+  assert(results.every(r=>r.data.session.user.id==='qa-user'&&!r.error));assert.equal(fixture.calls(),0);
+});
+test('expired sessions share one SDK renewal and are never returned as a valid cache',async()=>{
+  const fixture=sessionFixture({expired:true});
+  const first=fixture.client.auth.getSession(),second=fixture.client.auth.getSession();
+  assert.equal(first,second);const result=await first;
+  assert.equal(result.data.session,null);assert.equal(result.error.code,'VARELIA_SESSION_TIMEOUT');assert.equal(fixture.calls(),1);
+});
+test('signout invalidates a pending session read and prevents late restoration',async()=>{
+  let resolve;const fixture=sessionFixture({expired:true,read:()=>new Promise(r=>resolve=r)});
+  const pending=fixture.client.auth.getSession();await Promise.resolve();
+  fixture.event('SIGNED_OUT',null);
+  resolve({data:{session:{...fixture.session,expires_at:Math.floor(Date.now()/1000)+3600}},error:null});
+  assert.equal((await pending).data.session,null);
+  assert.equal((await fixture.client.auth.getSession()).data.session,null);
+});
+test('a sign-in event supplies the shared session without another restoration request',async()=>{
+  const fixture=sessionFixture();fixture.storage.clear();fixture.event('SIGNED_IN',fixture.session);
+  assert.equal((await fixture.client.auth.getSession()).data.session.user.id,'qa-user');assert.equal(fixture.calls(),0);
+});
