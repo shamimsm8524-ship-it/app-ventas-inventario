@@ -161,8 +161,7 @@ const server=http.createServer((req,res)=>{
       products=[{id:'scan-current',name:'Escaneo actual',barcode:'0123456789012',stock:10,sellPrice:5,unit:'Unidad',category:'General',characteristics:[]}];window.products=products;
       window.VareliaAndroid={openScanner(which){window.__scanOpened=which}};switchView('inventory');render();
     });
-    await page.locator('#scanForInventory').click();
-    assert.equal(await page.evaluate(()=>window.__scanOpened),'inventory');
+    // The old native callbacks remain supported, while camera-capable phones use the web decoder.
     await page.evaluate(()=>window.VareliaNativeScanResult('inventory','123456789012'));
     await page.waitForFunction(()=>inventoryProductId==='scan-current');
     assert.match(await page.locator('#inventorySelected').innerText(),/Escaneo actual/);
@@ -170,17 +169,29 @@ const server=http.createServer((req,res)=>{
     await page.evaluate(()=>{clearSaleCart();window.VareliaNativeScanResult('sale','0123456789012')});
     await page.waitForFunction(()=>cart.length===1);
     assert.equal(await page.evaluate(()=>cart[0].id),'scan-current');assert.equal(await page.evaluate(()=>cart[0].price),5);
-    await page.evaluate(()=>{delete window.VareliaAndroid;clearSaleCart();switchView('inventory')});
+    await page.evaluate(()=>{clearSaleCart();switchView('inventory');window.__scanOpened=null});
     await page.route('**/html5-qrcode@2.3.8/html5-qrcode.min.js',route=>{
       if(route.request().url().includes('unpkg.com'))return route.abort();
-      return route.fulfill({contentType:'application/javascript',body:`window.Html5Qrcode=class {static async getCameras(){return [{id:'rear',label:'Back camera'}]}async start(camera,config,onRead){window.__cameraStarted=camera;window.__deliverBarcode=onRead}getState(){return 2}async stop(){}async clear(){}}`});
+      return route.fulfill({contentType:'application/javascript',body:`window.Html5Qrcode=class {static async getCameras(){return [{id:'rear',label:'Back camera'}]}async start(camera,config,onRead){window.__cameraStarted=camera;window.__scanConfig=config;window.__deliverBarcode=onRead}getState(){return 2}async stop(){}async clear(){}}`});
     });
     await page.locator('#scanForInventory').click();
     await page.waitForFunction(()=>!!window.__deliverBarcode);
-    assert.equal(await page.locator('#scannerDialog').evaluate(d=>d.open),true);
+    assert.equal(await page.locator('#scannerDialog').evaluate(d=>d.open),true);assert.equal(await page.evaluate(()=>window.__scanOpened),null);assert.equal(await page.evaluate(()=>window.__scanConfig.qrbox),undefined);
     await page.evaluate(()=>{inventoryProductId=null;window.__deliverBarcode('0123456789012')});
     await page.waitForFunction(()=>inventoryProductId==='scan-current'&&!document.getElementById('scannerDialog').open);
     console.log('PASS: camera scanner recovers from primary library failure, accepts decoded barcode, selects inventory and closes');
+    await page.evaluate(()=>{clearSaleCart();switchView('sales');window.__deliverBarcode=null});
+    await page.locator('#scanForSale').click();
+    await page.waitForFunction(()=>!!window.__deliverBarcode);
+    await page.evaluate(()=>window.__deliverBarcode('0123456789012'));
+    await page.waitForFunction(()=>cart.length===1);
+    assert.equal(await page.evaluate(()=>cart[0].id),'scan-current');
+    assert.equal(await page.evaluate(()=>window.__scanOpened),null);
+    assert.equal(await page.locator('#scannerDialog').evaluate(d=>d.open),true);
+    await page.locator('#scannerCartCheckout').click();
+    await page.waitForFunction(()=>document.getElementById('saleDialog').open);
+    console.log('PASS: quick checkout uses updateable full-frame camera inside existing APK, decoded barcode reaches cart and Cobrar opens checkout');
+
     await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart();delete window.VareliaAndroid;products=window.__scanOriginalProducts;window.products=products;localStorage.removeItem(K.products);K.products=window.__scanOriginalKey;if(window.__scanOriginalScope)localStorage.setItem('varelia_active_business_id',window.__scanOriginalScope);else localStorage.removeItem('varelia_active_business_id');window.vareliaBusinessScope=window.__scanOriginalScope||'';render()});
     console.log('PASS: mobile native scanner selects current inventory and adds a sale; UPC/EAN leading zero matches without replacing live products with stale storage');
     for(const view of ['products','inventory','sales','cash','suppliers','purchases','categories','appearance']){

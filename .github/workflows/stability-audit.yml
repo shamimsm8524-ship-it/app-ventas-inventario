@@ -22,9 +22,11 @@ jobs:
           node --test tests/purchase-cost.test.cjs
       - name: Install browser test tools
         run: |
-          npm install --ignore-scripts --no-audit --no-fund --prefix /tmp/varelia-browser playwright@1.56.1
+          npm install --ignore-scripts --no-audit --no-fund --prefix /tmp/varelia-browser playwright@1.56.1 html5-qrcode@2.3.8
           /tmp/varelia-browser/node_modules/.bin/playwright install chromium --only-shell
       - name: Mobile login and product form browser checks
         env:
           PLAYWRIGHT_MODULE: /tmp/varelia-browser/node_modules/playwright
-        run: node tests/browser-smoke.cjs
+        run: |
+          node tests/browser-smoke.cjs
+          node tests/barcode-image.cjs
