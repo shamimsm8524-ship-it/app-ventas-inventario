@@ -58,8 +58,8 @@ const server=http.createServer((req,res)=>{
     await page.waitForFunction(()=>!document.getElementById('productDialog')?.open);
     await page.evaluate(()=>document.querySelectorAll('dialog[open]').forEach(d=>d.close()));
     for(const view of ['products','inventory','sales','cash','suppliers','purchases','categories','appearance']){
-      await page.evaluate(id=>switchView(id),view);
-      assert.equal(await page.locator('#'+view).evaluate(el=>el.classList.contains('active')),true,'view '+view);
+      const state=await page.evaluate(id=>{switchView(id);return {target:document.getElementById(id)?.className,active:[...document.querySelectorAll('.view.active')].map(x=>x.id)}},view);
+      assert.equal(state.target?.split(' ').includes('active'),true,'view '+view+': '+JSON.stringify(state));
       if(view==='inventory'||view==='cash')console.log('VISUAL_'+view.toUpperCase()+':'+(await page.screenshot({type:'jpeg',quality:45})).toString('base64'));
     }
     console.log('PASS: catalog, inventory, sales, cash, suppliers, purchases, categories and appearance screens open');

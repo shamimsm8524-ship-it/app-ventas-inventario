@@ -39,12 +39,13 @@ function syncLater(p){
 
 function draftKeys(p={}){
   const keys=[];
+  const scope=String(window.vareliaBusinessScope||localStorage.getItem('varelia_active_business_id')||'no_account')+':';
   const id=text(p.id||document.getElementById('productId')?.value);
   const barcode=text(p.barcode||document.getElementById('barcode')?.value);
   const name=text(p.name||document.getElementById('productName')?.value).toLowerCase();
-  if(id)keys.push(DRAFT_PREFIX+'id:'+id);
-  if(barcode)keys.push(DRAFT_PREFIX+'barcode:'+barcode);
-  if(name)keys.push(DRAFT_PREFIX+'name:'+name);
+  if(id)keys.push(DRAFT_PREFIX+scope+'id:'+id);
+  if(barcode)keys.push(DRAFT_PREFIX+scope+'barcode:'+barcode);
+  if(name)keys.push(DRAFT_PREFIX+scope+'name:'+name);
   return [...new Set(keys)];
 }
 function putDraft(data,p={}){
@@ -93,6 +94,7 @@ function editorSnapshot(){
 }
 
 function restoreDraft(p,doSync=false){
+  if(p?._cloudId)return false;
   const d=getDraft(p);if(!d)return false;
   const current=comboTotal(p),draftTotal=(d.variantCombinations||[]).reduce((a,c)=>a+n(c?.stock),0);
   if(current>0){clearDraft(p);return false}
@@ -106,7 +108,7 @@ function restoreDraft(p,doSync=false){
 }
 
 function repairOne(p,doSync=true){
-  if(!p)return false;
+  if(!p||p._cloudId)return false;
   let changed=restoreDraft(p,false);
   const total=comboTotal(p);
   if(total>0&&Number(p.stock||0)!==total){p.stock=total;changed=true}
@@ -157,6 +159,8 @@ function patchAddToCart(){
 }
 
 function patchSubmit(){
+  return false; // The core form now saves the visible combinations atomically.
+
   const form=document.getElementById('productForm');
   if(!form||typeof form.onsubmit!=='function'||form.onsubmit.__vareliaVariantGuardV4)return false;
   const original=form.onsubmit;
@@ -206,6 +210,8 @@ function patchSubmit(){
 }
 
 function patchCheckout(){
+  if(window.vareliaCentralStockIn)return false; // Cloud transaction owns variant stock.
+
   const btn=document.getElementById('checkout');
   if(!btn||typeof btn.onclick!=='function'||btn.onclick.__vareliaVariantGuardV4)return false;
   const original=btn.onclick;

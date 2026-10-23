@@ -1,4 +1,5 @@
 BEGIN;
+ALTER TABLE public.varelia_sale_items ADD COLUMN IF NOT EXISTS variant_values jsonb;
 CREATE OR REPLACE FUNCTION public.varelia_staff_stock_in(p_product_id uuid, p_qty numeric, p_event text DEFAULT 'restock'::text)
  RETURNS jsonb
  LANGUAGE plpgsql
@@ -92,6 +93,8 @@ declare
   v_item public.varelia_sale_items%rowtype;
   v_product public.varelia_products%rowtype;
   v_qty numeric;
+  v_variant_index integer;
+  v_variant_stock numeric;
   v_stock_return numeric;
   v_before numeric;
   v_after numeric;
@@ -125,7 +128,15 @@ begin
   v_before:=v_product.stock;
   v_after:=v_before+v_stock_return;
 
-  update public.varelia_products set stock=v_after
+  IF v_item.variant_values IS NOT NULL AND jsonb_array_length(v_item.variant_values)>0 THEN
+    SELECT (ordinality-1)::integer,(value->>'stock')::numeric INTO v_variant_index,v_variant_stock
+    FROM jsonb_array_elements(coalesce(v_product.variant_combinations,'[]'::jsonb)) WITH ORDINALITY
+    WHERE value->'values'=v_item.variant_values LIMIT 1;
+    IF v_variant_index IS NULL THEN RAISE EXCEPTION 'La combinación vendida ya no existe; restáurala antes de devolver'; END IF;
+  END IF;
+  update public.varelia_products set stock=v_after,
+    variant_combinations=CASE WHEN v_variant_index IS NULL THEN variant_combinations ELSE
+      jsonb_set(variant_combinations,ARRAY[v_variant_index::text,'stock'],to_jsonb(coalesce(v_variant_stock,0)+v_stock_return)) END
   where id=v_product.id and business_id=v_business;
   update public.varelia_sale_items set returned_qty=returned_qty+v_qty
   where id=v_item.id;

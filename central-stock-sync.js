@@ -247,7 +247,7 @@
       const remoteStock=Number(p.stock)||0;
       // Si el stock principal quedó en 0 pero las tallas/colores sí tienen unidades,
       // el inventario debe mostrar la suma de las combinaciones.
-      const effectiveRemoteStock=(remoteStock<=0&&variantTotal>0)?variantTotal:remoteStock;
+      const effectiveRemoteStock=remoteStock;
       const key=String(p.id||'');
       const pending=lastProductStockWrite.get(key);
       const stock=(pending&&Date.now()-pending.at<5000)?pending.stock:effectiveRemoteStock;
@@ -257,6 +257,7 @@
       return {
       id:String(p.legacy_id||p.id),
       _cloudId:String(p.id),
+      _cloudUpdatedAt:p.updated_at,
       barcode:String(p.barcode||''),
       name:String(p.name||'Producto'),
       category:catMap.get(String(p.category_id||''))||'',
@@ -341,9 +342,12 @@
       }
       const payload=productPayload(p,categoryId);
       const legacy=String(p.id||'');
-      const existingBefore=await sb.from('varelia_products').select('id,stock,sale_presentations,advanced_pricing,medicine').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
+      const existingBefore=await sb.from('varelia_products').select('id,stock,sale_presentations,advanced_pricing,medicine,updated_at').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
       if(existingBefore.error)throw existingBefore.error;
       const existedBefore=!!existingBefore.data?.id;
+      if(existedBefore&&p._cloudUpdatedAt&&p._cloudUpdatedAt!==existingBefore.data.updated_at){
+        throw new Error('El producto cambió en otro dispositivo. Actualiza el inventario antes de guardar para conservar las ventas recientes.');
+      }
       // Presentaciones comerciales y precio mayorista tienen su propio módulo de guardado.
       // En productos normales ya existentes, la sincronización general NO debe escribir
       // estos dos campos porque un objeto local todavía no hidratado puede venir vacío
@@ -356,20 +360,21 @@
       }
       // Upsert atómico por negocio + id local: evita dos INSERT simultáneos
       // cuando el formulario y las características se guardan en el mismo instante.
-      let up=await sb.from('varelia_products').upsert(payload,{onConflict:'business_id,legacy_id'}).select('id').single();
-      // Respaldo seguro: si el upsert no puede resolver el conflicto, buscar y actualizar/insertar sin perder el producto nuevo.
-      if(up.error){
-        const found=await sb.from('varelia_products').select('id').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
-        if(found.error)throw up.error;
-        if(found.data?.id)up=await sb.from('varelia_products').update(payload).eq('id',found.data.id).select('id').single();
-        else up=await sb.from('varelia_products').insert(payload).select('id').single();
+      let up;
+      if(existedBefore){
+        up=await sb.from('varelia_products').update(payload)
+          .eq('business_id',businessId).eq('id',existingBefore.data.id)
+          .eq('updated_at',existingBefore.data.updated_at).select('id').maybeSingle();
+        if(!up.error&&!up.data?.id)throw new Error('El inventario cambió durante el guardado. Actualiza antes de reintentar.');
+      }else{
+        up=await sb.from('varelia_products').insert(payload).select('id').single();
       }
       if(up.error)throw up.error;
       if(!up.data?.id)throw new Error('La base de datos no devolvió el producto guardado.');
       // Verificación real: no mostramos "guardado" hasta comprobar que el registro
       // existe en la cuenta/negocio correcto después del INSERT/UPSERT.
       const verify=await sb.from('varelia_products')
-        .select('id,legacy_id,business_id,name,stock,sell_price,buy_price')
+        .select('id,legacy_id,business_id,name,stock,sell_price,buy_price,updated_at')
         .eq('business_id',businessId)
         .eq('id',up.data.id)
         .maybeSingle();
@@ -384,24 +389,15 @@
         ? Math.max(0,p.variantCombinations.reduce((a,c)=>a+(Number(c?.stock)||0),0))
         : Math.max(0,Number(p.stock)||0);
       let verifiedStock=Number(verify.data.stock)||0;
-      if(Math.abs(verifiedStock-expectedStock)>0.000001){
-        const repair=await sb.from('varelia_products')
-          .update({stock:expectedStock})
-          .eq('business_id',businessId)
-          .eq('id',verify.data.id)
-          .select('id,stock')
-          .maybeSingle();
-        if(repair.error)throw repair.error;
-        if(!repair.data?.id||Math.abs((Number(repair.data.stock)||0)-expectedStock)>0.000001){
-          throw new Error('La cantidad inicial no pudo quedar guardada correctamente.');
-        }
-        verifiedStock=Number(repair.data.stock)||0;
-      }
+      // Another sale may commit after our update. The current cloud stock wins;
+      // never overwrite it with a second absolute stock update during verification.
       if(!existedBefore&&verifiedStock>0){
         const mv=await sb.from('varelia_inventory_movements').insert({business_id:businessId,product_id:verify.data.id,product_name:verify.data.name,type:'add',qty:Number(verify.data.stock),stock_before:0,stock_after:Number(verify.data.stock),source:'producto_nuevo'});
         if(mv.error)throw mv.error;
       }
       p._cloudId=verify.data.id;
+      p._cloudUpdatedAt=verify.data.updated_at;
+      p.stock=verifiedStock;
       lastProductStockWrite.set(String(verify.data.id),{stock:verifiedStock,at:Date.now()});
       suppressRefreshUntil=Date.now()+5000;
       await refreshPublicStock();
@@ -541,6 +537,7 @@
         const pricingMode=String(item.pricingMode||item.advancedPricingMode||'').trim();
         payload.push({
           product_id:cloudId,
+          variant_values:(Array.isArray(item.selectedCharacteristics)?item.selectedCharacteristics:[]).map(x=>String(x.value)),
           qty:validQuantity(item.qty),
           unit_price:Math.max(0,Number(item.price)||0),
           ...(unit?{sale_unit:unit}:{}),

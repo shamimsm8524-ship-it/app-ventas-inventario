@@ -1,5 +1,6 @@
 BEGIN;
 CREATE SCHEMA IF NOT EXISTS private;
+ALTER TABLE public.varelia_sale_items ADD COLUMN IF NOT EXISTS variant_values jsonb;
 CREATE TABLE IF NOT EXISTS private.varelia_checkout_requests(
  business_id uuid NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -14,6 +15,9 @@ CREATE OR REPLACE FUNCTION public.varelia_commit_sale(p_items jsonb, p_source te
  SET search_path TO 'public'
 AS $function$
 declare
+  v_variant_values jsonb;
+  v_variant_index integer;
+  v_variant_stock numeric;
   v_request uuid;
   v_fingerprint text;
   v_previous record;
@@ -221,17 +225,29 @@ begin
       raise exception 'El precio cambió. Actualiza el carrito antes de cobrar.';
     end if;
 
+    v_variant_values:=coalesce(x->'variant_values','[]'::jsonb);
+    v_variant_index:=NULL;
+    IF jsonb_array_length(coalesce(v_product.variant_combinations,'[]'::jsonb))>0 THEN
+      SELECT (ordinality-1)::integer,(value->>'stock')::numeric INTO v_variant_index,v_variant_stock
+      FROM jsonb_array_elements(v_product.variant_combinations) WITH ORDINALITY
+      WHERE value->'values'=v_variant_values LIMIT 1;
+      IF v_variant_index IS NULL THEN RAISE EXCEPTION 'Selecciona la talla o color de %',v_product.name; END IF;
+      IF v_variant_stock IS NULL OR v_variant_stock<v_stock_qty THEN RAISE EXCEPTION 'Stock insuficiente para la talla o color de %',v_product.name; END IF;
+    END IF;
     v_before:=v_product.stock;
     if v_before is null or v_before<v_stock_qty then raise exception 'Stock insuficiente para %',v_product.name; end if;
     v_after:=v_before-v_stock_qty;
-    update public.varelia_products set stock=v_after where id=v_product.id and business_id=v_business;
+    update public.varelia_products set stock=v_after,
+      variant_combinations=CASE WHEN v_variant_index IS NULL THEN variant_combinations ELSE
+        jsonb_set(variant_combinations,ARRAY[v_variant_index::text,'stock'],to_jsonb(v_variant_stock-v_stock_qty)) END
+    where id=v_product.id and business_id=v_business;
 
     insert into public.varelia_sale_items(
       sale_id,business_id,product_id,product_name,unit_price,qty,buy_price_at_sale,returned_qty,
-      sale_unit,stock_qty,sale_presentation_id,sale_presentation_units
+      sale_unit,stock_qty,sale_presentation_id,sale_presentation_units,variant_values
     ) values(
       v_sale_id,v_business,v_product.id,v_product.name,v_price,v_qty,v_cost,0,v_unit,v_stock_qty,v_presentation_id,
-      case when v_presentation_id is not null then v_size else null end
+      case when v_presentation_id is not null then v_size else null end,v_variant_values
     ) returning id into v_item_id;
 
     insert into public.varelia_inventory_movements(
