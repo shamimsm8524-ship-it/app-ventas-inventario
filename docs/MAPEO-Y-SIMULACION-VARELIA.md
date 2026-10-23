@@ -52,6 +52,8 @@ El stock de productos normales se controla en su unidad base. Una presentación 
 3. **Stock del catálogo público:** se comprueban cantidades ya incluidas en el carrito al añadir unidades, medicamentos, peso y variantes. Los controles de incremento y la selección de peso no deben superar el stock disponible. El pedido se vuelve a validar antes de enviarlo.
 4. **Confirmación de pedidos:** solo descuenta del carrito las líneas y cantidades enviadas. Los productos añadidos durante la espera permanecen guardados para otra compra.
 
+5. **Recuperación del carrito público:** lee las selecciones guardadas antes del primer renderizado. El inicio ya no sobrescribe el carrito persistido con uno vacío.
+
 ## Cómo se simula sin modificar ventas reales
 
 - `tests/purchase-cost.test.cjs` y `tests/seller-history.test.cjs`: cálculos, persistencia, sesión y asignación de pagos.
