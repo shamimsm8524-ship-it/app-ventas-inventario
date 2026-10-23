@@ -62,19 +62,20 @@
         let options;try{options=readPrintOptions()}catch(e){alert(e.message);return}
         let code;try{code=await ensure(p)}catch{return alert('No se pudo preparar el código. El código del producto no fue cambiado.')}
         qty=Math.max(1,Math.min(200,Math.floor(Number(qty)||1)));
-        const labels=[];
-        for(let i=0;i<qty;i++){
-          const c=document.createElement('canvas');JsBarcode(c,code,{format:format(code),width:3,height:90,displayValue:true,fontSize:20,margin:14});
-          labels.push('<section class="label"><b class="name">'+esc(p.name||'Producto')+'</b><img alt="'+esc(code)+'" src="'+c.toDataURL('image/png')+'"><b class="price">S/ '+Number(p.sellPrice||0).toFixed(2)+'</b></section>');
-        }
-        const o=options,imageHeight=Math.max(9,Math.min(20,o.height*.46)),font=o.height<=22?8:10;
-        const css='@page{size:'+(o.roll?(o.paperWidth+'mm '+o.height+'mm'):(o.paper==='letter'?'letter':'A4'))+';margin:'+o.margin+'mm}*{box-sizing:border-box}html,body{margin:0;padding:0;height:auto!important;min-height:0!important;background:white;color:black;font-family:Arial,sans-serif}.labels{display:grid;grid-template-columns:repeat('+o.columns+','+o.width+'mm);grid-auto-rows:'+o.height+'mm;gap:'+o.gap+'mm;align-content:start;justify-content:start}.label{width:'+o.width+'mm;height:'+o.height+'mm;overflow:hidden;break-inside:avoid;page-break-inside:avoid;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:1mm;border:1px dashed #ccc}.name{max-width:100%;font-size:'+font+'pt;line-height:1.1;text-align:center;overflow:hidden;max-height:'+Math.max(4,o.height*.24)+'mm}.label img{display:block;width:'+(o.width-4)+'mm;height:'+imageHeight+'mm;object-fit:contain;flex:0 0 '+imageHeight+'mm}.price{font-size:'+(font+1)+'pt;line-height:1.1}@media screen{body{padding:12px}.labels{grid-template-columns:repeat(auto-fit,'+o.width+'mm)}}@media print{.label{border:0}'+(o.roll?'.labels{display:block;width:'+o.paperWidth+'mm}.label{margin:0 auto;break-after:page;page-break-after:always}.label:last-child{break-after:auto;page-break-after:auto}':'')+'}';
-        const html='<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Etiquetas de código de barras</title><style>'+css+'</style></head><body><main class="labels">'+labels.join('')+'</main></body></html>';
+        const payload={product:{name:String(p.name||'Producto').slice(0,200),barcode:code,price:Number(p.sellPrice||0)},qty,options};
+        const c=document.createElement('canvas');JsBarcode(c,code,{format:format(code),width:3,height:90,displayValue:true,fontSize:20,margin:14});
+        const html=window.VareliaLabelLayout.build(payload,c.toDataURL('image/png')).html;
         if(typeof window.VareliaAndroid?.printHtmlDocument==='function'){
           try{if(html.length>950000)throw new Error('Demasiadas copias para una sola impresión. Reduce la cantidad.');window.VareliaAndroid.printHtmlDocument('Etiquetas '+String(p.name||'Producto'),html);return 'Solicitud enviada a Android. Selecciona tu impresora o Guardar como PDF en el diálogo.'}catch(e){console.error('Impresión Android',e);alert('Android no pudo abrir la impresión. Revisa el servicio de impresión instalado.');return}
         }
         if(window.VareliaAndroid){
-          return 'Esta versión de la APK no incluye impresión nativa de etiquetas. Necesita actualizar la misma Varelia; mientras tanto usa Imagen PNG con la aplicación de tu impresora.';
+          const url=new URL('/imprimir-etiquetas.html',location.origin);url.hash=encodeURIComponent(JSON.stringify(payload));
+          if(typeof window.VareliaAndroid.openExternal==='function'){
+            window.VareliaAndroid.openExternal(url.href);
+            return 'Abriendo las etiquetas en el navegador de Android. Allí pulsa Imprimir y elige tu impresora.';
+          }
+          const link=document.createElement('a');link.href=url.href;link.target='_blank';link.rel='noopener';link.textContent='Abrir etiquetas para imprimir';link.className='btn secondary';modal.querySelector('.bc-card').prepend(link);
+          return 'Toca «Abrir etiquetas para imprimir» y usa el navegador de Android.';
         }
         // Browser printing waits for the barcode images before opening the system dialog.
         const frame=document.createElement('iframe');frame.title='Impresión de etiquetas';frame.style.cssText='position:fixed;left:-10000px;top:0;width:800px;height:600px;border:0';

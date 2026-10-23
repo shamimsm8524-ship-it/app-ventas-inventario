@@ -274,13 +274,24 @@ const server=http.createServer((req,res)=>{
     assert.match(await page.locator('#bcPrintSummary').innerText(),/rollo de 100 mm/);
     await page.locator('#bcPaper').selectOption('a4');await page.locator('#bcLabelSize').selectOption('50x30');
     assert.equal(await page.evaluate(()=>products.find(p=>p.id==='label-fixture').barcode),'7750670313537');
-    await page.evaluate(()=>{window.VareliaAndroid={getAppVersion(){return '1.0.50'}};window.__labelPrint=null});
+    await page.evaluate(()=>{window.VareliaAndroid={openExternal(url){window.__externalLabelUrl=url}};window.__labelPrint=null});
     await labelRow.locator('.bc-print').click();
-    await page.waitForFunction(()=>document.querySelector('.bc-row[data-id="label-fixture"] .bc-progress')?.textContent.includes('no incluye impresión nativa'));
+    await page.waitForFunction(()=>!!window.__externalLabelUrl);
+    const externalUrl=await page.evaluate(()=>window.__externalLabelUrl);
+    assert.ok(externalUrl.includes('/imprimir-etiquetas.html#'));
+    const externalPreview=await browser.newPage({viewport:{width:393,height:852}});
+    await externalPreview.addInitScript(()=>{window.print=()=>{window.__printInvoked=true}});
+    await externalPreview.goto(externalUrl,{waitUntil:'load'});
+    await externalPreview.waitForFunction(()=>!document.getElementById('print').disabled);
+    assert.equal(await externalPreview.locator('.label').count(),3);
+    assert.match(await externalPreview.locator('#status').innerText(),/3 etiqueta/);
+    await externalPreview.locator('#print').click();
+    assert.equal(await externalPreview.evaluate(()=>window.__printInvoked),true);
+    await externalPreview.close();
     assert.equal(await labelRow.locator('.bc-print').isEnabled(),true);
     await page.locator('.bc-close').click();
     await page.evaluate(()=>{delete window.VareliaAndroid;products=products.filter(p=>p.id!=='label-fixture');window.products=products;render()});
-    console.log('PASS: printing loads actual barcode generator locally with external CDNs blocked; native bridge receives copies and paper settings; old APK shows explicit reason instead of silently invoking unsupported window.print');
+    console.log('PASS: printing loads actual barcode generator locally with external CDNs blocked; native bridge receives copies and paper settings; old APK opens standalone browser label page and its print button invokes printing');
     for(const view of ['products','inventory','sales','cash','suppliers','purchases','categories','appearance']){
       const state=await page.evaluate(id=>{switchView(id);return {target:document.getElementById(id)?.className,active:[...document.querySelectorAll('.view.active')].map(x=>x.id)}},view);
       assert.equal(state.target?.split(' ').includes('active'),true,'view '+view+': '+JSON.stringify(state));

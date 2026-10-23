@@ -1,0 +1,17 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Imprimir etiquetas · Varelia</title><style>.controls{position:sticky;top:0;z-index:2;background:#fff;padding:14px;border-bottom:1px solid #ddd;font:16px/1.4 Arial,sans-serif}.controls h1{font-size:22px;margin:0 0 8px}.controls button{min-height:48px;padding:10px 20px;border:0;border-radius:10px;background:#2563eb;color:#fff;font-size:17px;font-weight:bold}.controls button:disabled{opacity:.5}#status{margin:8px 0}.controls p{margin:8px 0}@media print{.controls{display:none!important}}</style></head><body><header class="controls"><h1>Etiquetas de productos</h1><p id="status" role="status">Preparando etiquetas…</p><button id="print" type="button" disabled>Imprimir etiquetas</button><p>Selecciona tu impresora o Guardar como PDF. Usa el mismo tamaño de papel y escala 100 %. Para impresoras Bluetooth, el servicio de impresión compatible debe estar instalado en Android.</p></header><div id="preview"></div><script src="/vendor/JsBarcode.all.min.js?v=3.11.6"></script><script src="/barcode-label-layout.js?v=20261023-external-print-v130"></script><script>
+(async()=>{
+ const status=document.getElementById('status'),button=document.getElementById('print');
+ try{
+  const payload=JSON.parse(decodeURIComponent(location.hash.slice(1)));
+  if(!payload.product||typeof payload.product.barcode!=='string'||!/^[\x20-\x7e]{1,128}$/.test(payload.product.barcode)||String(payload.product.name||'').length>200)throw Error('Datos de etiqueta inválidos. Abre la impresión desde Varelia.');
+  if(typeof JsBarcode!=='function'||!window.VareliaLabelLayout)throw Error('No se pudo cargar el generador. Revisa la conexión y vuelve a abrir este enlace.');
+  const code=payload.product.barcode;let format='CODE128';
+  if(/^\d{13}$/.test(code)){let sum=0;for(let i=0;i<12;i++)sum+=Number(code[i])*(i%2?3:1);if((10-sum%10)%10===Number(code[12]))format='EAN13'}
+  const canvas=document.createElement('canvas');JsBarcode(canvas,code,{format,width:3,height:90,displayValue:true,fontSize:20,margin:14});
+  const result=window.VareliaLabelLayout.build(payload,canvas.toDataURL('image/png')),style=document.createElement('style');style.textContent=result.css;document.head.appendChild(style);document.getElementById('preview').innerHTML=result.body;
+  await Promise.all([...document.querySelectorAll('#preview img')].map(img=>img.decode()));
+  status.textContent=payload.qty+' etiqueta(s) de '+payload.options.width+' × '+payload.options.height+' mm listas.';
+  button.disabled=false;button.onclick=()=>{try{window.print()}catch(e){status.textContent='No se pudo abrir la impresión. Abre este enlace en Chrome para Android.'}};
+ }catch(e){status.textContent=e.message||'No se pudieron preparar las etiquetas. Vuelve a abrirlas desde Varelia.'}
+})();
+</script></body></html>
