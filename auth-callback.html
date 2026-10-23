@@ -44,40 +44,32 @@ function goHome(session){
   location.replace(HOME+'?login=ok&t='+Date.now());
 }
 try{
-  // Primero aceptar un retorno OAuth sin PKCE. Esto evita fallos en navegadores
-  // móviles/in-app que cambian de contexto y pierden el code_verifier.
-  const implicit=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'implicit'}});
-  await new Promise(r=>setTimeout(r,80));
-  let {data:implicitData,error:implicitError}=await implicit.auth.getSession();
-  if(implicitError)throw implicitError;
-  if(implicitData?.session){goHome(implicitData.session);return;}
-
-  const code=new URLSearchParams(location.search).get('code');
+  // Un solo cliente y un único intercambio: los códigos PKCE son de un solo uso.
+  const params=new URLSearchParams(location.search);
+  const hash=new URLSearchParams(location.hash.slice(1));
+  const authError=params.get('error_description')||params.get('error')||hash.get('error_description')||hash.get('error');
+  if(authError)throw new Error(authError);
+  if(!window.supabase)throw new Error('No se pudo cargar el servicio de acceso. Comprueba tu conexión.');
+  const client=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce'}});
+  const code=params.get('code');
+  const access=hash.get('access_token'),refresh=hash.get('refresh_token');
+  let result;
   if(code){
-    const pkce=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce'}});
-    msg.textContent='Completando inicio con Google...';
-    const {data,error}=await pkce.auth.exchangeCodeForSession(code);
-    if(!error&&data?.session){goHome(data.session);return;}
-
-    // Si el navegador perdió el verificador PKCE, iniciar un segundo intento
-    // desde este mismo contexto usando el flujo compatible con SPA.
-    const detail=String(error?.message||'').toLowerCase();
-    if(detail.includes('code verifier')||detail.includes('pkce')){
-      msg.textContent='Tu navegador cambió de contexto. Reintentando el inicio con Google de forma compatible...';
-      history.replaceState({},document.title,location.pathname);
-      const {error:retryError}=await implicit.auth.signInWithOAuth({provider:'google',options:{redirectTo:CALLBACK}});
-      if(retryError)throw retryError;
-      return;
-    }
-    if(error)throw error;
+    result=await client.auth.exchangeCodeForSession(code);
+  }else if(access&&refresh){
+    // Retorno de Android: el navegador externo recibe el flujo implícito.
+    result=await client.auth.setSession({access_token:access,refresh_token:refresh});
+  }else{
+    result=await client.auth.getSession();
   }
-
-  msg.textContent='Reintentando inicio con Google...';
-  const {error:startError}=await implicit.auth.signInWithOAuth({provider:'google',options:{redirectTo:CALLBACK}});
-  if(startError)throw startError;
+  if(result.error)throw result.error;
+  if(!result.data?.session)throw new Error('No se recibió una sesión de Google. Vuelve al inicio e inténtalo otra vez.');
+  history.replaceState({},document.title,location.pathname+(RETURN_TO_APP?'?app=1':''));
+  goHome(result.data.session);
 }catch(e){
   console.error('Varelia OAuth callback',e);
-  msg.textContent='No se pudo completar el inicio con Google. Cierra esta ventana, vuelve a Varelia e inténtalo nuevamente.';
+  msg.textContent='No se pudo completar el inicio con Google: '+(e.message||'Error de conexión');
+  const back=document.createElement('a');back.href=HOME;back.textContent='Volver a iniciar sesión';back.style.cssText='display:block;margin-top:16px';msg.appendChild(back);
 }
 })();
 </script>
