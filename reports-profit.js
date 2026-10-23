@@ -160,7 +160,7 @@
   function gainItemData(item,products){
     const id=String(item.productId??item.product_id??item.id??'');
     const name=String(item.name??item.product_name??item.productName??'').trim();
-    const match=products.find(p=>String(p.id)===id||String(p.legacy_id||'')===id)||
+    const match=products.find(p=>String(p.id)===id||String(p._cloudId||'')===id||String(p.legacy_id||'')===id)||
       products.find(p=>String(p.name||'').trim().toLowerCase()===name.toLowerCase());
     const title=name||String(match?.name||'Producto');
     const normalizeUnit=value=>String(value||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -176,7 +176,7 @@
     const stockNumber=stockQty==null||stockQty===''?NaN:Number(stockQty);
     const presentationId=String(item.sale_presentation_id??item.salePresentationId??item.presentation_id??item.presentationId??'').trim();
     const presentationUnits=Number(item.sale_presentation_units??item.salePresentationUnits??item.presentation_units??item.presentationUnits??0)||0;
-    const medicinePresentation=['caja','cajas','box','boxes','blister','blisters','blisteres','pastilla','pastillas','pill','pills','tableta','tabletas'].includes(rawUnit);
+    const medicinePresentation=!!match?.medicine&&['caja','cajas','box','boxes','blister','blisters','blisteres','pastilla','pastillas','pill','pills','tableta','tabletas'].includes(rawUnit);
     const presentationSale=!!presentationId||presentationUnits>1||medicinePresentation;
 
     // Cantidad visible en Ganancias: presentaciones para packs/cajas/blísteres,

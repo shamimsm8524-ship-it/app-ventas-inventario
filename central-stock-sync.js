@@ -128,6 +128,7 @@
     const rawCommercial=p?.commercialPricing||p?.advancedPricing||{};
     const commercial={
       version:2,
+      purchaseCost:rawCommercial.purchaseCost,
       wholesaleEnabled:!!rawCommercial.wholesaleEnabled,
       wholesaleMinQty:Math.max(2,Math.floor(Number(rawCommercial.wholesaleMinQty)||12)),
       wholesalePrice:Math.max(0,Number(rawCommercial.wholesalePrice)||0),
@@ -249,7 +250,7 @@
       const pending=lastProductStockWrite.get(key);
       const stock=(pending&&Date.now()-pending.at<5000)?pending.stock:effectiveRemoteStock;
       const rawCommercial=p.advanced_pricing&&typeof p.advanced_pricing==='object'?p.advanced_pricing:{};
-      const commercial={version:2,wholesaleEnabled:!!rawCommercial.wholesaleEnabled,wholesaleMinQty:Math.max(2,Math.floor(Number(rawCommercial.wholesaleMinQty)||12)),wholesalePrice:Math.max(0,Number(rawCommercial.wholesalePrice)||0),promoEnabled:!!rawCommercial.promoEnabled,promoType:['percent','fixed'].includes(String(rawCommercial.promoType))?String(rawCommercial.promoType):'percent',promoValue:Math.max(0,Number(rawCommercial.promoValue)||0),promoStart:String(rawCommercial.promoStart||''),promoEnd:String(rawCommercial.promoEnd||''),promoName:String(rawCommercial.promoName||'Promoción').trim()||'Promoción'};
+      const commercial={version:2,purchaseCost:rawCommercial.purchaseCost,wholesaleEnabled:!!rawCommercial.wholesaleEnabled,wholesaleMinQty:Math.max(2,Math.floor(Number(rawCommercial.wholesaleMinQty)||12)),wholesalePrice:Math.max(0,Number(rawCommercial.wholesalePrice)||0),promoEnabled:!!rawCommercial.promoEnabled,promoType:['percent','fixed'].includes(String(rawCommercial.promoType))?String(rawCommercial.promoType):'percent',promoValue:Math.max(0,Number(rawCommercial.promoValue)||0),promoStart:String(rawCommercial.promoStart||''),promoEnd:String(rawCommercial.promoEnd||''),promoName:String(rawCommercial.promoName||'Promoción').trim()||'Promoción'};
       const presentations=Array.isArray(p.sale_presentations)?p.sale_presentations:[];
       return {
       id:String(p.legacy_id||p.id),
@@ -347,7 +348,7 @@
       // y borrar Six Pack/Docena/Mayorista que sí están correctamente guardados en nube.
       // Si el producto se convierte en medicamento, sí permitimos limpiarlos porque
       // los medicamentos usan su modelo Caja / Blíster / Pastilla.
-      if(existedBefore&&!p.medicine){
+      if(existedBefore&&!p.medicine&&!p.__commercialEdited){
         delete payload.sale_presentations;
         delete payload.advanced_pricing;
       }

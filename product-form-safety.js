@@ -19,8 +19,20 @@
   function current(){const id=String($('productId')?.value||'');return id?list().find(p=>String(p?.id||'')===id)||null:null}
 
   function commercialRows(){return [...document.querySelectorAll('#vCommercialRows [data-crow]')]}
+  function updatePurchaseSummary(){
+    const medicine=!!$('vMedicineToggle')?.checked||medCategory();
+    const purchaseLabel=$('purchaseQuantityLabel');
+    if(purchaseLabel)purchaseLabel.hidden=medicine;
+    if(medicine&&$('purchaseQuantity'))$('purchaseQuantity').value=1;
+    const total=Number($('buyPrice')?.value),quantity=Number($('purchaseQuantity')?.value);
+    const out=$('purchaseUnitCost');
+    const text=Number.isFinite(total)&&total>=0&&Number.isFinite(quantity)&&quantity>0?'Costo por '+currentUnitLabel()+': S/ '+(total/quantity).toFixed(6):'Escribe una cantidad mayor que cero.';
+    if(out&&out.textContent!==text)out.textContent=text;
+  }
+  document.addEventListener('input',e=>{if(['buyPrice','purchaseQuantity'].includes(e.target?.id))updatePurchaseSummary()});
   function currentUnitLabel(){return String($('unit')?.value||'Unidad').trim()||'Unidad'}
   function ensurePriceMeaning(){
+    updatePurchaseSummary();
     const price=$('sellPrice'),label=price?.closest('label'),unit=currentUnitLabel();
     const title=label?.querySelector('span');
     const priceTitle=`Precio por 1 ${unit} (S/)`;
@@ -210,27 +222,7 @@
     if(e.target?.id==='unit'){applyVisibility();ensurePriceMeaning()}
   },true);
 
-  document.addEventListener('submit',e=>{
-    if(e.target?.id!=='productForm')return;
-    const form=e.target;
-    const med=!!$('vMedicineToggle')?.checked||medCategory();
-    if(med)return;
-    queueMicrotask(()=>{
-      const dlg=$('productDialog');
-      if(!dlg?.open)return;
-      const id=String($('productId')?.value||'');
-      const barcode=String($('barcode')?.value||'').trim();
-      const name=String($('productName')?.value||'').trim().toLowerCase();
-      const saved=(id&&list().find(p=>String(p?.id||'')===id))
-        ||(barcode&&list().find(p=>String(p?.barcode||'').trim()===barcode))
-        ||(name&&[...list()].reverse().find(p=>String(p?.name||'').trim().toLowerCase()===name));
-      if(!saved)return;
-      repairPresentationTotals(saved);
-      try{dlg.close()}catch{}
-      window.vareliaToast?.('Producto guardado. Sincronizando en segundo plano…','ok');
-      form.querySelectorAll('button[type="submit"],input[type="submit"]').forEach(btn=>{btn.disabled=false});
-    });
-  },false);
+  // El formulario principal confirma el guardado; no cerrar desde una microtarea.
 
   const boot=()=>{
     ensurePriceMeaning();

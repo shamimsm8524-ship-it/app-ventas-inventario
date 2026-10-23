@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQ_FILE = 202;
     private static final int REQ_SCAN = 203;
     private static final String HOME = "https://vareliastore.tech/";
-    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.51&fresh=20261013-fiado-native-print-v1&native_clean=1";
+    private static final String HOME_FRESH = "https://vareliastore.tech/?native_app=1.0.52&fresh=20261023-purchase-cost-v114&native_clean=1";
 
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
@@ -596,7 +596,7 @@ public class MainActivity extends AppCompatActivity {
                 String brandJs = "(function(){"
                         + "var l=document.querySelector('.logo');if(l){l.title='Varelia Store';}"
                         + "var h=document.querySelector('.brand h1');if(h){h.textContent='Varelia';h.id='vareliaAppName';}"
-                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';var v=document.createElement('span');v.id='vareliaNativeVersion';v.textContent='v1.0.51';v.style.display='block';m.appendChild(v);}"
+                        + "var m=document.querySelector('.brand .meta');if(m&&!m.dataset.nativeVersion){m.dataset.nativeVersion='1';var v=document.createElement('span');v.id='vareliaNativeVersion';v.textContent='v1.0.52';v.style.display='block';m.appendChild(v);}"
                         + "document.title='Varelia Store';"
                         + "})();";
                 view.evaluateJavascript(brandJs, null);
@@ -856,7 +856,7 @@ public class MainActivity extends AppCompatActivity {
 
         @JavascriptInterface
         public String getAppVersion() {
-            return "1.0.51";
+            return "1.0.52";
         }
 
         @JavascriptInterface

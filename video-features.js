@@ -279,7 +279,7 @@
             <div class="vrefStat"><small>Transacciones</small><strong>${ss.length}</strong></div>
             <div class="vrefStat"><small>Fiado pendiente</small><strong id="vareliaCreditPendingStat">${creditSummary?.loaded?money((creditSummary.pending||0)/100):money(fiados.reduce((a,s)=>a+Math.max(0,(Number(s.total)||0)-(Number(s.paidAmount)||0)),0))}</strong></div>
           </div>
-          <div class="vrefPanel"><h3>Desglose por método de pago</h3><div class="vrefPayments">${Object.keys(payments).length?Object.entries(payments).map(([k,v])=>`<div class="vrefPayment"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join(''):'<div class="vrefPayment"><span>Sin ventas</span><b>${money(0)}</b></div>'}</div></div>
+          <div class="vrefPanel"><h3>Desglose por método de pago</h3><div class="vrefPayments">${Object.keys(payments).length?Object.entries(payments).map(([k,v])=>`<div class="vrefPayment"><span>${esc(k)}</span><b>${money(v)}</b></div>`).join(''):`<div class="vrefPayment"><span>Sin ventas</span><b>${money(0)}</b></div>`}</div></div>
           <div class="vrefTabs" style="margin-top:12px;margin-bottom:0">
             ${[['today','Hoy'],['day','📅 Día'],['week','Semana'],['month','Mes'],['all','Todo']].map(([k,l])=>`<button class="vrefTab ${period===k?'active':''}" data-period="${k}">${l}</button>`).join('')}
           </div>

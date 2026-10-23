@@ -18,7 +18,7 @@
 
   function normalizePricing(raw){
     const r=raw&&typeof raw==='object'?raw:{};
-    return {version:2,wholesaleEnabled:!!r.wholesaleEnabled,wholesaleMinQty:Math.max(2,Math.floor(Number(r.wholesaleMinQty)||12)),wholesalePrice:Math.max(0,Number(r.wholesalePrice)||0),promoEnabled:!!r.promoEnabled,promoType:['percent','fixed'].includes(String(r.promoType))?String(r.promoType):'percent',promoValue:Math.max(0,Number(r.promoValue)||0),promoStart:String(r.promoStart||''),promoEnd:String(r.promoEnd||''),promoName:String(r.promoName||'Promoción').trim()||'Promoción'};
+    return {purchaseCost:r.purchaseCost,version:2,wholesaleEnabled:!!r.wholesaleEnabled,wholesaleMinQty:Math.max(2,Math.floor(Number(r.wholesaleMinQty)||12)),wholesalePrice:Math.max(0,Number(r.wholesalePrice)||0),promoEnabled:!!r.promoEnabled,promoType:['percent','fixed'].includes(String(r.promoType))?String(r.promoType):'percent',promoValue:Math.max(0,Number(r.promoValue)||0),promoStart:String(r.promoStart||''),promoEnd:String(r.promoEnd||''),promoName:String(r.promoName||'Promoción').trim()||'Promoción'};
   }
   function normalizePresentations(raw){
     const used=new Set();
@@ -80,7 +80,26 @@
     const payload={sale_presentations:presentationsFor(p),advanced_pricing:pricingFor(p)};
     const {error}=await sb.from('varelia_products').update(payload).eq('id',id);if(error)throw error;
   }
-  function bindForm(){if(!ensureForm())return false;const form=$('productForm');if(!form||form.dataset.commercialV18==='1')return true;form.dataset.commercialV18='1';form.addEventListener('submit',e=>{if($('vCommercialPricingBox')?.style.display==='none')return;let pres,c;try{pres=formPresentations();c=formPricing()}catch(err){e.preventDefault();e.stopImmediatePropagation();toast(err.message,'warn');return}const problem=validate(c);if(problem){e.preventDefault();e.stopImmediatePropagation();toast(problem,'warn');return}const pending={id:String($('productId')?.value||''),barcode:String($('barcode')?.value||''),name:String($('productName')?.value||''),pres,c};let n=0;const apply=async()=>{n++;const ps=listProducts(),p=(pending.id&&ps.find(x=>String(x.id)===pending.id))||(pending.barcode&&ps.find(x=>String(x.barcode||'')===pending.barcode))||ps.find(x=>String(x.name||'')===pending.name);if(!p){if(n<120)return setTimeout(apply,100);return toast('No se pudieron asociar las presentaciones al producto.','warn')}p.salePresentations=pending.pres;p.commercialPricing=pending.c;try{if(typeof save==='function')save()}catch{}try{await syncCommercialProduct(p);toast('Producto y presentaciones guardados.','ok')}catch(err){console.error(err);toast('Producto guardado, pero las presentaciones no sincronizaron.','warn')}};setTimeout(apply,120)},true);document.addEventListener('click',e=>{if(e.target.closest?.('[data-edit]'))setTimeout(()=>{const id=String($('productId')?.value||'');const p=listProducts().find(x=>String(x.id)===id);if(p)fillForm(p)},80);if(e.target.closest?.('#newProduct'))setTimeout(clearForm,50)},true);$('unit')?.addEventListener('change',refreshEligibility);$('productCategory')?.addEventListener('change',refreshEligibility);$('vMedicineToggle')?.addEventListener('change',refreshEligibility);return true}
+  function readCommercialForm(){
+    if($('vCommercialPricingBox')?.style.display==='none')return null;
+    const presentations=formPresentations(),pricing=formPricing(),problem=validate(pricing);
+    if(problem)throw new Error(problem);
+    return {presentations,pricing};
+  }
+  function bindForm(){
+    if(!ensureForm())return false;
+    const form=$('productForm');if(!form||form.dataset.commercialV18==='1')return true;
+    form.dataset.commercialV18='1';
+    // El controlador principal guarda precios y presentaciones juntos, antes de sincronizar.
+    document.addEventListener('click',e=>{
+      if(e.target.closest?.('[data-edit]'))setTimeout(()=>{const p=listProducts().find(x=>String(x.id)===String($('productId')?.value||''));if(p)fillForm(p)},80);
+      if(e.target.closest?.('#newProduct,#inventoryNewProduct'))setTimeout(clearForm,50);
+    },true);
+    $('unit')?.addEventListener('change',refreshEligibility);
+    $('productCategory')?.addEventListener('change',refreshEligibility);
+    $('vMedicineToggle')?.addEventListener('change',refreshEligibility);
+    return true;
+  }
 
   async function hydrateFromCloud(){
     const sb=window.vareliaSupabase;if(!sb)return false;
@@ -107,7 +126,7 @@
   document.addEventListener('click',e=>{const b=e.target.closest?.('[data-add]');if(!b)return;const p=listProducts().find(x=>String(x.id)===String(b.dataset.add));if(!p||!enabledFor(p))return;e.preventDefault();e.stopImmediatePropagation();installAdd();window.addToCart?.(p,1)},true);
 
   window.VareliaAdvancedPricing={normalizeConfig:normalizePricing,getConfig:pricingFor,promoActive,applyPromo};
-  window.VareliaCommercialPresentations={normalizePricing,normalizePresentations,pricingFor,presentationsFor,enabledFor};
+  window.VareliaCommercialPresentations={normalizePricing,normalizePresentations,pricingFor,presentationsFor,enabledFor,readForm:readCommercialForm};
   let tries=0;const timer=setInterval(()=>{tries++;bindForm();installAdd();installRpcBridge();if(window.vareliaSupabase&&tries%10===0)queueHydrate();if(tries>180)clearInterval(timer)},100);
   addEventListener('pageshow',()=>setTimeout(()=>{bindForm();installAdd();installRpcBridge();queueHydrate()},50));
 })();
