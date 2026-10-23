@@ -86,3 +86,9 @@ test('product names and codes are escaped before rendering HTML',()=>{
   const line=html.slice(start,html.indexOf('\n',start));const env={};vm.createContext(env);vm.runInContext('const '+line+'\nthis.escape=esc',env);
   assert.equal(env.escape('<img src=x onerror="alert(1)">'), '&lt;img src=x onerror=&quot;alert(1)&quot;&gt;');
 });
+test('image persistence module never replaces the product form save handler',()=>{
+  const src=read('product-view-20260930-17.js');
+  assert(!src.includes('productForm.onsubmit='));
+  assert(src.includes('VareliaProductImages={put:putImage'));
+  assert(read('index.html').includes('await images.put(obj.id,obj.image)'));
+});

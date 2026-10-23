@@ -81,7 +81,7 @@
 })();
 </script>
 <script id="vareliaBuildGuard">
-(()=>{const BUILD='20261023-PRESENTATION-COST-V115';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
+(()=>{const BUILD='20261023-PRODUCT-SAVE-V116';try{const key='varelia_ui_build';const u=new URL(location.href);if(localStorage.getItem(key)!==BUILD){localStorage.setItem(key,BUILD);if(u.searchParams.get('_v')!==BUILD){u.searchParams.set('_v',BUILD);location.replace(u.toString())}}}catch{}})();
 </script>
 <script>
 try{if(new URL(location.href).searchParams.has('native_app'))window.__vareliaNativePdfHookV2=true}catch{}
@@ -672,6 +672,12 @@ productForm.onsubmit=async e=>{
     obj.commercialPricing={...(commercialDraft?.pricing||old?.commercialPricing||{}),purchaseCost:{total:costTotal,quantity:costQuantity}};
     if(commercialDraft)obj.salePresentations=commercialDraft.presentations;
   }
+  obj.variants=String(document.getElementById('vProductVariants')?.value??old?.variants??'').trim();
+  obj.specifications=String(document.getElementById('productSpecifications')?.value??old?.specifications??'').trim();
+  try{
+    const images=window.VareliaProductImages;
+    if(images){if(obj.image)await images.put(obj.id,obj.image);else await images.remove(obj.id)}
+  }catch(err){console.error('Imagen del producto',err);alert('No se pudo guardar la imagen. Comprueba el espacio disponible e inténtalo otra vez.');return}
   old?Object.assign(old,obj):products.push(obj);
   const saved=old||obj;
   if(!isMedicineProduct)saved.__commercialEdited=true;
@@ -1134,7 +1140,7 @@ if(!window.supabase){
 <script src="session-recovery.js?v=20261023-auth-webview-v112"></script>
 <script src="auth-enhancements.js?v=20261006-google-button-v2"></script>
 
-<script src="product-view-20260930-17.js?v=20261009-sync-recovery-v13"></script>
+<script src="product-view-20260930-17.js?v=20261023-product-save-v116"></script>
 <script src="public-catalog.js?v=20261022-short-hero-v110"></script>
 <script src="business-name.js?v=20261008-receipt-fix-v2"></script>
 <script src="catalog-orders-admin.js?v=20261009-business-scope-v57"></script>
