@@ -181,7 +181,7 @@ const server=http.createServer((req,res)=>{
     await page.waitForFunction(()=>inventoryProductId==='scan-current'&&!document.getElementById('scannerDialog').open);
     console.log('PASS: camera scanner recovers from primary library failure, accepts decoded barcode, selects inventory and closes');
     await page.evaluate(()=>{clearSaleCart();switchView('sales');window.__deliverBarcode=null});
-    await page.locator('#scanForSale').click();
+    await page.locator('#vposScan').click();
     await page.waitForFunction(()=>!!window.__deliverBarcode);
     await page.evaluate(()=>window.__deliverBarcode('0123456789012'));
     await page.waitForFunction(()=>cart.length===1);
