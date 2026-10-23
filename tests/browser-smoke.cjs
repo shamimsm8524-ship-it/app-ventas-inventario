@@ -199,6 +199,17 @@ const server=http.createServer((req,res)=>{
     assert.equal(await page.evaluate(()=>cart[0].id),'scan-current');
     assert.equal(await page.evaluate(()=>window.__scanOpened),null);
     assert.equal(await page.locator('#scannerDialog').evaluate(d=>d.open),true);
+    await page.evaluate(()=>{window.__cartBeforeLayout=cart.slice();for(let i=0;i<12;i++)cart.push({...cart[0],cartKey:'pack-'+i,selectionLabel:'Six Pack',salePresentationUnits:6,price:15});window.dispatchEvent(new CustomEvent('varelia:cart-changed'))});
+    assert.match(await page.locator('#scannerCartItems').innerText(),/Six Pack.*6 unidades por presentación/);
+    for(const size of [{width:393,height:852},{width:360,height:640}]){
+      await page.setViewportSize(size);
+      const bounds=await page.evaluate(()=>{const d=document.getElementById('scannerDialog').getBoundingClientRect(),b=document.getElementById('scannerCartCheckout').getBoundingClientRect(),m=document.querySelector('#scannerDialog .modal').getBoundingClientRect(),t=document.getElementById('scannerCartTotal').getBoundingClientRect(),r=document.getElementById('vareliaReader').getBoundingClientRect();return {button:b.bottom,total:t.bottom,modal:m.bottom,dialog:d.bottom,screen:innerHeight,reader:r.height,width:b.right}});
+      assert.ok(bounds.button<=Math.min(bounds.modal,bounds.dialog,bounds.screen)+1,JSON.stringify(bounds));assert.ok(bounds.total<=bounds.screen,JSON.stringify(bounds));assert.ok(bounds.reader>=80);assert.ok(bounds.width<=size.width);
+    }
+    console.log('VISUAL_SCANNER:'+(await page.screenshot({type:'jpeg',quality:50})).toString('base64'));
+    await page.setViewportSize({width:393,height:852});
+    await page.evaluate(()=>{cart=window.__cartBeforeLayout;window.dispatchEvent(new CustomEvent('varelia:cart-changed'))});
+    console.log('PASS: scanner cart keeps total and Cobrar visible at 393x852 and 360x640 with twelve items; package labels are distinct');
     await page.locator('#scannerCartCheckout').click();
     await page.waitForFunction(()=>document.getElementById('saleDialog').open);
     console.log('PASS: quick checkout uses updateable full-frame camera inside existing APK, decoded barcode reaches cart and Cobrar opens checkout');
