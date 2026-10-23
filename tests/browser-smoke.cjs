@@ -344,13 +344,13 @@ const server=http.createServer((req,res)=>{
       sb.functions={invoke:async()=>({data:{sellers:[{id:'qa-seller',full_name:'Caja 2',email:'seller@example.test',permissions:{sales:true}}]},error:null})};
       sb.from=table=>{const filters=[],q={};let range=[0,50];
         for(const method of ['select','order','abortSignal','limit'])q[method]=()=>q;
-        q.eq=(k,v)=>{filters.push([k,v]);return q};q.gte=(k,v)=>{filters.push([k,v]);return q};q.range=(a,b)=>{range=[a,b];return q};
+        q.eq=(k,v)=>{filters.push([k,v]);return q};q.gte=(k,v)=>{filters.push([k,v]);return q};q.lt=(k,v)=>{filters.push([k,v]);return q};q.in=(k,v)=>{filters.push([k,v]);return q};q.range=(a,b)=>{range=[a,b];return q};
         const result=()=>{if(table==='profiles')return {data:{id:'qa-owner',business_id:'qa-business',role:'owner',full_name:'Dueña',permissions:{}},error:null};
           if(table==='varelia_sales'){
             if(!filters.some(([k,v])=>k==='business_id'&&v==='qa-business')||!filters.some(([k,v])=>k==='created_by'&&v==='qa-seller'))throw Error('Missing seller/business scope');
             window.__sellerHistoryReads.push({table,filters,range});return {data:Array.from({length:52},(_,i)=>({id:'seller-sale-'+i,total:15,created_by:'qa-seller',created_at:new Date().toISOString()})).slice(range[0],range[1]+1),error:null};
           }
-          if(table==='varelia_sale_details'){if(!filters.some(([k,v])=>k==='seller_id'&&v==='qa-seller'))throw Error('Missing receipt seller scope');return {data:[{receipt:{items:[{name:'Vaporera',qty:1,price:15,subtotal:15}],paymentMethod:'Efectivo'}}],error:null}}
+          if(table==='varelia_sale_details'){if(!filters.some(([k,v])=>k==='seller_id'&&v==='qa-seller'))throw Error('Missing receipt seller scope');const ids=filters.find(([k,v])=>k==='sale_id'&&Array.isArray(v))?.[1];return {data:ids?ids.filter(id=>id!=='seller-sale-0').map(id=>({sale_id:id,receipt:{items:[{name:'Vaporera',qty:1,price:15}],paymentMethod:id==='seller-sale-1'?'Fiado':'Mixto',paymentBreakdown:id==='seller-sale-1'?{}:{Efectivo:10,Yape:5}}})):[{receipt:{items:[{name:'Vaporera',qty:1,price:15,subtotal:15}],paymentMethod:'Efectivo'}}],error:null}}
           return {data:[],error:null};};q.then=(resolve,reject)=>Promise.resolve().then(result).then(resolve,reject);q.maybeSingle=async()=>result();return q;
       };
       window.dispatchEvent(new Event('varelia:account-isolation-ready'));
@@ -362,6 +362,15 @@ const server=http.createServer((req,res)=>{
     await page.locator('[data-hticket]').first().waitFor({state:'visible'});
     assert.match(await page.locator('#vsellerHistory').innerText(),/Caja 2/);
     assert.equal(await page.locator('[data-hticket]').count(),50);
+    assert.match(await page.locator('[data-hsummary]').innerText(),/52 ventas.*S\/ 780.00/s);
+    assert.match(await page.locator('[data-hpayment="Efectivo"]').innerText(),/500.00/);
+    assert.match(await page.locator('[data-hpayment="Yape"]').innerText(),/250.00/);
+    assert.match(await page.locator('[data-hpayment="Fiado"]').innerText(),/15.00/);
+    assert.match(await page.locator('[data-hpayment="Sin registrar"]').innerText(),/15.00/);
+    await page.locator('[data-hdate]').fill('2026-10-13');
+    await page.waitForFunction(()=>window.__sellerHistoryReads.some(r=>r.filters.some(([k,v])=>k==='created_at'&&String(v).includes('2026-10-13'))));
+    assert.equal(await page.locator('[data-hdate]').inputValue(),'2026-10-13');
+
     await page.locator('[data-hperiod="all"]').click();
     await page.waitForFunction(()=>window.__sellerHistoryReads.some(r=>!r.filters.some(([k])=>k==='created_at')));
     await page.locator('[data-hnext]').click();
@@ -370,7 +379,7 @@ const server=http.createServer((req,res)=>{
     await page.waitForFunction(()=>window.__vareliaCurrentReceiptSale?.id==='seller-sale-50');
     assert.equal(await page.evaluate(()=>window.__vareliaCurrentReceiptSale.sellerName),'Caja 2');
     assert.equal(await page.locator('#vsellerHistory').evaluate(d=>d.open),false);
-    console.log('PASS: owner opens seller card history, filters dates, paginates all 52 seller-scoped cloud sales and opens the matching receipt');
+    console.log('PASS: seller history calendar uses day boundaries; full-period summary totals 52 sales across pages, splits mixed cash/Yape, distinguishes credit and missing payments, and opens matching ticket');
 
     await page.waitForTimeout(500);
     assert.deepEqual(errors,[]);

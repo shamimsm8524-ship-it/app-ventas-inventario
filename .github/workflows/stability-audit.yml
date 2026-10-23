@@ -19,7 +19,7 @@ jobs:
         run: |
           for file in *.js; do node --check "$file"; done
           node scripts/stability-audit.mjs
-          node --test tests/purchase-cost.test.cjs
+          node --test tests/purchase-cost.test.cjs tests/seller-history.test.cjs
       - name: Install browser test tools
         run: |
           npm install --ignore-scripts --no-audit --no-fund --prefix /tmp/varelia-browser playwright@1.56.1 html5-qrcode@2.3.8

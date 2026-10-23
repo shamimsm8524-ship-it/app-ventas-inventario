@@ -208,14 +208,28 @@
     }
     const historyEsc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     const historyMoney=n=>'S/ '+Number(n||0).toFixed(2);
+    function historyPayments(sale,total){
+      const cents=Math.max(0,Math.round(Number(total||0)*100)),out={};
+      const label=value=>{const s=String(value||'').trim(),v=s.toLowerCase();return /efectivo|cash/.test(v)?'Efectivo':/yape/.test(v)?'Yape':/plin/.test(v)?'Plin':/transfer/.test(v)?'Transferencia':/tarjeta|card/.test(v)?'Tarjeta':/fiado|cr[eé]dito/.test(v)?'Fiado':/mixto|mixed/.test(v)?'Mixto':s||'Sin registrar'};
+      const breakdown=sale?.paymentBreakdown||sale?.payment_breakdown;
+      if(breakdown&&typeof breakdown==='object'&&!Array.isArray(breakdown))for(const [k,v] of Object.entries(breakdown)){const n=Number(v);if(Number.isFinite(n)&&n>0){const method=label(k);out[method]=(out[method]||0)+Math.round(n*100)}}
+      let sum=Object.values(out).reduce((a,b)=>a+b,0);
+      // Cash received can include change: only allocate the sale amount.
+      if(sum>cents&&out.Efectivo){const change=Math.min(out.Efectivo,sum-cents);out.Efectivo-=change;sum-=change}
+      if(sum>cents)return {'Sin registrar':cents/100};
+      if(!sum){const method=label(sale?.paymentMethod||sale?.payment_method);return {[method==='Mixto'?'Sin registrar':method]:cents/100}}
+      if(sum<cents)out['Sin registrar']=(out['Sin registrar']||0)+cents-sum;
+      return Object.fromEntries(Object.entries(out).filter(([,n])=>n>0).map(([k,n])=>[k,n/100]));
+    }
+
     let historyVersion=0;
     async function openSellerHistory(s){
       if(profile?.role!=='owner'||!profile.business_id||!s)return;
       document.getElementById('vsellerHistory')?.remove();
       const modal=document.createElement('dialog');modal.id='vsellerHistory';
       modal.style.cssText='width:min(94vw,620px);max-height:90dvh;overflow:auto;border:0;border-radius:20px;padding:18px;background:var(--card);color:var(--ink)';
-      modal.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px"><div><h2 style="margin:0">Historial de ventas</h2><p>'+historyEsc(s.name||s.full_name||'Vendedor')+'</p></div><button type="button" data-hclose aria-label="Cerrar historial" class="btn secondary">×</button></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn secondary" data-hperiod="today">Hoy</button><button type="button" class="btn secondary" data-hperiod="month">Este mes</button><button type="button" class="btn secondary" data-hperiod="all">Todo</button></div><div data-hbody style="margin-top:14px"></div><div style="display:flex;justify-content:space-between;gap:10px;margin-top:12px"><button type="button" class="btn secondary" data-hprev>Anterior</button><button type="button" class="btn secondary" data-hnext>Siguiente</button></div>';
-      document.body.appendChild(modal);let period='today',offset=0,rows=[];
+      modal.innerHTML='<div style="display:flex;justify-content:space-between;gap:12px"><div><h2 style="margin:0">Historial de ventas</h2><p>'+historyEsc(s.name||s.full_name||'Vendedor')+'</p></div><button type="button" data-hclose aria-label="Cerrar historial" class="btn secondary">×</button></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn secondary" data-hperiod="today">Hoy</button><button type="button" class="btn secondary" data-hperiod="month">Este mes</button><button type="button" class="btn secondary" data-hperiod="all">Todo</button></div><label style="display:grid;gap:6px;margin-top:12px;font-weight:700">Seleccionar día<input type="date" data-hdate style="box-sizing:border-box;max-width:100%;min-height:44px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)"></label><div data-hbody style="margin-top:14px"></div><div style="display:flex;justify-content:space-between;gap:10px;margin-top:12px"><button type="button" class="btn secondary" data-hprev>Anterior</button><button type="button" class="btn secondary" data-hnext>Siguiente</button></div>';
+      document.body.appendChild(modal);let period='today',offset=0,rows=[],cache=null;const dateInput=modal.querySelector('[data-hdate]');const now=new Date();dateInput.value=[now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
       const business=profile.business_id,owner=profile.id,sellerId=s.id,pageSize=50;
       const close=()=>{historyVersion++;modal.close();modal.remove()};
       modal.querySelector('[data-hclose]').onclick=close;modal.addEventListener('cancel',e=>{e.preventDefault();close()});
@@ -246,16 +260,40 @@
         modal.querySelectorAll('[data-hperiod]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.hperiod===period)));
         try{
           if(!stillOwner())throw new Error('La sesión del negocio cambió. Vuelve a abrir Vendedores.');
-          let query=window.vareliaSupabase.from('varelia_sales').select('id,total,created_at,created_by').eq('business_id',business).eq('created_by',sellerId).order('created_at',{ascending:false}).order('id',{ascending:false}).range(offset,offset+pageSize);
-          if(period!=='all'){const start=new Date();start.setHours(0,0,0,0);if(period==='month')start.setDate(1);query=query.gte('created_at',start.toISOString())}
-          const data=await read(query);if(version!==historyVersion||!modal.isConnected||!stillOwner())return;
-          const hasNext=data.length>pageSize;rows=data.slice(0,pageSize);
-          body.innerHTML=rows.length?'<p><b>'+rows.length+' ticket(s) en esta página · '+historyMoney(rows.reduce((n,r)=>n+Number(r.total||0),0))+'</b></p>'+rows.map((r,i)=>'<article style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px"><div style="display:flex;justify-content:space-between;gap:12px"><span>'+historyEsc(new Date(r.created_at).toLocaleString('es-PE'))+'</span><b>'+historyMoney(r.total)+'</b></div><button type="button" class="btn secondary" data-hticket="'+i+'" style="margin-top:8px">Ver ticket</button></article>').join(''):'<p>No hay ventas de este vendedor en este período.</p>';
+          if(!cache){
+            const sb=window.vareliaSupabase;let all=[],start=null,end=null;
+            if(period!=='all'){
+              start=period==='day'?new Date(dateInput.value+'T00:00:00'):new Date();start.setHours(0,0,0,0);
+              if(!Number.isFinite(start.getTime()))throw new Error('Selecciona una fecha válida.');
+              if(period==='month')start.setDate(1);
+              end=new Date(start);if(period==='month')end.setMonth(end.getMonth()+1);else end.setDate(end.getDate()+1);
+            }
+            for(let skip=0;;skip+=500){
+              let query=sb.from('varelia_sales').select('id,total,created_at,created_by').eq('business_id',business).eq('created_by',sellerId).order('created_at',{ascending:false}).order('id',{ascending:false}).range(skip,skip+499);
+              if(start)query=query.gte('created_at',start.toISOString()).lt('created_at',end.toISOString());
+              const batch=await read(query);if(version!==historyVersion||!stillOwner())return;all.push(...batch);if(batch.length<500)break;
+            }
+            const receipts=new Map();
+            for(let skip=0;skip<all.length;skip+=100){
+              const data=await read(sb.from('varelia_sale_details').select('sale_id,receipt').eq('business_id',business).eq('seller_id',sellerId).in('sale_id',all.slice(skip,skip+100).map(r=>r.id)));
+              if(version!==historyVersion||!stillOwner())return;
+              data.forEach(d=>receipts.set(String(d.sale_id),d.receipt||{}));
+            }
+            cache=all.map(r=>({...r,receipt:receipts.get(String(r.id))||{},payments:historyPayments(receipts.get(String(r.id)),r.total)}));
+          }
+          if(version!==historyVersion||!modal.isConnected||!stillOwner())return;
+          const hasNext=cache.length>offset+pageSize;rows=cache.slice(offset,offset+pageSize);
+          const total=cache.reduce((n,r)=>n+Number(r.total||0),0),payments={Efectivo:0,Yape:0,Plin:0,Transferencia:0,Tarjeta:0};
+          cache.forEach(r=>Object.entries(r.payments).forEach(([method,value])=>payments[method]=(payments[method]||0)+value));
+          const payText=p=>Object.entries(p).map(([k,v])=>historyEsc(k)+': '+historyMoney(v)).join(' · ');
+          const periodText=period==='all'?'Todo el historial':period==='month'?'Este mes':period==='day'?new Date(dateInput.value+'T00:00:00').toLocaleDateString('es-PE'):'Hoy';
+          body.innerHTML='<section data-hsummary style="padding:14px;background:var(--bg);border:1px solid var(--line);border-radius:14px"><b>'+historyEsc(periodText)+'</b><p>'+cache.length+' ventas · Total vendido: <strong>'+historyMoney(total)+'</strong></p><b>Ventas por forma de pago</b>'+Object.entries(payments).map(([k,v])=>'<div data-hpayment="'+historyEsc(k)+'" style="display:flex;justify-content:space-between;gap:12px;margin-top:8px"><span>'+historyEsc(k==='Fiado'?'Fiado (venta a crédito)':k)+'</span><strong>'+historyMoney(v)+'</strong></div>').join('')+(payments['Sin registrar']?'<small>Hay ventas antiguas sin información de pago. No se asignan a efectivo.</small>':'')+'</section>'+(rows.length?'<p>Tickets '+(offset+1)+'–'+(offset+rows.length)+' de '+cache.length+'</p>'+rows.map((r,i)=>'<article style="border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px"><div style="display:flex;justify-content:space-between;gap:12px"><span>'+historyEsc(new Date(r.created_at).toLocaleString('es-PE'))+'</span><b>'+historyMoney(r.total)+'</b></div><div style="margin-top:8px;font-weight:700">'+payText(r.payments)+'</div>'+(Array.isArray(r.receipt.items)?'<div style="margin-top:6px;color:var(--muted)">'+r.receipt.items.map(item=>historyEsc(item.name||item.product_name||'Producto')+' × '+historyEsc(item.qty??item.quantity??1)).join(' · ')+'</div>':'')+'<button type="button" class="btn secondary" data-hticket="'+i+'" style="margin-top:8px">Ver ticket</button></article>').join(''):'<p>No hay ventas de este vendedor en este período.</p>');
           body.querySelectorAll('[data-hticket]').forEach(b=>b.onclick=()=>receipt(rows[Number(b.dataset.hticket)],b));
           modal.querySelector('[data-hprev]').disabled=offset===0;modal.querySelector('[data-hnext]').disabled=!hasNext;
         }catch(e){if(version===historyVersion&&modal.isConnected){body.textContent='No se pudo cargar el historial. '+(e.message||'Revisa la conexión.');const retry=document.createElement('button');retry.type='button';retry.className='btn secondary';retry.textContent='Reintentar';retry.onclick=load;body.appendChild(retry)}}
       }
-      modal.querySelectorAll('[data-hperiod]').forEach(b=>b.onclick=()=>{period=b.dataset.hperiod;offset=0;load()});
+      modal.querySelectorAll('[data-hperiod]').forEach(b=>b.onclick=()=>{period=b.dataset.hperiod;offset=0;cache=null;load()});
+      dateInput.onchange=()=>{if(!dateInput.value)return;period='day';offset=0;cache=null;load()};
       modal.querySelector('[data-hprev]').onclick=()=>{offset=Math.max(0,offset-pageSize);load()};
       modal.querySelector('[data-hnext]').onclick=()=>{offset+=pageSize;load()};
       modal.showModal();load();

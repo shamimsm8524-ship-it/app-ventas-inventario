@@ -1,0 +1,11 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const source=fs.readFileSync(require('node:path').join(__dirname,'../sellers.js'),'utf8');
+const start=source.indexOf('    function historyPayments('),end=source.indexOf('    let historyVersion=',start);
+const ctx={};vm.createContext(ctx);vm.runInContext(source.slice(start,end),ctx);
+const allocate=(r,t)=>JSON.parse(JSON.stringify(ctx.historyPayments(r,t)));
+test('mixed payments preserve actual amounts instead of counting entire sale twice',()=>assert.deepEqual(allocate({paymentMethod:'Mixto',paymentBreakdown:{Efectivo:10,Yape:5}},15),{Efectivo:10,Yape:5}));
+test('cash received excludes change',()=>assert.deepEqual(allocate({paymentBreakdown:{Efectivo:20,Yape:5}},15),{Efectivo:10,Yape:5}));
+test('missing and incomplete historical metadata stays unassigned',()=>{assert.deepEqual(allocate({},15),{'Sin registrar':15});assert.deepEqual(allocate({paymentBreakdown:{Yape:5}},15),{Yape:5,'Sin registrar':10});assert.deepEqual(allocate({paymentMethod:'mixto'},15),{'Sin registrar':15})});
+test('credit sales do not count as cash',()=>assert.deepEqual(allocate({paymentMethod:'Fiado'},15),{Fiado:15}));
+test('invalid excessive noncash amounts are not presented as verified payments',()=>assert.deepEqual(allocate({paymentBreakdown:{Yape:30}},15),{'Sin registrar':15}));
+test('decimal splits reconcile to the sale in cents',()=>assert.deepEqual(allocate({paymentBreakdown:{Yape:0.1,Plin:0.2}},0.3),{Yape:0.1,Plin:0.2}));
