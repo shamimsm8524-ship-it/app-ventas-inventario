@@ -30,7 +30,7 @@ const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+new 
  await page.goto(url,{waitUntil:'load'});await page.locator('#grid .add').first().waitFor({state:'visible'});
  async function alertOn(action,pattern=/stock/i){const event=page.waitForEvent('dialog').then(async d=>{assert.match(d.message(),pattern);await d.accept()});await action();await event}
  async function closeViewer(){if(await page.locator('#productViewer').evaluate(e=>e.classList.contains('on')))await page.locator('#viewerClose').click()}
- async function openCart(){await closeViewer();await page.locator('#view').click()}
+ async function openCart(){await closeViewer();if(!await page.locator('#modal').evaluate(e=>e.classList.contains('on')))await page.locator('#view').click()}
  async function closeCart(){if(await page.locator('#modal').evaluate(e=>e.classList.contains('on')))await page.locator('#close').click()}
  async function clearCart(){await closeViewer();if(await page.locator('#items .remove').count()){await openCart();while(await page.locator('#items .remove').count())await page.locator('#items .remove').first().click();await closeCart()}}
  async function add(id){await closeCart();await page.locator('#grid .add[data-id="'+id+'"]').click()}
