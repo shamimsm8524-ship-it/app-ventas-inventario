@@ -5,7 +5,13 @@
     if(!Number.isFinite(count)||count<=0)throw new Error('La cantidad de compra debe ser mayor que cero.');
     return cost/count;
   }
-  const api={unitCost};
+  function stockFromPackages(packages,unitsPerPackage){
+    const count=Number(packages),size=Number(unitsPerPackage);
+    if(!Number.isFinite(count)||count<0)throw new Error('La cantidad de cajas debe ser mayor o igual a cero.');
+    if(!Number.isFinite(size)||size<=0)throw new Error('Indica cuántas unidades trae cada caja.');
+    return Number((count*size).toFixed(6));
+  }
+  const api={unitCost,stockFromPackages};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   if(typeof window!=='undefined')window.VareliaPurchaseMath=api;
 })();

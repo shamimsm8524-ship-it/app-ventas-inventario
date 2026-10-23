@@ -160,3 +160,11 @@ test('business settings use the authenticated account scope and reject another a
   assert.equal(env.load('business-a').businessName,'Mi negocio');
   storage.set('varelia_active_business_id','user-b');assert.equal(env.load('business-a').businessName,'');
 });
+
+test('cartons convert to unit inventory without changing the unit sale price',()=>{
+  const {stockFromPackages}=require('../purchase-cost-math.js');
+  assert.equal(stockFromPackages(1,36),36);assert.equal(stockFromPackages(2,36),72);
+  assert.equal(stockFromPackages(.5,36),18);assert.equal(stockFromPackages(0,36),0);
+  for(const [qty,size] of [[-1,36],[1,0],[NaN,36],[1,Infinity]])assert.throws(()=>stockFromPackages(qty,size));
+  const price=15;assert.equal(price-unitCost(120,36),11.666666666666666);
+});

@@ -33,9 +33,14 @@ const server=http.createServer((req,res)=>{
       openProduct();
     });
     await page.locator('#productName').fill('Vaporera de prueba');
+    await page.locator('#purchasePresentation').selectOption('Cajón');
+    assert.equal(await page.locator('#unit').inputValue(),'Unidad');
     await page.locator('#buyPrice').fill('120');
     await page.locator('#purchaseQuantity').fill('36');
     await page.locator('#sellPrice').fill('15');
+    await page.locator('#productStockEntryUnit').selectOption('purchase');
+    await page.locator('#productQty').fill('1');
+    assert.match(await page.locator('#productQtyHint').innerText(),/36 unidades/);
     await page.locator('#vCommercialCollapseBtn').click();
     await page.locator('[data-cpreset="5"]').click();
     let row=page.locator('[data-crow="0"]');
@@ -50,6 +55,8 @@ const server=http.createServer((req,res)=>{
     await page.locator('#productForm button[type=submit]').click();
     await page.waitForFunction(()=>!!window.__savedProduct);
     const saved=await page.evaluate(()=>window.__savedProduct);
+    assert.equal(saved.unit,'Unidad');assert.equal(saved.sellPrice,15);assert.equal(saved.stock,36);
+    assert.equal(saved.commercialPricing.purchaseCost.presentation,'Cajón');
     assert.equal(saved.buyPrice,120/36);assert.equal(saved.commercialPricing.purchaseCost.quantity,36);
     assert.equal(saved.commercialPricing.purchaseCost.total,120);
     assert.equal(saved.salePresentations.find(p=>p.id==='cajon').buyCost,120);
@@ -58,6 +65,29 @@ const server=http.createServer((req,res)=>{
     await page.waitForFunction(()=>!document.getElementById('productDialog')?.open);
     assert.equal(await page.locator('#productForm button[type=submit]').isEnabled(),true);
     console.log('PASS: product save closes and restores its button even when the public catalog never responds');
+    await page.evaluate(()=>{
+      window.vareliaCentralAdjustStock=async({product,qty,event})=>{
+        window.__movementQty=qty;const before=product.stock;product.stock=before+(event==='add'?qty:-qty);
+        return {stock_before:before,stock_after:product.stock};
+      };
+      switchView('inventory');selectInv(products[0]);
+    });
+    await page.locator('#inventoryMovementUnit').selectOption('caja');
+    await page.locator('#inventoryQty').fill('2');
+    await page.locator('#applyInventory').click();
+    await page.waitForFunction(()=>window.__movementQty===72);
+    assert.equal(await page.evaluate(()=>products[0].stock),108);
+    assert.match(await page.locator('#inventorySelected').innerText(),/108 Unidad/);
+    await page.evaluate(()=>addToCart(products[0],1));
+    await page.locator('#vCSModes [data-cmode="unit"]').waitFor({state:'visible'});
+    assert.equal((await page.locator('#vCSModes [data-cmode="unit"]').innerText()).trim(),'Unidad');
+    assert.match(await page.locator('#vCSQuote').innerText(),/15.00/);
+    await page.locator('#vCSAdd').click();
+    const soldUnit=await page.evaluate(()=>({unit:cart[0].unit,price:cart[0].price,stockQtyPerSale:cart[0].stockQtyPerSale}));
+    assert.equal(soldUnit.unit,'Unidad');assert.equal(soldUnit.price,15);assert.equal(soldUnit.stockQtyPerSale,1);
+    await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart()});
+    console.log('PASS: 1 purchased carton creates 36 units; receiving 2 cartons adds 72 units; selling one unit stays S/15');
+
     await page.evaluate(()=>{
       window.__realSaveTimer=window.setTimeout;
       window.setTimeout=(fn,ms,...args)=>window.__realSaveTimer(fn,ms===25000?80:ms,...args);
