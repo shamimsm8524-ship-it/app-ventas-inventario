@@ -170,16 +170,16 @@ const server=http.createServer((req,res)=>{
     await page.waitForFunction(()=>cart.length===1);
     assert.equal(await page.evaluate(()=>cart[0].id),'scan-current');assert.equal(await page.evaluate(()=>cart[0].price),5);
     await page.evaluate(()=>{clearSaleCart();switchView('inventory');window.__scanOpened=null});
-    await page.route('**/html5-qrcode@2.3.8/html5-qrcode.min.js',route=>{
+    await page.route('**/html5-qrcode*.min.js',route=>{
       if(route.request().url().includes('unpkg.com'))return route.abort();
-      return route.fulfill({contentType:'application/javascript',body:`window.Html5Qrcode=class {static async getCameras(){return [{id:'rear',label:'Back camera'}]}async start(camera,config,onRead){window.__cameraStarts=(window.__cameraStarts||0)+1;window.__cameraStarted=camera;window.__scanConfig=config;window.__deliverBarcode=onRead;let torch=false;const track={getCapabilities(){return window.__omitTorchCaps?{}:{torch:true}},getSettings(){return {torch}},async applyConstraints(c){if(window.__rejectTorch)throw new Error('WebView flash blocked');torch=c.torch??c.advanced?.[0]?.torch??torch;window.__physicalTorch=torch}};const video=document.createElement('video');Object.defineProperty(video,'srcObject',{value:{getVideoTracks(){return [track]}}});document.getElementById('vareliaReader').appendChild(video)}getState(){return 2}async stop(){window.__cameraStops=(window.__cameraStops||0)+1}async clear(){}}`});
+      return route.fulfill({contentType:'application/javascript',body:`window.Html5Qrcode=class {static async getCameras(){throw new Error('Camera enumeration must not delay preview')}async start(camera,config,onRead){window.__cameraStarts=(window.__cameraStarts||0)+1;window.__cameraStarted=camera;window.__scanConfig=config;window.__deliverBarcode=onRead;let torch=false;const track={getCapabilities(){return window.__omitTorchCaps?{}:{torch:true}},getSettings(){return {torch}},async applyConstraints(c){if(window.__rejectTorch)throw new Error('WebView flash blocked');torch=c.torch??c.advanced?.[0]?.torch??torch;window.__physicalTorch=torch}};const video=document.createElement('video');Object.defineProperty(video,'srcObject',{value:{getVideoTracks(){return [track]}}});document.getElementById('vareliaReader').appendChild(video)}getState(){return 2}async stop(){window.__cameraStops=(window.__cameraStops||0)+1}async clear(){}}`});
     });
     await page.locator('#scanForInventory').click();
     await page.waitForFunction(()=>!!window.__deliverBarcode);
-    assert.equal(await page.locator('#scannerDialog').evaluate(d=>d.open),true);assert.equal(await page.evaluate(()=>window.__scanOpened),null);assert.equal(await page.evaluate(()=>window.__scanConfig.qrbox),undefined);
+    assert.equal(await page.evaluate(()=>window.__cameraStarted.facingMode),'environment');assert.equal(await page.locator('#scannerDialog').getAttribute('data-camera-loading'),null);assert.equal(await page.locator('#scannerDialog').evaluate(d=>d.open),true);assert.equal(await page.evaluate(()=>window.__scanOpened),null);assert.equal(await page.evaluate(()=>window.__scanConfig.qrbox),undefined);
     await page.evaluate(()=>{inventoryProductId=null;window.__deliverBarcode('0123456789012')});
     await page.waitForFunction(()=>inventoryProductId==='scan-current'&&!document.getElementById('scannerDialog').open);
-    console.log('PASS: camera scanner recovers from primary library failure, accepts decoded barcode, selects inventory and closes');
+    console.log('PASS: camera scanner starts from same-origin library without enumerating cameras, accepts barcode and selects inventory');
     await page.evaluate(()=>{clearSaleCart();switchView('sales');window.__deliverBarcode=null;window.__omitTorchCaps=true});
     await page.locator('#vposScan').click();
     await page.waitForFunction(()=>!!window.__deliverBarcode);
