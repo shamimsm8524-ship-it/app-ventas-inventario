@@ -479,8 +479,25 @@ function renderSales(){
 }
 salesList.onclick=e=>{const b=e.target.closest('[data-receipt]');if(b)saleReceiptAction(b.dataset.receipt,b.dataset.saleid)};
 
-function aggregate(list){let m={};for(const s of list)for(const i of s.items||[]){let k=i.id||i.name;if(!m[k])m[k]={name:i.name,qty:0,total:0};m[k].qty+=+i.qty;m[k].total+=+i.qty*+i.price}return Object.values(m)}
-function renderCash(){let a=activeSales(),agg=aggregate(a),t=a.reduce((x,s)=>x+s.total,0);cashTotal.textContent=money(t);cashCount.textContent=a.length;cashUnits.textContent=agg.reduce((x,i)=>x+i.qty,0);cashProducts.innerHTML=agg.length?agg.map(i=>`<div class="soldRow"><span>${esc(i.name)}</span><span>${i.qty}</span><strong>${money(i.total)}</strong></div>`).join(''):'<div class="empty">Sin ventas en esta caja.</div>';closuresList.innerHTML=closures.length?[...closures].reverse().map(c=>`<div class="row"><span>${new Date(c.closedAt).toLocaleString('es-PE')}</span><strong>${money(c.total)}</strong></div>`).join(''):'<div class="empty">Sin cierres.</div>'}
+function aggregate(list){
+  const grouped=new Map();
+  for(const sale of list)for(const item of sale.items||[]){
+    const product=products.find(p=>String(p.id)===String(item.id||item.productId))||{};
+    const unit=String(item.medicineSaleUnit||item.sale_unit||item.saleUnit||item.unit||product.unit||'Unidad').trim();
+    const key=JSON.stringify([item.id||item.name,unit]);
+    if(!grouped.has(key))grouped.set(key,{name:item.name,unit,qty:0,total:0});
+    const row=grouped.get(key);row.qty+=Number(item.qty)||0;row.total+=(Number(item.qty)||0)*(Number(item.price)||0);
+  }
+  return [...grouped.values()];
+}
+function cashQuantityLabel(qty,unit){
+  const amount=Number(Number(qty||0).toFixed(3)),value=String(amount);
+  const key=String(unit||'Unidad').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  if(['kg','kilo','kilos','kilogramo','kilogramos'].includes(key))return value+' kg'+(amount%1!==0?' ('+Math.round(amount*1000)+' g)':'');
+  const labels={unidad:['unidad','unidades'],pastilla:['pastilla','pastillas'],caja:['caja','cajas'],blister:['blíster','blísteres'],gramo:['g','g'],g:['g','g'],litro:['L','L'],metro:['m','m']};
+  const pair=labels[key];return value+' '+(pair?pair[amount===1?0:1]:(unit||'unidades'));
+}
+function renderCash(){let a=activeSales(),agg=aggregate(a),t=a.reduce((x,s)=>x+s.total,0);cashTotal.textContent=money(t);cashCount.textContent=a.length;cashUnits.textContent=agg.reduce((x,i)=>x+i.qty,0);cashProducts.innerHTML=agg.length?agg.map(i=>`<div class="soldRow"><span>${esc(i.name)}</span><span>${esc(cashQuantityLabel(i.qty,i.unit))}</span><strong>${money(i.total)}</strong></div>`).join(''):'<div class="empty">Sin ventas en esta caja.</div>';closuresList.innerHTML=closures.length?[...closures].reverse().map(c=>`<div class="row"><span>${new Date(c.closedAt).toLocaleString('es-PE')}</span><strong>${money(c.total)}</strong></div>`).join(''):'<div class="empty">Sin cierres.</div>'}
 function fillCats(){let v=productCategory.value;productCategory.innerHTML=categories.length?categories.map(c=>`<option>${esc(c)}</option>`).join(''):'<option value="">Primero crea categoría</option>';if(categories.includes(v))productCategory.value=v}
 function fillPurchaseSelectors(){purchaseSupplier.innerHTML=suppliers.length?suppliers.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join(''):'<option value="">Crea un proveedor primero</option>';purchaseProduct.innerHTML=products.length?products.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join(''):'<option value="">Crea productos primero</option>'}
 

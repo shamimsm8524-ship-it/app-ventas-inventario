@@ -417,6 +417,20 @@ const server=http.createServer((req,res)=>{
     assert.equal(await page.evaluate(()=>closures.filter(c=>c.cloudClosureId==='00000000-0000-4000-8000-000000000003').length),1);
     console.log('PASS: cash closes only after cloud confirmation');
     await page.evaluate(()=>{
+      window.__beforeCashLabelSales=sales;window.__beforeCashLabelStart=cashStart;
+      cashStart='1970-01-01T00:00:00Z';
+      sales=[{id:'qa-cash-measures',date:new Date().toISOString(),total:8.5,items:[
+        {id:'qa-weight',name:'Pollo QA',unit:'Kg',qty:0.5,price:12},
+        {id:'qa-med',name:'Ibuprofeno QA · Pastilla',unit:'Unidad',medicineSaleUnit:'Pastilla',qty:1,price:2.5}
+      ]}];window.sales=sales;renderCash();
+    });
+    assert.match(await page.locator('#cashProducts .soldRow').filter({hasText:'Pollo QA'}).innerText(),/0\.5 kg \(500 g\)/);
+    assert.match(await page.locator('#cashProducts .soldRow').filter({hasText:'Pollo QA'}).innerText(),/6\.00/);
+    assert.match(await page.locator('#cashProducts .soldRow').filter({hasText:'Ibuprofeno QA'}).innerText(),/1 pastilla/);
+    await page.evaluate(()=>{sales=window.__beforeCashLabelSales;window.sales=sales;cashStart=window.__beforeCashLabelStart;renderCash()});
+    console.log('PASS: cash product rows label 0.5 kg (500 g) and medicine presentation quantities while preserving sale totals');
+
+    await page.evaluate(()=>{
       const sb=window.vareliaSupabase;
       window.__oldSessionReader=sb.auth.getSession;window.__oldFrom=sb.from;
       window.vareliaCurrentUserProfile={id:'qa-owner',business_id:'qa-business',role:'owner'};
