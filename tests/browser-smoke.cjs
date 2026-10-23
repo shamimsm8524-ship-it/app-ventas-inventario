@@ -172,7 +172,7 @@ const server=http.createServer((req,res)=>{
     await page.evaluate(()=>{clearSaleCart();switchView('inventory');window.__scanOpened=null});
     await page.route('**/html5-qrcode@2.3.8/html5-qrcode.min.js',route=>{
       if(route.request().url().includes('unpkg.com'))return route.abort();
-      return route.fulfill({contentType:'application/javascript',body:`window.Html5Qrcode=class {static async getCameras(){return [{id:'rear',label:'Back camera'}]}async start(camera,config,onRead){window.__cameraStarted=camera;window.__scanConfig=config;window.__deliverBarcode=onRead}getState(){return 2}async stop(){}async clear(){}}`});
+      return route.fulfill({contentType:'application/javascript',body:`window.Html5Qrcode=class {static async getCameras(){return [{id:'rear',label:'Back camera'}]}async start(camera,config,onRead){window.__cameraStarts=(window.__cameraStarts||0)+1;window.__cameraStarted=camera;window.__scanConfig=config;window.__deliverBarcode=onRead;let torch=false;const track={getCapabilities(){return {torch:true}},getSettings(){return {torch}},async applyConstraints(c){torch=c.torch??c.advanced?.[0]?.torch??torch;window.__physicalTorch=torch}};const video=document.createElement('video');Object.defineProperty(video,'srcObject',{value:{getVideoTracks(){return [track]}}});document.getElementById('vareliaReader').appendChild(video)}getState(){return 2}async stop(){window.__cameraStops=(window.__cameraStops||0)+1}async clear(){}}`});
     });
     await page.locator('#scanForInventory').click();
     await page.waitForFunction(()=>!!window.__deliverBarcode);
@@ -183,8 +183,19 @@ const server=http.createServer((req,res)=>{
     await page.evaluate(()=>{clearSaleCart();switchView('sales');window.__deliverBarcode=null});
     await page.locator('#vposScan').click();
     await page.waitForFunction(()=>!!window.__deliverBarcode);
+    await page.locator('#scannerTorch').click();
+    assert.equal(await page.evaluate(()=>window.__physicalTorch),true);
+    const cameraBefore=await page.evaluate(()=>({starts:window.__cameraStarts,stops:window.__cameraStops||0,top:document.getElementById('vareliaReader').getBoundingClientRect().top}));
     await page.evaluate(()=>window.__deliverBarcode('0123456789012'));
     await page.waitForFunction(()=>cart.length===1);
+    await page.waitForTimeout(1400);
+    await page.evaluate(()=>window.__deliverBarcode('0123456789012'));
+    await page.waitForFunction(()=>cart[0].qty===2);
+    const cameraAfter=await page.evaluate(()=>({starts:window.__cameraStarts,stops:window.__cameraStops||0,top:document.getElementById('vareliaReader').getBoundingClientRect().top,torch:window.__physicalTorch}));
+    assert.equal(cameraAfter.starts,cameraBefore.starts);assert.equal(cameraAfter.stops,cameraBefore.stops);assert.ok(Math.abs(cameraAfter.top-cameraBefore.top)<2);assert.equal(cameraAfter.torch,true);
+    await page.locator('#scannerTorch').click();assert.equal(await page.evaluate(()=>window.__physicalTorch),false);
+    console.log('PASS: two scans retain camera position and stream; confirmed torch stays on between scans and turns off on request');
+
     assert.equal(await page.evaluate(()=>cart[0].id),'scan-current');
     assert.equal(await page.evaluate(()=>window.__scanOpened),null);
     assert.equal(await page.locator('#scannerDialog').evaluate(d=>d.open),true);

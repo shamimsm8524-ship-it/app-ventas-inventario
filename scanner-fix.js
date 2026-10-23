@@ -11,19 +11,19 @@
     posStyle.textContent=`
       #scannerDialog .modal{width:min(94vw,520px);max-height:92vh;overflow:auto}
       #scannerDialog #scannerVideo{display:none!important}
-      #scannerDialog #vareliaReader{width:100%!important;min-height:0!important;background:#000;border-radius:18px;overflow:hidden}
-      #scannerDialog #vareliaReader video{display:block!important;width:100%!important;height:auto!important;max-height:52vh!important;object-fit:cover!important}
+      #scannerDialog{height:min(92dvh,780px);max-height:92vh} #scannerDialog .modal{box-sizing:border-box;height:100%} #scannerDialog #vareliaReader{width:100%!important;height:min(38vh,300px)!important;min-height:min(38vh,300px)!important;background:#000;border-radius:18px;overflow:hidden}
+      #scannerDialog #vareliaReader video{display:block!important;width:100%!important;height:100%!important;max-height:100%!important;object-fit:contain!important}
       #scannerDialog #vareliaReader canvas{display:none!important}
-      #scannerDialog #vareliaReader__scan_region{min-height:0!important}
+      #scannerDialog #vareliaReader__scan_region{height:100%!important;min-height:0!important}
       #scannerDialog #vareliaReader__scan_region>img{display:none!important}
       #scannerDialog #vareliaReader__dashboard{display:none!important}
-      #scannerDialog .scannerInfo{margin:10px 0;color:var(--muted);font-size:13px}
+      #scannerDialog .scannerInfo{height:3em;overflow:auto;margin:10px 0;color:var(--muted);font-size:13px}
       #scannerDialog .scannerManual{display:flex;gap:8px;margin-top:12px}
       #scannerDialog .scannerManual input{min-width:0;flex:1}
       #scannerDialog .scannerCartPanel{display:none;margin:10px 0 12px;padding:12px;border:1px solid var(--line);border-radius:16px;background:var(--card)}
       #scannerDialog .scannerCartHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
       #scannerDialog .scannerCartHead b{font-size:15px}
-      #scannerDialog .scannerCartItems{display:grid;gap:7px;max-height:155px;overflow:auto}
+      #scannerDialog .scannerCartItems{display:grid;gap:7px;height:100px;overflow:auto;overflow-anchor:none}
       #scannerDialog .scannerCartItem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
       #scannerDialog .scannerCartItem:last-child{border-bottom:0}
       #scannerDialog .scannerCartItem span{min-width:0}
@@ -82,7 +82,7 @@
       const manual=document.createElement('div');manual.className='scannerManual';manual.innerHTML='<input id="scannerManualCode" inputmode="numeric" placeholder="O escribe el código"><button type="button" class="btn primary" id="scannerUseManual">Usar</button>';
       const cartPanel=document.createElement('div');cartPanel.id='scannerCartPanel';cartPanel.className='scannerCartPanel';cartPanel.innerHTML='<div class="scannerCartHead"><b>🛒 Carrito</b><span id="scannerCartCount">0 productos</span></div><div id="scannerCartItems" class="scannerCartItems"></div><div class="scannerCartFoot"><div><small style="display:block;color:var(--muted)">Total</small><strong id="scannerCartTotal">S/ 0.00</strong></div><button type="button" id="scannerCartCheckout">Cobrar</button></div>';
       const result=document.createElement('div');result.id='scannerProductResult';result.className='scannerProductResult';result.hidden=true;
-      modal.append(info,cartPanel,reader,manual,result);
+      modal.append(info,reader,manual,cartPanel,result);
       document.getElementById('scannerUseManual').onclick=()=>{const v=document.getElementById('scannerManualCode').value.trim();if(v)finish(v)};
       document.getElementById('scannerCartCheckout').onclick=async()=>{await closeScanner();try{if(typeof openSale==='function')openSale(false)}catch(e){console.error(e)}};
     }
@@ -119,35 +119,22 @@
       return caps;
     }
     async function setTorch(on){
-      const wanted=!!on;
-      let lastError=null;
-      if(scanner?.applyVideoConstraints){
+      const wanted=!!on,track=torchTrack(),caps=torchCapabilities();
+      if(!track||caps.torch!==true)throw new Error('NO_TORCH_SUPPORT');
+      let lastError;
+      for(const constraints of [{torch:wanted,advanced:[{torch:wanted}]},{advanced:[{torch:wanted}]}]){
         try{
-          await scanner.applyVideoConstraints({advanced:[{torch:wanted}]});
-          torchOn=wanted;
+          await track.applyConstraints(constraints);
+          if(track.getSettings?.().torch===wanted){
+            torchOn=wanted;
+            const b=document.getElementById('scannerTorch');
+            if(b){b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';b.setAttribute('aria-pressed',String(torchOn))}
+            return;
+          }
+          lastError=new Error('TORCH_NOT_CONFIRMED');
         }catch(e){lastError=e}
       }
-      if(torchOn!==wanted){
-        const track=torchTrack();
-        if(!track)throw lastError||new Error('NO_TRACK');
-        try{
-          await track.applyConstraints({advanced:[{torch:wanted}]});
-          torchOn=wanted;
-        }catch(e){lastError=e}
-      }
-      if(torchOn!==wanted){
-        const track=torchTrack();
-        try{
-          await track?.applyConstraints?.({torch:wanted});
-          torchOn=wanted;
-        }catch(e){lastError=e}
-      }
-      if(torchOn!==wanted)throw lastError||new Error('NO_TORCH');
-      const b=document.getElementById('scannerTorch');
-      if(b){
-        b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
-        b.setAttribute('aria-pressed',torchOn?'true':'false');
-      }
+      throw lastError||new Error('NO_TORCH');
     }
     function ensureTorchButton(){
       let b=document.getElementById('scannerTorch');
@@ -160,8 +147,9 @@
         const r=document.getElementById('vareliaReader');
         r?.after(b);
       }
-      b.disabled=false;
-      b.textContent=torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
+      b.disabled=torchCapabilities().torch!==true;
+      b.title=b.disabled?'La cámara seleccionada no permite controlar la linterna.':'';
+      b.textContent=b.disabled?'🔦 Linterna no disponible':torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
       b.setAttribute('aria-pressed',torchOn?'true':'false');
       b.onclick=async()=>{
         if(b.disabled)return;
@@ -295,7 +283,7 @@
     function resetUI(){const r=document.getElementById('vareliaReader'),res=document.getElementById('scannerProductResult'),manual=document.querySelector('.scannerManual'),info=document.getElementById('scannerInfo');if(r){r.style.display='block';r.innerHTML=''}if(res){res.hidden=true;res.innerHTML=''}if(manual)manual.style.display='flex';if(info){info.style.display='block';info.textContent=target==='sale'?'Modo caja: escanea productos uno tras otro. Cada lectura se agrega a la venta.':'Apunta la cámara al código de barras. La lectura será automática.'}const m=document.getElementById('scannerManualCode');if(m)m.value=''}
     async function stopCamera(){try{if(torchOn)await setTorch(false)}catch{}torchOn=false;const current=scanner;scanner=null;if(!current)return;try{const state=current.getState?.();if(state===2||state===3)await current.stop()}catch{}try{await current.clear()}catch{}await sleep(180)}
     async function closeScanner(){await stopCamera();try{if(dialog.open)dialog.close()}catch{}opening=false;finishing=false;resetUI()}
-    async function cameraConfig(){try{const cams=await Html5Qrcode.getCameras();if(cams?.length){const back=cams.find(c=>/back|rear|environment|trasera|posterior/i.test(c.label||''))||cams[cams.length-1];if(back?.id)return back.id}}catch(e){console.warn('No se pudo listar cámaras',e)}return {facingMode:'environment'}}
+    async function cameraConfig(){try{const cams=await Html5Qrcode.getCameras();if(cams?.length){const rear=cams.filter(c=>/back|rear|environment|trasera|posterior/i.test(c.label||''));const back=rear.find(c=>!/ultra|wide|macro|depth|0[.,]5/i.test(c.label||''))||rear[0];if(back?.id)return back.id}}catch(e){console.warn('No se pudo listar cámaras',e)}return {facingMode:'environment'}}
     async function startCamera(){const reader=document.getElementById('vareliaReader');if(!reader)throw new Error('SCANNER_READER_MISSING');reader.innerHTML='';reader.style.display='block';const F=window.Html5QrcodeSupportedFormats||{};const formats=['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128','CODE_39','ITF','CODABAR'].map(k=>F[k]).filter(v=>v!==undefined);const config={fps:15,disableFlip:false,aspectRatio:1.3333333};const onSuccess=(decoded)=>{const value=String(decoded||'').trim();if(value&&!finishing)finish(value)};const cam=await cameraConfig();scanner=new Html5Qrcode('vareliaReader',{verbose:false,formatsToSupport:formats.length?formats:undefined,experimentalFeatures:{useBarCodeDetectorIfSupported:true}});try{const r=await scanner.start(cam,config,onSuccess,()=>{});try{await scanner.applyVideoConstraints?.({advanced:[{focusMode:'continuous'}]})}catch{}ensureTorchButton();return r}catch(first){console.warn('Primer intento de cámara falló; reintentando cámara trasera',first);await stopCamera();reader.innerHTML='';scanner=new Html5Qrcode('vareliaReader',{verbose:false,formatsToSupport:formats.length?formats:undefined,experimentalFeatures:{useBarCodeDetectorIfSupported:true}});try{const r=await scanner.start({facingMode:'environment'},config,onSuccess,()=>{});try{await scanner.applyVideoConstraints?.({advanced:[{focusMode:'continuous'}]})}catch{}ensureTorchButton();return r}catch(second){console.error('No se pudo iniciar lector de códigos',second);throw second}}}
     const SCANNER_CART_BACKUP_KEY='varelia_scanner_cart_backup_v1';
     function saveScannerCartBackup(){
@@ -446,7 +434,7 @@
         setTimeout(showPos,650);
       }
     };
-    async function finish(raw){if(finishing)return;finishing=true;const code=norm(raw);if(!code){finishing=false;return}window.vareliaSound?.('scan');await stopCamera();let p=findProduct(code);
+    async function finish(raw){if(finishing)return;finishing=true;const code=norm(raw);if(!code){finishing=false;return}window.vareliaSound?.('scan');if(target!=='sale')await stopCamera();let p=findProduct(code);
       if(target==='product'){await offerNewProduct(code);finishing=false;return}
       if(target==='inventory'){const el=document.getElementById('inventoryCode');if(el){el.value=code;el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}))}if(p&&typeof selectInv==='function'){selectInv(p);window.vareliaToast?.('Producto encontrado: '+p.name,'ok')}else window.vareliaToast?.('Código leído, pero no corresponde a un producto de este negocio.','warn');await closeScanner();return}
       if(target==='sale'){
@@ -459,19 +447,17 @@
             info.style.display='block';
             info.textContent=med?'✓ '+(p.name||'Medicamento')+' leído. Elige Caja, Blíster o Pastilla para continuar.':weight?'✓ '+(p.name||'Producto')+' leído. Elige el peso en kilos o gramos para continuar.':'✓ '+(p.name||'Producto')+' agregado al carrito.';
           }
-          finishing=false;
 
-          // Mantén abierta esta misma ventana y sigue escaneando.
+          // Keep the same stream, focus and torch across consecutive reads.
           if(added&&!med&&!weight){
             try{renderScannerCart()}catch{}
-            await sleep(220);
-            try{await startCamera()}catch(e){console.warn(e)}
+
           }
-          return;
+          await sleep(1200);finishing=false;return;
         }
         window.vareliaSound?.('error');
         const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent='Código '+code+' no vinculado. Puedes seguir escaneando o escribir otro código.'}
-        finishing=false;await sleep(180);try{await startCamera()}catch(e){console.warn(e)}return;
+        await sleep(1200);finishing=false;return;
       }
       if(p){renderCard(p,code);finishing=false;return}
       if(target==='inventory'||target==='product'){await offerNewProduct(code);finishing=false;return}
