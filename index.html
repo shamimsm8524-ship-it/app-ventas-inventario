@@ -1130,7 +1130,17 @@ function checkUrlOrder(){
 }
 
 [newSaleTop,newSaleFab].forEach(b=>b.onclick=()=>openSale(false));
-closeCash.onclick=()=>{let a=activeSales(),t=a.reduce((x,s)=>x+s.total,0);closures.push({id:uid(),closedAt:new Date().toISOString(),total:t});cashStart=new Date().toISOString();save()};
+closeCash.onclick=async()=>{
+  if(closeCash.disabled)return;closeCash.disabled=true;
+  const total=activeSales().reduce((sum,s)=>sum+(Number(s.total)||0),0);
+  try{
+    if(typeof window.vareliaCentralCloseCash!=='function')throw new Error('Espera a que termine la conexión.');
+    const row=await window.vareliaCentralCloseCash(total),profile=window.vareliaCurrentUserProfile||{};
+    if(!closures.some(c=>String(c.cloudClosureId||c.id)===String(row.id)))closures.push({id:row.id,cloudClosureId:row.id,closedAt:row.closed_at,total:Number(row.total),closureTotal:Number(row.total),sellerId:row.created_by,sellerName:profile.full_name||'Mi caja',dayKey:row.day_key});
+    cashStart=row.closed_at;save();window.vareliaToast?.('Cierre de caja confirmado.','ok');
+  }catch(err){alert(err?.message||'No se pudo confirmar el cierre. La caja permanece abierta.');}
+  finally{closeCash.disabled=false}
+};
 themeGrid.onclick=e=>{let b=e.target.closest('[data-color]');if(b){setThemeColor(b.dataset.color);syncWheelFromHex(b.dataset.color)}};
 lightModeBtn.onclick=()=>{theme.dark=false;theme.updatedAt=Date.now();localStorage.setItem(K.theme,JSON.stringify(theme));save();applyTheme()};
 darkModeBtn.onclick=()=>{theme.dark=true;theme.updatedAt=Date.now();localStorage.setItem(K.theme,JSON.stringify(theme));save();applyTheme()};
@@ -1439,7 +1449,7 @@ if ('serviceWorker' in navigator) {
 <script src="seller-business-readonly.js?v=20261013-shared-business-readonly-v1"></script>
 <script id="businessDataMenuFix">
 (()=>{
- const open=()=>{const sec=document.getElementById('mobileSettingsHub');if(!sec)return false;document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('main.content > section').forEach(v=>v.style.display='none');sec.style.display='block';sec.classList.add('active');try{scrollTo({top:0,behavior:'smooth'})}catch{}return true};
+ const open=()=>{const sec=document.getElementById('mobileSettingsHub');if(!sec)return false;document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelectorAll('main.content > section').forEach(v=>v.style.removeProperty('display'));sec.classList.add('active');try{scrollTo({top:0,behavior:'smooth'})}catch{}return true};
  document.addEventListener('click',e=>{const b=e.target.closest('#businessDataMenu');if(!b)return;e.preventDefault();if(open())return;setTimeout(open,350)},true);
 })();
 </script>

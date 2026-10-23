@@ -30,6 +30,14 @@ SELECT pg_temp.qa_denied(format('UPDATE public.profiles SET business_id=%L WHERE
 SELECT pg_temp.qa_denied('UPDATE public.businesses SET plan=''premium'' WHERE id=(SELECT biz_a FROM qa_context)','owner cannot self-upgrade plan');
 UPDATE public.profiles SET full_name='Updated name' WHERE id=(SELECT owner_a FROM qa_context);
 SELECT pg_temp.qa_assert((SELECT full_name='Updated name' FROM public.profiles WHERE id=auth.uid()),'display name remains editable');
+DO $$
+DECLARE id uuid:=gen_random_uuid(); first_close jsonb; second_close jsonb;
+BEGIN
+ first_close:=public.varelia_record_cash_closure(id,15);
+ second_close:=public.varelia_record_cash_closure(id,15);
+ PERFORM pg_temp.qa_assert(first_close=second_close,'cash closure retry returns the original record');
+ PERFORM pg_temp.qa_assert((SELECT count(*)=1 FROM public.varelia_cash_closures c WHERE c.id=(first_close->>'id')::uuid),'cash closure is saved only once');
+END $$;
 SELECT public.varelia_adjust_stock((SELECT product_a FROM qa_context),2.25,'add');
 SELECT pg_temp.qa_assert((SELECT stock=102.25 FROM public.varelia_products WHERE id=(SELECT product_a FROM qa_context)),'manual addition is atomic and fractional');
 SELECT public.varelia_adjust_stock((SELECT product_a FROM qa_context),2.25,'subtract');
@@ -99,4 +107,4 @@ SELECT pg_temp.qa_assert((SELECT count(*) FROM public.varelia_products)=0,'anony
 SELECT pg_temp.qa_assert((SELECT count(*) FROM public.profiles)=0,'anonymous cannot read accounts');
 RESET ROLE;
 ROLLBACK;
-SELECT 'PASS: 29 account, tenant, role, stock, variants, returns, checkout, credit and purchase assertions; fixtures rolled back' AS result;
+SELECT 'PASS: 31 account, tenant, role, stock, variants, returns, checkout, credit, purchase and cash assertions; fixtures rolled back' AS result;

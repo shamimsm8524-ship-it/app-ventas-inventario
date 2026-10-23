@@ -117,3 +117,10 @@ test('confirmed rows preserve separate costs for two presentations of one produc
   vm.createContext(env);vm.runInContext(body+'this.result=soldItems;',env);
   assert.equal(env.result[0].buyPriceAtSale,120);assert.equal(env.result[1].buyPriceAtSale,25);
 });
+
+test('startup screen restoration stops after the first user interaction',()=>{
+  const src=read('product-view-20260930-17.js');
+  const restore=src.slice(src.indexOf('const restore=()=>{'),src.indexOf(";window.addEventListener('pageshow'"));
+  const env={window:{__vareliaNavigationTouched:true},wantedView:()=>{throw Error('must not navigate')},forceView:()=>{throw Error('must not navigate')},saveView(){}};
+  vm.createContext(env);vm.runInContext(restore+';restore();',env);
+});

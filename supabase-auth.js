@@ -229,6 +229,8 @@ function clearVisibleSession(){
   document.querySelectorAll('dialog[open]').forEach(d=>d.close());
   document.getElementById('vreceiptOverlay')?.classList.remove('show');
   document.getElementById('vareliaEmergencyReceipt')?.remove();
+  document.getElementById('vareliaHistoryExtraModal')?.remove();
+  document.querySelectorAll('.show').forEach(el=>el.classList.remove('show'));
   try{if(typeof render==='function')render()}catch{}
   showAuth();
 }

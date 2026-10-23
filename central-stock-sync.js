@@ -762,6 +762,35 @@
     btn.dataset.centralStock='1';
   }
 
+  window.vareliaCentralCloseCash=async function(total){
+    if(!sb)await waitClient();if(!businessId)await loadProfile();
+    const key='varelia_cash_close_pending_v1:'+String(profile?.id||businessId);
+    let id=localStorage.getItem(key);if(!id){id=newRequestId();localStorage.setItem(key,id)}
+    const {data,error}=await sb.rpc('varelia_record_cash_closure',{p_id:id,p_total:total});
+    if(error)throw error;
+    if(!data?.id)throw new Error('El cierre no quedó confirmado.');
+    localStorage.removeItem(key);return data;
+  };
+  let cashRefreshBusy=false;
+  async function refreshCashClosures(){
+    if(cashRefreshBusy||!sb||!businessId)return;
+    cashRefreshBusy=true;const requestedBusiness=businessId;
+    try{
+      const {data,error}=await sb.from('varelia_cash_closures').select('*').eq('business_id',businessId).order('closed_at',{ascending:false});
+      if(error)throw error;if(requestedBusiness!==businessId)return;
+      for(const row of data||[]){
+        const value={id:row.id,cloudClosureId:row.id,closedAt:row.closed_at,total:Number(row.total),closureTotal:Number(row.total),dayKey:row.day_key,sellerId:row.created_by,sellerName:row.created_by===profile?.id?(window.vareliaCurrentUserProfile?.full_name||'Mi caja'):'Vendedor'};
+        const old=closures.find(c=>String(c.cloudClosureId||c.id)===String(row.id));if(old)Object.assign(old,value);else closures.push(value);
+
+      }
+      const ownClosures=closures.filter(c=>!c.sellerId||String(c.sellerId)===String(profile?.id));
+      const times=ownClosures.map(c=>new Date(c.closedAt).getTime()).filter(Number.isFinite);
+      cashStart=times.length?new Date(Math.max(...times)).toISOString():'1970-01-01T00:00:00.000Z';
+      if(typeof save==='function')save();
+    }catch(e){console.warn('No se pudieron actualizar los cierres de caja',e)}finally{cashRefreshBusy=false}
+  }
+  window.addEventListener('varelia:central-stock-updated',refreshCashClosures);
+
   window.vareliaCentralDeleteSupplier=async function(supplier){
     if(!sb)await waitClient();if(!businessId)await loadProfile();
     let query=sb.from('varelia_suppliers').delete().eq('business_id',businessId);

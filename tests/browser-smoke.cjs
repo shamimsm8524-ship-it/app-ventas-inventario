@@ -79,7 +79,6 @@ const server=http.createServer((req,res)=>{
     await page.locator('#supplierForm button[type=submit]').click();
     await page.waitForFunction(()=>!!window.__savedSupplier);
     assert.equal(await page.locator('#supplierList').innerText().then(t=>t.includes('Proveedor de prueba')),true);
-    console.log('SUPPLIER_STATE:'+JSON.stringify(await page.evaluate(()=>({active:[...document.querySelectorAll('.view.active')].map(x=>x.id),target:document.getElementById('suppliers').outerHTML.slice(0,500),display:getComputedStyle(document.getElementById('suppliers')).display,button:getComputedStyle(document.querySelector('[data-editsupplier]')).display,body:document.body.className}))));
     await page.locator('[data-editsupplier]').click();
     await page.locator('#supplierName').fill('Proveedor actualizado');
     await page.locator('#supplierForm button[type=submit]').click();
@@ -96,6 +95,15 @@ const server=http.createServer((req,res)=>{
     const purchase=await page.evaluate(()=>window.__purchase);
     assert.equal(purchase.items.length,1);assert.equal(purchase.items[0].qty,2);assert.equal(purchase.items[0].cost,3.33);
     console.log('PASS: real goods receipt form sends quantity and unit cost to one cloud transaction');
+    await page.evaluate(()=>{
+      window.vareliaCentralCloseCash=async total=>{window.__cashTotal=total;return {id:'00000000-0000-4000-8000-000000000003',total,created_by:'qa-user',day_key:'2026-10-23',closed_at:new Date().toISOString()}};
+      switchView('cash');
+    });
+    await page.locator('#closeCash').click();
+    await page.waitForFunction(()=>typeof window.__cashTotal==='number');
+    assert.equal(await page.evaluate(()=>closures.filter(c=>c.cloudClosureId==='00000000-0000-4000-8000-000000000003').length),1);
+    console.log('PASS: cash closes only after cloud confirmation');
+
 
     await page.waitForTimeout(500);
     assert.deepEqual(errors,[]);
