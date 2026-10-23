@@ -279,7 +279,7 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 <button class="fab" id="newSaleFab">+ Venta</button>
 
 <dialog id="productDialog"><div class="modal"><div class="modalhead"><h2 id="productTitle">Nuevo producto</h2><button class="close" data-close="productDialog">×</button></div><form class="form" id="productForm"><input type="hidden" id="productId"><label><span>Imagen del producto</span><input id="productImage" type="file" accept="image/*"></label><img id="imagePreview" class="preview" hidden><div class="two"><label><span>Código de barras</span><input id="barcode" placeholder="Escanea o escribe el código"></label><button type="button" class="btn secondary" id="scanForProduct">📷 Escanear</button></div><label><span>Nombre del producto</span><input id="productName" required></label><label><span>Sección / Categoría</span><select id="productCategory" required></select></label><div class="two"><label><span>Costo total de compra (S/)</span><input id="buyPrice" type="number" step="any" min="0"></label><label><span>Precio de venta (S/)</span><input id="sellPrice" type="number" step="0.01" min="0" required></label></div><label id="purchaseQuantityLabel"><span>¿Cuántas unidades de inventario incluye ese costo?</span><input id="purchaseQuantity" type="number" min="0.000001" step="any" value="1" required><small class="notice">Si compras un cajón de 36 productos por S/120, escribe 120 arriba y 36 aquí. Si el costo es por una unidad, escribe 1. No agrega stock.</small><output id="purchaseUnitCost" class="notice" aria-live="polite"></output></label><label><span>Unidad de medida</span><select id="unit"><option>Unidad</option><option>Caja</option><option>Blíster</option><option>Paquete</option><option>Bolsa</option><option>Botella</option><option>Lata</option><option>Docena</option><option>Kg</option><option>Gramo</option><option>Litro</option><option>Metro</option><option>m²</option><option>Rollo</option><option>Par</option><option>Set</option><option>Otro</option></select></label><label id="vUnitsPerBoxWrap" style="display:none"><span>Unidades por caja</span><input id="vUnitsPerBox" type="number" min="1" step="1" inputmode="numeric" placeholder="Ej.: 24"><small class="notice">Indica cuántas unidades contiene cada caja.</small></label><label><span>Alerta de reposición</span><input id="reorderLevel" type="number" min="0" step="1" value="5"><small class="notice">Avísame cuando el stock sea igual o menor a esta cantidad.</small></label><div id="vMedicineBox" style="border:2px solid #d7def0;border-radius:16px;padding:13px;background:var(--bg)"><div style="font-size:20px;font-weight:900;margin-bottom:4px">💊 Medicamento</div><small class="notice">Configura cómo compras y cómo vendes este medicamento.</small><label id="vMedicineManualToggle" style="display:flex;gap:9px;align-items:center;margin-top:10px"><input id="vMedicineToggle" type="checkbox" style="width:auto"><span>Activar datos de medicamento</span></label><div id="vMedicineFields" style="display:none;margin-top:12px"><div class="two"><label><span>Laboratorio</span><input id="vMedicineLaboratory" placeholder="Ej. Medifarma"></label><label><span>Presentación</span><input id="vMedicinePresentation" placeholder="Ej. Caja x 20 tabletas, jarabe 120 ml"></label></div><div class="two"><label><span>Lote</span><input id="vMedicineBatch" placeholder="Número de lote"></label><label><span>Fecha de vencimiento</span><input id="vMedicineExpiry" type="date"></label></div><div class="two"><label><span>Blísteres por caja</span><input id="vMedicineBlistersPerBox" type="number" min="1" step="1" placeholder="Ej. 10"></label><label><span>Pastillas por blíster</span><input id="vMedicineUnitsPerBlister" type="number" min="1" step="1" placeholder="Ej. 10"></label></div><div class="two"><label><span>Precio por caja</span><input id="vMedicineBoxPrice" type="number" min="0" step="0.01" placeholder="S/ 0.00"></label><label><span>Precio por blíster</span><input id="vMedicineBlisterPrice" type="number" min="0" step="0.01" placeholder="S/ 0.00"></label></div><label><span>Precio por pastilla / unidad</span><input id="vMedicineUnitPrice" type="number" min="0" step="0.01" placeholder="S/ 0.00"></label><div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:14px"><b>📦 Stock del medicamento</b><label><span>Cajas disponibles</span><input id="vMedicineStockBoxes" type="number" min="0" step="1" placeholder="Ej. 1"></label><div id="vMedicineStockSummary" class="notice" style="margin-top:8px">0 cajas = 0 blísteres = 0 pastillas</div></div><small class="notice">Varelia avisará cuando la medicina esté próxima a vencer.</small></div></div><label><span>Descripción del producto</span><textarea id="description" rows="4" maxlength="2000" placeholder="Escribe la descripción que verá el cliente al tocar la imagen del producto en el catálogo público."></textarea><small class="notice">Esta descripción se mostrará en el catálogo público al tocar la imagen del producto.</small></label><div class="two" style="margin-top:6px"><button type="button" class="btn danger" id="deleteProductModalBtn" style="display:none">🗑️ Eliminar</button><button type="submit" class="btn primary">Guardar producto</button></div></form></div></dialog>
-<dialog id="supplierDialog"><div class="modal"><div class="modalhead"><h2 id="supplierTitle">Nuevo proveedor</h2><button class="close" data-close="supplierDialog">×</button></div><form class="form" id="supplierForm"><input type="hidden" id="supplierId"><label><span>Nombre / Razón social</span><input id="supplierName" required></label><div class="two"><label><span>RUC / Documento</span><input id="supplierRuc"></label><label><span>Teléfono</span><input id="supplierPhone"></label></div><label><span>Correo</span><input id="supplierEmail" type="email"></label><label><span>Dirección</span><input id="supplierAddress"></label><label><span>Notas</span><textarea id="supplierNotes" rows="3"></textarea></label><button class="btn primary">Guardar proveedor</button></form></div></dialog>
+<dialog id="supplierDialog"><div class="modal"><div class="modalhead"><h2 id="supplierTitle">Nuevo proveedor</h2><button class="close" data-close="supplierDialog">×</button></div><form class="form" id="supplierForm"><input type="hidden" id="supplierId"><label><span>Nombre / Razón social</span><input id="supplierName" required></label><div class="two"><label><span>RUC / Documento</span><input id="supplierRuc"></label><label><span>Teléfono</span><input id="supplierPhone"></label></div><label><span>Correo</span><input id="supplierEmail" type="email"></label><label><span>Dirección</span><input id="supplierAddress"></label><label><span>Notas</span><textarea id="supplierNotes" rows="3"></textarea></label><button class="btn primary" type="submit">Guardar proveedor</button></form></div></dialog>
 <dialog id="purchaseDialog"><div class="modal"><div class="modalhead"><h2>Nuevo ingreso de mercadería</h2><button class="close" data-close="purchaseDialog">×</button></div><div class="form"><label><span>Proveedor</span><select id="purchaseSupplier"></select></label><label><span>Número de comprobante</span><input id="purchaseDoc" placeholder="Factura, boleta, orden, etc."></label><div class="panel"><strong>Mercadería recibida</strong><div class="three" style="margin-top:10px"><select id="purchaseProduct"></select><input id="purchaseQty" type="number" min="0.001" step="any" value="1" placeholder="Cantidad"><input id="purchaseCost" type="number" min="0" step="0.01" placeholder="Costo unitario"></div><button class="btn secondary" id="addPurchaseItem">+ Agregar producto</button></div><div id="purchaseItems"></div><div class="total"><span>Total del ingreso</span><span id="purchaseTotal">S/ 0.00</span></div><button class="btn primary" id="savePurchase">Registrar ingreso y aumentar stock</button></div></div></dialog>
 <dialog id="saleDialog"><div class="modal"><div class="modalhead"><h2>Nueva venta</h2><button class="close" data-close="saleDialog">×</button></div><div class="two"><input id="saleSearch" placeholder="Buscar, escanear o pegar pedido"><button class="btn secondary" id="scanForSale">📷 Escanear</button></div><div class="list" id="saleResults"></div><div id="cart"></div><div class="total"><span>Total</span><span id="saleTotal">S/ 0.00</span></div><button class="btn primary" id="checkout" style="width:100%;margin-top:12px">Cobrar</button></div></dialog>
 <dialog id="scannerDialog"><div class="modal"><div class="modalhead"><h2>Escanear código</h2><button class="close" id="closeScanner">×</button></div><video id="scannerVideo" autoplay playsinline style="width:100%;background:black;border-radius:15px"></video></div></dialog>
@@ -538,6 +538,7 @@ function openProduct(id){
   if(!categories.length){alert('Primero crea una categoría.');switchView('categories');return}
   let p=products.find(x=>String(x.id).trim()===String(id).trim());
   productForm.reset();
+  productForm.dataset.cloudVersion=p?._cloudUpdatedAt||'';
   productId.value=p?.id||'';
   productTitle.textContent=p?'Editar producto':'Nuevo producto';
   barcode.value=p?.barcode||'';
@@ -603,6 +604,7 @@ productImage.onchange=e=>{
 
 productForm.onsubmit=async e=>{
   e.preventDefault();
+  if(productForm.dataset.saving==='1')return;
   const costTotal=Number(buyPrice.value),costQuantity=Number(document.getElementById('purchaseQuantity').value);
   if(!Number.isFinite(costTotal)||costTotal<0||!Number.isFinite(costQuantity)||costQuantity<=0){alert('Escribe un costo válido y una cantidad de compra mayor que cero.');return}
   if(!Number.isFinite(Number(sellPrice.value))||Number(sellPrice.value)<0){alert('Escribe un precio de venta válido.');return}
@@ -613,6 +615,9 @@ productForm.onsubmit=async e=>{
   let commercialDraft;
   try{commercialDraft=window.VareliaCommercialPresentations?.readForm?.()}catch(err){alert(err.message);return}
   let id=productId.value||uid(),old=products.find(p=>String(p.id).trim()===String(id).trim());
+  if(old&&productForm.dataset.cloudVersion&&old._cloudUpdatedAt!==productForm.dataset.cloudVersion){
+    alert('Este producto cambió mientras lo editabas. Cierra y vuelve a abrir el formulario antes de guardar.');return;
+  }
   const editor=document.getElementById('vcharEditor');
   let extra={characteristics:[],variantCombinations:[]};
   // Leer el editor oficial antes de guardar. Esto genera/conserva las combinaciones
@@ -674,12 +679,16 @@ productForm.onsubmit=async e=>{
   }
   obj.variants=String(document.getElementById('vProductVariants')?.value??old?.variants??'').trim();
   obj.specifications=String(document.getElementById('productSpecifications')?.value??old?.specifications??'').trim();
+  productForm.dataset.saving='1';
+  const submitButton=productForm.querySelector('[type=submit]');if(submitButton)submitButton.disabled=true;
+  try{
   try{
     const images=window.VareliaProductImages;
     if(images){if(obj.image)await images.put(obj.id,obj.image);else await images.remove(obj.id)}
   }catch(err){console.error('Imagen del producto',err);alert('No se pudo guardar la imagen. Comprueba el espacio disponible e inténtalo otra vez.');return}
   old?Object.assign(old,obj):products.push(obj);
   const saved=old||obj;
+  productId.value=String(saved.id);
   if(!isMedicineProduct)saved.__commercialEdited=true;
   save();
   try{
@@ -692,6 +701,7 @@ productForm.onsubmit=async e=>{
   }catch(err){console.error('Sincronización de características',err);window.vareliaToast?.('Guardado en este dispositivo. No se pudo sincronizar; vuelve a pulsar Guardar para reintentar.','warn');return}
   window.dispatchEvent(new CustomEvent('varelia:catalog-product-changed'));
   productDialog.close();
+  }finally{productForm.dataset.saving='';if(submitButton)submitButton.disabled=false}
 };
 
 function productActions(e){

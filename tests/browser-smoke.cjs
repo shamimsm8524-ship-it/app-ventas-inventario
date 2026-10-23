@@ -87,7 +87,7 @@ const server=http.createServer((req,res)=>{
     await page.evaluate(()=>switchView('purchases'));
     await page.locator('#newPurchase').click();
     await page.locator('#purchaseSupplier').selectOption({label:'Proveedor actualizado'});
-    await page.locator('#purchaseProduct').selectOption({label:'Vaporera de prueba'});
+    await page.locator('#purchaseProduct').selectOption(await page.evaluate(()=>String(products.find(p=>p.name==='Vaporera de prueba').id)));
     await page.locator('#purchaseQty').fill('2');await page.locator('#purchaseCost').fill('3.33');
     await page.locator('#addPurchaseItem').click();
     await page.locator('#savePurchase').click();
