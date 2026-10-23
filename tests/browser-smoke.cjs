@@ -55,6 +55,19 @@ const server=http.createServer((req,res)=>{
     assert.equal(saved.salePresentations.find(p=>p.id==='cajon').buyCost,120);
     assert.equal(saved.salePresentations.find(p=>p.id==='media_docena').buyCost,25);
     console.log('PASS: real mobile form preserves independent carton and half-dozen purchase costs');
+    await page.waitForFunction(()=>!document.getElementById('productDialog')?.open);
+    await page.evaluate(()=>document.querySelectorAll('dialog[open]').forEach(d=>d.close()));
+    for(const view of ['products','inventory','sales','cash','suppliers','purchases','categories','appearance']){
+      await page.evaluate(id=>switchView(id),view);
+      assert.equal(await page.locator('#'+view).evaluate(el=>el.classList.contains('active')),true,'view '+view);
+      if(view==='inventory'||view==='cash')console.log('VISUAL_'+view.toUpperCase()+':'+(await page.screenshot({type:'jpeg',quality:45})).toString('base64'));
+    }
+    console.log('PASS: catalog, inventory, sales, cash, suppliers, purchases, categories and appearance screens open');
+    for(const view of ['sales','products','inventory','mobileHistoryHub','mobileAdminHub','mobileSettingsHub']){
+      await page.locator('[data-mobile-tab="'+view+'"]').click();
+      assert.equal(await page.locator('#'+view).evaluate(el=>el.classList.contains('active')),true,'mobile tab '+view);
+    }
+    console.log('PASS: all six mobile navigation tabs respond');
     await page.waitForTimeout(500);
     assert.deepEqual(errors,[]);
     console.log('PASS: app scripts load without uncaught browser errors');

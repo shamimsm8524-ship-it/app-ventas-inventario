@@ -217,10 +217,12 @@
   async function refreshCloud(){
     if(!sb)throw new Error('Supabase no está disponible.');
     if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
+    const requestedBusiness=businessId;
     const [catsRes,prodRes]=await withTimeout(Promise.all([
       sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
       sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,units_per_box,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes,sale_presentations,advanced_pricing,updated_at').eq('business_id',businessId).order('created_at')
     ]),15000,'La lectura del inventario en la nube');
+    if(requestedBusiness!==businessId)return false;
     if(catsRes.error)throw catsRes.error;
     if(prodRes.error)throw prodRes.error;
     const rows=prodRes.data||[];
@@ -547,6 +549,18 @@
         });
       }
 
+      // Reuse the same request after a lost response, including across app restarts.
+      const requestKey='varelia_checkout_pending_v1:'+String(profile?.id||businessId);
+      const fingerprint=JSON.stringify({payload,method:pay.method||'Efectivo',customer:fiado?client:''});
+      let pending=null;
+      try{pending=JSON.parse(localStorage.getItem(requestKey)||'null')}catch{}
+      if(pending?.fingerprint!==fingerprint||!pending?.id){
+        const bytes=crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+        const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+        pending={id:hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20),fingerprint};
+        localStorage.setItem(requestKey,JSON.stringify(pending));
+      }
+      payload[0].request_id=pending.id;
       let data=null,error=null,commitTimer=null;
       const commitController=typeof AbortController!=='undefined'?new AbortController():null;
       try{
@@ -565,13 +579,14 @@
       }catch(commitError){
         const msg=String(commitError?.message||commitError||'');
         if(commitError?.name==='AbortError'||/abort|no respondió/i.test(msg)){
-          throw new Error('El cobro tardó demasiado y se detuvo para que Varelia no quede congelada. Revisa Historial antes de volver a cobrar para evitar duplicar la venta.');
+          throw new Error('El cobro tardó demasiado y se detuvo para que Varelia no quede congelada. Puedes reintentar el mismo carrito: se comprobará el cobro anterior para evitar duplicarlo.');
         }
         throw commitError;
       }finally{
         if(commitTimer)clearTimeout(commitTimer);
       }
       if(error)throw error;
+      localStorage.removeItem(requestKey);
 
       const remoteItems=Array.isArray(data?.items)?data.items:[];
       const soldItems=current.map((item,i)=>{
@@ -618,7 +633,7 @@
           ...(fiado?{customerName:client,paidAmount:0,
             payments:[],paymentStatus:'pending',cloudCreditId:String(data?.credit_sale_id||data?.sale_id||'')}:{}),
         };
-        sales.push(committedSale);
+        if(!sales.some(s=>String(s.cloudSaleId||'')===committedSale.cloudSaleId))sales.push(committedSale);
         cart=[];
         try{if(saleDialog?.open)saleDialog.close()}catch{}
       }catch(e){console.warn('Historial local',e)}
@@ -929,6 +944,12 @@
     if(!client)return;
     clearInterval(authWait);
     client.auth.onAuthStateChange((event,session)=>{
+      if(event==='SIGNED_OUT'){
+        businessId='';profile=null;role='';stockSnapshot=null;
+        clearTimeout(retryTimer);clearInterval(stockPollTimer);
+        if(channel){try{sb.removeChannel(channel)}catch{}channel=null;}
+        return;
+      }
       if(session?.user&&(event==='SIGNED_IN'||event==='INITIAL_SESSION'||event==='TOKEN_REFRESHED')){
         setTimeout(()=>init().catch(console.error),150);
       }

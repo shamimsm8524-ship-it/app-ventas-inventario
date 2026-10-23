@@ -32,6 +32,23 @@ UPDATE public.profiles SET full_name='Updated name' WHERE id=(SELECT owner_a FRO
 SELECT pg_temp.qa_assert((SELECT full_name='Updated name' FROM public.profiles WHERE id=auth.uid()),'display name remains editable');
 SELECT public.varelia_staff_stock_in((SELECT product_a FROM qa_context),0.5,'restock');
 SELECT pg_temp.qa_assert((SELECT stock=100.5 FROM public.varelia_products WHERE id=(SELECT product_a FROM qa_context)),'fractional stock is preserved');
+DO $$
+DECLARE payload jsonb; first_sale jsonb; replay jsonb; denied boolean:=false; before_stock numeric;
+BEGIN
+ SELECT jsonb_build_array(jsonb_build_object('product_id',product_a,'qty',1,'unit_price',15,'request_id',gen_random_uuid())) INTO payload FROM qa_context;
+ SELECT stock INTO before_stock FROM public.varelia_products WHERE id=(SELECT product_a FROM qa_context);
+ first_sale:=public.varelia_commit_sale(payload,'Venta');
+ replay:=public.varelia_commit_sale(payload,'Venta');
+ PERFORM pg_temp.qa_assert(first_sale=replay,'retry returns the original receipt');
+ PERFORM pg_temp.qa_assert((SELECT stock=before_stock-1 FROM public.varelia_products WHERE id=(SELECT product_a FROM qa_context)),'retry decrements stock only once');
+ BEGIN PERFORM public.varelia_commit_sale(jsonb_set(payload,'{0,qty}','2'),'Venta'); EXCEPTION WHEN raise_exception THEN denied:=true; END;
+ PERFORM pg_temp.qa_assert(denied,'changed request cannot reuse the same payment ID');
+ payload:=jsonb_set(payload,'{0,request_id}',to_jsonb(gen_random_uuid()::text));
+ first_sale:=public.varelia_commit_credit_sale(payload,'Cliente QA');
+ replay:=public.varelia_commit_credit_sale(payload,'Cliente QA');
+ PERFORM pg_temp.qa_assert(first_sale->>'sale_id'=replay->>'sale_id','credit retry creates one debt');
+ PERFORM pg_temp.qa_assert((SELECT count(*)=1 FROM public.varelia_credit_sales WHERE sale_id=(first_sale->>'sale_id')::uuid),'credit has one record');
+END $$;
 SELECT set_config('request.jwt.claim.sub',(SELECT cashier::text FROM qa_context),true);
 SELECT pg_temp.qa_denied('UPDATE public.profiles SET role=''owner'' WHERE id=auth.uid()','cashier cannot become owner');
 SELECT pg_temp.qa_denied('UPDATE public.profiles SET permissions=''{}''::jsonb WHERE id=auth.uid()','cashier cannot change own permissions');
@@ -45,4 +62,4 @@ SELECT pg_temp.qa_assert((SELECT count(*) FROM public.varelia_products)=0,'anony
 SELECT pg_temp.qa_assert((SELECT count(*) FROM public.profiles)=0,'anonymous cannot read accounts');
 RESET ROLE;
 ROLLBACK;
-SELECT 'PASS: 13 account, tenant, role, fractional stock and cash-permission assertions; fixtures rolled back' AS result;
+SELECT 'PASS: 18 account, tenant, role, fractional stock, idempotent checkout and credit assertions; fixtures rolled back' AS result;

@@ -525,7 +525,7 @@ function updateUnitsPerBoxUI(){
 function switchView(n){
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id===n));
   document.querySelectorAll('.nav [data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===n));
-  if(n==='suppliers'||n==='purchases')supplierGroup.classList.add('open');
+  if(n==='suppliers'||n==='purchases')document.getElementById('settingsGroup')?.classList.add('open');
   if(innerWidth<=980){sidebar.classList.remove('open');overlay.classList.remove('show')}
   scrollTo({top:0,behavior:'smooth'});
 }
