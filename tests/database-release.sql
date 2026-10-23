@@ -30,6 +30,10 @@ SELECT pg_temp.qa_denied(format('UPDATE public.profiles SET business_id=%L WHERE
 SELECT pg_temp.qa_denied('UPDATE public.businesses SET plan=''premium'' WHERE id=(SELECT biz_a FROM qa_context)','owner cannot self-upgrade plan');
 UPDATE public.profiles SET full_name='Updated name' WHERE id=(SELECT owner_a FROM qa_context);
 SELECT pg_temp.qa_assert((SELECT full_name='Updated name' FROM public.profiles WHERE id=auth.uid()),'display name remains editable');
+SELECT public.varelia_adjust_stock((SELECT product_a FROM qa_context),2.25,'add');
+SELECT pg_temp.qa_assert((SELECT stock=102.25 FROM public.varelia_products WHERE id=(SELECT product_a FROM qa_context)),'manual addition is atomic and fractional');
+SELECT public.varelia_adjust_stock((SELECT product_a FROM qa_context),2.25,'subtract');
+SELECT pg_temp.qa_assert((SELECT stock=100 FROM public.varelia_products WHERE id=(SELECT product_a FROM qa_context)),'manual subtraction uses the current server stock');
 SELECT public.varelia_staff_stock_in((SELECT product_a FROM qa_context),0.5,'restock');
 SELECT pg_temp.qa_assert((SELECT stock=100.5 FROM public.varelia_products WHERE id=(SELECT product_a FROM qa_context)),'fractional stock is preserved');
 DO $$
@@ -48,6 +52,24 @@ BEGIN
  replay:=public.varelia_commit_credit_sale(payload,'Cliente QA');
  PERFORM pg_temp.qa_assert(first_sale->>'sale_id'=replay->>'sale_id','credit retry creates one debt');
  PERFORM pg_temp.qa_assert((SELECT count(*)=1 FROM public.varelia_credit_sales WHERE sale_id=(first_sale->>'sale_id')::uuid),'credit has one record');
+END $$;
+DO $$
+DECLARE supplier jsonb; second_supplier jsonb; payload jsonb; original jsonb; replay jsonb; request_id uuid:=gen_random_uuid(); before_stock numeric; denied boolean:=false;
+BEGIN
+ supplier:=public.varelia_save_supplier('{"id":"qa-supplier","name":"Proveedor QA"}');
+ second_supplier:=public.varelia_save_supplier('{"id":"qa-supplier","name":"Proveedor editado"}');
+ PERFORM pg_temp.qa_assert(supplier->>'id'=second_supplier->>'id','supplier edit preserves its identity');
+ SELECT stock INTO before_stock FROM public.varelia_products WHERE id=(SELECT product_a FROM qa_context);
+ SELECT jsonb_build_array(jsonb_build_object('product_id',product_a,'qty',1.5,'cost',10)) INTO payload FROM qa_context;
+ original:=public.varelia_commit_purchase(request_id,(supplier->>'id')::uuid,payload,'QA');
+ replay:=public.varelia_commit_purchase(request_id,(supplier->>'id')::uuid,payload,'QA');
+ PERFORM pg_temp.qa_assert(original=replay,'purchase retry returns the original purchase');
+ PERFORM pg_temp.qa_assert((SELECT stock=before_stock+1.5 AND buy_price=10 FROM public.varelia_products WHERE id=(SELECT product_a FROM qa_context)),'purchase adds stock once and saves unit cost');
+ PERFORM pg_temp.qa_assert((original->>'total')::numeric=15,'purchase total uses actual quantity and unit cost');
+ BEGIN
+   PERFORM public.varelia_commit_purchase(gen_random_uuid(),(supplier->>'id')::uuid,payload||jsonb_build_array(jsonb_build_object('product_id',gen_random_uuid(),'qty',1,'cost',10)),'QA failed');
+ EXCEPTION WHEN raise_exception THEN denied:=true; END;
+ PERFORM pg_temp.qa_assert(denied AND (SELECT stock=before_stock+1.5 FROM public.varelia_products WHERE id=(SELECT product_a FROM qa_context)),'invalid purchase rolls back all earlier item stock changes');
 END $$;
 UPDATE public.varelia_products SET stock=5,variant_combinations='[{"values":["Azul","M"],"stock":5}]' WHERE id=(SELECT product_a FROM qa_context);
 DO $$
@@ -77,4 +99,4 @@ SELECT pg_temp.qa_assert((SELECT count(*) FROM public.varelia_products)=0,'anony
 SELECT pg_temp.qa_assert((SELECT count(*) FROM public.profiles)=0,'anonymous cannot read accounts');
 RESET ROLE;
 ROLLBACK;
-SELECT 'PASS: 22 account, tenant, role, stock, variants, returns, idempotent checkout and credit assertions; fixtures rolled back' AS result;
+SELECT 'PASS: 29 account, tenant, role, stock, variants, returns, checkout, credit and purchase assertions; fixtures rolled back' AS result;

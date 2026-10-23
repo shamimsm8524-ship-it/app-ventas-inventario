@@ -15,7 +15,7 @@ const server=http.createServer((req,res)=>{
     // No real users, products, or authentication requests are written by this smoke test.
     await page.route('**/*',route=>{
       const url=route.request().url();
-      if(url.includes('/@supabase/supabase-js'))return route.fulfill({contentType:'application/javascript',body:`window.supabase={createClient(){const result={data:[],error:null};const q=new Proxy({}, {get(t,k){if(k==='then')return r=>Promise.resolve(result).then(r);return ()=>q}});return {auth:{async getSession(){return {data:{session:null},error:null}},async getUser(){return {data:{user:null},error:null}},onAuthStateChange(){return {data:{subscription:{unsubscribe(){}}}}},async signInWithOAuth(){window.__googleClicked=true;return {data:{},error:null}}},from(){return q},rpc(){return Promise.resolve(result)},channel(){return {on(){return this},subscribe(){return this}}},removeChannel(){}}}};`});
+      if(url.includes('/@supabase/supabase-js'))return route.fulfill({contentType:'application/javascript',body:`window.supabase={createClient(){const result={data:[],error:null};const q=new Proxy({}, {get(t,k){if(k==='then')return r=>Promise.resolve(result).then(r);return ()=>q}});return {auth:{async getSession(){return {data:{session:null},error:null}},async getUser(){return {data:{user:null},error:null}},async signOut(){return {error:null}},onAuthStateChange(){return {data:{subscription:{unsubscribe(){}}}}},async signInWithOAuth(){window.__googleClicked=true;return {data:{},error:null}}},from(){return q},rpc(){return Promise.resolve(result)},channel(){return {on(){return this},subscribe(){return this}}},removeChannel(){}}}};`});
       if(!url.startsWith('http://127.0.0.1:'))return route.abort();
       return route.continue();
     });
@@ -68,6 +68,34 @@ const server=http.createServer((req,res)=>{
       assert.equal(await page.locator('#'+view).evaluate(el=>el.classList.contains('active')),true,'mobile tab '+view);
     }
     console.log('PASS: all six mobile navigation tabs respond');
+    await page.evaluate(()=>{
+      window.vareliaCentralSaveSupplier=async s=>{window.__savedSupplier={...s};return {id:'00000000-0000-4000-8000-000000000001'}};
+      window.vareliaCentralDeleteSupplier=async s=>{window.__deletedSupplier=s.id};
+      window.vareliaCentralPurchase=async p=>{window.__purchase=p;return {purchase_id:'00000000-0000-4000-8000-000000000002',total:p.items.reduce((a,i)=>a+i.qty*i.cost,0)}};
+      switchView('suppliers');
+    });
+    await page.locator('#newSupplier').click();
+    await page.locator('#supplierName').fill('Proveedor de prueba');
+    await page.locator('#supplierForm button[type=submit]').click();
+    await page.waitForFunction(()=>!!window.__savedSupplier);
+    assert.equal(await page.locator('#supplierList').innerText().then(t=>t.includes('Proveedor de prueba')),true);
+    await page.locator('[data-editsupplier]').click();
+    await page.locator('#supplierName').fill('Proveedor actualizado');
+    await page.locator('#supplierForm button[type=submit]').click();
+    await page.waitForFunction(()=>window.__savedSupplier?.name==='Proveedor actualizado');
+    console.log('PASS: supplier creation and edit buttons persist the selected supplier');
+    await page.evaluate(()=>switchView('purchases'));
+    await page.locator('#newPurchase').click();
+    await page.locator('#purchaseSupplier').selectOption({label:'Proveedor actualizado'});
+    await page.locator('#purchaseProduct').selectOption({label:'Vaporera de prueba'});
+    await page.locator('#purchaseQty').fill('2');await page.locator('#purchaseCost').fill('3.33');
+    await page.locator('#addPurchaseItem').click();
+    await page.locator('#savePurchase').click();
+    await page.waitForFunction(()=>!!window.__purchase);
+    const purchase=await page.evaluate(()=>window.__purchase);
+    assert.equal(purchase.items.length,1);assert.equal(purchase.items[0].qty,2);assert.equal(purchase.items[0].cost,3.33);
+    console.log('PASS: real goods receipt form sends quantity and unit cost to one cloud transaction');
+
     await page.waitForTimeout(500);
     assert.deepEqual(errors,[]);
     console.log('PASS: app scripts load without uncaught browser errors');

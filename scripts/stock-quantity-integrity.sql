@@ -36,7 +36,7 @@ begin
   v_qty := round(coalesce(p_qty,0),3);
   if v_qty <= 0 OR v_qty::text IN ('NaN','Infinity','-Infinity') then raise exception 'La cantidad debe ser mayor a 0'; end if;
 
-  if p_event not in ('restock','return') then
+  if p_event IS NULL OR p_event not in ('restock','return') then
     raise exception 'Movimiento no permitido';
   end if;
 
@@ -47,6 +47,9 @@ begin
 
   if not found then raise exception 'Producto no encontrado'; end if;
 
+  IF jsonb_array_length(coalesce(v_product.variant_combinations,'[]'::jsonb))>0 THEN
+    RAISE EXCEPTION 'Edita las cantidades por talla o color en el producto';
+  END IF;
   v_before := v_product.stock;
   v_after := v_before + v_qty;
   v_type := case when p_event='return' then 'return' else 'restock' end;

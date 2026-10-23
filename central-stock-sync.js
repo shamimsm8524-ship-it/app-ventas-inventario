@@ -466,6 +466,12 @@
     return '';
   }
 
+  function newRequestId(){
+    const bytes=crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
+    const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+    return hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20);
+  }
+
   function validQuantity(value){
     const qty=Number(value);
     if(!Number.isFinite(qty)||qty<=0)throw new Error('La cantidad debe ser un número mayor que cero.');
@@ -552,9 +558,7 @@
       let pending=null;
       try{pending=JSON.parse(localStorage.getItem(requestKey)||'null')}catch{}
       if(pending?.fingerprint!==fingerprint||!pending?.id){
-        const bytes=crypto.getRandomValues(new Uint8Array(16));bytes[6]=(bytes[6]&15)|64;bytes[8]=(bytes[8]&63)|128;
-        const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
-        pending={id:hex.slice(0,8)+'-'+hex.slice(8,12)+'-'+hex.slice(12,16)+'-'+hex.slice(16,20)+'-'+hex.slice(20),fingerprint};
+        pending={id:newRequestId(),fingerprint};
         localStorage.setItem(requestKey,JSON.stringify(pending));
       }
       payload[0].request_id=pending.id;
@@ -757,6 +761,83 @@
     btn.onclick=centralCheckout;
     btn.dataset.centralStock='1';
   }
+
+  window.vareliaCentralDeleteSupplier=async function(supplier){
+    if(!sb)await waitClient();if(!businessId)await loadProfile();
+    let query=sb.from('varelia_suppliers').delete().eq('business_id',businessId);
+    query=supplier._cloudId?query.eq('id',supplier._cloudId):query.eq('legacy_id',String(supplier.id));
+    const {error}=await query;if(error)throw error;
+  };
+  window.vareliaCentralSaveSupplier=async function(supplier){
+    if(!sb)await waitClient();
+    const {data,error}=await sb.rpc('varelia_save_supplier',{p_supplier:supplier});
+    if(error)throw error;
+    if(!data?.id)throw new Error('El proveedor no quedó confirmado.');
+    return data;
+  };
+  window.vareliaCentralPurchase=async function({supplier,items,documentNumber}){
+    const remoteSupplier=await window.vareliaCentralSaveSupplier(supplier);
+    const payload=[];
+    for(const item of items){
+      const product=localProducts().find(p=>String(p.id)===String(item.id));
+      if(!product)throw new Error('Producto no encontrado.');
+      const id=await ensureCloudProductId(product);
+      if(!id)throw new Error('El producto todavía no está sincronizado.');
+      payload.push({product_id:id,qty:validQuantity(item.qty),cost:Number(item.cost)});
+    }
+    const key='varelia_purchase_pending_v1:'+String(profile?.id||businessId);
+    const fingerprint=JSON.stringify({supplier:remoteSupplier.id,payload,documentNumber});
+    let pending;try{pending=JSON.parse(localStorage.getItem(key)||'null')}catch{}
+    if(pending?.fingerprint!==fingerprint){
+      pending={fingerprint,id:newRequestId()};localStorage.setItem(key,JSON.stringify(pending));
+    }
+    const {data,error}=await sb.rpc('varelia_commit_purchase',{p_request_id:pending.id,p_supplier_id:remoteSupplier.id,p_items:payload,p_document:documentNumber});
+    if(error)throw error;
+    if(!data?.purchase_id)throw new Error('La compra no quedó confirmada.');
+    localStorage.removeItem(key);
+    try{await refreshCloud()}catch(e){console.warn('Compra confirmada; actualización visual pendiente',e)}
+    return data;
+  };
+  let auxiliaryBusy=false;
+  async function refreshAuxiliaryRecords(){
+    if(auxiliaryBusy||!sb||!businessId||role!=='owner')return;
+    auxiliaryBusy=true;
+    const requestedBusiness=businessId;
+    try{
+      const [s,p]=await Promise.all([
+        sb.from('varelia_suppliers').select('*').eq('business_id',requestedBusiness),
+        sb.from('varelia_purchases').select('*,varelia_purchase_items(*)').eq('business_id',requestedBusiness).order('created_at',{ascending:false})
+      ]);
+      if(requestedBusiness!==businessId)return;
+      if(s.error||p.error)throw s.error||p.error;
+      const remoteIds=new Set((s.data||[]).map(x=>String(x.id)));
+      suppliers=suppliers.filter(x=>!x._cloudId||remoteIds.has(String(x._cloudId)));
+      for(const row of s.data||[]){
+        const id=String(row.legacy_id||row.id);
+        const value={...row,id,_cloudId:row.id};
+        const old=suppliers.find(x=>String(x.id)===id);if(old)Object.assign(old,value);else suppliers.push(value);
+      }
+      for(const row of p.data||[]){
+        const value={id:row.id,cloudPurchaseId:row.id,date:row.created_at,supplierName:row.supplier_name,total:Number(row.total),items:(row.varelia_purchase_items||[]).map(i=>({id:localProducts().find(x=>String(x._cloudId)===String(i.product_id))?.id||i.product_id,name:i.product_name,qty:Number(i.qty),cost:Number(i.unit_cost),unit:i.unit}))};
+        const old=purchases.find(x=>String(x.cloudPurchaseId||x.id)===String(row.id));if(old)Object.assign(old,value);else purchases.push(value);
+      }
+      if(typeof save==='function')save();
+    }catch(e){console.warn('No se pudieron actualizar proveedores/compras',e)}
+    finally{auxiliaryBusy=false}
+  }
+  window.addEventListener('varelia:central-stock-updated',refreshAuxiliaryRecords);
+
+  window.vareliaCentralAdjustStock=async function({product,qty,event}){
+    if(!sb)await waitClient();
+    if(!businessId)await loadProfile();
+    const cloudId=await ensureCloudProductId(product);
+    if(!cloudId)throw new Error('El producto todavía no está sincronizado.');
+    const {data,error}=await sb.rpc('varelia_adjust_stock',{p_product_id:cloudId,p_qty:validQuantity(qty),p_event:event});
+    if(error)throw error;
+    await refreshCloud();
+    try{await refreshPublicStock()}catch(e){console.warn('Stock público pendiente',e)}
+    return data;
+  };
 
   window.vareliaCentralStockIn=async function({product,event='restock',qty}){
     if(!product)throw new Error('Selecciona un producto.');

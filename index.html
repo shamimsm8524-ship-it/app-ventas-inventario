@@ -280,7 +280,7 @@ button:focus-visible,.btn:focus-visible,a:focus-visible{outline:2px solid var(--
 
 <dialog id="productDialog"><div class="modal"><div class="modalhead"><h2 id="productTitle">Nuevo producto</h2><button class="close" data-close="productDialog">×</button></div><form class="form" id="productForm"><input type="hidden" id="productId"><label><span>Imagen del producto</span><input id="productImage" type="file" accept="image/*"></label><img id="imagePreview" class="preview" hidden><div class="two"><label><span>Código de barras</span><input id="barcode" placeholder="Escanea o escribe el código"></label><button type="button" class="btn secondary" id="scanForProduct">📷 Escanear</button></div><label><span>Nombre del producto</span><input id="productName" required></label><label><span>Sección / Categoría</span><select id="productCategory" required></select></label><div class="two"><label><span>Costo total de compra (S/)</span><input id="buyPrice" type="number" step="any" min="0"></label><label><span>Precio de venta (S/)</span><input id="sellPrice" type="number" step="0.01" min="0" required></label></div><label id="purchaseQuantityLabel"><span>¿Cuántas unidades de inventario incluye ese costo?</span><input id="purchaseQuantity" type="number" min="0.000001" step="any" value="1" required><small class="notice">Si compras un cajón de 36 productos por S/120, escribe 120 arriba y 36 aquí. Si el costo es por una unidad, escribe 1. No agrega stock.</small><output id="purchaseUnitCost" class="notice" aria-live="polite"></output></label><label><span>Unidad de medida</span><select id="unit"><option>Unidad</option><option>Caja</option><option>Blíster</option><option>Paquete</option><option>Bolsa</option><option>Botella</option><option>Lata</option><option>Docena</option><option>Kg</option><option>Gramo</option><option>Litro</option><option>Metro</option><option>m²</option><option>Rollo</option><option>Par</option><option>Set</option><option>Otro</option></select></label><label id="vUnitsPerBoxWrap" style="display:none"><span>Unidades por caja</span><input id="vUnitsPerBox" type="number" min="1" step="1" inputmode="numeric" placeholder="Ej.: 24"><small class="notice">Indica cuántas unidades contiene cada caja.</small></label><label><span>Alerta de reposición</span><input id="reorderLevel" type="number" min="0" step="1" value="5"><small class="notice">Avísame cuando el stock sea igual o menor a esta cantidad.</small></label><div id="vMedicineBox" style="border:2px solid #d7def0;border-radius:16px;padding:13px;background:var(--bg)"><div style="font-size:20px;font-weight:900;margin-bottom:4px">💊 Medicamento</div><small class="notice">Configura cómo compras y cómo vendes este medicamento.</small><label id="vMedicineManualToggle" style="display:flex;gap:9px;align-items:center;margin-top:10px"><input id="vMedicineToggle" type="checkbox" style="width:auto"><span>Activar datos de medicamento</span></label><div id="vMedicineFields" style="display:none;margin-top:12px"><div class="two"><label><span>Laboratorio</span><input id="vMedicineLaboratory" placeholder="Ej. Medifarma"></label><label><span>Presentación</span><input id="vMedicinePresentation" placeholder="Ej. Caja x 20 tabletas, jarabe 120 ml"></label></div><div class="two"><label><span>Lote</span><input id="vMedicineBatch" placeholder="Número de lote"></label><label><span>Fecha de vencimiento</span><input id="vMedicineExpiry" type="date"></label></div><div class="two"><label><span>Blísteres por caja</span><input id="vMedicineBlistersPerBox" type="number" min="1" step="1" placeholder="Ej. 10"></label><label><span>Pastillas por blíster</span><input id="vMedicineUnitsPerBlister" type="number" min="1" step="1" placeholder="Ej. 10"></label></div><div class="two"><label><span>Precio por caja</span><input id="vMedicineBoxPrice" type="number" min="0" step="0.01" placeholder="S/ 0.00"></label><label><span>Precio por blíster</span><input id="vMedicineBlisterPrice" type="number" min="0" step="0.01" placeholder="S/ 0.00"></label></div><label><span>Precio por pastilla / unidad</span><input id="vMedicineUnitPrice" type="number" min="0" step="0.01" placeholder="S/ 0.00"></label><div style="margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:14px"><b>📦 Stock del medicamento</b><label><span>Cajas disponibles</span><input id="vMedicineStockBoxes" type="number" min="0" step="1" placeholder="Ej. 1"></label><div id="vMedicineStockSummary" class="notice" style="margin-top:8px">0 cajas = 0 blísteres = 0 pastillas</div></div><small class="notice">Varelia avisará cuando la medicina esté próxima a vencer.</small></div></div><label><span>Descripción del producto</span><textarea id="description" rows="4" maxlength="2000" placeholder="Escribe la descripción que verá el cliente al tocar la imagen del producto en el catálogo público."></textarea><small class="notice">Esta descripción se mostrará en el catálogo público al tocar la imagen del producto.</small></label><div class="two" style="margin-top:6px"><button type="button" class="btn danger" id="deleteProductModalBtn" style="display:none">🗑️ Eliminar</button><button type="submit" class="btn primary">Guardar producto</button></div></form></div></dialog>
 <dialog id="supplierDialog"><div class="modal"><div class="modalhead"><h2 id="supplierTitle">Nuevo proveedor</h2><button class="close" data-close="supplierDialog">×</button></div><form class="form" id="supplierForm"><input type="hidden" id="supplierId"><label><span>Nombre / Razón social</span><input id="supplierName" required></label><div class="two"><label><span>RUC / Documento</span><input id="supplierRuc"></label><label><span>Teléfono</span><input id="supplierPhone"></label></div><label><span>Correo</span><input id="supplierEmail" type="email"></label><label><span>Dirección</span><input id="supplierAddress"></label><label><span>Notas</span><textarea id="supplierNotes" rows="3"></textarea></label><button class="btn primary">Guardar proveedor</button></form></div></dialog>
-<dialog id="purchaseDialog"><div class="modal"><div class="modalhead"><h2>Nuevo ingreso de mercadería</h2><button class="close" data-close="purchaseDialog">×</button></div><div class="form"><label><span>Proveedor</span><select id="purchaseSupplier"></select></label><label><span>Número de comprobante</span><input id="purchaseDoc" placeholder="Factura, boleta, orden, etc."></label><div class="panel"><strong>Mercadería recibida</strong><div class="three" style="margin-top:10px"><select id="purchaseProduct"></select><input id="purchaseQty" type="number" min="1" value="1" placeholder="Cantidad"><input id="purchaseCost" type="number" min="0" step="0.01" placeholder="Costo unitario"></div><button class="btn secondary" id="addPurchaseItem">+ Agregar producto</button></div><div id="purchaseItems"></div><div class="total"><span>Total del ingreso</span><span id="purchaseTotal">S/ 0.00</span></div><button class="btn primary" id="savePurchase">Registrar ingreso y aumentar stock</button></div></div></dialog>
+<dialog id="purchaseDialog"><div class="modal"><div class="modalhead"><h2>Nuevo ingreso de mercadería</h2><button class="close" data-close="purchaseDialog">×</button></div><div class="form"><label><span>Proveedor</span><select id="purchaseSupplier"></select></label><label><span>Número de comprobante</span><input id="purchaseDoc" placeholder="Factura, boleta, orden, etc."></label><div class="panel"><strong>Mercadería recibida</strong><div class="three" style="margin-top:10px"><select id="purchaseProduct"></select><input id="purchaseQty" type="number" min="0.001" step="any" value="1" placeholder="Cantidad"><input id="purchaseCost" type="number" min="0" step="0.01" placeholder="Costo unitario"></div><button class="btn secondary" id="addPurchaseItem">+ Agregar producto</button></div><div id="purchaseItems"></div><div class="total"><span>Total del ingreso</span><span id="purchaseTotal">S/ 0.00</span></div><button class="btn primary" id="savePurchase">Registrar ingreso y aumentar stock</button></div></div></dialog>
 <dialog id="saleDialog"><div class="modal"><div class="modalhead"><h2>Nueva venta</h2><button class="close" data-close="saleDialog">×</button></div><div class="two"><input id="saleSearch" placeholder="Buscar, escanear o pegar pedido"><button class="btn secondary" id="scanForSale">📷 Escanear</button></div><div class="list" id="saleResults"></div><div id="cart"></div><div class="total"><span>Total</span><span id="saleTotal">S/ 0.00</span></div><button class="btn primary" id="checkout" style="width:100%;margin-top:12px">Cobrar</button></div></dialog>
 <dialog id="scannerDialog"><div class="modal"><div class="modalhead"><h2>Escanear código</h2><button class="close" id="closeScanner">×</button></div><video id="scannerVideo" autoplay playsinline style="width:100%;background:black;border-radius:15px"></video></div></dialog>
 
@@ -813,29 +813,49 @@ applyInventory.onclick=async()=>{
   }
   let before=Number(p.stock)||0,type=inventoryMode.value==='add'?'add':'subtract';
   if(type==='subtract'&&q>before+1e-9){alert('No hay suficiente stock. Disponible: '+before+' '+(p.unit||'Unidad'));return}
-  const after=Number((before+(type==='add'?q:-q)).toFixed(6));
-  p.stock=after;
-  addMovement(p,type,q,before,after,'Ajuste manual ('+entered+' '+chosenLabel+')');
-  save();renderInvSelected();inventoryQty.value=1;
-  window.vareliaSound?.(type==='add'?'add':'remove');
-  window.vareliaToast?.((type==='add'?'Entrada':'Salida')+' registrada. Stock: '+p.stock+' '+(p.unit||'Unidad'),'ok');
+  const button=document.getElementById('applyInventory');
+  if(button.disabled)return;
+  button.disabled=true;
   try{
-    await Promise.resolve(syncProductToCloud(p));
-    const sb=window.vareliaSupabase,cloudId=String(p._cloudId||'');
-    if(sb&&cloudId){
-      const res=await sb.from('varelia_products').update({stock:after}).eq('id',cloudId).select('stock').maybeSingle();
-      if(res.error)throw res.error;
-      if(res.data&&Number.isFinite(Number(res.data.stock))){p.stock=Number(res.data.stock);save();renderInvSelected()}
-    }
-    window.vareliaToast?.('Stock sincronizado.','ok');
+    if(typeof window.vareliaCentralAdjustStock!=='function')throw new Error('Espera a que termine la conexión antes de ajustar el inventario.');
+    const result=await window.vareliaCentralAdjustStock({product:p,qty:q,event:type});
+    p.stock=Number(result.stock_after);
+    addMovement(p,type,q,Number(result.stock_before),p.stock,'Ajuste manual ('+entered+' '+chosenLabel+')');
+    save();renderInvSelected();inventoryQty.value=1;
+    window.vareliaSound?.(type==='add'?'add':'remove');
+    window.vareliaToast?.('Movimiento confirmado. Stock: '+p.stock+' '+(p.unit||'Unidad'),'ok');
   }catch(err){
-    console.error(err);
-    window.vareliaToast?.('El stock ya se actualizó aquí, pero falta sincronizarlo con la nube. Revisa tu conexión.','warn');
-  }
+    console.error(err);alert(err?.message||'No se pudo confirmar el movimiento. Revisa tu conexión.');
+  }finally{button.disabled=false}
+
 };
 function openSupplier(id){let s=suppliers.find(x=>String(x.id).trim()===String(id).trim());supplierForm.reset();supplierId.value=s?.id||'';supplierTitle.textContent=s?'Editar proveedor':'Nuevo proveedor';supplierName.value=s?.name||'';supplierRuc.value=s?.ruc||'';supplierPhone.value=s?.phone||'';supplierEmail.value=s?.email||'';supplierAddress.value=s?.address||'';supplierNotes.value=s?.notes||'';supplierDialog.showModal()}
 newSupplier.onclick=()=>openSupplier();
-supplierForm.onsubmit=e=>{e.preventDefault();let id=supplierId.value,obj={id:id||uid(),name:supplierName.value.trim(),ruc:supplierRuc.value.trim(),phone:supplierPhone.value.trim(),email:supplierEmail.value.trim(),address:supplierAddress.value.trim(),notes:supplierNotes.value.trim()},old=suppliers.find(x=>String(x.id).trim()===String(id).trim());old?Object.assign(old,obj):suppliers.push(obj);supplierDialog.close();save()};
+supplierForm.onsubmit=async e=>{
+  e.preventDefault();
+  const button=supplierForm.querySelector('[type=submit]');if(button?.disabled)return;
+  const id=supplierId.value,obj={id:id||uid(),name:supplierName.value.trim(),ruc:supplierRuc.value.trim(),phone:supplierPhone.value.trim(),email:supplierEmail.value.trim(),address:supplierAddress.value.trim(),notes:supplierNotes.value.trim()};
+  if(!obj.name)return;
+  if(button)button.disabled=true;
+  try{
+    if(typeof window.vareliaCentralSaveSupplier!=='function')throw new Error('Espera a que termine la conexión.');
+    const remote=await window.vareliaCentralSaveSupplier(obj);obj._cloudId=remote.id;
+    const old=suppliers.find(x=>String(x.id)===String(obj.id));old?Object.assign(old,obj):suppliers.push(obj);
+    supplierDialog.close();save();
+  }catch(err){alert(err?.message||'No se pudo guardar el proveedor.');}
+  finally{if(button)button.disabled=false}
+};
+supplierList.onclick=async e=>{
+  const edit=e.target.closest('[data-editsupplier]');if(edit){openSupplier(edit.dataset.editsupplier);return}
+  const del=e.target.closest('[data-delsupplier]');if(!del||del.disabled)return;
+  const supplier=suppliers.find(s=>String(s.id)===String(del.dataset.delsupplier));if(!supplier)return;
+  del.disabled=true;
+  try{
+    if(typeof window.vareliaCentralDeleteSupplier!=='function')throw new Error('Espera a que termine la conexión.');
+    await window.vareliaCentralDeleteSupplier(supplier);
+    suppliers=suppliers.filter(s=>String(s.id)!==String(supplier.id));save();
+  }catch(err){alert(err?.message||'No se pudo eliminar el proveedor.');del.disabled=false}
+};
 supplierSearch.oninput=renderSuppliers;
 newPurchase.onclick=()=>{purchaseCart=[];fillPurchaseSelectors();purchaseDialog.showModal()};
 function renderPurchaseCart(){purchaseItems.innerHTML=purchaseCart.map(i=>`<div>${esc(i.name)} × ${i.qty}</div>`).join('');purchaseTotal.textContent=money(purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0))}
@@ -849,7 +869,20 @@ addPurchaseItem.onclick=()=>{
   if(!continuous&&!Number.isInteger(q))return alert('Esta presentación requiere una cantidad entera.');
   purchaseCart.push({id:p.id,name:p.name,qty:q,cost:c,unit:p.unit});renderPurchaseCart();
 };
-savePurchase.onclick=()=>{let s=suppliers.find(x=>String(x.id).trim()===String(purchaseSupplier.value).trim());if(!s||!purchaseCart.length)return;for(const i of purchaseCart){let p=products.find(x=>String(x.id).trim()===String(i.id).trim());if(p){p.stock=(+p.stock||0)+i.qty;syncProductToCloud(p);}}purchases.push({id:uid(),date:new Date().toISOString(),supplierName:s.name,items:purchaseCart,total:purchaseCart.reduce((a,i)=>a+i.qty*i.cost,0)});purchaseDialog.close();save()};
+savePurchase.onclick=async()=>{
+  const supplier=suppliers.find(x=>String(x.id)===String(purchaseSupplier.value));
+  if(!supplier||!purchaseCart.length)return alert('Selecciona un proveedor y agrega los productos recibidos.');
+  if(savePurchase.disabled)return;savePurchase.disabled=true;
+  const items=purchaseCart.map(i=>({...i}));
+  try{
+    if(typeof window.vareliaCentralPurchase!=='function')throw new Error('Espera a que termine la conexión.');
+    const result=await window.vareliaCentralPurchase({supplier,items,documentNumber:purchaseDoc.value.trim()});
+    if(!purchases.some(p=>String(p.cloudPurchaseId||p.id)===String(result.purchase_id)))purchases.push({id:result.purchase_id,cloudPurchaseId:result.purchase_id,date:new Date().toISOString(),supplierName:supplier.name,items,total:Number(result.total)});
+    purchaseCart=[];purchaseDialog.close();save();
+    window.vareliaToast?.('Compra y stock confirmados.','ok');
+  }catch(err){console.error(err);alert(err?.message||'No se pudo confirmar la compra. Puedes reintentar sin duplicarla.');}
+  finally{savePurchase.disabled=false}
+};
 
 function persistSaleCart(){try{localStorage.setItem(__sk('varelia_active_sale_cart_v1'),JSON.stringify(cart||[]))}catch{}}
 function clearSaleCart(){cart=[];persistSaleCart();renderCart()}
