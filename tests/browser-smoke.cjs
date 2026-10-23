@@ -44,13 +44,25 @@ const server=http.createServer((req,res)=>{
     await page.locator('#vCommercialCollapseBtn').click();
     await page.locator('[data-cpreset="5"]').click();
     let row=page.locator('[data-crow="0"]');
-    await row.locator('[data-cunits]').fill('36');
+    assert.equal(await row.locator('[data-cunits]').inputValue(),'36');
     await row.locator('[data-cprice]').fill('180');
+    await row.locator('summary').click();
     await row.locator('[data-ccost]').fill('120');
     await page.locator('[data-cpreset="1"]').click();
     row=page.locator('[data-crow="1"]');
     await row.locator('[data-cprice]').fill('40');
+    await row.locator('summary').click();
     await row.locator('[data-ccost]').fill('25');
+    await page.locator('[data-cpreset="4"]').click();
+    row=page.locator('[data-crow="2"]');
+    assert.equal(await row.locator('[data-cunits]').inputValue(),'18');
+    await row.locator('[data-cprice]').fill('90');
+    await page.locator('[data-cpreset="2"]').click();
+    row=page.locator('[data-crow="3"]');
+    assert.equal(await row.locator('[data-cunits]').inputValue(),'12');
+    await row.locator('[data-cprice]').fill('60');
+    await page.locator('[data-cpreset="5"]').click();
+    assert.equal(await page.locator('[data-crow]').count(),4);
     console.log('VISUAL_PRODUCT:'+ (await page.screenshot({type:'jpeg',quality:45})).toString('base64'));
     await page.locator('#productForm button[type=submit]').click();
     await page.waitForFunction(()=>!!window.__savedProduct);
@@ -64,6 +76,15 @@ const server=http.createServer((req,res)=>{
     console.log('PASS: real mobile form preserves independent carton and half-dozen purchase costs');
     await page.waitForFunction(()=>!document.getElementById('productDialog')?.open);
     assert.equal(await page.locator('#productForm button[type=submit]').isEnabled(),true);
+    await page.evaluate(()=>{
+      const legacy={...products[0],id:'legacy-box',unit:'Caja',unitsPerBox:36,stock:36};products.push(legacy);
+      openProduct(legacy.id);
+    });
+    assert.equal(await page.locator('#unit').inputValue(),'Unidad');
+    assert.equal(await page.locator('#vUnitsPerBoxWrap').isVisible(),false);
+    assert.equal(await page.locator('#productQty').inputValue(),'');
+    assert.equal(await page.locator('#productLegacyStockNotice').isVisible(),true);
+    await page.evaluate(()=>{document.getElementById('productDialog').close();products=products.filter(p=>p.id!=='legacy-box');window.products=products});
     console.log('PASS: product save closes and restores its button even when the public catalog never responds');
     await page.evaluate(()=>{
       window.vareliaCentralAdjustStock=async({product,qty,event})=>{
@@ -82,6 +103,13 @@ const server=http.createServer((req,res)=>{
     await page.locator('#vCSModes [data-cmode="unit"]').waitFor({state:'visible'});
     assert.equal((await page.locator('#vCSModes [data-cmode="unit"]').innerText()).trim(),'Unidad');
     assert.match(await page.locator('#vCSQuote').innerText(),/15.00/);
+    const expectedModes=[['cajon',36],['medio_cajon',18],['docena',12],['media_docena',6]];
+    for(const [id,size] of expectedModes){
+      assert.equal(saved.salePresentations.find(p=>p.id===id).units,size);
+      await page.locator('#vCSModes [data-cmode="p:'+id+'"]').click();
+      assert.match(await page.locator('#vCSQuote').innerText(),new RegExp('Stock que saldrá: '+size+' '));
+    }
+    await page.locator('#vCSModes [data-cmode="unit"]').click();
     await page.locator('#vCSAdd').click();
     const soldUnit=await page.evaluate(()=>({unit:cart[0].unit,price:cart[0].price,stockQtyPerSale:cart[0].stockQtyPerSale}));
     assert.equal(soldUnit.unit,'Unidad');assert.equal(soldUnit.price,15);assert.equal(soldUnit.stockQtyPerSale,1);

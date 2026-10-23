@@ -27,7 +27,7 @@
     if(medicine&&$('purchaseQuantity'))$('purchaseQuantity').value=1;
     const total=Number($('buyPrice')?.value),quantity=Number($('purchaseQuantity')?.value);
     const out=$('purchaseUnitCost');
-    const text=Number.isFinite(total)&&total>=0&&Number.isFinite(quantity)&&quantity>0?'Costo de compra por 1 '+currentUnitLabel()+': S/ '+(total/quantity).toFixed(6)+' · Precio de venta por 1 '+currentUnitLabel()+': S/ '+Math.max(0,Number($('sellPrice')?.value)||0).toFixed(2):'Escribe una cantidad mayor que cero.';
+    const text=Number.isFinite(total)&&total>=0&&Number.isFinite(quantity)&&quantity>0?'Costo de compra por '+currentUnitLabel().toLowerCase()+': S/ '+(total/quantity).toFixed(2):'Escribe una cantidad mayor que cero.';
     if(out&&out.textContent!==text)out.textContent=text;
   }
   document.addEventListener('change',e=>{if(['unit','purchasePresentation'].includes(e.target?.id))updatePurchaseSummary()});
