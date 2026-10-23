@@ -4,11 +4,11 @@
 
   const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn):fn();
   ready(()=>{
-    const STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_video_settings_v1'):'varelia_video_settings_v1__no_account';
-    const QR_YAPE_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_yape_v2'):'varelia_qr_yape_v2__no_account';
-    const QR_PLIN_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_plin_v2'):'varelia_qr_plin_v2__no_account';
-    const QR_YAPE_HOLDER_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_yape_holder_v2'):'varelia_qr_yape_holder_v2__no_account';
-    const QR_PLIN_HOLDER_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_plin_holder_v2'):'varelia_qr_plin_holder_v2__no_account';
+    let STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_video_settings_v1'):'varelia_video_settings_v1__no_account';
+    let QR_YAPE_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_yape_v2'):'varelia_qr_yape_v2__no_account';
+    let QR_PLIN_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_plin_v2'):'varelia_qr_plin_v2__no_account';
+    let QR_YAPE_HOLDER_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_yape_holder_v2'):'varelia_qr_yape_holder_v2__no_account';
+    let QR_PLIN_HOLDER_STORE=window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_qr_plin_holder_v2'):'varelia_qr_plin_holder_v2__no_account';
     const DEFAULTS={businessName:'',businessSlogan:'',logo:'',ruc:'',phone:'',address:'',businessHours:'',publicMapUrl:'',publicAllowDelivery:true,publicAllowPickup:true,publicPaymentMethods:'Efectivo,Yape,Plin,Transferencia',deliveryInDriveEnabled:true,deliveryInDriveCost:12,deliveryOlvaEnabled:true,deliveryOlvaCost:15,deliveryShalomEnabled:true,deliveryShalomCost:0,deliveryShalomPayAgency:true,ticketMessage:'Gracias por su compra.',currency:'S/',yapeHolder:'',yapeQr:'',plinHolder:'',plinQr:'',transferDetails:'',thermalWidth:'80',autoBarcode:true,enableVariants:false,socialTikTok:'',socialFacebook:'',socialInstagram:'',socialWhatsApp:'',socialYouTube:'',socialOther:''};
     const loadSettings=()=>{try{
       const base={...DEFAULTS,...JSON.parse(localStorage.getItem(STORE)||'{}')};
@@ -30,30 +30,41 @@
     const sleep=ms=>new Promise(r=>setTimeout(r,ms));
     let cloudPaymentSyncPromise=null;
     let businessNameStartupSyncStarted=false;
+    async function cloudRequest(query,label='La sincronización'){
+      const controller=new AbortController();
+      const timer=setTimeout(()=>controller.abort(),10000);
+      try{return await Promise.race([
+        query?.abortSignal?query.abortSignal(controller.signal):query,
+        new Promise((_,reject)=>controller.signal.addEventListener('abort',()=>reject(new Error(label+' tardó demasiado. Tus cambios siguen guardados en este dispositivo.')),{once:true}))
+      ])}finally{clearTimeout(timer)}
+    }
     async function cloudPaymentContext(){
-      for(let i=0;i<80&&!window.vareliaSupabase;i++)await sleep(100);
       const sb=window.vareliaSupabase;if(!sb)return null;
-      const {data:u,error:ue}=await sb.auth.getUser();if(ue||!u?.user)return null;
-      const {data:p,error:pe}=await sb.from('profiles').select('business_id,role').eq('id',u.user.id).maybeSingle();
-      if(pe||!p?.business_id)return null;
-      return {sb,businessId:String(p.business_id),role:String(p.role||'')};
+      const {data,error}=await cloudRequest(sb.auth.getSession(),'La sesión');
+      const user=data?.session?.user;if(error||!user)return null;
+      let p=window.vareliaCurrentUserProfile;
+      if(p?.id!==user.id||!p?.business_id){
+        const result=await cloudRequest(sb.from('profiles').select('business_id,role').eq('id',user.id).maybeSingle(),'La cuenta');
+        if(result.error)throw result.error;p=result.data;
+      }
+      if(!p?.business_id)return null;
+      return {sb,businessId:String(p.business_id),userId:user.id,role:String(p.role||'')};
     }
     // Sincroniza el nombre editado en Ajustes con el nombre oficial del negocio.
     // Solo escribe desde la cuenta propietaria; no altera pagos ni impresión.
-    async function syncCloudBusinessName(){
+    async function syncCloudBusinessName(context=null){
       const name=String(cfg.businessName||'').trim();
       if(!name)return false;
-      const ctx=await cloudPaymentContext();
+      const ctx=context||await cloudPaymentContext();
       if(!ctx||ctx.role!=='owner')return false;
-      const {data,error}=await ctx.sb.from('businesses').update({name})
-        .eq('id',ctx.businessId).select('id,name').maybeSingle();
+      const {data,error}=await cloudRequest(ctx.sb.from('businesses').update({name})
+        .eq('id',ctx.businessId).select('id,name').maybeSingle(),'El nombre del negocio');
       if(error)throw error;
       if(!data?.id)throw new Error('No se pudo confirmar el nombre del negocio en la nube.');
-      try{
-        const {error:catalogError}=await ctx.sb.from('public_catalogs')
-          .update({business_name:name}).eq('business_id',ctx.businessId);
-        if(catalogError)console.warn('El nombre del catálogo no se pudo sincronizar',catalogError);
-      }catch(err){console.warn('El nombre del catálogo no se pudo sincronizar',err)}
+      // The official name is confirmed. Updating its public copy is secondary.
+      void cloudRequest(ctx.sb.from('public_catalogs').update({business_name:name}).eq('business_id',ctx.businessId),'El catálogo')
+        .then(result=>{if(result.error)console.warn('Nombre público pendiente',result.error)})
+        .catch(err=>console.warn('Nombre público pendiente',err));
       return true;
     }
     // Guardar el logo por separado evita alterar los métodos de pago o los QR.
@@ -98,11 +109,15 @@
       saveCfg();
       return true;
     }
-    async function pushCloudPaymentSettings(context=null){
+    async function pushCloudPaymentSettings(context=null,includeDetails=false){
       const ctx=context||await cloudPaymentContext();
       if(!ctx||ctx.role!=='owner')return false;
       const payload={
         business_id:ctx.businessId,
+        ...(includeDetails?{business_slogan:String(cfg.businessSlogan||''),ruc:String(cfg.ruc||''),phone:String(cfg.phone||''),address:String(cfg.address||''),
+        business_hours:String(cfg.businessHours||''),public_map_url:String(cfg.publicMapUrl||''),ticket_message:String(cfg.ticketMessage||DEFAULTS.ticketMessage),currency:String(cfg.currency||'S/'),
+        public_allow_delivery:cfg.publicAllowDelivery!==false,public_allow_pickup:cfg.publicAllowPickup!==false,
+        public_payment_methods:String(cfg.publicPaymentMethods||DEFAULTS.publicPaymentMethods)}:{}),
         payment_methods:['Efectivo','Yape','Plin','Transferencia','Tarjeta'],
         payment_qr_data:cfg.yapeQr||cfg.plinQr||null,
         yape_qr_data:cfg.yapeQr||null,
@@ -113,7 +128,7 @@
         transfer_details:cfg.transferDetails||null,
         updated_at:new Date().toISOString()
       };
-      const {error}=await ctx.sb.from('varelia_business_settings').upsert(payload,{onConflict:'business_id'});
+      const {error}=await cloudRequest(ctx.sb.from('varelia_business_settings').upsert(payload,{onConflict:'business_id'}),'La configuración');
       if(error)throw error;
       return true;
     }
@@ -439,13 +454,17 @@
         };
         sec.querySelector('#vsetYapeQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.yapeQr=v;sec.querySelector('#vYapePreview').src=v;await persistQrNow('yape',v)}};
         sec.querySelector('#vsetPlinQr').onchange=async e=>{const v=await readImage(e.target);if(v){cfg.plinQr=v;sec.querySelector('#vPlinPreview').src=v;await persistQrNow('plin',v)}};
+        sec.querySelector('#vsettingsSave').dataset.cloudWrappedV2='1'; // One save owns both settings and QR; no duplicate wrapper.
         sec.querySelector('#vsettingsSave').onclick=async()=>{
+          if(sec.querySelector('#vsettingsSave').disabled)return;
           cfg.businessName=sec.querySelector('#vsetBusiness').value.trim();cfg.businessSlogan=sec.querySelector('#vsetBusinessSlogan').value.trim();cfg.ruc=sec.querySelector('#vsetRuc').value.trim();cfg.phone=sec.querySelector('#vsetPhone').value.trim();cfg.address=sec.querySelector('#vsetAddress').value.trim();cfg.businessHours=sec.querySelector('#vsetBusinessHours').value.trim();cfg.publicMapUrl=sec.querySelector('#vsetMapUrl').value.trim();cfg.publicAllowDelivery=sec.querySelector('#vsetAllowDelivery').checked;cfg.publicAllowPickup=sec.querySelector('#vsetAllowPickup').checked;cfg.deliveryInDriveEnabled=sec.querySelector('#vsetInDriveEnabled').checked;cfg.deliveryInDriveCost=Math.max(0,Number(sec.querySelector('#vsetInDriveCost').value)||0);cfg.deliveryOlvaEnabled=sec.querySelector('#vsetOlvaEnabled').checked;cfg.deliveryOlvaCost=Math.max(0,Number(sec.querySelector('#vsetOlvaCost').value)||0);cfg.deliveryShalomEnabled=sec.querySelector('#vsetShalomEnabled').checked;cfg.deliveryShalomCost=Math.max(0,Number(sec.querySelector('#vsetShalomCost').value)||0);cfg.deliveryShalomPayAgency=sec.querySelector('#vsetShalomPayAgency').checked;cfg.publicPaymentMethods=[...sec.querySelectorAll('[data-public-payment]:checked')].map(x=>x.dataset.publicPayment).join(',');cfg.ticketMessage=sec.querySelector('#vsetMessage').value.trim()||DEFAULTS.ticketMessage;cfg.currency=sec.querySelector('#vsetCurrency').value;cfg.socialTikTok=sec.querySelector('#vsetTikTok').value.trim();cfg.socialFacebook=sec.querySelector('#vsetFacebook').value.trim();cfg.socialInstagram=sec.querySelector('#vsetInstagram').value.trim();cfg.socialWhatsApp=sec.querySelector('#vsetWhatsApp').value.trim();cfg.socialYouTube=sec.querySelector('#vsetYouTube').value.trim();cfg.socialOther=sec.querySelector('#vsetSocialOther').value.trim();cfg.yapeHolder=sec.querySelector('#vsetYapeHolder').value.trim();cfg.plinHolder=sec.querySelector('#vsetPlinHolder').value.trim();cfg.transferDetails=sec.querySelector('#vsetTransferDetails').value.trim();cfg.thermalWidth=sec.querySelector('#vsetThermal').value;cfg.autoBarcode=sec.querySelector('#vsetAutoBarcode').checked;cfg.enableVariants=sec.querySelector('#vsetVariants').checked;saveCfg();applyBusinessName();setupProductExtras(true);window.dispatchEvent(new CustomEvent('varelia:catalog-settings-changed'));try{window.vareliaPublicCatalogSync?.()}catch{}
           const btn=sec.querySelector('#vsettingsSave');if(btn)btn.disabled=true;
-          let businessNameSynced=false;
-          try{businessNameSynced=await syncCloudBusinessName()}catch(err){console.error('No se pudo sincronizar el nombre del negocio',err)}
           try{
-            const synced=await pushCloudPaymentSettings();
+            const ctx=await cloudPaymentContext();
+            if(!ctx)throw new Error('No hay sesión activa para sincronizar.');
+            const results=await Promise.allSettled([syncCloudBusinessName(ctx),pushCloudPaymentSettings(ctx,true)]);
+            const businessNameSynced=results[0].status==='fulfilled'&&results[0].value===true;
+            const synced=results[1].status==='fulfilled'&&results[1].value===true;
             const notice=businessNameSynced
               ?(synced?'Nombre del negocio, configuración y QR guardados.':'Nombre del negocio sincronizado; la configuración restante quedó guardada.')
               :(synced?'Configuración y QR guardados. No se pudo confirmar la sincronización del nombre del negocio.':'Configuración guardada localmente; no se pudo confirmar la sincronización en la nube.');
@@ -592,6 +611,14 @@
       setTimeout(()=>{setupHistory();setupSettings();setupSaleExtras();setupProductExtras();updateInventorySummary()},1200);
     }
     let tries=0;const t=setInterval(()=>{tries++;init();if(tries>30)clearInterval(t)},300);
+    window.addEventListener('varelia:business-scope-ready',()=>{
+      STORE=window.vareliaScopedLocalKey('varelia_video_settings_v1');
+      QR_YAPE_STORE=window.vareliaScopedLocalKey('varelia_qr_yape_v2');QR_PLIN_STORE=window.vareliaScopedLocalKey('varelia_qr_plin_v2');
+      QR_YAPE_HOLDER_STORE=window.vareliaScopedLocalKey('varelia_qr_yape_holder_v2');QR_PLIN_HOLDER_STORE=window.vareliaScopedLocalKey('varelia_qr_plin_holder_v2');
+      cfg=loadSettings();window.vareliaVideoSettings={...cfg};cloudPaymentSyncPromise=null;
+      const sec=document.getElementById('mobileSettingsHub');if(sec)sec.__vSettingsReady=false;
+      setupSettings();
+    });
     // Cuando un vendedor vuelve a Varelia, consultar de nuevo el logo.
     window.addEventListener('focus',()=>pullCloudPaymentSettings(true));
     window.addEventListener('focus',()=>{window.VareliaVideoHistory?.render?.();window.VareliaInventorySummary?.render?.()});

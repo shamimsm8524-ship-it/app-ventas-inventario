@@ -5,16 +5,18 @@
   const sb=()=>window.vareliaSupabase;
   const clean=v=>String(v||'').replace(/[^a-zA-Z0-9_-]/g,'_');
   const defaults={businessName:'',businessSlogan:'',logo:'',ruc:'',phone:'',address:'',businessHours:'',publicMapUrl:'',ticketMessage:'Gracias por su compra.',currency:'S/',publicAllowDelivery:true,publicAllowPickup:true,publicPaymentMethods:'Efectivo,Yape,Plin,Transferencia'};
-  const scopeKey=businessId=>'varelia_video_settings_v1__'+clean(businessId);
+  const businessScopes=new Map();
+  const scopeKey=businessId=>'varelia_video_settings_v1__'+clean(businessScopes.get(String(businessId))||'no_account');
   const pendingLogoKey=businessId=>'varelia_pending_business_logo_v1__'+clean(businessId);
   const localGet=(businessId)=>{
     try{
       const active=clean(localStorage.getItem('varelia_active_business_id')||'');
-      if(active!==clean(businessId))return {...defaults};
+      if(!active||active!==clean(businessScopes.get(String(businessId))))return {...defaults};
       return {...defaults,...JSON.parse(localStorage.getItem(scopeKey(businessId))||'{}')};
     }catch{return {...defaults}}
   };
   const localSet=(businessId,v)=>{
+    if(clean(localStorage.getItem('varelia_active_business_id')||'')!==clean(businessScopes.get(String(businessId))))return;
     try{
       localStorage.setItem(scopeKey(businessId),JSON.stringify(v));
       window.vareliaVideoSettings=v;
@@ -57,17 +59,18 @@
 
   async function profile(){
     const c=sb();if(!c)return null;
-    const {data:u,error:ue}=await c.auth.getUser();if(ue||!u?.user)return null;
+    const {data:session,error:ue}=await c.auth.getSession();const u={user:session?.session?.user};if(ue||!u.user)return null;
     const {data:p,error}=await c.from('profiles').select('business_id,role').eq('id',u.user.id).maybeSingle();
     if(error)throw error;if(!p?.business_id)return null;
-    return {businessId:String(p.business_id),role:String(p.role||'')};
+    businessScopes.set(String(p.business_id),u.user.id);
+    return {businessId:String(p.business_id),userId:u.user.id,role:String(p.role||'')};
   }
 
   async function syncFromCloud(){
     const c=sb(),p=await profile();if(!c||!p)return false;
     const active=clean(localStorage.getItem('varelia_active_business_id')||'');
     // Nunca leer/escribir ajustes usando la cuenta anterior.
-    if(active!==clean(p.businessId)){localStorage.setItem('varelia_active_business_id',p.businessId);return false}
+    if(active!==clean(p.userId))return false;
     const {data,error}=await c.from('varelia_business_settings').select('*').eq('business_id',p.businessId).maybeSingle();
     if(error)throw error;
     if(data){
@@ -87,7 +90,7 @@
   async function syncToCloudNow(){
     const c=sb(),p=await profile();if(!c||!p||p.role!=='owner')return false;
     const active=clean(localStorage.getItem('varelia_active_business_id')||'');
-    if(active!==clean(p.businessId))return false;
+    if(active!==clean(p.userId))return false;
     const local=localGet(p.businessId);
     const {data,error}=await c.from('varelia_business_settings').upsert({business_id:p.businessId,...toRow(local)},{onConflict:'business_id'}).select('*').single();
     if(error)throw error;
@@ -132,7 +135,7 @@
     const c=sb(),p=await profile();if(!c||!p||p.role!=='owner')return false;
     if(version!==logoVersion)return false;
     const active=clean(localStorage.getItem('varelia_active_business_id')||'');
-    if(active!==clean(p.businessId))return false;
+    if(active!==clean(p.userId))return false;
     const compact=await compressLogo(raw);
     if(version!==logoVersion)return false;
     const current=localGet(p.businessId);
@@ -194,7 +197,7 @@
   async function waitForScope(p){
     for(let i=0;i<100;i++){
       const a=clean(localStorage.getItem('varelia_active_business_id')||'');
-      if(a===clean(p.businessId))return true;
+      if(a===clean(p.userId))return true;
       await sleep(100);
     }
     return false;

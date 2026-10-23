@@ -7,6 +7,7 @@
   const toast=(m,t='ok')=>window.vareliaToast?window.vareliaToast(m,t):console.log(m);
   let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false,initBusy=false,initAgain=false,retryTimer=null,retryDelay=2500;
   let stockSnapshot=null,stockPollTimer=null,stockPollBusy=false;
+  const categoryIds=new Map();
 
   const localProducts=()=>{try{return Array.isArray(products)?products:[]}catch{return[]}};
   const localCategories=()=>{try{return Array.isArray(categories)?categories:[]}catch{return[]}};
@@ -88,17 +89,19 @@
     return data||[];
   }
 
-  async function ensureCategory(name){
+  async function ensureCategory(name,profileReady=false){
     name=String(name||'').trim();
     if(!name)return null;
     // Refrescar siempre la cuenta activa antes de escribir. Evita guardar la categoría
     // con un business_id viejo si la sesión/cuenta cambió recientemente.
-    await loadProfile();
+    if(!profileReady)await loadProfile();
     if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
     if(!isOwner())throw new Error('Solo el administrador puede crear categorías.');
+    const cacheKey=businessId+':'+name;
+    if(categoryIds.has(cacheKey))return categoryIds.get(cacheKey);
     let {data,error}=await sb.from('varelia_categories').select('id,name').eq('business_id',businessId).eq('name',name).maybeSingle();
     if(error)throw error;
-    if(data?.id)return data.id;
+    if(data?.id){categoryIds.set(cacheKey,data.id);return data.id;}
     if(!isOwner())return null;
     const ins=await sb.from('varelia_categories').insert({business_id:businessId,name}).select('id').single();
     if(ins.error){
@@ -111,6 +114,7 @@
     const verify=await sb.from('varelia_categories').select('id,business_id,name').eq('business_id',businessId).eq('id',ins.data.id).maybeSingle();
     if(verify.error)throw verify.error;
     if(!verify.data?.id)throw new Error('La categoría no quedó registrada en la base de datos.');
+    categoryIds.set(cacheKey,verify.data.id);
     return verify.data.id;
   }
 
@@ -229,6 +233,8 @@
     stockSnapshot=stockVersion(rows);
     // Las categorías deben sincronizarse aunque el negocio todavía no tenga productos.
     const catRows=catsRes.data||[];
+    for(const key of categoryIds.keys())if(key.startsWith(businessId+':'))categoryIds.delete(key);
+    for(const row of catRows)categoryIds.set(businessId+':'+String(row.name||'').trim(),row.id);
     categories=catRows.map(x=>String(x.name||'')).filter(Boolean);
     window.categories=categories;
     try{
@@ -330,7 +336,7 @@
     const controller=new AbortController();
     const deadline=setTimeout(()=>controller.abort(),20000);
     const task=withTimeout((async()=>{
-      const categoryId=await withTimeout(ensureCategory(p.category),10000,'La categoría');
+      const categoryId=await withTimeout(ensureCategory(p.category,true),10000,'La categoría');
       if(controller.signal.aborted)throw new Error('La conexión tardó demasiado. Puedes reintentar Guardar.');
       // Última defensa para productos nuevos: si el objeto llega con stock 0,
       // recuperar la cantidad que el administrador acaba de escribir en el campo visible.
@@ -348,7 +354,10 @@
       }
       const payload=productPayload(p,categoryId);
       const legacy=String(p.id||'');
-      const existingBefore=await sb.from('varelia_products').select('id,stock,sale_presentations,advanced_pricing,medicine,updated_at').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle().abortSignal(controller.signal);
+      // A known row version lets UPDATE itself check concurrency: no pre-read is needed.
+      const existingBefore=p._cloudId&&p._cloudUpdatedAt
+        ?{data:{id:p._cloudId,updated_at:p._cloudUpdatedAt},error:null}
+        :await sb.from('varelia_products').select('id,stock,updated_at').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle().abortSignal(controller.signal);
       if(existingBefore.error)throw existingBefore.error;
       const existedBefore=!!existingBefore.data?.id;
       if(existedBefore&&p._cloudUpdatedAt&&p._cloudUpdatedAt!==existingBefore.data.updated_at){
@@ -370,20 +379,16 @@
       if(existedBefore){
         up=await sb.from('varelia_products').update(payload)
           .eq('business_id',businessId).eq('id',existingBefore.data.id)
-          .eq('updated_at',existingBefore.data.updated_at).select('id').maybeSingle().abortSignal(controller.signal);
+          .eq('updated_at',existingBefore.data.updated_at).select('id,legacy_id,business_id,name,stock,sell_price,buy_price,updated_at').maybeSingle().abortSignal(controller.signal);
         if(!up.error&&!up.data?.id)throw new Error('El inventario cambió durante el guardado. Actualiza antes de reintentar.');
       }else{
-        up=await sb.from('varelia_products').insert(payload).select('id').single().abortSignal(controller.signal);
+        up=await sb.from('varelia_products').insert(payload).select('id,legacy_id,business_id,name,stock,sell_price,buy_price,updated_at').single().abortSignal(controller.signal);
       }
       if(up.error)throw up.error;
       if(!up.data?.id)throw new Error('La base de datos no devolvió el producto guardado.');
       // Verificación real: no mostramos "guardado" hasta comprobar que el registro
       // existe en la cuenta/negocio correcto después del INSERT/UPSERT.
-      const verify=await sb.from('varelia_products')
-        .select('id,legacy_id,business_id,name,stock,sell_price,buy_price,updated_at')
-        .eq('business_id',businessId)
-        .eq('id',up.data.id)
-        .maybeSingle().abortSignal(controller.signal);
+      const verify=up;
       if(verify.error)throw verify.error;
       if(!verify.data?.id)throw new Error('El producto no quedó registrado en la base de datos.');
       if(String(verify.data.business_id)!==String(businessId))throw new Error('El producto quedó asociado a otra cuenta.');

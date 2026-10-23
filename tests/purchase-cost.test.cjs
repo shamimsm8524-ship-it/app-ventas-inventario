@@ -124,3 +124,39 @@ test('startup screen restoration stops after the first user interaction',()=>{
   const env={window:{__vareliaNavigationTouched:true},wantedView:()=>{throw Error('must not navigate')},forceView:()=>{throw Error('must not navigate')},saveView(){}};
   vm.createContext(env);vm.runInContext(restore+';restore();',env);
 });
+function productSaveHarness(conflict=false){
+  const src=read('central-stock-sync.js');
+  const body=src.slice(src.indexOf('  async function syncProduct(p){'),src.indexOf('  function installProductBridge(){'));
+  const requests=[];
+  const env={AbortController,setTimeout,clearTimeout,Map,Promise,console,
+    sb:{from(table){const request={table};requests.push(request);let q;
+      q=new Proxy({}, {get(_t,key){if(key==='then')return resolve=>Promise.resolve({data:conflict?null:{id:'cloud',business_id:'biz',stock:8,updated_at:'v2'},error:null}).then(resolve);
+        return (...args)=>{request[key]=args;return q}}});return q}},
+    profile:{id:'owner'},businessId:'biz',isOwner:()=>true,productSyncLocks:new Map(),lastProductStockWrite:new Map(),suppressRefreshUntil:0,
+    ensureCategory:async(_name,known)=>{assert.equal(known,true);return 'cat'},
+    productPayload:p=>({business_id:'biz',name:p.name,stock:p.stock}),withTimeout:p=>p,
+    refreshPublicStock:()=>new Promise(()=>{}),window:{dispatchEvent(){}},CustomEvent:class{},document:{getElementById(){return null}}
+  };
+  vm.createContext(env);vm.runInContext(body+'this.run=syncProduct;',env);
+  return {env,requests};
+}
+test('editing a synchronized product confirms it with one database request',async()=>{
+  const {env,requests}=productSaveHarness();const product={id:'local',_cloudId:'cloud',_cloudUpdatedAt:'v1',name:'Prueba',stock:8};
+  await env.run(product);
+  assert.equal(requests.length,1);assert.equal(requests[0].table,'varelia_products');
+  assert(requests[0].update);assert.equal(product._cloudUpdatedAt,'v2');
+  assert.equal(env.productSyncLocks.size,0);
+});
+test('a conflicting product version still rejects the edit and releases its lock',async()=>{
+  const {env,requests}=productSaveHarness(true);
+  await assert.rejects(env.run({id:'local',_cloudId:'cloud',_cloudUpdatedAt:'v1',stock:8}),/inventario cambió/);
+  assert.equal(requests.length,1);assert.equal(env.productSyncLocks.size,0);
+});
+test('business settings use the authenticated account scope and reject another account',()=>{
+  const src=read('business-settings-cloud.js');const a=src.indexOf('  const businessScopes=');const b=src.indexOf('  const localSet=',a);
+  const storage=new Map([['varelia_active_business_id','user-a'],['varelia_video_settings_v1__user-a','{"businessName":"Mi negocio"}']]);
+  const env={Map,defaults:{businessName:''},clean:x=>String(x||''),localStorage:{getItem:k=>storage.get(k)||null}};
+  vm.createContext(env);vm.runInContext(src.slice(a,b)+"businessScopes.set('business-a','user-a');this.load=localGet;",env);
+  assert.equal(env.load('business-a').businessName,'Mi negocio');
+  storage.set('varelia_active_business_id','user-b');assert.equal(env.load('business-a').businessName,'');
+});

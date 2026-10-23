@@ -124,6 +124,34 @@ const server=http.createServer((req,res)=>{
     await page.waitForFunction(()=>typeof window.__cashTotal==='number');
     assert.equal(await page.evaluate(()=>closures.filter(c=>c.cloudClosureId==='00000000-0000-4000-8000-000000000003').length),1);
     console.log('PASS: cash closes only after cloud confirmation');
+    await page.evaluate(()=>{
+      const sb=window.vareliaSupabase;
+      window.__oldSessionReader=sb.auth.getSession;window.__oldFrom=sb.from;
+      window.vareliaCurrentUserProfile={id:'qa-owner',business_id:'qa-business',role:'owner'};
+      sb.auth.getSession=async()=>({data:{session:{user:{id:'qa-owner'}}},error:null});
+      window.__settingsWrites=[];
+      sb.from=table=>{
+        let q;let action='';
+        q=new Proxy({}, {get(_t,key){
+          if(key==='then')return resolve=>{
+            if(table==='public_catalogs')return new Promise(()=>{});
+            return Promise.resolve({data:table==='businesses'?{id:'qa-business'}:null,error:null}).then(resolve);
+          };
+          return (...args)=>{if(key==='update'||key==='upsert'){action=key;window.__settingsWrites.push({table,action,payload:args[0]})}return q};
+        }});return q;
+      };
+      switchView('mobileSettingsHub');
+    });
+    await page.locator('#vsetBusiness').fill('Negocio de prueba');
+    await page.locator('#vsettingsSave').click();
+    await page.waitForFunction(()=>!document.getElementById('vsettingsSave').disabled,{},{timeout:5000});
+    const settingsWrites=await page.evaluate(()=>window.__settingsWrites);
+    assert.equal(settingsWrites.filter(x=>x.table==='varelia_business_settings').length,1);
+    assert.equal(settingsWrites.filter(x=>x.table==='businesses').length,1);
+    assert.equal(settingsWrites.find(x=>x.table==='varelia_business_settings').payload.currency,'S/');
+    await page.evaluate(()=>{window.vareliaSupabase.auth.getSession=window.__oldSessionReader;window.vareliaSupabase.from=window.__oldFrom});
+    console.log('PASS: settings save sends one settings write, shares one account context, and does not wait for the public catalog');
+
 
 
     await page.waitForTimeout(500);
