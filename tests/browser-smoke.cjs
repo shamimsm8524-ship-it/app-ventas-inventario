@@ -367,6 +367,7 @@ const server=http.createServer((req,res)=>{
     assert.match(await page.locator('[data-hpayment="Yape"]').innerText(),/250.00/);
     assert.match(await page.locator('[data-hpayment="Fiado"]').innerText(),/15.00/);
     assert.match(await page.locator('[data-hpayment="Sin registrar"]').innerText(),/15.00/);
+    console.log('VISUAL_SELLER_HISTORY:'+(await page.screenshot({type:'jpeg',quality:50})).toString('base64'));
     await page.locator('[data-hdate]').fill('2026-10-13');
     await page.waitForFunction(()=>window.__sellerHistoryReads.some(r=>r.filters.some(([k,v])=>k==='created_at'&&String(v).includes('2026-10-13'))));
     assert.equal(await page.locator('[data-hdate]').inputValue(),'2026-10-13');
