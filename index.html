@@ -337,7 +337,7 @@ function vareliaEnsureSyncModule(){
  if(vareliaSyncRetrying)return;
  vareliaSyncRetrying=true;
  const s=document.createElement('script');
- s.src='central-stock-sync.js?v=20261023-presentation-cost-v115';
+ s.src='central-stock-sync.js?v=20261023-remove-product-tools-v134';
  s.onload=()=>{setTimeout(()=>{if(typeof window.vareliaForceSync!=='function'){vareliaSyncRetrying=false;setCloudStatus('☁️ Módulo de sincronización no disponible',true)}},2500)};
  s.onerror=()=>{vareliaSyncRetrying=false;setCloudStatus('☁️ No se pudo cargar la sincronización',true)};
  document.body.appendChild(s);
@@ -1257,7 +1257,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 </script>
 <script>
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js?v=20261023-presentation-cost-v115',{updateViaCache:'none'});
+  navigator.serviceWorker.register('/sw.js?v=20261023-remove-product-tools-v134',{updateViaCache:'none'});
 }
 </script>
 <script id="vareliaReaderTruthGuardV1">
@@ -1466,7 +1466,7 @@ if ('serviceWorker' in navigator) {
 #vposItems .vforceQtyInput::-webkit-inner-spin-button,#vposItems .vforceQtyInput::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 </style>
 <script src="fiados-cuenta.js?v=20261013-abonos-por-compra-v8"></script>
-<script src="video-features.js?v=20261023-presentation-cost-v115"></script>
+<script src="video-features.js?v=20261023-remove-product-tools-v134"></script>
 <script src="seller-business-readonly.js?v=20261013-shared-business-readonly-v1"></script>
 <script id="businessDataMenuFix">
 (()=>{
@@ -1476,7 +1476,7 @@ if ('serviceWorker' in navigator) {
 </script>
 <script src="sale-sound.js?v=20261014-audio-unlock-v1"></script>
 <script src="staff-stock-guard.js?v=20260930-6"></script>
-<script src="central-stock-sync.js?v=20261023-presentation-cost-v115"></script>
+<script src="central-stock-sync.js?v=20261023-remove-product-tools-v134"></script>
 <script src="staff-operations.js?v=20261001-return-barcode-2"></script>
 <script src="weight-sales.js?v=20261001-native-weight-v9"></script>
 <script src="characteristics.js?v=20261023-medicine-options-v119"></script>
@@ -1795,9 +1795,9 @@ button.primary:hover,.btn.primary:hover,.primary:hover,#newProduct:hover,#invent
 
 
 <script src="cash-consistency-fix.js?v=20261020-cash-consistency-v1"></script>
-<script src="purchase-cost-math.js?v=20261023-presentation-cost-v115"></script>
+<script src="purchase-cost-math.js?v=20261023-remove-product-tools-v134"></script>
 <script src="advanced-pricing.js?v=20261023-medicine-options-v119"></script>
-<script src="product-form-safety.js?v=20261023-presentation-cost-v115"></script>
+<script src="product-form-safety.js?v=20261023-remove-product-tools-v134"></script>
 </body></html>
 
 <style id="vareliaBlueBrandV1">#newSaleTop{background:#2563eb!important;color:#fff!important;border-color:#2563eb!important}#newSaleTop:hover{background:#1d4ed8!important;border-color:#1d4ed8!important}#newSaleTop:active{background:#1e40af!important}</style>

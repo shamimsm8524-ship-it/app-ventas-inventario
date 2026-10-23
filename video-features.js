@@ -535,20 +535,15 @@
       const form=document.getElementById('productForm'),barcode=document.getElementById('barcode');if(!form||!barcode)return false;
       let root=document.getElementById('vproductExtras');
       if(!root){
-        root=document.createElement('div');root.id='vproductExtras';root.className='vprodExtras';root.innerHTML=`<div><b style="font-size:11px">Herramientas del producto</b></div><div class="vbarcodeRow"><button type="button" class="vbarcodeGen" id="vGenerateBarcode">Generar código de barras</button><button type="button" class="vbarcodeGen" id="vPrintLabel">Imprimir etiqueta</button></div><label id="vVariantWrap" style="display:none"><span>Variantes / Tallas / Colores</span><textarea id="vProductVariants" rows="2" placeholder="Ej.: S rojo, M negro, 500 ml..."></textarea></label>`;
+        root=document.createElement('div');root.id='vproductExtras';root.className='vprodExtras';root.innerHTML=`<label id="vVariantWrap" style="display:none"><span>Variantes / Tallas / Colores</span><textarea id="vProductVariants" rows="2" placeholder="Ej.: S rojo, M negro, 500 ml..."></textarea></label>`;
         barcode.closest('.two')?.insertAdjacentElement('afterend',root);
-        root.querySelector('#vGenerateBarcode').onclick=()=>{barcode.value=ean13();window.vareliaToast?.('Código generado.','ok')};
-        root.querySelector('#vPrintLabel').onclick=()=>{
-          const name=document.getElementById('productName')?.value||'Producto',price=document.getElementById('sellPrice')?.value||0,bc=barcode.value||'SIN CÓDIGO';const w=window.open('','_blank','width=360,height=400');if(!w)return;
-          w.document.write('<html><head><meta charset="utf-8"><style>@page{size:58mm 35mm;margin:2mm}body{font-family:Arial;text-align:center;margin:0}.n{font-weight:800;font-size:12px}.b{font-family:monospace;font-size:18px;letter-spacing:1px;margin:6px 0}.p{font-size:16px;font-weight:900}</style></head><body><div class="n">'+esc(name)+'</div><div class="b">'+esc(bc)+'</div><div class="p">'+money(price)+'</div><script>onload=()=>{print();setTimeout(()=>close(),500)}<\/script></body></html>');w.document.close()
-        };
         form.addEventListener('submit',()=>{
           const id=document.getElementById('productId')?.value,name=document.getElementById('productName')?.value.trim(),variants=document.getElementById('vProductVariants')?.value.trim()||'';
           if(cfg.autoBarcode&&!barcode.value.trim())barcode.value=ean13();
           setTimeout(()=>{const p=productsList().find(x=>(id&&String(x.id)===String(id))||(!id&&x.name===name));if(p){p.variants=variants;saveAll()}},60);
         },true);
       }
-      cfg=loadSettings();root.querySelector('#vVariantWrap').style.display=cfg.enableVariants?'grid':'none';
+      cfg=loadSettings();root.hidden=!cfg.enableVariants;root.querySelector('#vVariantWrap').style.display=cfg.enableVariants?'grid':'none';
       const dlg=document.getElementById('productDialog');
       if(dlg&&!dlg.__vVariantBound){dlg.__vVariantBound=true;dlg.addEventListener('click',(e)=>{if(e.target?.closest?.('#vProductVariants'))return;const ta=document.getElementById('vProductVariants');if(!ta||ta===document.activeElement||ta.dataset.userEditing==='1')return;setTimeout(()=>{if(ta===document.activeElement||ta.dataset.userEditing==='1')return;const id=document.getElementById('productId')?.value,p=productsList().find(x=>String(x.id)===String(id));ta.value=p?.variants||''},0)},true);const ta=dlg.querySelector('#vProductVariants');if(ta){ta.addEventListener('input',()=>{ta.dataset.userEditing='1'});ta.addEventListener('blur',()=>{setTimeout(()=>{ta.dataset.userEditing='0'},150)})}}
       return true;
