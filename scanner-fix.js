@@ -130,17 +130,17 @@
       }catch{return null}
     }
     function torchCapabilities(){
-      let caps={};
-      try{caps=scanner?.getRunningTrackCapabilities?.()||{}}catch{}
-      if(!caps||typeof caps!=='object')caps={};
-      if(!('torch' in caps)){
-        try{caps={...caps,...(torchTrack()?.getCapabilities?.()||{})}}catch{}
-      }
-      return caps;
+      let library={},track={};
+      try{library=scanner?.getRunningTrackCapabilities?.()||{}}catch{}
+      try{track=torchTrack()?.getCapabilities?.()||{}}catch{}
+      // Some WebViews omit torch in capabilities even though getSettings exposes it.
+      const includesTrue=v=>v===true||(Array.isArray(v)&&v.includes(true));
+      const settings=torchTrack()?.getSettings?.()||{};
+      return {...library,...track,torch:includesTrue(track.torch)||includesTrue(library.torch)||typeof settings.torch==='boolean'};
     }
     async function setTorch(on){
-      const wanted=!!on,track=torchTrack(),caps=torchCapabilities();
-      if(!track||caps.torch!==true)throw new Error('NO_TORCH_SUPPORT');
+      const wanted=!!on,track=torchTrack();
+      if(!track?.applyConstraints)throw new Error('NO_TORCH_SUPPORT');
       let lastError;
       for(const constraints of [{torch:wanted,advanced:[{torch:wanted}]},{advanced:[{torch:wanted}]}]){
         try{
@@ -167,9 +167,9 @@
         const r=document.getElementById('vareliaReader');
         r?.after(b);
       }
-      b.disabled=torchCapabilities().torch!==true;
-      b.title=b.disabled?'La cámara seleccionada no permite controlar la linterna.':'';
-      b.textContent=b.disabled?'🔦 Linterna no disponible':torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
+      b.disabled=!torchTrack()?.applyConstraints;
+      b.title=b.disabled?'Espera a que se inicie la cámara.':'';
+      b.textContent=b.disabled?'Iniciando cámara…':torchOn?'🔦 Apagar linterna':'🔦 Encender linterna';
       b.setAttribute('aria-pressed',torchOn?'true':'false');
       b.onclick=async()=>{
         if(b.disabled)return;
@@ -183,7 +183,7 @@
           torchOn=false;
           b.textContent='🔦 Linterna no disponible';
           b.setAttribute('aria-pressed','false');
-          window.vareliaToast?.('Este celular o el motor de la app no expone el flash de la cámara.','warn');
+          window.vareliaToast?.('Android no confirmó el encendido del flash desde esta cámara. La lectura sigue disponible.','warn');
           await sleep(900);
         }finally{
           b.disabled=false;
