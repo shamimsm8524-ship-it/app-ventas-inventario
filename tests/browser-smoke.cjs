@@ -358,6 +358,30 @@ const server=http.createServer((req,res)=>{
     }
     console.log('PASS: all six mobile navigation tabs respond');
     await page.evaluate(()=>{
+      window.__salesBeforeLiveHistory=sales.slice();
+      sales=[];window.sales=sales;window.VareliaVideoHistory.render();
+    });
+    await page.locator('#vmobileNav [data-mobile-tab="mobileHistoryHub"]').click();
+    await page.locator('#mobileHistoryHub [data-period="month"]').click();
+    await page.evaluate(()=>{
+      const confirmed={id:'qa-live-ticket',cloudSaleId:'qa-live-cloud',receiptNumber:'QA-LIVE-TICKET',date:new Date().toISOString(),total:2.5,paymentMethod:'Efectivo',items:[{id:'qa-pill',name:'Ibuprofeno QA',qty:1,price:2.5}]};
+      sales.push(confirmed);
+      window.dispatchEvent(new CustomEvent('varelia:checkout-confirmed',{detail:{sale:confirmed}}));
+      window.dispatchEvent(new CustomEvent('varelia:sale-recorded',{detail:{sale:confirmed}}));
+    });
+    await page.waitForFunction(()=>document.querySelector('#vhistoryBody')?.textContent.includes('QA-LIVE-TICKET'));
+    assert.equal(await page.locator('#mobileHistoryHub .vrefTicket').count(),1);
+    assert.equal(await page.locator('#mobileHistoryHub [data-period="month"]').evaluate(el=>el.classList.contains('active')),true);
+    assert.match(await page.locator('#mobileHistoryHub .vrefStats').innerText(),/2.50/);
+    await page.evaluate(()=>{
+      sales=window.__salesBeforeLiveHistory;window.sales=sales;
+      document.getElementById('vreceiptOverlay')?.classList.remove('show');
+      document.getElementById('vareliaEmergencyReceipt')?.remove();
+      window.VareliaVideoHistory.render();
+    });
+    console.log('PASS: a confirmed sale immediately updates mobile ticket history and totals once, preserving the selected month without reload');
+
+    await page.evaluate(()=>{
       window.vareliaCentralSaveSupplier=async s=>{window.__savedSupplier={...s};return {id:'00000000-0000-4000-8000-000000000001'}};
       window.vareliaCentralDeleteSupplier=async s=>{window.__deletedSupplier=s.id};
       window.vareliaCentralPurchase=async p=>{window.__purchase=p;return {purchase_id:'00000000-0000-4000-8000-000000000002',total:p.items.reduce((a,i)=>a+i.qty*i.cost,0)}};

@@ -616,6 +616,20 @@
     });
     // Cuando un vendedor vuelve a Varelia, consultar de nuevo el logo.
     window.addEventListener('focus',()=>pullCloudPaymentSettings(true));
+    let historyRefreshPending=false;
+    const refreshHistory=()=>{
+      if(historyRefreshPending)return;
+      historyRefreshPending=true;
+      queueMicrotask(()=>{
+        historyRefreshPending=false;
+        window.VareliaVideoHistory?.render?.();
+        window.VareliaInventorySummary?.render?.();
+      });
+    };
+    ['varelia:checkout-confirmed','varelia:sale-recorded','varelia:central-stock-updated','varelia:business-scope-ready'].forEach(event=>window.addEventListener(event,refreshHistory));
+    document.addEventListener('click',e=>{
+      if(e.target.closest?.('[data-mobile-tab="mobileHistoryHub"],[data-view="mobileHistoryHub"]'))refreshHistory();
+    });
     window.addEventListener('focus',()=>{window.VareliaVideoHistory?.render?.();window.VareliaInventorySummary?.render?.()});
   });
 })();
