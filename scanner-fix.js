@@ -10,9 +10,9 @@
     const posStyle=document.createElement('style');
     posStyle.textContent=`
       #scannerDialog .modal{width:min(94vw,520px);max-height:92vh;overflow:auto}
-      #scannerDialog #scannerVideo{display:none!important}
+      #scannerDialog #scannerVideo,#scannerDialog .vscannerStage{display:none!important}
       #scannerDialog{height:min(92dvh,780px);max-height:92vh} #scannerDialog .modal{box-sizing:border-box;height:100%} #scannerDialog #vareliaReader{width:100%!important;height:min(38vh,300px)!important;min-height:min(38vh,300px)!important;background:#000;border-radius:18px;overflow:hidden}
-      #scannerDialog #vareliaReader video{display:block!important;width:100%!important;height:100%!important;max-height:100%!important;object-fit:contain!important}
+      #scannerDialog #vareliaReader video{display:block!important;width:100%!important;height:100%!important;max-height:100%!important;object-fit:cover!important}
       #scannerDialog #vareliaReader canvas{display:none!important}
       #scannerDialog #vareliaReader__scan_region{height:100%!important;min-height:0!important}
       #scannerDialog #vareliaReader__scan_region>img{display:none!important}

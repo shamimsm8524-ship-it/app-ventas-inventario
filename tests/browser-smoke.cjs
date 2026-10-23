@@ -206,6 +206,9 @@ const server=http.createServer((req,res)=>{
       const bounds=await page.evaluate(()=>{const d=document.getElementById('scannerDialog').getBoundingClientRect(),b=document.getElementById('scannerCartCheckout').getBoundingClientRect(),m=document.querySelector('#scannerDialog .modal').getBoundingClientRect(),t=document.getElementById('scannerCartTotal').getBoundingClientRect(),r=document.getElementById('vareliaReader').getBoundingClientRect();return {button:b.bottom,total:t.bottom,modal:m.bottom,dialog:d.bottom,screen:innerHeight,reader:r.height,width:b.right}});
       assert.ok(bounds.button<=Math.min(bounds.modal,bounds.dialog,bounds.screen)+1,JSON.stringify(bounds));assert.ok(bounds.total<=bounds.screen,JSON.stringify(bounds));assert.ok(bounds.reader>=80);assert.ok(bounds.width<=size.width);
     }
+    assert.equal(await page.locator('#scannerDialog .vscannerStage').count(),0);
+    assert.equal(await page.locator('#vareliaLargeScannerCss').count(),0);
+    const cameraSize=await page.locator('#vareliaReader').boundingBox();assert.ok(cameraSize.height>=150,'camera needs usable height: '+JSON.stringify(cameraSize));
     console.log('VISUAL_SCANNER:'+(await page.screenshot({type:'jpeg',quality:50})).toString('base64'));
     await page.setViewportSize({width:393,height:852});
     await page.evaluate(()=>{cart=window.__cartBeforeLayout;window.dispatchEvent(new CustomEvent('varelia:cart-changed'))});
