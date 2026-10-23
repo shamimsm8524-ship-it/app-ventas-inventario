@@ -28,6 +28,6 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: /tmp/varelia-browser/node_modules/playwright
         run: |
+          node tests/public-catalog-smoke.cjs
           node tests/browser-smoke.cjs
           node tests/barcode-image.cjs
-          node tests/public-catalog-smoke.cjs
