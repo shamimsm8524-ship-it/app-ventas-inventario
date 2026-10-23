@@ -23,7 +23,8 @@
   function ensurePriceMeaning(){
     const price=$('sellPrice'),label=price?.closest('label'),unit=currentUnitLabel();
     const title=label?.querySelector('span');
-    if(title)title.textContent=`Precio por 1 ${unit} (S/)`;
+    const priceTitle=`Precio por 1 ${unit} (S/)`;
+    if(title&&title.textContent!==priceTitle)title.textContent=priceTitle;
     if(label){
       let help=$('vUnitPriceHelp');
       if(!help){
@@ -31,12 +32,13 @@
         help.style.cssText='margin-top:7px;line-height:1.35;color:var(--muted)';
         label.appendChild(help);
       }
-      help.textContent=`Este precio es solo para vender 1 ${unit}. No pongas aquí el precio del cajón, docena o media docena; esos precios se escriben abajo y cada uno es independiente.`;
+      const helpText=`Este precio es solo para vender 1 ${unit}. No pongas aquí el precio del cajón, docena o media docena; esos precios se escriben abajo y cada uno es independiente.`;
+      if(help.textContent!==helpText)help.textContent=helpText;
     }
     commercialRows().forEach(row=>{
       const input=row.querySelector('[data-cprice]'),l=input?.closest('label');if(!l)return;
       const first=[...l.childNodes].find(n=>n.nodeType===Node.TEXT_NODE);
-      if(first)first.nodeValue='Precio total (S/)';
+      if(first&&first.nodeValue!=='Precio total (S/)')first.nodeValue='Precio total (S/)';
     });
     const box=$('vCommercialPricingBox');
     if(box){
@@ -46,7 +48,8 @@
         note.style.cssText='padding:10px 12px;border-radius:12px;background:color-mix(in srgb,var(--p) 7%,transparent);font-weight:750;line-height:1.4';
         const rows=$('vCommercialRows');if(rows)box.insertBefore(note,rows);
       }
-      note.textContent='Cada presentación tiene su propio precio TOTAL. Ejemplo: Unidad S/10, Media docena S/55, Docena S/100 y Cajón S/250. Varelia no debe multiplicar ni reemplazar esos precios.';
+      const noteText='Cada presentación tiene su propio precio TOTAL. Ejemplo: Unidad S/10, Media docena S/55, Docena S/100 y Cajón S/250. Varelia no debe multiplicar ni reemplazar esos precios.';
+      if(note.textContent!==noteText)note.textContent=noteText;
     }
   }
 
@@ -238,7 +241,11 @@
       const layer=$('vCommercialSalePicker');
       if(layer&&layer.style.display!=='none')queueMicrotask(repairOpenPicker);
     });
-    observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['style']});
+    // Observar solo el formulario: el inicio de sesión no debe activar este módulo.
+    const form=$('productForm');
+    if(form)observer.observe(form,{subtree:true,childList:true});
+    const picker=$('vCommercialSalePicker');
+    if(picker)observer.observe(picker,{attributes:true,attributeFilter:['style']});
     let tries=0;const accordionTimer=setInterval(()=>{tries++;ensurePriceMeaning();if(ensureCommercialAccordion()||tries>80)clearInterval(accordionTimer)},100);
   };
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else boot();
