@@ -96,3 +96,10 @@ test('mobile navigation waits for DOM readiness without invoking an undefined re
   const env={window:{},document:{readyState:'loading',addEventListener(){}}};vm.createContext(env);
   assert.doesNotThrow(()=>vm.runInContext(read('simple-mobile-nav.js'),env));
 });
+test('sidebar section titles resolve a nested submenu to its direct navigation ancestor',()=>{
+  const src=read('sidebar-premium.js');
+  const body=src.match(/const anchor=el=>\{([^}]+)\}/)[1];
+  const nav={contains:()=>true},group={parentNode:nav},submenu={parentNode:group},button={parentNode:submenu};
+  const ctx={nav};vm.createContext(ctx);vm.runInContext('this.anchor=el=>{'+body+'}',ctx);
+  assert.equal(ctx.anchor(button),group);
+});

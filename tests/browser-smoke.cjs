@@ -11,7 +11,7 @@ const server=http.createServer((req,res)=>{
   const browser=await chromium.launch({headless:true});
   try{
     const page=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true,serviceWorkers:'block'});
-    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    const errors=[];page.on('pageerror',e=>errors.push(e.stack||e.message));
     // No real users, products, or authentication requests are written by this smoke test.
     await page.route('**/*',route=>{
       const url=route.request().url();

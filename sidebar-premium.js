@@ -28,12 +28,13 @@
       else if(t.includes('ganancias'))decorate(b,'sales','Ganancias por producto');
       else if(t.includes('respaldo'))decorate(b,'inventory','Respaldo semanal');
     });
+    const anchor=el=>{if(!el||!nav.contains(el))return null;while(el.parentNode!==nav)el=el.parentNode;return el};
     if(!nav.querySelector('.navSectionTitle')){
-      const dash=nav.querySelector('[data-view="dashboard"]');if(dash)nav.insertBefore(sectionTitle('Principal'),dash);
-      const prod=nav.querySelector('[data-view="products"]');if(prod)nav.insertBefore(sectionTitle('Catálogo'),prod);
-      const group=document.getElementById('supplierGroup');if(group)nav.insertBefore(sectionTitle('Compras'),group);
-      const sales=nav.querySelector('[data-view="sales"]');if(sales)nav.insertBefore(sectionTitle('Ventas'),sales);
-      const app=nav.querySelector('[data-view="appearance"]');if(app)nav.insertBefore(sectionTitle('Sistema'),app);
+      const dash=nav.querySelector('[data-view="dashboard"]');if(dash)nav.insertBefore(sectionTitle('Principal'),anchor(dash));
+      const prod=nav.querySelector('[data-view="products"]');if(prod)nav.insertBefore(sectionTitle('Catálogo'),anchor(prod));
+      const group=document.getElementById('supplierGroup');if(group)nav.insertBefore(sectionTitle('Compras'),anchor(group));
+      const sales=nav.querySelector('[data-view="sales"]');if(sales)nav.insertBefore(sectionTitle('Ventas'),anchor(sales));
+      const app=nav.querySelector('[data-view="appearance"]');if(app)nav.insertBefore(sectionTitle('Sistema'),anchor(app));
     }
     let user=side.querySelector('#vareliaUserBar');if(user&&user.parentElement===side){user.style.order='99'}
   }
