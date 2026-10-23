@@ -41,7 +41,7 @@
         if(version!==generation)return {data:{session:current()},error:null};
         if(usable(result?.data?.session))cached=result.data.session;
         return result;
-      }).finally(()=>{clearTimeout(timer);if(pending===request)pending=null});
+      }).catch(error=>({data:{session:null},error})).finally(()=>{clearTimeout(timer);if(pending===request)pending=null});
       pending=request;return request;
     };
     getSession.__vareliaSharedSession=true;

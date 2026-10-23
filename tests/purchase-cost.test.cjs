@@ -231,3 +231,9 @@ test('a sign-in event supplies the shared session without another restoration re
   const fixture=sessionFixture();fixture.storage.clear();fixture.event('SIGNED_IN',fixture.session);
   assert.equal((await fixture.client.auth.getSession()).data.session.user.id,'qa-user');assert.equal(fixture.calls(),0);
 });
+test('a still-valid session is not blocked by a second forced refresh before loading inventory',async()=>{
+  const src=read('central-stock-sync.js');const a=src.indexOf('  async function loadProfile(){'),b=src.indexOf('  async function fetchCategories(){',a);
+  const env={sb:{auth:{getSession:async()=>({data:{session:{user:{id:'owner'},expires_at:Math.floor(Date.now()/1000)+30}},error:null}),refreshSession(){throw Error('redundant refresh')}}},window:{vareliaCurrentUserProfile:{id:'owner',business_id:'biz',role:'owner'}},withTimeout:p=>p,profile:null,businessId:'',role:''};
+  vm.createContext(env);vm.runInContext(src.slice(a,b)+'this.load=loadProfile;',env);
+  assert.equal((await env.load()).business_id,'biz');assert.equal(env.businessId,'biz');
+});

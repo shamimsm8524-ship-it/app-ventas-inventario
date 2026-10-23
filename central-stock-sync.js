@@ -54,13 +54,8 @@
     const {data:stored,error:sessionError}=await withTimeout(sb.auth.getSession(),10000,'La lectura de sesión');
     if(sessionError)throw sessionError;
     let user=stored?.session?.user||null;
-    // La sesión almacenada no garantiza que el servidor acepte el JWT.
-    // Refrescar el token antes de consultar tablas protegidas por RLS.
-    if(stored?.session?.expires_at && stored.session.expires_at*1000 < Date.now()+60000){
-      const renewed=await withTimeout(sb.auth.refreshSession(),12000,'La renovación de sesión');
-      if(renewed.error)throw new Error('Tu sesión caducó: '+renewed.error.message);
-      user=renewed.data?.session?.user||null;
-    }
+    // The shared reader and SDK own renewal. A still-valid token must not wait
+    // for a second forced refresh here; database requests validate it on the server.
     if(!user)return null;
     const cached=window.vareliaCurrentUserProfile;
     if(cached?.id===user.id&&cached.business_id){
