@@ -2,7 +2,7 @@
   if(!document.getElementById('vareliaSessionRecoveryLoader')){
     const s=document.createElement('script');
     s.id='vareliaSessionRecoveryLoader';
-    s.src='/session-recovery.js?v=20261022-session-recovery-v1';
+    s.src='/session-recovery.js?v=20261023-auth-webview-v112';
     document.head.appendChild(s);
   }
 })();

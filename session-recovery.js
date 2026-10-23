@@ -1,6 +1,6 @@
 (()=>{
-  if(window.__vareliaSessionRecoveryV2)return;
-  window.__vareliaSessionRecoveryV2=true;
+  if(window.__vareliaSessionRecoveryV3)return;
+  window.__vareliaSessionRecoveryV3=true;
 
   const PROJECT='onvdcaohnftrjunwdvjp';
   const SUPABASE_URL='https://'+PROJECT+'.supabase.co';

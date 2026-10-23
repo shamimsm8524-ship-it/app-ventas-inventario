@@ -9,8 +9,45 @@ if(location.hostname.toLowerCase()==='www.vareliastore.tech'){
 const SUPABASE_URL='https://onvdcaohnftrjunwdvjp.supabase.co';
 const SUPABASE_KEY=atob('c2JfcHVibGlzaGFibGVfYnoyejV1Z2xmX0VBTEplenF2NHJDd19TNzNHTU5yaA==');
 if(!window.supabase){console.error('Supabase no cargó');return;}
-const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce'}});
+// Android WebView puede dejar bloqueado el lock interno de algunas versiones de auth-js.
+// Varelia ya usa un solo cliente de autenticación, así que ejecutamos la operación directamente
+// para que una sesión persistida nunca deje getSession() esperando indefinidamente.
+const vareliaAuthLock=(_name,_timeout,fn)=>fn();
+const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce',lock:vareliaAuthLock,lockAcquireTimeout:4000}});
 window.vareliaSupabase=sb;
+
+// Recuperación defensiva de la sesión persistida del mismo WebView. No crea cuentas,
+// no cambia negocios y no toca inventario: solo reutiliza los tokens que Supabase guardó.
+function readPersistedVareliaSession(){
+  try{
+    const raw=localStorage.getItem('sb-onvdcaohnftrjunwdvjp-auth-token');
+    if(!raw)return null;
+    const parsed=JSON.parse(raw);
+    const session=parsed?.currentSession||parsed?.session||parsed;
+    if(session?.access_token&&session?.refresh_token&&session?.user)return session;
+  }catch(e){console.warn('Varelia: no se pudo leer la sesión persistida',e)}
+  return null;
+}
+async function getStartupSession(){
+  const persisted=readPersistedVareliaSession();
+  if(persisted){
+    try{
+      const restored=await Promise.race([
+        sb.auth.setSession({access_token:persisted.access_token,refresh_token:persisted.refresh_token}),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error('SESSION_RESTORE_TIMEOUT')),6000))
+      ]);
+      if(!restored?.error&&restored?.data?.session)return {data:{session:restored.data.session},error:null};
+    }catch(e){console.warn('Varelia: restauración directa no respondió, se intenta getSession',e)}
+  }
+  try{
+    return await Promise.race([
+      sb.auth.getSession(),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('SESSION_READ_TIMEOUT')),6000))
+    ]);
+  }catch(e){
+    return {data:{session:persisted},error:persisted?null:e};
+  }
+}
 
 const BASE_KEYS={products:'miNegocio_products_v1',categories:'miNegocio_categories_v1',sales:'miNegocio_sales_v1',closures:'miNegocio_closures_v1',cashStart:'miNegocio_cashStart_v1',theme:'miNegocio_theme_v1',movements:'miNegocio_movements_v1',suppliers:'miNegocio_suppliers_v1',purchases:'miNegocio_purchases_v1'};
 const scopedKey=(base,scope)=>base+'__'+String(scope).replace(/[^a-zA-Z0-9_-]/g,'_');
@@ -202,8 +239,15 @@ sb.auth.onAuthStateChange((_event,session)=>{if(session)setTimeout(()=>enterWith
     await enterWithSession(data.session);
     return;
   }
-  const {data,error}=await sb.auth.getSession();
-  if(error){msg(error.message,'error');return}
+  msg('Recuperando tu sesión...');
+  const {data,error}=await getStartupSession();
+  if(error){
+    console.error('Varelia: no se pudo restaurar la sesión',error);
+    showAuth();
+    msg('No se pudo restaurar la sesión automáticamente. Puedes iniciar sesión nuevamente.','error');
+    return;
+  }
+  if(!data?.session){showAuth();msg('');return}
   await enterWithSession(data.session);
 })();
 })();
