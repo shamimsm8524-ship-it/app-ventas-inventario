@@ -45,7 +45,7 @@ const server=http.createServer((req,res)=>{
     await page.locator('#buyPrice').fill('5');
     await page.locator('#purchaseQuantity').fill('0.5');
     assert.match(await page.locator('#purchaseUnitCost').innerText(),/10.00/);
-    await page.locator('#productStockEntryUnit').selectOption('base');
+    assert.equal(await page.locator('#productStockEntryUnit').inputValue(),'base');
     await page.locator('#productQty').fill('0.25');
     assert.equal(await page.evaluate(()=>productStockFromForm()),0.25);
     console.log('PASS: weight purchase uses kilograms, calculates cost per kg and keeps fractional stock');
