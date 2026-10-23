@@ -232,7 +232,6 @@ const server=http.createServer((req,res)=>{
 
     await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart();delete window.VareliaAndroid;products=window.__scanOriginalProducts;window.products=products;localStorage.removeItem(K.products);K.products=window.__scanOriginalKey;if(window.__scanOriginalScope)localStorage.setItem('varelia_active_business_id',window.__scanOriginalScope);else localStorage.removeItem('varelia_active_business_id');window.vareliaBusinessScope=window.__scanOriginalScope||'';render()});
     console.log('PASS: mobile native scanner selects current inventory and adds a sale; UPC/EAN leading zero matches without replacing live products with stale storage');
-    await page.route('**/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',route=>route.fulfill({contentType:'application/javascript',body:fs.readFileSync('/tmp/varelia-browser/node_modules/jsbarcode/dist/JsBarcode.all.min.js','utf8')}));
     await page.evaluate(()=>{switchView('products');products.push({id:'label-fixture',name:'Zanahoria',barcode:'7750670313537',sellPrice:3,stock:1,unit:'Unidad'});window.products=products;window.VareliaAndroid={printHtmlDocument(title,html){window.__labelPrint={title,html}}};render()});
     await page.locator('#btPrinterBtn').click();
     await page.locator('#btPrintHelp').waitFor({state:'visible'});
@@ -242,6 +241,7 @@ const server=http.createServer((req,res)=>{
     const labelRow=page.locator('.bc-row[data-id="label-fixture"]');
     await labelRow.locator('input').fill('3');await labelRow.locator('.bc-print').click();
     await page.waitForFunction(()=>!!window.__labelPrint);
+    assert.equal(await page.evaluate(()=>performance.getEntriesByType('resource').some(r=>r.name.includes('/vendor/JsBarcode.all.min.js'))),true);
     const labelDoc=await page.evaluate(()=>window.__labelPrint);
     const preview=await browser.newPage({viewport:{width:393,height:852}});
     await preview.setContent(labelDoc.html);
@@ -274,9 +274,13 @@ const server=http.createServer((req,res)=>{
     assert.match(await page.locator('#bcPrintSummary').innerText(),/rollo de 100 mm/);
     await page.locator('#bcPaper').selectOption('a4');await page.locator('#bcLabelSize').selectOption('50x30');
     assert.equal(await page.evaluate(()=>products.find(p=>p.id==='label-fixture').barcode),'7750670313537');
+    await page.evaluate(()=>{window.VareliaAndroid={getAppVersion(){return '1.0.50'}};window.__labelPrint=null});
+    await labelRow.locator('.bc-print').click();
+    await page.waitForFunction(()=>document.querySelector('.bc-row[data-id="label-fixture"] .bc-progress')?.textContent.includes('no incluye impresión nativa'));
+    assert.equal(await labelRow.locator('.bc-print').isEnabled(),true);
     await page.locator('.bc-close').click();
     await page.evaluate(()=>{delete window.VareliaAndroid;products=products.filter(p=>p.id!=='label-fixture');window.products=products;render()});
-    console.log('PASS: label settings support A4, Letter, thermal and custom widths; three copies produce three roll PDF pages; oversized labels are rejected before printing');
+    console.log('PASS: printing loads actual barcode generator locally with external CDNs blocked; native bridge receives copies and paper settings; old APK shows explicit reason instead of silently invoking unsupported window.print');
     for(const view of ['products','inventory','sales','cash','suppliers','purchases','categories','appearance']){
       const state=await page.evaluate(id=>{switchView(id);return {target:document.getElementById(id)?.className,active:[...document.querySelectorAll('.view.active')].map(x=>x.id)}},view);
       assert.equal(state.target?.split(' ').includes('active'),true,'view '+view+': '+JSON.stringify(state));
