@@ -181,9 +181,20 @@
         }catch(e){
           console.warn('Linterna no disponible en este motor/cámara',e,{caps:torchCapabilities()});
           torchOn=false;
-          b.textContent='🔦 Linterna no disponible';
           b.setAttribute('aria-pressed','false');
-          window.vareliaToast?.('Android no confirmó el encendido del flash desde esta cámara. La lectura sigue disponible.','warn');
+          const native=window.VareliaAndroid;
+          if(typeof native?.openScannerWithCart==='function'||typeof native?.openScanner==='function'){
+            b.textContent='🔦 Usar lector con linterna';
+            b.onclick=async()=>{
+              b.disabled=true;
+              const which=target;
+              try{await closeScanner();openNativeScanner(which)}finally{b.disabled=false}
+            };
+            window.vareliaToast?.('La linterna está disponible en el lector Android. Toca «Usar lector con linterna». Tu carrito se conserva.','info');
+          }else{
+            b.textContent='🔦 Linterna no disponible';
+            window.vareliaToast?.('Android no confirmó el encendido del flash desde esta cámara. La lectura sigue disponible.','warn');
+          }
           await sleep(900);
         }finally{
           b.disabled=false;

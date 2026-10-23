@@ -172,7 +172,7 @@ const server=http.createServer((req,res)=>{
     await page.evaluate(()=>{clearSaleCart();switchView('inventory');window.__scanOpened=null});
     await page.route('**/html5-qrcode@2.3.8/html5-qrcode.min.js',route=>{
       if(route.request().url().includes('unpkg.com'))return route.abort();
-      return route.fulfill({contentType:'application/javascript',body:`window.Html5Qrcode=class {static async getCameras(){return [{id:'rear',label:'Back camera'}]}async start(camera,config,onRead){window.__cameraStarts=(window.__cameraStarts||0)+1;window.__cameraStarted=camera;window.__scanConfig=config;window.__deliverBarcode=onRead;let torch=false;const track={getCapabilities(){return window.__omitTorchCaps?{}:{torch:true}},getSettings(){return {torch}},async applyConstraints(c){torch=c.torch??c.advanced?.[0]?.torch??torch;window.__physicalTorch=torch}};const video=document.createElement('video');Object.defineProperty(video,'srcObject',{value:{getVideoTracks(){return [track]}}});document.getElementById('vareliaReader').appendChild(video)}getState(){return 2}async stop(){window.__cameraStops=(window.__cameraStops||0)+1}async clear(){}}`});
+      return route.fulfill({contentType:'application/javascript',body:`window.Html5Qrcode=class {static async getCameras(){return [{id:'rear',label:'Back camera'}]}async start(camera,config,onRead){window.__cameraStarts=(window.__cameraStarts||0)+1;window.__cameraStarted=camera;window.__scanConfig=config;window.__deliverBarcode=onRead;let torch=false;const track={getCapabilities(){return window.__omitTorchCaps?{}:{torch:true}},getSettings(){return {torch}},async applyConstraints(c){if(window.__rejectTorch)throw new Error('WebView flash blocked');torch=c.torch??c.advanced?.[0]?.torch??torch;window.__physicalTorch=torch}};const video=document.createElement('video');Object.defineProperty(video,'srcObject',{value:{getVideoTracks(){return [track]}}});document.getElementById('vareliaReader').appendChild(video)}getState(){return 2}async stop(){window.__cameraStops=(window.__cameraStops||0)+1}async clear(){}}`});
     });
     await page.locator('#scanForInventory').click();
     await page.waitForFunction(()=>!!window.__deliverBarcode);
@@ -216,6 +216,19 @@ const server=http.createServer((req,res)=>{
     await page.locator('#scannerCartCheckout').click();
     await page.waitForFunction(()=>document.getElementById('saleDialog').open);
     console.log('PASS: quick checkout uses updateable full-frame camera inside existing APK, decoded barcode reaches cart and Cobrar opens checkout');
+    await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());window.__rejectTorch=true;window.__scanOpened=null;window.__deliverBarcode=null;switchView('sales')});
+    await page.locator('#vposScan').click();await page.waitForFunction(()=>!!window.__deliverBarcode);
+    await page.locator('#scannerTorch').click();
+    await page.waitForFunction(()=>!document.getElementById('scannerTorch').disabled);
+    assert.match(await page.locator('#scannerTorch').innerText(),/Usar lector con linterna/);
+    const cartBeforeNative=await page.evaluate(()=>JSON.stringify(cart));
+    await page.locator('#scannerTorch').click();
+    await page.waitForFunction(()=>window.__scanOpened==='sale');
+    assert.equal(await page.evaluate(()=>JSON.stringify(cart)),cartBeforeNative);
+    assert.equal(await page.locator('#scannerDialog').evaluate(d=>d.open),false);
+    await page.evaluate(()=>{window.__rejectTorch=false});
+    console.log('PASS: blocked WebView flash offers original Android scanner, stops web camera and preserves cart when switching');
+
 
     await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart();delete window.VareliaAndroid;products=window.__scanOriginalProducts;window.products=products;localStorage.removeItem(K.products);K.products=window.__scanOriginalKey;if(window.__scanOriginalScope)localStorage.setItem('varelia_active_business_id',window.__scanOriginalScope);else localStorage.removeItem('varelia_active_business_id');window.vareliaBusinessScope=window.__scanOriginalScope||'';render()});
     console.log('PASS: mobile native scanner selects current inventory and adds a sale; UPC/EAN leading zero matches without replacing live products with stale storage');
