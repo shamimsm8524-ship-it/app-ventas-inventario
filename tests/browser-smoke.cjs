@@ -79,6 +79,7 @@ const server=http.createServer((req,res)=>{
     await page.locator('#supplierForm button[type=submit]').click();
     await page.waitForFunction(()=>!!window.__savedSupplier);
     assert.equal(await page.locator('#supplierList').innerText().then(t=>t.includes('Proveedor de prueba')),true);
+    console.log('SUPPLIER_STATE:'+JSON.stringify(await page.evaluate(()=>({active:[...document.querySelectorAll('.view.active')].map(x=>x.id),target:document.getElementById('suppliers').outerHTML.slice(0,500),display:getComputedStyle(document.getElementById('suppliers')).display,button:getComputedStyle(document.querySelector('[data-editsupplier]')).display,body:document.body.className}))));
     await page.locator('[data-editsupplier]').click();
     await page.locator('#supplierName').fill('Proveedor actualizado');
     await page.locator('#supplierForm button[type=submit]').click();
