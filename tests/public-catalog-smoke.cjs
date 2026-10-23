@@ -11,6 +11,7 @@ const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+new 
  {product_id:'water',name:'Agua',category:'Aguas',stock:7,unit:'Unidad',sell_price:3.5,sale_presentations:[{id:'six',name:'Six Pack',units:6,price:15,active:true}]},
  {product_id:'simple',name:'Simple',category:'Otros',stock:1,unit:'Unidad',sell_price:2},
  {product_id:'med',name:'Ampicilina',category:'Medicinas',stock:100,unit:'Caja',sell_price:60,medicine:true,blisters_per_box:10,units_per_blister:10,box_price:60,blister_price:30,unit_medicine_price:3},
+ {product_id:'weightbig',name:'Zanahoria',category:'Verduras',stock:5,unit:'kg',sell_price:3},
  {product_id:'weight',name:'Pollo',category:'Carne',stock:.5,unit:'kg',sell_price:12},
  {product_id:'variant',name:'Polo',category:'Ropa',stock:4,unit:'Unidad',sell_price:20,characteristics:[{name:'Color',values:[{label:'Azul'},{label:'Rojo'}]}],variant_combinations:[{values:['Azul'],stock:1},{values:['Rojo'],stock:3}]}
  ];
@@ -38,8 +39,32 @@ const server=http.createServer((req,res)=>{const file=path.resolve(root,'.'+new 
  console.log('PASS: public catalog prevents repeated unit additions beyond stock');
  await add('med');await page.locator('.medicineDirectAdd[data-key="box"]').click();await add('med');await alertOn(()=>page.locator('.medicineDirectAdd[data-key="blister"]').click());await clearCart();
  console.log('PASS: medicine stock is shared across Caja, Blíster and Pastilla in the public cart');
- await add('weight');await page.locator('.viewerAdd').click();await openCart();await alertOn(()=>page.locator('.plus').first().click());await alertOn(()=>page.locator('.weightVariant').selectOption('1'));await clearCart();
+ await add('weight');await page.locator('.viewerAdd').click();await openCart();await alertOn(()=>page.locator('.plus').first().click());await alertOn(async()=>{await page.locator('.weightVariant').fill('1');await page.locator('.weightVariant').dispatchEvent('change')});await clearCart();
  console.log('PASS: public weight selection and plus controls cannot exceed fractional stock');
+ await add('weightbig');
+ await page.locator('#viewerWeightValue').fill('2.5');
+ assert.match(await page.locator('#viewerWeightTotal').innerText(),/7.50/);
+ await page.locator('.viewerAdd').click();await openCart();
+ assert.equal(await page.locator('.weightVariant').inputValue(),'2.500');
+ assert.match(await page.locator('#subtotal').innerText(),/7.50/);
+ await page.locator('.plus').first().click();
+ assert.equal(await page.locator('.weightVariant').inputValue(),'2.600');
+ assert.match(await page.locator('#subtotal').innerText(),/7.80/);
+ await page.locator('.minus').first().click();
+ assert.equal(await page.locator('.weightVariant').inputValue(),'2.500');
+ await page.locator('.weightVariant').fill('1.8');await page.locator('.weightVariant').dispatchEvent('change');
+ assert.equal(await page.locator('.weightVariant').inputValue(),'1.800');
+ assert.match(await page.locator('#subtotal').innerText(),/5.40/);
+ await alertOn(async()=>{await page.locator('.weightVariant').fill('6');await page.locator('.weightVariant').dispatchEvent('change')});
+ assert.equal(await page.locator('.weightVariant').inputValue(),'1.800');
+ await clearCart();await add('weightbig');
+ await page.locator('#viewerWeightUnit').selectOption('g');await page.locator('#viewerWeightValue').fill('2500');
+ assert.match(await page.locator('#viewerWeightTotal').innerText(),/7.50/);
+ await page.locator('.viewerAdd').click();await openCart();
+ assert.equal(await page.locator('.weightVariant').inputValue(),'2.500');
+ await clearCart();
+ console.log('PASS: public customer enters 2.5 kg or 2500 g; cart plus/minus preserve exact weight, totals and stock limits');
+
  await add('variant');await page.locator('.viewerVariant[data-value="Azul"]').click();await page.locator('.viewerAdd').click();await add('variant');await page.locator('.viewerVariant[data-value="Azul"]').click();await alertOn(()=>page.locator('.viewerAdd').click());await clearCart();
  console.log('PASS: public variants respect their individual stock when other colors remain available');
  await add('water');await page.locator('.presentationDirectAdd[data-pid="six"]').click();await add('water');await page.locator('.presentationDirectAdd[data-pid=""]').click();
