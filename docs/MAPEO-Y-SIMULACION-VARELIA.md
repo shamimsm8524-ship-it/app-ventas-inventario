@@ -65,7 +65,9 @@ El stock de productos normales se controla en su unidad base. Una presentación 
 
 ## Estado de la revisión
 
-La comprobación inicial de la base de datos pasó las 31 aserciones. Supabase respondió `ACTIVE_HEALTHY`. La validación de sintaxis y las pruebas locales de costos y pagos pasaron. Las pruebas ampliadas de navegador quedan registradas en GitHub Actions junto al commit de esta revisión; el informe debe leerse con el resultado de esa ejecución.
+La revisión terminó con resultado satisfactorio: 45 pruebas de lógica, costos, sesión y pagos; 31 aserciones en la base de datos dentro de una transacción revertida; y los recorridos ampliados de la interfaz móvil, el catálogo público, los pedidos y la decodificación de una imagen EAN-13. Supabase respondió `ACTIVE_HEALTHY`. La ejecución completa pasó sin excepciones de navegador en los escenarios probados.
+
+Evidencia reproducible: [GitHub Actions, ejecución 39990692477](https://github.com/shamimsm8524-ship-it/app-ventas-inventario/actions/runs/39990692477). Las respuestas de autenticación, pagos e impresora física se simulan donde se indica en la tabla; no se certifica el hardware del teléfono.
 
 ## Límites y observaciones pendientes
 
