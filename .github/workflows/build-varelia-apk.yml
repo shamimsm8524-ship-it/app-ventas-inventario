@@ -1,6 +1,11 @@
-name: Varelia 1.0.52 APK
+name: Varelia 1.0.53 APK validation
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "android-native/**"
+      - ".github/workflows/build-varelia-apk.yml"
 
 jobs:
   build-apk:
@@ -75,7 +80,7 @@ jobs:
       - name: Upload Varelia APK
         uses: actions/upload-artifact@v4
         with:
-          name: Varelia-APK
+          name: Varelia-1.0.53-validation
           path: Varelia.apk
           if-no-files-found: error
           retention-days: 30
