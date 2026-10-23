@@ -572,7 +572,7 @@ function openProduct(id){
   const measureDetails=document.getElementById('productMeasureOptions');measureDetails.open=unit.value!=='Unidad';
   const legacyNotice=document.getElementById('productLegacyStockNotice');
   legacyNotice.hidden=!legacyBox;
-  legacyNotice.textContent=legacyBox?'Este producto estaba contado en cajas. Escribe abajo cuántas unidades tienes en total.':'';
+  legacyNotice.textContent=legacyBox?'Antes estaba configurado en cajas. Revisa el precio por unidad y escribe el total real de unidades en stock.':'';
   if(legacyBox){
     document.getElementById('purchasePresentation').value=purchase?.presentation||'Cajón';
     if(!purchase?.quantity&&Number(p.unitsPerBox)>1)document.getElementById('purchaseQuantity').value=p.unitsPerBox;
@@ -603,8 +603,8 @@ function openProduct(id){
 }
 newProduct.onclick=inventoryNewProduct.onclick=()=>openProduct();
 unit?.addEventListener('change',()=>{updateProductQtyUI();updateUnitsPerBoxUI()});
-productCategory?.addEventListener('change',()=>setTimeout(updateProductQtyUI,0));
-document.getElementById('vMedicineToggle')?.addEventListener('change',()=>setTimeout(updateProductQtyUI,0));
+productCategory?.addEventListener('change',()=>setTimeout(()=>{updateProductQtyUI();updateUnitsPerBoxUI()},0));
+document.getElementById('vMedicineToggle')?.addEventListener('change',()=>setTimeout(()=>{updateProductQtyUI();updateUnitsPerBoxUI()},0));
 ['purchaseQuantity','purchasePresentation','productStockEntryUnit','productQty'].forEach(id=>{document.getElementById(id)?.addEventListener('input',updateProductQtyUI);document.getElementById(id)?.addEventListener('change',updateProductQtyUI)});
 
 productImage.onchange=e=>{

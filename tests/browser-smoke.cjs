@@ -41,6 +41,8 @@ const server=http.createServer((req,res)=>{
     await page.locator('#productStockEntryUnit').selectOption('purchase');
     await page.locator('#productQty').fill('1');
     assert.match(await page.locator('#productQtyHint').innerText(),/36 unidades/);
+    await page.locator('#purchasePresentation').scrollIntoViewIfNeeded();
+    console.log('VISUAL_SIMPLE_STOCK:'+(await page.screenshot({type:'jpeg',quality:50})).toString('base64'));
     await page.locator('#vCommercialCollapseBtn').click();
     await page.locator('[data-cpreset="5"]').click();
     let row=page.locator('[data-crow="0"]');
