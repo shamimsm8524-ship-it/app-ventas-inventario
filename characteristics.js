@@ -3,7 +3,7 @@ if(window.__vareliaCharacteristics)return;window.__vareliaCharacteristics=true;
 const ready=fn=>document.readyState==='loading'?document.addEventListener('DOMContentLoaded',fn,{once:true}):fn();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defs=['Talla','Color','Material','Calidad','Tamaño','Modelo','Grosor','Piezas','Tono','Acabado','Presentación','Marca','Otra'];
-const normalize=a=>Array.isArray(a)?a.filter(x=>x&&x.name&&Array.isArray(x.values)&&x.values.length).slice(0,8).map(x=>({name:String(x.name).slice(0,40),values:x.values.filter(v=>v&&String(v.label||v).trim()).slice(0,40).map(v=>typeof v==='string'?{label:v}:{label:String(v.label),color:String(v.color||'')})})):[];
+const normalize=a=>Array.isArray(a)?a.filter(x=>x&&x.name&&!String(x.name).startsWith('__varelia_')&&Array.isArray(x.values)&&x.values.length).slice(0,8).map(x=>({name:String(x.name).slice(0,40),values:x.values.filter(v=>v&&String(v.label||v).trim()).slice(0,40).map(v=>typeof v==='string'?{label:v}:{label:String(v.label),color:String(v.color||'')})})):[];
 
 const st=document.createElement('style');st.textContent=`
 #vVariantWrap{display:none!important}
@@ -23,7 +23,7 @@ function comboMatch(combos,vals){
  return candidates.length===1?candidates[0]:null;
 }
 function selectProduct(p,cb){
- const chars=normalize(p?.characteristics);if(!chars.length){cb(p);return}
+ const chars=normalize(p?.characteristics);if(!chars.length){cb({...p,__characteristicsSelected:true});return}
  const combos=Array.isArray(p?.variantCombinations)?p.variantCombinations:[];
  const total=combos.reduce((a,c)=>a+Math.max(0,Number(c?.stock)||0),0);
  if(total>0&&Number(p?.stock||0)<=0)p={...p,stock:total};

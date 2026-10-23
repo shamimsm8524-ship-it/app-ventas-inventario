@@ -138,6 +138,21 @@ const server=http.createServer((req,res)=>{
     assert.equal(await page.evaluate(()=>products.length),1);
     console.log('PASS: stalled cloud save releases the button, keeps the form and allows retry without duplicating the product');
     await page.evaluate(()=>document.querySelectorAll('dialog[open]').forEach(d=>d.close()));
+    await page.evaluate(()=>{
+      window.__beforeMedicineProducts=products.slice();
+      products.push({id:'medicine-fixture',name:'Ampicilina',category:'Medicinas',stock:1969,unit:'Caja',medicine:true,blistersPerBox:10,unitsPerBlister:10,boxPrice:60,blisterPrice:30,unitMedicinePrice:3,sellPrice:60,characteristics:[{name:'__varelia_medicine_purchase_costs_v1__',values:[{label:'box:35'},{label:'blister:3.5'},{label:'unit:0.35'}]}]});window.products=products;switchView('products');render();
+    });
+    for(const [label,price,mult] of [['Caja',60,100],['Blíster',30,10],['Pastilla',3,1]]){
+      await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart()});
+      await page.locator('[data-add="medicine-fixture"]').click();
+      await page.locator('[data-medopts]').waitFor({state:'visible'});
+      assert.equal(await page.locator('#vcsDlg[open]').count(),0);
+      await page.locator('[data-medopts] button').filter({hasText:new RegExp('^'+label+'S/')}).click();
+      await page.waitForFunction(()=>document.getElementById('saleDialog').open);
+      const item=await page.evaluate(()=>cart[0]);assert.equal(item.price,price);assert.equal(item.medicineMultiplier,mult);assert.equal(item.medicineSaleUnit,label);
+    }
+    await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart();products=window.__beforeMedicineProducts;window.products=products;render()});
+    console.log('PASS: Ampicilina catalog button ignores internal cost metadata and sells Caja, Blíster and Pastilla at configured prices');
     for(const view of ['products','inventory','sales','cash','suppliers','purchases','categories','appearance']){
       const state=await page.evaluate(id=>{switchView(id);return {target:document.getElementById(id)?.className,active:[...document.querySelectorAll('.view.active')].map(x=>x.id)}},view);
       assert.equal(state.target?.split(' ').includes('active'),true,'view '+view+': '+JSON.stringify(state));
