@@ -211,6 +211,31 @@ const server=http.createServer((req,res)=>{
     assert.equal(settingsWrites.find(x=>x.table==='varelia_business_settings').payload.currency,'S/');
     await page.evaluate(()=>{window.vareliaSupabase.auth.getSession=window.__oldSessionReader;window.vareliaSupabase.from=window.__oldFrom});
     console.log('PASS: settings save sends one settings write, shares one account context, and does not wait for the public catalog');
+    await page.evaluate(()=>{
+      const sb=window.vareliaSupabase,existing=products[0];
+      window.__syncSessionReader=sb.auth.getSession;window.__syncFrom=sb.from;window.__syncRpc=sb.rpc;
+      window.__failSync=true;
+      sb.auth.getSession=async()=>({data:{session:{user:{id:'qa-owner'}}},error:null});
+      window.vareliaCurrentUserProfile={id:'qa-owner',business_id:'qa-business',role:'owner'};
+      products.push({id:'offline-new',name:'Pendiente local',category:'General',stock:3,unit:'Unidad',buyPrice:1,sellPrice:2});window.products=products;
+      const remote={id:'00000000-0000-4000-8000-000000000010',legacy_id:existing.id,name:existing.name,unit:'Unidad',stock:existing.stock,sell_price:15,buy_price:120/36,updated_at:'2026-10-23T00:00:00Z',category_id:'qa-cat'};
+      sb.from=table=>{let q;q=new Proxy({}, {get(_t,key){if(key==='then')return resolve=>Promise.resolve(window.__failSync?{data:null,error:{message:'TEST: red no responde'}}:{error:null,data:table==='varelia_products'?[remote]:table==='varelia_categories'?[{id:'qa-cat',name:'General'}]:[]}).then(resolve);return ()=>q}});return q};
+      sb.rpc=()=>new Promise(()=>{}); // Public stock maintenance must not delay reconnection.
+      window.vareliaSetCloudStatus('☁️ Error de prueba',true);
+    });
+    await page.locator('#cloudStatus').click();
+    await page.waitForFunction(()=>document.getElementById('cloudStatus').dataset.syncing==='0');
+    assert.match(await page.locator('#cloudStatus').innerText(),/TEST: red no responde/);
+    assert.equal(await page.evaluate(()=>products.some(p=>p.id==='offline-new')),true);
+    await page.evaluate(()=>{window.__failSync=false});
+    await page.locator('#cloudStatus').click();
+    await page.waitForFunction(()=>document.getElementById('cloudStatus').textContent.includes('Conectado'),{},{timeout:5000});
+    assert.equal(await page.evaluate(()=>products.some(p=>p.id==='offline-new')),true);
+    await page.evaluate(()=>{
+      const sb=window.vareliaSupabase;sb.auth.getSession=window.__syncSessionReader;sb.from=window.__syncFrom;sb.rpc=window.__syncRpc;
+    });
+    console.log('PASS: failed cloud read preserves local products; tapping reconnect confirms cloud data without waiting for public catalog maintenance');
+
 
 
 

@@ -168,3 +168,34 @@ test('cartons convert to unit inventory without changing the unit sale price',()
   for(const [qty,size] of [[-1,36],[1,0],[NaN,36],[1,Infinity]])assert.throws(()=>stockFromPackages(qty,size));
   const price=15;assert.equal(price-unitCost(120,36),11.666666666666666);
 });
+function syncStartupHarness(fail=false){
+  const src=read('central-stock-sync.js');
+  const body=src.slice(src.indexOf('  async function init(){'),src.indexOf('  // Sincronización forzada:'));
+  const events=[],timers=[];
+  const env={initBusy:false,initAgain:false,businessId:'biz',channel:null,retryTimer:null,retryDelay:1000,bridgeTimer:null,syncLifecycleBound:false,
+    waitClient:async()=>true,loadProfile:async()=>({id:'owner',business_id:'biz'}),
+    refreshCloud:async()=>{if(fail)throw Error('network failed');return true},
+    localProducts:()=>[{id:'pending'}],seedIfNeeded:()=>new Promise(()=>{}),withTimeout:p=>p,
+    installProductBridge(){},installCategoryBridge(){},installCategoryDeleteBridge(){},installCheckoutBridge(){},subscribe(){},scheduleRefresh(){},
+    setTimeout(fn,ms){timers.push({fn,ms});return timers.length},clearTimeout(){},setInterval(){return 1},clearInterval(){},
+    window:{vareliaSetCloudStatus(){},dispatchEvent(e){events.push(e.type)}},CustomEvent:class{constructor(type){this.type=type}},
+    addEventListener(){},document:{addEventListener(){}},navigator:{onLine:true},console:{warn(){},error(){}},toast(){}};
+  vm.createContext(env);vm.runInContext(body+'this.start=init;',env);return {env,events,timers};
+}
+test('startup confirms a cloud read without waiting for an unresponsive local backup',async()=>{
+  const {env,events}=syncStartupHarness();await env.start();
+  assert(events.includes('varelia:sync-connected'));assert.equal(env.initBusy,false);
+});
+test('startup never reports connected after a failed read and schedules a fast retry',async()=>{
+  const {env,events,timers}=syncStartupHarness(true);await env.start();
+  assert(!events.includes('varelia:sync-connected'));assert(events.includes('varelia:sync-error'));
+  assert(timers.some(t=>t.ms===1000));assert.equal(env.initBusy,false);
+});
+test('concurrent inventory reads share a request and release it afterwards',async()=>{
+  const src=read('central-stock-sync.js');const a=src.indexOf('  let cloudReadInFlight=null;'),b=src.indexOf('  let suppressRefreshUntil=',a);
+  let resolve,calls=0;const pending=new Promise(r=>resolve=r);
+  const env={businessId:'biz',readCloud:()=>{calls++;return pending}};
+  vm.createContext(env);vm.runInContext(src.slice(a,b)+'this.refresh=refreshCloud;',env);
+  const first=env.refresh(),second=env.refresh();assert.equal(first,second);assert.equal(calls,1);
+  resolve(true);await first;await env.refresh();assert.equal(calls,2);
+});

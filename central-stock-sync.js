@@ -5,7 +5,7 @@
   const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const withTimeout=(promise,ms,label)=>Promise.race([Promise.resolve(promise),new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' no respondió en '+Math.round(ms/1000)+' segundos. Se reintentará automáticamente.')),ms))]);
   const toast=(m,t='ok')=>window.vareliaToast?window.vareliaToast(m,t):console.log(m);
-  let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false,initBusy=false,initAgain=false,retryTimer=null,retryDelay=2500;
+  let sb=null,profile=null,businessId='',role='',channel=null,refreshTimer=null,saleBusy=false,initBusy=false,initAgain=false,retryTimer=null,retryDelay=1000;
   let stockSnapshot=null,stockPollTimer=null,stockPollBusy=false;
   const categoryIds=new Map();
 
@@ -51,7 +51,7 @@
     if(!sb)return null;
     // La sesión persistida puede estar disponible antes de que /auth/v1/user responda.
     // RLS en Supabase sigue validando el JWT en todas las consultas.
-    const {data:stored}=await withTimeout(sb.auth.getSession(),12000,'La restauración de sesión');
+    const {data:stored}=await withTimeout(sb.auth.getSession(),6000,'La restauración de sesión');
     let user=stored?.session?.user||null;
     // La sesión almacenada no garantiza que el servidor acepte el JWT.
     // Refrescar el token antes de consultar tablas protegidas por RLS.
@@ -60,11 +60,11 @@
       if(renewed.error)throw new Error('Tu sesión caducó: '+renewed.error.message);
       user=renewed.data?.session?.user||null;
     }
-    if(!user){
-      const {data:u}=await withTimeout(sb.auth.getUser(),12000,'La verificación de sesión');
-      user=u?.user||null;
-    }
     if(!user)return null;
+    const cached=window.vareliaCurrentUserProfile;
+    if(cached?.id===user.id&&cached.business_id){
+      profile=cached;businessId=String(cached.business_id);role=String(cached.role||'');return profile;
+    }
     // Compatibilidad con esquemas donde profiles todavía no tiene la columna opcional permissions.
     // Un campo opcional ausente no debe bloquear toda la sincronización del inventario.
     let profileQuery=await withTimeout(sb.from('profiles').select('id,business_id,role,permissions').eq('id',user.id).maybeSingle(),12000,'La consulta del perfil');
@@ -186,24 +186,22 @@
   }
 
   async function seedIfNeeded(){
-    const countRes=await sb.from('varelia_products').select('id',{count:'exact',head:true}).eq('business_id',businessId);
-    if(countRes.error)throw countRes.error;
-    // No abandonar los datos locales cuando la nube ya tiene algunos productos.
-    // Un inventario remoto parcial (por ejemplo, solo una zanahoria) no debe
-    // provocar que se pierdan de la vista los productos que aún existen localmente.
-    if(!isOwner())return (countRes.count||0)>0;
-
-    const ps=localProducts();
+    if(!isOwner())return false;
+    const requestedBusiness=businessId;
+    const ps=localProducts().filter(p=>!p._cloudId);
     if(!ps.length)return false;
 
     const categoryNames=[...new Set([...localCategories(),...ps.map(p=>p.category)].map(x=>String(x||'').trim()).filter(Boolean))];
     const categoryMap=new Map();
     for(const name of categoryNames){
-      const id=await ensureCategory(name);
+      if(requestedBusiness!==businessId)return false;
+      const id=await ensureCategory(name,true);
       if(id)categoryMap.set(name,id);
     }
 
     for(const p of ps){
+      if(requestedBusiness!==businessId)return false;
+      if(p._cloudId)continue;
       const legacy=String(p.id||'').trim();
       if(!legacy)continue;
       const existing=await sb.from('varelia_products').select('id').eq('business_id',businessId).eq('legacy_id',legacy).maybeSingle();
@@ -218,14 +216,17 @@
     return true;
   }
 
-  async function refreshCloud(){
+  async function readCloud(){
     if(!sb)throw new Error('Supabase no está disponible.');
     if(!businessId)throw new Error('La cuenta no tiene negocio activo.');
     const requestedBusiness=businessId;
-    const [catsRes,prodRes]=await withTimeout(Promise.all([
-      sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name'),
-      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,units_per_box,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes,sale_presentations,advanced_pricing,updated_at').eq('business_id',businessId).order('created_at')
-    ]),15000,'La lectura del inventario en la nube');
+    const controller=new AbortController();
+    const deadline=setTimeout(()=>controller.abort(),8000);
+    let catsRes,prodRes;
+    try{[catsRes,prodRes]=await withTimeout(Promise.all([
+      sb.from('varelia_categories').select('id,name').eq('business_id',businessId).order('name').abortSignal(controller.signal),
+      sb.from('varelia_products').select('id,legacy_id,category_id,barcode,name,description,specifications,variants,characteristics,variant_combinations,buy_price,sell_price,stock,unit,units_per_box,reorder_level,image_data,medicine,laboratory,medicine_presentation,batch,expiry_date,blisters_per_box,units_per_blister,box_price,blister_price,unit_medicine_price,medicine_stock_boxes,sale_presentations,advanced_pricing,updated_at').eq('business_id',businessId).order('created_at').abortSignal(controller.signal)
+    ]),9000,'La lectura del inventario en la nube')}finally{clearTimeout(deadline)}
     if(requestedBusiness!==businessId)return false;
     if(catsRes.error)throw catsRes.error;
     if(prodRes.error)throw prodRes.error;
@@ -296,7 +297,8 @@
       };
     });
 
-    products=mapped;
+    const pending=localProducts().filter(p=>!p._cloudId&&!mapped.some(row=>String(row.id)===String(p.id)));
+    products=[...mapped,...pending];
     window.products=products;
     try{
       if(typeof K!=='undefined'){
@@ -309,6 +311,16 @@
     }catch(e){console.warn('La interfaz no pudo renderizar el inventario, pero la nube sí respondió:',e)}
     try{window.dispatchEvent(new CustomEvent('varelia:central-stock-updated'))}catch{}
     return true
+  }
+
+  let cloudReadInFlight=null;
+  let syncLifecycleBound=false;
+  let bridgeTimer=null;
+  function refreshCloud(){
+    if(cloudReadInFlight?.businessId===businessId)return cloudReadInFlight.promise;
+    const request={businessId,promise:null};
+    request.promise=readCloud().finally(()=>{if(cloudReadInFlight===request)cloudReadInFlight=null});
+    cloudReadInFlight=request;return request.promise;
   }
 
   let suppressRefreshUntil=0;
@@ -970,46 +982,41 @@
         retryTimer=setTimeout(()=>{
           if(navigator.onLine!==false)init().catch(err=>console.error('Reintento de restauración de sesión',err));
         },retryDelay);
-        retryDelay=Math.min(retryDelay*2,20000);
+        retryDelay=Math.min(retryDelay*2,10000);
         return;
       }
       if(!businessId)throw new Error('La cuenta no tiene un negocio vinculado. Abre Ajustes y vuelve a iniciar sesión.');
-      if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
-      // La sincronización no debe quedar bloqueada por un respaldo inicial fallido.
-      // Primero intentamos traer la cuenta desde la nube; si falla, reintentamos.
-      try{ await withTimeout(seedIfNeeded(),15000,'El respaldo inicial del inventario'); }catch(seedErr){ console.warn('Respaldo inicial omitido o agotó el tiempo:',seedErr); }
-      let cloudOk=false,lastErr=null;
-      for(let attempt=1;attempt<=3&&!cloudOk;attempt++){
-        try{
-          cloudOk=await refreshCloud();
-          if(!cloudOk)throw new Error('La nube no devolvió el inventario.');
-        }catch(syncErr){
-          lastErr=syncErr;
-          if(attempt<3)await sleep(700*attempt);
-        }
-      }
-      if(!cloudOk)throw lastErr||new Error('No se pudo sincronizar con Supabase.');
+      if(channel){try{Promise.resolve(sb.removeChannel(channel)).catch(console.warn)}catch{}channel=null;}
+      window.vareliaSetCloudStatus?.('☁️ Sincronizando…');
+      const cloudOk=await refreshCloud();
+      if(!cloudOk)throw new Error('No se pudo confirmar el inventario de esta cuenta.');
       installProductBridge();
       installCategoryBridge();
       installCategoryDeleteBridge();
       installCheckoutBridge();
       subscribe();
-      clearTimeout(retryTimer);retryTimer=null;retryDelay=2500;
+      clearTimeout(retryTimer);retryTimer=null;retryDelay=1000;
       window.dispatchEvent(new CustomEvent('varelia:sync-connected',{detail:{businessId:String(businessId),products:localProducts().length}}));
+      // A local-only backup must never delay the first confirmed cloud read.
+      if(localProducts().some(p=>!p._cloudId))void withTimeout(seedIfNeeded(),15000,'El respaldo inicial').then(()=>refreshCloud()).catch(e=>console.warn('Respaldo pendiente',e));
 
       let tries=0;
-      const timer=setInterval(()=>{
+      if(bridgeTimer)clearInterval(bridgeTimer);
+      bridgeTimer=setInterval(()=>{
         tries++;
         installProductBridge();
         installCategoryBridge();
         installCategoryDeleteBridge();
         installCheckoutBridge();
-        if(tries>60)clearInterval(timer);
+        if(tries>60){clearInterval(bridgeTimer);bridgeTimer=null}
       },500);
 
-      addEventListener('focus',scheduleRefresh);
-      addEventListener('pageshow',scheduleRefresh);
-      document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleRefresh()});
+      if(!syncLifecycleBound){
+        syncLifecycleBound=true;
+        addEventListener('focus',scheduleRefresh);
+        addEventListener('pageshow',scheduleRefresh);
+        document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleRefresh()});
+      }
     }catch(e){
       console.error('Varelia central stock',e);
       window.dispatchEvent(new CustomEvent('varelia:business-scope-error',{detail:{error:e}}));
@@ -1020,7 +1027,7 @@
       // Reintento automático real cuando falla la nube; nunca borra el inventario local.
       clearTimeout(retryTimer);
       retryTimer=setTimeout(()=>{if(navigator.onLine!==false)init().catch(err=>console.error('Reintento de nube',err))},retryDelay);
-      retryDelay=Math.min(retryDelay*2,20000);
+      retryDelay=Math.min(retryDelay*2,10000);
     }finally{
       initBusy=false;
       // No perder un evento de inicio de sesión que llegue mientras la primera inicialización está activa.
@@ -1044,10 +1051,11 @@
     if(oldBusiness&&oldBusiness!==String(businessId)){
       console.info('Varelia: cambio de negocio detectado',oldBusiness,'->',businessId);
     }
-    if(channel){try{await sb.removeChannel(channel)}catch{} channel=null;}
+    if(channel){try{Promise.resolve(sb.removeChannel(channel)).catch(console.warn)}catch{}channel=null;}
     const cloudLoaded=await refreshCloud();
     if(!cloudLoaded)throw new Error('No se recibió confirmación del inventario de Supabase.');
-    try{await withTimeout(refreshPublicStock(),8000,'La actualización del stock público')}catch(e){console.warn('Stock público pendiente',e)}
+    void withTimeout(refreshPublicStock(),8000,'La actualización del stock público').catch(e=>console.warn('Stock público pendiente',e));
+    installProductBridge();installCategoryBridge();installCategoryDeleteBridge();installCheckoutBridge();
     subscribe();
     window.dispatchEvent(new CustomEvent('varelia:forced-sync-complete',{detail:{businessId:String(businessId)}}));
     return {businessId:String(businessId),products:localProducts().length,categories:localCategories().length};
@@ -1065,7 +1073,7 @@
     client.auth.onAuthStateChange((event,session)=>{
       if(event==='SIGNED_OUT'){
         businessId='';profile=null;role='';stockSnapshot=null;
-        clearTimeout(retryTimer);clearInterval(stockPollTimer);
+        clearTimeout(retryTimer);clearInterval(stockPollTimer);clearInterval(bridgeTimer);
         if(channel){try{sb.removeChannel(channel)}catch{}channel=null;}
         return;
       }

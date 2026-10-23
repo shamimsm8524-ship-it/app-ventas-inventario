@@ -71,6 +71,7 @@
   }
   if(!el)return;
   if(String(el.textContent||'').includes('Conectado')&&!String(el.textContent||'').includes('Sin'))return;
+  if(typeof window.vareliaForceSync==='function')return;
   if(lastError){window.vareliaSetCloudStatus('☁️ Error de carga: '+lastError,true);return}
   if(!window.vareliaSupabase){window.vareliaSetCloudStatus('☁️ Error: autenticación no inició',true);return}
   if(typeof window.vareliaForceSync!=='function'){window.vareliaSetCloudStatus('☁️ Error: sincronización no inició',true);return}
@@ -318,25 +319,7 @@ function save(){for(const [k,v] of [[K.products,products],[K.categories,categori
 setCloudStatus('☁️ Conectando...');
 window.addEventListener('varelia:sync-connected',()=>setCloudStatus('☁️ Conectado'));
 window.addEventListener('varelia:forced-sync-complete',()=>setCloudStatus('☁️ Conectado'));
-// Evitar un estado de conexión indefinido y ofrecer un reintento visible.
-setTimeout(()=>{
- const status=document.getElementById('cloudStatus');
- if(status&&status.textContent.includes('Conectando')){
-   setCloudStatus('☁️ Sin respuesta de sincronización · toca para reintentar',true);
- }
-},25000);
-setTimeout(()=>{
- const el=document.getElementById('cloudStatus');
- if(!el || !el.textContent.includes('Conectando'))return;
- const sb=window.vareliaSupabase;
- if(!sb){setCloudStatus('☁️ No se cargó Supabase · toca para reintentar',true);return}
- sb.auth.getSession().then(({data,error})=>{
-   if(!el.textContent.includes('Conectando'))return;
-   if(error)setCloudStatus('☁️ Error de sesión · toca para reintentar',true);
-   else if(!data?.session)setCloudStatus('☁️ Sesión no iniciada · vuelve a iniciar sesión',true);
-   else setCloudStatus('☁️ Inventario pendiente · toca para reintentar',true);
- }).catch(()=>setCloudStatus('☁️ Error de autenticación · toca para reintentar',true));
-},12000);
+// El módulo de sincronización informa el resultado real de la nube.
 window.addEventListener('varelia:sync-error',e=>{
  const reason=String(e?.detail?.message||'Error de conexión').replace(/\\s+/g,' ').slice(0,100);
  setCloudStatus('☁️ Error: '+reason+' · toca para reintentar',true);
@@ -361,7 +344,7 @@ function vareliaEnsureSyncModule(){
 }
 setTimeout(()=>{
  if(!vareliaSyncSeen && typeof window.vareliaForceSync!=='function')vareliaEnsureSyncModule();
- setTimeout(()=>{if(!vareliaSyncSeen && !vareliaSyncRetrying)setCloudStatus('☁️ Sin conexión · toca para reintentar',true)},12000);
+
 },10000);
 window.addEventListener('online',()=>{vareliaSyncSeen=false;vareliaEnsureSyncModule()});
 document.addEventListener('click',async(event)=>{
@@ -378,7 +361,7 @@ document.addEventListener('click',async(event)=>{
   }
  }catch(err){
   console.error('Reintento manual de sincronización',err);
-  setCloudStatus('☁️ Sin conexión · toca para reintentar',true);
+  setCloudStatus('☁️ No se pudo sincronizar: '+String(err?.message||err).slice(0,100)+' · toca para reintentar',true);
  }finally{el.dataset.syncing='0'}
 });
 function shade(h,a=-28){let n=parseInt(h.slice(1),16),r=Math.max(0,Math.min(255,(n>>16)+a)),g=Math.max(0,Math.min(255,((n>>8)&255)+a)),b=Math.max(0,Math.min(255,(n&255)+a));return '#'+(b|g<<8|r<<16).toString(16).padStart(6,'0')}
