@@ -25,12 +25,35 @@
     if(purchaseLabel)purchaseLabel.hidden=medicine;
     if($('purchasePresentationLabel'))$('purchasePresentationLabel').hidden=medicine;
     if(medicine&&$('purchaseQuantity'))$('purchaseQuantity').value=1;
+    const u=currentUnitLabel(),byWeight=u==='Kg';
+    const title=purchaseLabel?.querySelector('span'),help=purchaseLabel?.querySelector('small');
+    const measure=$('productMeasureOptions'),measureNote=measure?.querySelector('small');
+    const measureHelp=byWeight?'El stock se guarda en kilos. Puedes vender kilos, medio kilo o gramos; Varelia descuenta el peso correspondiente.':'Los productos se cuentan por unidades. Los precios por cajón, docena y otras cantidades se configuran en Precios de venta.';
+    if(measureNote&&measureNote.textContent!==measureHelp)measureNote.textContent=measureHelp;
+    const stockEntry=$('productStockEntryUnit')?.closest('label');
+    if(stockEntry)stockEntry.hidden=byWeight&&$('productStockEntryUnit').options.length===1;
+    const quantityTitle=byWeight?'¿Cuántos kilos trae esa compra?':'¿Cuántas unidades trae esa compra?';
+    const quantityHelp=byWeight?'Escribe el peso total en kg: 1 kilo = 1; medio kilo = 0.5; 250 gramos = 0.25. El costo por kilo se calcula automáticamente. No agrega stock.':'Indica la cantidad en '+u+' que trae la compra. Ejemplo: un cajón contiene 36 unidades. No agrega stock.';
+    if(title&&title.textContent!==quantityTitle)title.textContent=quantityTitle;
+    if(help&&help.textContent!==quantityHelp)help.textContent=quantityHelp;
     const total=Number($('buyPrice')?.value),quantity=Number($('purchaseQuantity')?.value);
     const out=$('purchaseUnitCost');
     const text=Number.isFinite(total)&&total>=0&&Number.isFinite(quantity)&&quantity>0?'Costo de compra por '+currentUnitLabel().toLowerCase()+': S/ '+(total/quantity).toFixed(2):'Escribe una cantidad mayor que cero.';
     if(out&&out.textContent!==text)out.textContent=text;
   }
-  document.addEventListener('change',e=>{if(['unit','purchasePresentation'].includes(e.target?.id))updatePurchaseSummary()});
+  document.addEventListener('change',e=>{
+    if(e.target?.id==='purchasePresentation'){
+      const sizes={Kg:1},value=e.target.value;
+      if(Object.hasOwn(sizes,value)){
+        $('unit').value='Kg';
+        $('purchaseQuantity').value=sizes[value];
+        $('productMeasureOptions').open=true;
+        $('unit').dispatchEvent(new Event('change',{bubbles:true}));
+        $('purchaseQuantity').dispatchEvent(new Event('input',{bubbles:true}));
+      }
+    }
+    if(['unit','purchasePresentation'].includes(e.target?.id))updatePurchaseSummary();
+  });
   document.addEventListener('input',e=>{if(['buyPrice','purchaseQuantity','sellPrice'].includes(e.target?.id))updatePurchaseSummary()});
   function currentUnitLabel(){return String($('unit')?.value||'Unidad').trim()||'Unidad'}
   function ensurePriceMeaning(){
@@ -46,7 +69,7 @@
         help.style.cssText='margin-top:7px;line-height:1.35;color:var(--muted)';
         label.appendChild(help);
       }
-      const helpText=`Este precio es solo para vender 1 ${unit}. No pongas aquí el precio del cajón, docena o media docena; esos precios se escriben abajo y cada uno es independiente.`;
+      const helpText=unit==='Kg'?'Escribe el precio de 1 kilo. Al vender medio kilo o gramos, Varelia calcula el importe según el peso.':`Este precio es solo para vender 1 ${unit}. No pongas aquí el precio del cajón, docena o media docena; esos precios se escriben abajo y cada uno es independiente.`;
       if(help.textContent!==helpText)help.textContent=helpText;
     }
     commercialRows().forEach(row=>{

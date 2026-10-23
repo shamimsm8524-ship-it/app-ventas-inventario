@@ -32,6 +32,26 @@ const server=http.createServer((req,res)=>{
       window.vareliaPublicCatalogSync=()=>new Promise(()=>{}); // A stalled public catalog must not block product saving.
       openProduct();
     });
+    await page.locator('#purchasePresentation').selectOption('Kg');
+    assert.equal(await page.locator('#unit').inputValue(),'Kg');
+    await page.locator('#buyPrice').fill('20');
+    await page.locator('#purchaseQuantity').fill('2');
+    await page.locator('#sellPrice').fill('12');
+    await page.locator('#productQty').fill('2.5');
+    assert.match(await page.locator('#purchaseUnitCost').innerText(),/10.00/);
+    assert.match(await page.locator('#purchaseQuantityLabel span').innerText(),/kilos/);
+    assert.match(await page.locator('#sellPrice').evaluate(el=>el.closest('label').querySelector('span').textContent),/Kg/);
+    assert.equal(await page.evaluate(()=>productStockFromForm()),2.5);
+    await page.locator('#buyPrice').fill('5');
+    await page.locator('#purchaseQuantity').fill('0.5');
+    assert.match(await page.locator('#purchaseUnitCost').innerText(),/10.00/);
+    await page.locator('#productStockEntryUnit').selectOption('base');
+    await page.locator('#productQty').fill('0.25');
+    assert.equal(await page.evaluate(()=>productStockFromForm()),0.25);
+    console.log('PASS: weight purchase uses kilograms, calculates cost per kg and keeps fractional stock');
+    await page.locator('#unit').selectOption('Unidad');
+    await page.locator('#purchaseQuantity').fill('1');
+    await page.locator('#productQty').fill('0');
     await page.locator('#productName').fill('Vaporera de prueba');
     await page.locator('#purchasePresentation').selectOption('Cajón');
     assert.equal(await page.locator('#unit').inputValue(),'Unidad');
