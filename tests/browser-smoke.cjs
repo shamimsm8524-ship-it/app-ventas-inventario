@@ -232,6 +232,27 @@ const server=http.createServer((req,res)=>{
 
     await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart();delete window.VareliaAndroid;products=window.__scanOriginalProducts;window.products=products;localStorage.removeItem(K.products);K.products=window.__scanOriginalKey;if(window.__scanOriginalScope)localStorage.setItem('varelia_active_business_id',window.__scanOriginalScope);else localStorage.removeItem('varelia_active_business_id');window.vareliaBusinessScope=window.__scanOriginalScope||'';render()});
     console.log('PASS: mobile native scanner selects current inventory and adds a sale; UPC/EAN leading zero matches without replacing live products with stale storage');
+    await page.route('**/jsbarcode@3.11.6/dist/JsBarcode.all.min.js',route=>route.fulfill({contentType:'application/javascript',body:fs.readFileSync('/tmp/varelia-browser/node_modules/jsbarcode/dist/JsBarcode.all.min.js','utf8')}));
+    await page.evaluate(()=>{switchView('products');products.push({id:'label-fixture',name:'Zanahoria',barcode:'7750670313537',sellPrice:3,stock:1,unit:'Unidad'});window.products=products;window.VareliaAndroid={printHtmlDocument(title,html){window.__labelPrint={title,html}}};render()});
+    await page.locator('#btPrinterBtn').click();
+    await page.locator('#btPrintHelp').waitFor({state:'visible'});
+    assert.match(await page.locator('#btPrintHelp').innerText(),/servicio de impresión compatible/);
+    await page.locator('#btPrintHelp button').click();
+    await page.locator('#bcToolbar button').first().click();
+    const labelRow=page.locator('.bc-row[data-id="label-fixture"]');
+    await labelRow.locator('input').fill('3');await labelRow.locator('.bc-print').click();
+    await page.waitForFunction(()=>!!window.__labelPrint);
+    const labelDoc=await page.evaluate(()=>window.__labelPrint);
+    const preview=await browser.newPage({viewport:{width:393,height:852}});
+    await preview.setContent(labelDoc.html);
+    assert.equal(await preview.locator('.label').count(),3);
+    const dimensions=await preview.locator('.label').first().boundingBox();assert.ok(dimensions.height>110&&dimensions.height<116,JSON.stringify(dimensions));
+    assert.match(await preview.locator('.label').first().innerText(),/Zanahoria.*S\/ 3.00/s);
+    await preview.close();
+    assert.equal(await page.evaluate(()=>products.find(p=>p.id==='label-fixture').barcode),'7750670313537');
+    await page.locator('.bc-close').click();
+    await page.evaluate(()=>{delete window.VareliaAndroid;products=products.filter(p=>p.id!=='label-fixture');window.products=products;render()});
+    console.log('PASS: three fixed-height barcode labels use the Android print bridge without popup; existing barcode is preserved and Bluetooth setup explains actual print service');
     for(const view of ['products','inventory','sales','cash','suppliers','purchases','categories','appearance']){
       const state=await page.evaluate(id=>{switchView(id);return {target:document.getElementById(id)?.className,active:[...document.querySelectorAll('.view.active')].map(x=>x.id)}},view);
       assert.equal(state.target?.split(' ').includes('active'),true,'view '+view+': '+JSON.stringify(state));

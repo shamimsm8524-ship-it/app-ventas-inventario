@@ -70,11 +70,21 @@
         txt.textContent=text;
       }
 
+      function androidPrintHelp(){
+        const old=document.getElementById('btPrintHelp');if(old)old.remove();
+        const help=document.createElement('dialog');help.id='btPrintHelp';help.style.cssText='width:min(92vw,460px);max-height:85dvh;overflow:auto;border:0;border-radius:18px;padding:20px;background:var(--card);color:var(--ink)';
+        help.innerHTML='<h2>Impresión desde Android</h2><p>En Códigos de barras, pulsa Imprimir en el producto y selecciona tu impresora en el diálogo de Android.</p><p>Para Bluetooth necesitas el servicio de impresión compatible con tu modelo, además de emparejar la impresora en Ajustes de Android. Emparejarla no instala ese servicio.</p><p>Si la impresora no aparece, puedes guardar el PDF desde el diálogo de impresión o usar Imagen PNG con la aplicación de tu impresora.</p><button type="button" class="btn primary">Entendido</button>';
+        help.querySelector('button').onclick=()=>{help.close();help.remove()};document.body.appendChild(help);help.showModal();
+      }
+      if(typeof window.VareliaAndroid?.printHtmlDocument==='function'){
+        btn.textContent='🖨️ Impresión Android';setStatus('Selecciona tu impresora al pulsar Imprimir en una etiqueta');
+      }
       async function connectPrinter(){
+        if(typeof window.VareliaAndroid?.printHtmlDocument==='function'){androidPrintHelp();return}
         if(!window.isSecureContext){alert('Bluetooth requiere abrir Varelia por HTTPS.');return}
         if(!navigator.bluetooth){
-          setStatus('Bluetooth web no disponible en este navegador','warn');
-          alert('Este navegador no permite conexión Bluetooth directa. En Android usa Google Chrome. Si tu impresora es Bluetooth clásica, empareja primero desde Ajustes > Bluetooth.');
+          setStatus('Usa el diálogo de impresión o la aplicación de tu impresora','warn');
+          androidPrintHelp();
           return;
         }
         try{
@@ -83,7 +93,7 @@
           btn.disabled=true;btn.textContent='Conectando...';
           if(btDevice.gatt)btServer=await btDevice.gatt.connect();
           const name=btDevice.name||'Dispositivo Bluetooth';
-          setStatus('Conectada: '+name,'on');
+          setStatus('Dispositivo enlazado: '+name+' · selecciona su servicio al imprimir','warn');
           btn.textContent='✓ '+name;
           btn.disabled=false;
           try{localStorage.setItem(window.vareliaScopedLocalKey?window.vareliaScopedLocalKey('varelia_bt_printer_name'):'varelia_bt_printer_name__no_account',name)}catch{}
