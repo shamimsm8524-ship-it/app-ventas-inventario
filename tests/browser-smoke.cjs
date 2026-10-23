@@ -170,6 +170,17 @@ const server=http.createServer((req,res)=>{
     await page.evaluate(()=>{clearSaleCart();window.VareliaNativeScanResult('sale','0123456789012')});
     await page.waitForFunction(()=>cart.length===1);
     assert.equal(await page.evaluate(()=>cart[0].id),'scan-current');assert.equal(await page.evaluate(()=>cart[0].price),5);
+    await page.evaluate(()=>{delete window.VareliaAndroid;clearSaleCart();switchView('inventory')});
+    await page.route('**/html5-qrcode@2.3.8/html5-qrcode.min.js',route=>{
+      if(route.request().url().includes('unpkg.com'))return route.abort();
+      return route.fulfill({contentType:'application/javascript',body:`window.Html5Qrcode=class {static async getCameras(){return [{id:'rear',label:'Back camera'}]}async start(camera,config,onRead){window.__cameraStarted=camera;window.__deliverBarcode=onRead}getState(){return 2}async stop(){}async clear(){}}`});
+    });
+    await page.locator('#scanForInventory').click();
+    await page.waitForFunction(()=>!!window.__deliverBarcode);
+    assert.equal(await page.locator('#scannerDialog').evaluate(d=>d.open),true);
+    await page.evaluate(()=>{inventoryProductId=null;window.__deliverBarcode('0123456789012')});
+    await page.waitForFunction(()=>inventoryProductId==='scan-current'&&!document.getElementById('scannerDialog').open);
+    console.log('PASS: camera scanner recovers from primary library failure, accepts decoded barcode, selects inventory and closes');
     await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart();delete window.VareliaAndroid;products=window.__scanOriginalProducts;window.products=products;localStorage.removeItem(K.products);K.products=window.__scanOriginalKey;if(window.__scanOriginalScope)localStorage.setItem('varelia_active_business_id',window.__scanOriginalScope);else localStorage.removeItem('varelia_active_business_id');window.vareliaBusinessScope=window.__scanOriginalScope||'';render()});
     console.log('PASS: mobile native scanner selects current inventory and adds a sale; UPC/EAN leading zero matches without replacing live products with stale storage');
     for(const view of ['products','inventory','sales','cash','suppliers','purchases','categories','appearance']){
