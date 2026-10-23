@@ -160,9 +160,10 @@ const server=http.createServer((req,res)=>{
     await page.evaluate(()=>document.querySelectorAll('dialog[open]').forEach(d=>d.close()));
     await page.evaluate(()=>{
       window.__beforeMedicineProducts=products.slice();
+      if(!categories.includes('Medicinas'))categories.push('Medicinas');
       products.push({id:'medicine-fixture',name:'Ampicilina',category:'Medicinas',stock:1969,unit:'Caja',medicine:true,blistersPerBox:10,unitsPerBlister:10,boxPrice:60,blisterPrice:30,unitMedicinePrice:3,sellPrice:60,characteristics:[{name:'__varelia_medicine_purchase_costs_v1__',values:[{label:'box:35'},{label:'blister:3.5'},{label:'unit:0.35'}]}]});window.products=products;switchView('products');render();
     });
-    await page.evaluate(()=>openProduct('medicine-fixture'));
+    await page.locator('[data-edit="medicine-fixture"]').click();
     await page.locator('#vMedicineBuyBoxPrice').waitFor({state:'visible'});
     await page.locator('#vMedicineBlistersPerBox').fill('10');
     await page.locator('#vMedicineUnitsPerBlister').fill('10');
