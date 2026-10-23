@@ -1,0 +1,98 @@
+name: Fix Android WebView persisted session v112
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-auth-webview-session-v112.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Patch auth startup and force fresh auth modules
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          auth = Path('supabase-auth.js')
+          s = auth.read_text(encoding='utf-8')
+
+          old_client = "const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce'}});"
+          new_client = """// Android WebView puede dejar bloqueado el lock interno de algunas versiones de auth-js.\n// Varelia ya usa un solo cliente de autenticación, así que ejecutamos la operación directamente\n// para que una sesión persistida nunca deje getSession() esperando indefinidamente.\nconst vareliaAuthLock=(_name,_timeout,fn)=>fn();\nconst sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'pkce',lock:vareliaAuthLock,lockAcquireTimeout:4000}});"""
+          if old_client not in s and 'const vareliaAuthLock=' not in s:
+              raise SystemExit('No se encontró el createClient esperado en supabase-auth.js')
+          if old_client in s:
+              s = s.replace(old_client, new_client, 1)
+
+          marker = "window.vareliaSupabase=sb;\n"
+          helper = """window.vareliaSupabase=sb;\n\n// Recuperación defensiva de la sesión persistida del mismo WebView. No crea cuentas,\n// no cambia negocios y no toca inventario: solo reutiliza los tokens que Supabase guardó.\nfunction readPersistedVareliaSession(){\n  try{\n    const raw=localStorage.getItem('sb-onvdcaohnftrjunwdvjp-auth-token');\n    if(!raw)return null;\n    const parsed=JSON.parse(raw);\n    const session=parsed?.currentSession||parsed?.session||parsed;\n    if(session?.access_token&&session?.refresh_token&&session?.user)return session;\n  }catch(e){console.warn('Varelia: no se pudo leer la sesión persistida',e)}\n  return null;\n}\nasync function getStartupSession(){\n  const persisted=readPersistedVareliaSession();\n  if(persisted){\n    try{\n      const restored=await Promise.race([\n        sb.auth.setSession({access_token:persisted.access_token,refresh_token:persisted.refresh_token}),\n        new Promise((_,reject)=>setTimeout(()=>reject(new Error('SESSION_RESTORE_TIMEOUT')),6000))\n      ]);\n      if(!restored?.error&&restored?.data?.session)return {data:{session:restored.data.session},error:null};\n    }catch(e){console.warn('Varelia: restauración directa no respondió, se intenta getSession',e)}\n  }\n  try{\n    return await Promise.race([\n      sb.auth.getSession(),\n      new Promise((_,reject)=>setTimeout(()=>reject(new Error('SESSION_READ_TIMEOUT')),6000))\n    ]);\n  }catch(e){\n    return {data:{session:persisted},error:persisted?null:e};\n  }\n}\n"""
+          if 'function readPersistedVareliaSession()' not in s:
+              if marker not in s:
+                  raise SystemExit('No se encontró window.vareliaSupabase=sb')
+              s = s.replace(marker, helper, 1)
+
+          old_start = """  const {data,error}=await sb.auth.getSession();\n  if(error){msg(error.message,'error');return}\n  await enterWithSession(data.session);"""
+          new_start = """  msg('Recuperando tu sesión...');\n  const {data,error}=await getStartupSession();\n  if(error){\n    console.error('Varelia: no se pudo restaurar la sesión',error);\n    showAuth();\n    msg('No se pudo restaurar la sesión automáticamente. Puedes iniciar sesión nuevamente.','error');\n    return;\n  }\n  if(!data?.session){showAuth();msg('');return}\n  await enterWithSession(data.session);"""
+          if old_start not in s and "msg('Recuperando tu sesión...')" not in s:
+              raise SystemExit('No se encontró el arranque getSession esperado')
+          if old_start in s:
+              s = s.replace(old_start, new_start, 1)
+
+          auth.write_text(s, encoding='utf-8')
+
+          recovery = Path('session-recovery.js')
+          r = recovery.read_text(encoding='utf-8')
+          r = r.replace('window.__vareliaSessionRecoveryV2', 'window.__vareliaSessionRecoveryV3')
+          recovery.write_text(r, encoding='utf-8')
+
+          for name in ('index.html','index-1.html'):
+              p=Path(name)
+              if not p.exists():
+                  continue
+              h=p.read_text(encoding='utf-8')
+              import re
+              h=re.sub(r"const BUILD='[^']+'", "const BUILD='20261023-AUTH-WEBVIEW-V112'", h, count=1)
+              h=re.sub(r'supabase-auth\.js\?v=[^\"\']+', 'supabase-auth.js?v=20261023-auth-webview-v112', h, count=1)
+              h=re.sub(r'product-form-safety\.js\?v=[^\"\']+', 'product-form-safety.js?v=20261023-auth-webview-v112', h, count=1)
+              direct='<script src="session-recovery.js?v=20261023-auth-webview-v112"></script>'
+              if direct not in h:
+                  anchor_re=r'(<script src="supabase-auth\.js\?v=[^\"]+"></script>)'
+                  h,n=re.subn(anchor_re, r'\1\n'+direct, h, count=1)
+                  if n!=1:
+                      raise SystemExit(f'No se pudo insertar session-recovery directo en {name}')
+              p.write_text(h,encoding='utf-8')
+
+          safety=Path('product-form-safety.js')
+          if safety.exists():
+              q=safety.read_text(encoding='utf-8')
+              q=re.sub(r"session-recovery\.js\?v=[^'\"]+", 'session-recovery.js?v=20261023-auth-webview-v112', q)
+              safety.write_text(q,encoding='utf-8')
+
+          print('v112: persisted Supabase session recovery + WebView lock bypass + direct recovery loader')
+          PY
+
+      - name: Validate JavaScript
+        run: |
+          node --check supabase-auth.js
+          node --check session-recovery.js
+          node --check product-form-safety.js
+
+      - name: Commit auth fix
+        run: |
+          git config user.name "Varelia Stability Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add supabase-auth.js session-recovery.js product-form-safety.js index.html index-1.html
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "Recover persisted Android WebView session v112"
+          git push
