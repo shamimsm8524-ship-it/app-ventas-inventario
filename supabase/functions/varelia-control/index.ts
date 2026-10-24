@@ -19,6 +19,7 @@ Deno.serve(async req => {
     if(contextError||!context?.principal)return respond(403,{error:'Solo la cuenta principal puede gestionar accesos'});
     const body=await req.json();
     const service=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}});
+
     if(body.action==='access'){
       if(!/^[0-9a-f-]{36}$/i.test(String(body.userId||''))||!['active','blocked','removed'].includes(body.status))return respond(400,{error:'Cuenta o estado no válido'});
       const {data,error}=await userClient.rpc('varelia_control_set_access',{p_user_id:body.userId,p_status:body.status});
@@ -27,6 +28,24 @@ Deno.serve(async req => {
       const result=await service.auth.admin.updateUserById(body.userId,{ban_duration:body.status==='active'?'none':'876000h'});
       return respond(200,{...data,session_notice:result.error?'El acceso a datos ya cambió; la revocación de inicio de sesión está pendiente.':null});
     }
+
+    if(body.action==='approve'){
+      const userId=String(body.userId||''),code=String(body.code||'').trim();
+      if(!/^[0-9a-f-]{36}$/i.test(userId)||!/^\d{6}$/.test(code))return respond(400,{error:'Cuenta o código no válido'});
+      const {data,error}=await userClient.rpc('varelia_control_approve',{p_user_id:userId,p_code:code});
+      if(error)return respond(400,{error:error.message});
+      const unban=await service.auth.admin.updateUserById(userId,{ban_duration:'none'});
+      return respond(200,{...data,session_notice:unban.error?'La cuenta ya tiene acceso a datos, pero falta liberar su inicio de sesión.':null});
+    }
+
+    if(body.action==='reissue'){
+      const userId=String(body.userId||'');
+      if(!/^[0-9a-f-]{36}$/i.test(userId))return respond(400,{error:'Cuenta no válida'});
+      const {data,error}=await userClient.rpc('varelia_control_reissue_code',{p_user_id:userId});
+      if(error)return respond(400,{error:error.message});
+      return respond(200,data);
+    }
+
     if(body.action==='invite'){
       const email=String(body.email||'').trim().toLowerCase(),name=String(body.name||'').trim();
       const role=body.role==='cashier'?'cashier':body.role==='owner'?'owner':'';
@@ -45,7 +64,19 @@ Deno.serve(async req => {
           return respond(409,{error:'La invitación se creó, pero la cuenta quedó bloqueada porque no se pudo vincular al negocio. Revisa la cuenta antes de activarla.'});
         }
       }
-      return respond(200,{ok:true,message:'Invitación enviada al correo indicado'});
+
+      // Si la cuenta fue agregada directamente desde el panel principal, autorizarla
+      // en el mismo flujo. Los registros creados por su cuenta propia sí quedan pendientes.
+      const {data:request,error:requestError}=await userClient.rpc('varelia_control_reissue_code',{p_user_id:data.user.id});
+      if(requestError||!request?.code){
+        return respond(200,{ok:true,message:'Invitación enviada. La cuenta quedó pendiente para aprobación desde el panel.'});
+      }
+      const {error:approveError}=await userClient.rpc('varelia_control_approve',{p_user_id:data.user.id,p_code:request.code});
+      if(approveError){
+        return respond(200,{ok:true,message:'Invitación enviada. La cuenta quedó pendiente para aprobación desde el panel.'});
+      }
+      await service.auth.admin.updateUserById(data.user.id,{ban_duration:'none'});
+      return respond(200,{ok:true,message:'Invitación enviada y acceso autorizado.'});
     }
     return respond(400,{error:'Acción no válida'});
   } catch {return respond(500,{error:'No se pudo completar la operación. Actualiza el panel antes de reintentar.'});}
