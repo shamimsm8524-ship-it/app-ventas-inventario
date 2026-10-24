@@ -25,7 +25,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    window.vareliaSignOut=()=>window.__authChange('SIGNED_OUT');
   });
   await page.addScriptTag({path:path.resolve(__dirname,'../account-control.js')});
-  assert.equal(await page.locator('#vareliaControlEntry .vceIcon').count(),1);assert.match(await page.locator('#vareliaControlEntry').innerText(),/Panel principal/);
+  await page.locator('#vareliaControlEntry').waitFor();assert.equal(await page.locator('#vareliaControlEntry .vceIcon').count(),1);assert.match(await page.locator('#vareliaControlEntry').innerText(),/Panel principal/);
   await page.locator('#vareliaControlEntry').click();await page.locator('[data-ac-account="pending"]').waitFor();
   assert.equal(await page.locator('.acBusiness').count(),3);assert.equal(await page.locator('[data-ac-account="principal"] .acActions').count(),0);
   assert.equal(await page.locator('#acCounts .acStat').count(),4);assert.equal(await page.locator('#acPaymentAlerts .acPaymentAlert').count(),1);
