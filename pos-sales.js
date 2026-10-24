@@ -358,12 +358,7 @@
         if(!item)return;
         const p=allProducts().find(x=>String(x.id)===String(id));const step=String(p?.unit||'').trim().toLowerCase()==='kg'?.25:1;setProductQty(key,(Number(item.qty)||step)+(plus?step:-step));
       });
-      itemsEl.addEventListener('input',e=>{
-        const input=e.target.closest('[data-pos-qty]');if(!input)return;
-        const raw=String(input.value||'').trim();
-        if(raw===''||!/^\\d*([.,]\\d*)?$/.test(raw))return;
-        setProductQty(input.dataset.posQty,raw.replace(',','.'));
-      });
+      // Commit on change/Enter so typing does not replace the focused input.
       itemsEl.addEventListener('change',e=>{
         const input=e.target.closest('[data-pos-qty]');if(!input)return;
         setProductQty(input.dataset.posQty,input.value);

@@ -223,9 +223,13 @@ const server=http.createServer((req,res)=>{
     const cameraBefore=await page.evaluate(()=>({starts:window.__cameraStarts,stops:window.__cameraStops||0,top:document.getElementById('vareliaReader').getBoundingClientRect().top}));
     await page.evaluate(()=>window.__deliverBarcode('0123456789012'));
     await page.waitForFunction(()=>cart.length===1);
-    await page.waitForTimeout(1400);
     await page.evaluate(()=>window.__deliverBarcode('0123456789012'));
+    assert.equal(await page.evaluate(()=>cart[0].qty),1,'A barcode held in view must not add another unit');
+    await page.evaluate(()=>{products.push({id:'fast-next',name:'Segundo producto',barcode:'7750670313537',stock:10,sellPrice:3,unit:'Unidad',characteristics:[]});window.__deliverBarcode('7750670313537')});
+    await page.waitForFunction(()=>cart.some(i=>i.id==='fast-next'),{},{timeout:1000});
+    await page.evaluate(()=>{cart=cart.filter(i=>i.id!=='fast-next');products=products.filter(p=>p.id!=='fast-next');window.__deliverBarcode('0123456789012')});
     await page.waitForFunction(()=>cart[0].qty===2);
+    console.log('PASS: consecutive different barcodes have no fixed delay; repeated camera frames do not inflate quantity');
     const cameraAfter=await page.evaluate(()=>({starts:window.__cameraStarts,stops:window.__cameraStops||0,top:document.getElementById('vareliaReader').getBoundingClientRect().top,torch:window.__physicalTorch}));
     assert.equal(cameraAfter.starts,cameraBefore.starts);assert.equal(cameraAfter.stops,cameraBefore.stops);assert.ok(Math.abs(cameraAfter.top-cameraBefore.top)<2);assert.equal(cameraAfter.torch,true);
     await page.locator('#scannerTorch').click();assert.equal(await page.evaluate(()=>window.__physicalTorch),false);
@@ -264,6 +268,34 @@ const server=http.createServer((req,res)=>{
     await page.evaluate(()=>{window.__rejectTorch=false});
     console.log('PASS: blocked WebView flash offers original Android scanner, stops web camera and preserves cart when switching');
 
+
+    await page.evaluate(()=>{
+      document.querySelectorAll('dialog[open]').forEach(d=>d.close());switchView('sales');clearSaleCart();
+      products=[{id:'qty-water',name:'Agua Cielo QA',barcode:'7750000000011',stock:50,sellPrice:3.5,unit:'Unidad',characteristics:[]}];window.products=products;
+      cart=[{id:'qty-water',cartKey:'qty-water::unit',name:'Agua Cielo QA',qty:10,price:3.5,unit:'Unidad'}];
+      renderCart();window.VareliaPOS.sync();
+    });
+    await page.locator('[data-pos-minus="qty-water::unit"]').click();
+    assert.equal(await page.evaluate(()=>cart[0].qty),9);
+    assert.match(await page.locator('#vposTotal').innerText(),/31\.50/);
+    await page.locator('[data-pos-plus="qty-water::unit"]').click();
+    assert.equal(await page.evaluate(()=>cart[0].qty),10);
+    await page.locator('[data-pos-qty="qty-water::unit"]').fill('7');
+    await page.locator('[data-pos-qty="qty-water::unit"]').press('Enter');
+    assert.equal(await page.evaluate(()=>cart[0].qty),7);
+    await page.evaluate(()=>{
+      localStorage.setItem('varelia_scanner_cart_backup_v1',JSON.stringify([{...cart[0],qty:10}]));
+      window.VareliaNativeScannerAction('checkout');
+    });
+    await page.locator('[data-pos-minus="qty-water::unit"]').click();
+    await page.waitForTimeout(800);
+    assert.equal(await page.evaluate(()=>cart[0].qty),6,'Native layout retries must not restore an old scanner quantity');
+    await page.evaluate(()=>{cart.push({...cart[0],cartKey:'qty-water::pack',name:'Agua Cielo QA · Paquete',qty:3,price:20});renderCart();window.VareliaPOS.sync()});
+    await page.locator('[data-pos-minus="qty-water::pack"]').click();
+    assert.deepEqual(await page.evaluate(()=>cart.map(i=>i.qty)),[6,2],'Only the selected cart line changes');
+    await page.locator('[data-pos-delete="qty-water::pack"]').click();
+    assert.equal(await page.evaluate(()=>cart.length),1);
+    console.log('PASS: minus lowers 10 to 9 with correct total; plus, typed quantity, separate cart keys and scanner return preserve user edits');
 
     await page.evaluate(()=>{document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearSaleCart();delete window.VareliaAndroid;products=window.__scanOriginalProducts;window.products=products;localStorage.removeItem(K.products);K.products=window.__scanOriginalKey;if(window.__scanOriginalScope)localStorage.setItem('varelia_active_business_id',window.__scanOriginalScope);else localStorage.removeItem('varelia_active_business_id');window.vareliaBusinessScope=window.__scanOriginalScope||'';render()});
     console.log('PASS: mobile native scanner selects current inventory and adds a sale; UPC/EAN leading zero matches without replacing live products with stale storage');

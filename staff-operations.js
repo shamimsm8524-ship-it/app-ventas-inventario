@@ -57,9 +57,10 @@
     }catch(err){console.error(err)}
   }
 
+  // The current POS owns its cart-key controls; only handle legacy controls here.
   document.addEventListener('click',e=>{
-    const plus=e.target.closest?.('[data-pos-plus],[data-force-plus]');
-    const minus=e.target.closest?.('[data-pos-minus],[data-force-minus]');
+    const plus=e.target.closest?.('[data-force-plus]');
+    const minus=e.target.closest?.('[data-force-minus]');
     if(!plus&&!minus)return;
     const btn=plus||minus;
     let id=btn.dataset.posPlus||btn.dataset.posMinus||'';
@@ -88,7 +89,7 @@
   }
 
   document.addEventListener('input',e=>{
-    const inp=e.target.closest?.('[data-pos-qty],[data-force-qty]');
+    const inp=e.target.closest?.('[data-force-qty]');
     if(!inp)return;
     // Do not re-render while the user is deleting/typing the number.
     const raw=String(inp.value??'').trim();
@@ -96,17 +97,17 @@
   },true);
 
   document.addEventListener('change',e=>{
-    const inp=e.target.closest?.('[data-pos-qty],[data-force-qty]');
+    const inp=e.target.closest?.('[data-force-qty]');
     if(inp)commitVisibleCartQty(inp);
   },true);
 
   document.addEventListener('focusout',e=>{
-    const inp=e.target.closest?.('[data-pos-qty],[data-force-qty]');
+    const inp=e.target.closest?.('[data-force-qty]');
     if(inp)commitVisibleCartQty(inp);
   },true);
 
   document.addEventListener('keydown',e=>{
-    const inp=e.target.closest?.('[data-pos-qty],[data-force-qty]');
+    const inp=e.target.closest?.('[data-force-qty]');
     if(!inp||e.key!=='Enter')return;
     e.preventDefault();
     commitVisibleCartQty(inp);

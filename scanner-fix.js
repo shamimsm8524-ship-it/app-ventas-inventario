@@ -333,7 +333,16 @@
     async function stopCamera(){try{if(torchOn)await setTorch(false)}catch{}torchOn=false;const current=scanner;scanner=null;if(!current)return;try{const state=current.getState?.();if(state===2||state===3)await current.stop()}catch{}try{await current.clear()}catch{}}
     async function closeScanner(){await stopCamera();try{if(dialog.open)dialog.close()}catch{}opening=false;finishing=false;resetUI()}
     function cameraConfig(){return {facingMode:'environment'}}
-    async function startCamera(){const reader=document.getElementById('vareliaReader');if(!reader)throw new Error('SCANNER_READER_MISSING');reader.innerHTML='';reader.style.display='block';const F=window.Html5QrcodeSupportedFormats||{};const formats=['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128','CODE_39','ITF','CODABAR'].map(k=>F[k]).filter(v=>v!==undefined);const config={fps:15,disableFlip:true};const onSuccess=(decoded)=>{const value=String(decoded||'').trim();if(value&&!finishing)finish(value)};const cam=cameraConfig();scanner=new Html5Qrcode('vareliaReader',{verbose:false,formatsToSupport:formats.length?formats:undefined,experimentalFeatures:{useBarCodeDetectorIfSupported:true}});try{const r=await scanner.start(cam,config,onSuccess,()=>{});try{Promise.resolve(scanner.applyVideoConstraints?.({advanced:[{focusMode:'continuous'}]})).catch(()=>{})}catch{}ensureTorchButton();return r}catch(first){if(/NotAllowed|Permission|NotFound|DevicesNotFound|denied/i.test(String(first?.name||'')+' '+String(first?.message||first)))throw first;console.warn('Primer intento de cámara falló; reintentando cámara trasera',first);await stopCamera();reader.innerHTML='';scanner=new Html5Qrcode('vareliaReader',{verbose:false,formatsToSupport:formats.length?formats:undefined,experimentalFeatures:{useBarCodeDetectorIfSupported:true}});try{const r=await scanner.start({facingMode:'environment'},config,onSuccess,()=>{});try{Promise.resolve(scanner.applyVideoConstraints?.({advanced:[{focusMode:'continuous'}]})).catch(()=>{})}catch{}ensureTorchButton();return r}catch(second){console.error('No se pudo iniciar lector de códigos',second);throw second}}}
+    let lastCameraCode='',lastCameraSeen=0;
+    function acceptCameraRead(decoded){
+      const code=norm(decoded),now=performance.now();
+      if(!code||finishing)return;
+      const duplicate=code===lastCameraCode&&now-lastCameraSeen<600;
+      lastCameraCode=code;lastCameraSeen=now;
+      // A barcode held in view counts once. A different product is ready immediately.
+      if(!duplicate)finish(code);
+    }
+    async function startCamera(){lastCameraCode='';lastCameraSeen=0;const reader=document.getElementById('vareliaReader');if(!reader)throw new Error('SCANNER_READER_MISSING');reader.innerHTML='';reader.style.display='block';const F=window.Html5QrcodeSupportedFormats||{};const formats=['EAN_13','EAN_8','UPC_A','UPC_E','CODE_128','CODE_39','ITF','CODABAR'].map(k=>F[k]).filter(v=>v!==undefined);const config={fps:15,disableFlip:true};const onSuccess=acceptCameraRead;const cam=cameraConfig();scanner=new Html5Qrcode('vareliaReader',{verbose:false,formatsToSupport:formats.length?formats:undefined,experimentalFeatures:{useBarCodeDetectorIfSupported:true}});try{const r=await scanner.start(cam,config,onSuccess,()=>{});try{Promise.resolve(scanner.applyVideoConstraints?.({advanced:[{focusMode:'continuous'}]})).catch(()=>{})}catch{}ensureTorchButton();return r}catch(first){if(/NotAllowed|Permission|NotFound|DevicesNotFound|denied/i.test(String(first?.name||'')+' '+String(first?.message||first)))throw first;console.warn('Primer intento de cámara falló; reintentando cámara trasera',first);await stopCamera();reader.innerHTML='';scanner=new Html5Qrcode('vareliaReader',{verbose:false,formatsToSupport:formats.length?formats:undefined,experimentalFeatures:{useBarCodeDetectorIfSupported:true}});try{const r=await scanner.start({facingMode:'environment'},config,onSuccess,()=>{});try{Promise.resolve(scanner.applyVideoConstraints?.({advanced:[{focusMode:'continuous'}]})).catch(()=>{})}catch{}ensureTorchButton();return r}catch(second){console.error('No se pudo iniciar lector de códigos',second);throw second}}}
     const SCANNER_CART_BACKUP_KEY='varelia_scanner_cart_backup_v1';
     function saveScannerCartBackup(){
       try{
@@ -446,7 +455,7 @@
     window.VareliaNativeScannerAction=(action)=>{
       if(action==='checkout'){
         // El respaldo del escáner es la fuente principal al volver a Venta.
-        restoreScannerCartBackup(true);
+        restoreScannerCartBackup(false);try{localStorage.removeItem(SCANNER_CART_BACKUP_KEY)}catch{}
         try{if(typeof renderCart==='function')renderCart()}catch{}
         try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
 
@@ -466,9 +475,7 @@
         }catch(e){console.error(e)}
 
         const showPos=()=>{
-          // Algunos manejadores móviles vuelven a inicializar Venta.
-          // Restauramos de nuevo después del cambio de pantalla para evitar carrito vacío.
-          restoreScannerCartBackup(true);
+          // Refresh layout without restoring an obsolete quantity over user edits.
           try{if(typeof renderCart==='function')renderCart()}catch{}
           try{if(typeof persistSaleCart==='function')persistSaleCart()}catch{}
           try{window.VareliaPOS?.sync?.()}catch{}
@@ -502,11 +509,11 @@
             try{renderScannerCart()}catch{}
 
           }
-          await sleep(1200);finishing=false;return;
+          finishing=false;return;
         }
         window.vareliaSound?.('error');
         const info=document.getElementById('scannerInfo');if(info){info.style.display='block';info.textContent='Código '+code+' no vinculado. Puedes seguir escaneando o escribir otro código.'}
-        await sleep(1200);finishing=false;return;
+        finishing=false;return;
       }
       if(p){renderCard(p,code);finishing=false;return}
       if(target==='inventory'||target==='product'){await offerNewProduct(code);finishing=false;return}
