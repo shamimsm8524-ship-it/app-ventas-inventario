@@ -150,3 +150,72 @@
   };
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',boot,{once:true}):boot();
 })();
+
+// Mantener en vivo el cálculo de "Me paga con" de la vista principal de venta.
+// Algunos teclados numéricos de Android no disparan de forma fiable el manejador
+// asignado directamente al input cuando el bloque de pago se vuelve a renderizar.
+(()=>{
+  if(window.__vareliaReceivedLiveFixV1)return;
+  window.__vareliaReceivedLiveFixV1=true;
+
+  const numberFrom=text=>{
+    const raw=String(text??'').trim().replace(/\s/g,'').replace(/[^0-9,.-]/g,'');
+    if(raw.includes(',')&&!raw.includes('.'))return Number(raw.replace(',','.'))||0;
+    return Number(raw.replace(/,/g,''))||0;
+  };
+
+  function saleTotal(){
+    const pos=numberFrom(document.getElementById('vposTotal')?.textContent);
+    if(pos>0)return pos;
+    return numberFrom(document.getElementById('saleTotal')?.textContent);
+  }
+
+  function refresh(){
+    const input=document.getElementById('vReceived');
+    const stat=document.getElementById('vStat');
+    const diff=document.getElementById('vDiff');
+    if(!input||!stat||!diff)return;
+
+    const received=Math.max(0,numberFrom(input.value));
+    const total=Math.max(0,saleTotal());
+    const missing=Math.max(0,total-received);
+    const change=Math.max(0,received-total);
+    const isMissing=missing>0.004;
+
+    stat.textContent=isMissing?'Falta':'Vuelto';
+    diff.textContent='S/ '+(isMissing?missing:change).toFixed(2);
+    diff.style.color=isMissing?'#b91c1c':'var(--p)';
+  }
+
+  let scheduled=false;
+  const schedule=()=>{
+    if(scheduled)return;
+    scheduled=true;
+    requestAnimationFrame(()=>{scheduled=false;refresh()});
+  };
+
+  ['input','change','keyup','beforeinput'].forEach(type=>{
+    document.addEventListener(type,event=>{
+      if(event.target?.id==='vReceived')schedule();
+    },true);
+  });
+
+  document.addEventListener('focusout',event=>{
+    if(event.target?.id==='vReceived')schedule();
+  },true);
+
+  const observer=new MutationObserver(()=>{
+    if(document.getElementById('vReceived'))schedule();
+  });
+  const arm=()=>{
+    const box=document.getElementById('vposPayFields');
+    if(box&&!box.dataset.vareliaReceivedObserved){
+      box.dataset.vareliaReceivedObserved='1';
+      observer.observe(box,{childList:true,subtree:true});
+    }
+    schedule();
+  };
+
+  document.readyState==='loading'?document.addEventListener('DOMContentLoaded',arm,{once:true}):arm();
+  window.addEventListener('pageshow',arm);
+})();
