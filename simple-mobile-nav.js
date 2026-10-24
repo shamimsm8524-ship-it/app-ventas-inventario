@@ -139,6 +139,38 @@
     document.head.appendChild(style);
     document.body.classList.add('varelia-simple-mobile');
 
+    // Rendimiento: el render global original reconstruye demasiadas pantallas.
+    // En móvil actualizamos solo la vista activa y agrupamos llamadas repetidas.
+    const originalRender=typeof window.render==='function'?window.render:null;
+    let fastRenderQueued=false;
+    const call=name=>{try{const fn=window[name];if(typeof fn==='function')fn()}catch(e){console.warn('Varelia render '+name,e)}};
+    const renderView=id=>{
+      switch(id){
+        case 'products': call('renderProducts');call('fillCats');break;
+        case 'inventory': call('renderInventory');call('renderInvSelected');break;
+        case 'categories': call('renderCategories');call('fillCats');break;
+        case 'suppliers': call('renderSuppliers');break;
+        case 'purchases': call('renderPurchases');call('fillPurchaseSelectors');break;
+        case 'cash': call('renderCash');break;
+        case 'sales': call('renderSales');call('renderCash');break;
+        default:
+          if(!id&&originalRender)originalRender();
+      }
+    };
+    if(originalRender&&!window.__vareliaFastRenderInstalled){
+      window.__vareliaFastRenderInstalled=true;
+      window.render=()=>{
+        if(fastRenderQueued)return;
+        fastRenderQueued=true;
+        const run=()=>{
+          fastRenderQueued=false;
+          const active=document.querySelector('main.content .view.active')?.id||'';
+          renderView(active);
+        };
+        if(typeof requestAnimationFrame==='function')requestAnimationFrame(run);else setTimeout(run,0);
+      };
+    }
+
     const history=document.createElement('section');
     history.id='mobileHistoryHub';history.className='view vmobileHub';
     history.innerHTML=`<div class="vmobileHubHead"><h2>Historial</h2><p>Consulta tus resultados, ganancias y cierres.</p></div><div class="vmobileHubGrid"><button class="vmobileHubCard" data-mobile-action="reports"><span class="vmobileHubIcon">▥</span><div><b>Reportes</b><small>Ventas y movimientos.</small></div></button><button class="vmobileHubCard" data-mobile-action="profit"><span class="vmobileHubIcon">↗</span><div><b>Ganancias</b><small>Ingresos y utilidad.</small></div></button><button class="vmobileHubCard" data-mobile-action="cash"><span class="vmobileHubIcon">▣</span><div><b>Caja y cierres</b><small>Caja e historial.</small></div></button></div>`;
@@ -210,6 +242,8 @@
       document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v===t));
       nav.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.mobileTab===id));
       scrollTo(0,0);
+      // Refrescar solo la pantalla que el usuario acaba de abrir.
+      if(typeof requestAnimationFrame==='function')requestAnimationFrame(()=>renderView(id));else setTimeout(()=>renderView(id),0);
     }
     nav.onclick=e=>{const b=e.target.closest('[data-mobile-tab]');if(b)show(b.dataset.mobileTab)};
 
