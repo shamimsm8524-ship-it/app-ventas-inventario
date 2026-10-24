@@ -10,18 +10,53 @@
   `;
   document.head.appendChild(style);
 
-  async function logout(){
-    const btn=document.getElementById('vareliaLogout')||document.getElementById('vareliaLogoutFallback');
-    if(btn){btn.disabled=true;btn.textContent='Cerrando sesión…'}
-    try{
-      if(typeof window.vareliaSignOut==='function'){await window.vareliaSignOut();return}
-      if(window.vareliaSupabase){const result=await window.vareliaSupabase.auth.signOut();if(result?.error)throw result.error}
-    }catch(e){console.warn('Cerrar sesión',e);window.vareliaToast?.('No se pudo cerrar la sesión. Intenta nuevamente.','warn');return}finally{if(btn){btn.disabled=false;btn.textContent='Cerrar sesión'}}
+  let closing=false;
+  function clearLocalAuth(){
     try{
       Object.keys(localStorage).filter(k=>/^sb-.*-auth-token$/.test(k)).forEach(k=>localStorage.removeItem(k));
+      localStorage.removeItem('varelia_active_business_id');
       sessionStorage.clear();
     }catch{}
-    location.replace('/');
+    try{window.vareliaCurrentUserProfile=null}catch{}
+    try{window.VareliaPaymentSnapshot=null}catch{}
+    try{window.__vareliaLastReceipt=null}catch{}
+  }
+
+  function logout(){
+    if(closing)return;
+    closing=true;
+    const btn=document.getElementById('vareliaLogout')||document.getElementById('vareliaLogoutFallback');
+    if(btn){btn.disabled=true;btn.textContent='Cerrando sesión…'}
+
+    // Cerrar solo esta sesión/dispositivo. No esperamos una operación global de red
+    // para que el usuario salga de la app inmediatamente.
+    try{
+      const auth=window.vareliaSupabase?.auth;
+      if(auth?.signOut){
+        Promise.resolve(auth.signOut({scope:'local'})).catch(error=>console.warn('Cerrar sesión local',error));
+      }
+    }catch(error){console.warn('Cerrar sesión local',error)}
+
+    // La sesión persistida se elimina enseguida; así una red lenta nunca deja la UI esperando.
+    clearLocalAuth();
+    try{document.body.classList.add('varelia-auth-locked')}catch{}
+    requestAnimationFrame(()=>location.replace('/'));
+  }
+
+  function bindFastLogout(button){
+    if(!button)return null;
+    // supabase-auth.js añadió antes otro listener al mismo botón. Clonarlo elimina
+    // ese listener antiguo para evitar dos cierres de sesión ejecutándose a la vez.
+    if(!button.dataset.vareliaFastLogout){
+      const fresh=button.cloneNode(true);
+      fresh.dataset.vareliaFastLogout='1';
+      button.replaceWith(fresh);
+      button=fresh;
+    }
+    button.textContent='Cerrar sesión';
+    button.disabled=false;
+    button.onclick=logout;
+    return button;
   }
 
   function ensure(){
@@ -29,7 +64,7 @@
     const bar=document.getElementById('vareliaUserBar');
     if(bar){
       if(!btn){btn=document.createElement('button');btn.type='button';btn.id='vareliaLogout';bar.appendChild(btn)}
-      btn.textContent='Cerrar sesión';btn.onclick=logout;
+      bindFastLogout(btn);
       document.getElementById('vareliaLogoutFallback')?.remove();
       return true;
     }
@@ -38,6 +73,8 @@
       const fallback=document.createElement('button');fallback.type='button';fallback.id='vareliaLogoutFallback';fallback.textContent='Cerrar sesión';fallback.onclick=logout;side.appendChild(fallback);
       return true;
     }
+    const fallback=document.getElementById('vareliaLogoutFallback');
+    if(fallback){fallback.onclick=logout;return true}
     return false;
   }
 
