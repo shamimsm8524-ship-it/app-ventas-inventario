@@ -5,6 +5,8 @@
   const money=n=>'S/ '+Number(n||0).toFixed(2);
   const norm=v=>String(v||'').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   const fmt=(n,max=3)=>Number(n||0).toLocaleString('es-PE',{minimumFractionDigits:0,maximumFractionDigits:max});
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const itemQty=item=>Number(item?.qty??item?.quantity)||0;
   const dayKey=value=>{
     const d=value?new Date(value):new Date();
     if(Number.isNaN(d.getTime()))return'';
@@ -15,7 +17,7 @@
   const isSeller=()=>{const r=String(profile().role||window.vareliaSellerRole||'');return !!r&&r!=='owner'};
   const sellerId=()=>String(profile().id||window.vareliaSellerId||'');
   const visible=list=>isSeller()?list.filter(s=>String(s?.sellerId||'')===sellerId()):list;
-  const productFor=item=>(Array.isArray(window.products)?window.products:[]).find(p=>String(p.id)===String(item?.id))||{};
+  const productFor=item=>(Array.isArray(window.products)?window.products:[]).find(p=>String(p.id)===String(item?.id??item?.productId))||{};
 
   function quantitySummary(list){
     let discrete=0;
@@ -26,10 +28,10 @@
     };
     for(const sale of list||[]){
       for(const item of sale?.items||[]){
-        const q=Number(item?.qty)||0;
+        const q=itemQty(item);
         if(!q)continue;
         const p=productFor(item);
-        const u=norm(item?.unit||p?.unit||'Unidad');
+        const u=norm(item?.medicineSaleUnit||item?.sale_unit||item?.saleUnit||item?.unit||p?.unit||'Unidad');
         if(/^(kg|kilo|kilos|kilogramo|kilogramos)$/.test(u))add('kg','kg',q,3);
         else if(/^(g|gr|gramo|gramos)$/.test(u))add('g','g',q,2);
         else if(/^(l|lt|litro|litros)$/.test(u))add('l','L',q,3);
@@ -46,6 +48,39 @@
     return parts.length?parts.join(' · '):'0';
   }
 
+  function quantityLabel(qty,unit){
+    const q=Number(qty)||0,u=norm(unit||'Unidad');
+    if(/^(kg|kilo|kilos|kilogramo|kilogramos)$/.test(u))return fmt(q,3)+' kg';
+    if(/^(g|gr|gramo|gramos)$/.test(u))return fmt(q,2)+' g';
+    if(/^(l|lt|litro|litros)$/.test(u))return fmt(q,3)+' L';
+    if(/^(ml|mililitro|mililitros)$/.test(u))return fmt(q,2)+' ml';
+    if(/^(m|metro|metros)$/.test(u))return fmt(q,3)+' m';
+    if(/^(m2|m²|metro cuadrado|metros cuadrados)$/.test(u))return fmt(q,3)+' m²';
+    if(/^(docena|docenas)$/.test(u))return fmt(q,2)+' '+(Math.abs(q-1)<1e-9?'docena':'docenas');
+    if(/^(caja|cajas|box|boxes)$/.test(u))return fmt(q,3)+' '+(Math.abs(q-1)<1e-9?'caja':'cajas');
+    if(/^(blister|blisters|blisteres|blíster|blísteres)$/.test(u))return fmt(q,3)+' '+(Math.abs(q-1)<1e-9?'blíster':'blísteres');
+    if(/^(pastilla|pastillas|tableta|tabletas)$/.test(u))return fmt(q,3)+' '+(Math.abs(q-1)<1e-9?'pastilla':'pastillas');
+    return fmt(q,3)+' '+(Math.abs(q-1)<1e-9?'unidad':'unidades');
+  }
+
+  function aggregateCashItems(list){
+    const grouped=new Map();
+    for(const sale of list||[])for(const item of sale?.items||[]){
+      const q=itemQty(item);if(!q)continue;
+      const p=productFor(item);
+      const unit=String(item?.medicineSaleUnit||item?.sale_unit||item?.saleUnit||item?.unit||p?.unit||'Unidad').trim()||'Unidad';
+      const name=String(item?.name||item?.productName||p?.name||'Producto').trim()||'Producto';
+      const productKey=String(item?.id??item?.productId??name);
+      const presentationKey=String(item?.salePresentationId??item?.presentationId??'');
+      const key=JSON.stringify([productKey,norm(unit),presentationKey]);
+      if(!grouped.has(key))grouped.set(key,{name,unit,qty:0,total:0});
+      const row=grouped.get(key);
+      row.qty+=q;
+      row.total+=q*(Number(item?.price??item?.unit_price)||0);
+    }
+    return [...grouped.values()];
+  }
+
   function readCashStart(){
     try{
       const scope=String(localStorage.getItem('varelia_active_business_id')||'no_account').replace(/[^a-zA-Z0-9_-]/g,'_');
@@ -58,12 +93,14 @@
   }
 
   function activeList(){
+    const start=readCashStart();
+    const time=start?start.getTime():0;
+    const scoped=visible(allSales().filter(s=>{const d=new Date(s?.date||0);return !Number.isNaN(d.getTime())&&d.getTime()>=time}));
+    if(scoped.length||start)return scoped;
     try{
       if(typeof window.activeSales==='function')return visible(window.activeSales()||[]);
     }catch{}
-    const start=readCashStart();
-    const time=start?start.getTime():0;
-    return visible(allSales().filter(s=>{const d=new Date(s?.date||0);return !Number.isNaN(d.getTime())&&d.getTime()>=time}));
+    return visible(allSales());
   }
 
   function todayList(){
@@ -111,6 +148,14 @@
     if(countEl)countEl.textContent=String(active.length);
     if(qtyEl){qtyEl.textContent=quantitySummary(active);qtyEl.style.fontSize='16px';qtyEl.style.lineHeight='1.25'}
 
+    // El detalle debe usar EXACTAMENTE la misma lista que el total y la cantidad.
+    // Antes renderCash() podía usar un cashStart antiguo y dejar una venta fuera del detalle.
+    const cashProducts=document.getElementById('cashProducts');
+    if(cashProducts){
+      const rows=aggregateCashItems(active);
+      cashProducts.innerHTML=rows.length?rows.map(row=>`<div class="soldRow"><span>${esc(row.name)}</span><span>${esc(quantityLabel(row.qty,row.unit))}</span><strong>${money(row.total)}</strong></div>`).join(''):'<div class="empty">Sin ventas en esta caja.</div>';
+    }
+
     const note=ensurePeriodNote(card);
     const start=readCashStart();
     const startText=start?start.toLocaleString('es-PE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'el último cierre';
@@ -144,7 +189,7 @@
     update();
     [100,400,1000,2200].forEach(ms=>setTimeout(()=>{installRenderHook();update()},ms));
     setInterval(()=>{installRenderHook();update()},2500);
-    ['varelia:business-scope-ready','varelia:central-stock-updated','varelia:forced-sync-complete','varelia:sync-connected'].forEach(name=>window.addEventListener(name,()=>setTimeout(update,80)));
+    ['varelia:business-scope-ready','varelia:central-stock-updated','varelia:forced-sync-complete','varelia:sync-connected','varelia:sale-recorded'].forEach(name=>window.addEventListener(name,()=>setTimeout(update,80)));
     window.addEventListener('focus',()=>setTimeout(update,80));
     window.addEventListener('pageshow',()=>setTimeout(update,80));
   };
