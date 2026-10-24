@@ -62,6 +62,15 @@ GRANT EXECUTE ON FUNCTION public.varelia_access_context() TO authenticated,servi
 CREATE OR REPLACE FUNCTION private.varelia_register_account_access() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 BEGIN
+ -- Los vendedores no requieren aprobación individual del panel principal.
+ -- Nacen activos y su acceso efectivo también depende del estado del administrador del negocio.
+ IF NEW.role='cashier' THEN
+   INSERT INTO private.varelia_account_access(user_id,status)
+   VALUES(NEW.id,'active')
+   ON CONFLICT(user_id) DO UPDATE SET status='active',updated_at=now();
+   RETURN NEW;
+ END IF;
+
  INSERT INTO private.varelia_account_access(user_id,status) VALUES(NEW.id,
  CASE WHEN (SELECT approval_enabled FROM private.varelia_control_config) AND NOT private.varelia_control_is_principal(NEW.id)
  THEN 'pending' ELSE 'active' END) ON CONFLICT DO NOTHING;
@@ -90,20 +99,25 @@ GRANT EXECUTE ON FUNCTION public.varelia_control_accounts() TO authenticated,ser
 
 CREATE OR REPLACE FUNCTION public.varelia_control_set_access(p_user_id uuid,p_status text) RETURNS jsonb
 LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
+DECLARE v_current text; v_role text;
 BEGIN
  IF NOT private.varelia_control_is_principal(auth.uid()) THEN RAISE EXCEPTION 'Solo la cuenta principal puede cambiar accesos' USING ERRCODE='42501'; END IF;
  IF p_status NOT IN ('active','blocked','removed') THEN RAISE EXCEPTION 'Estado no válido'; END IF;
  IF private.varelia_control_is_principal(p_user_id) THEN RAISE EXCEPTION 'La cuenta principal no se puede bloquear ni eliminar'; END IF;
- PERFORM 1 FROM public.profiles WHERE id=p_user_id FOR UPDATE;
+ SELECT role INTO v_role FROM public.profiles WHERE id=p_user_id FOR UPDATE;
  IF NOT FOUND THEN RAISE EXCEPTION 'Cuenta no encontrada'; END IF;
- IF p_status='active' AND EXISTS(SELECT 1 FROM private.varelia_account_access WHERE user_id=p_user_id AND status<>'active') THEN
- RAISE EXCEPTION 'Para reactivar esta cuenta se requiere una nueva aprobación por código. Configura primero el envío de correo.'; END IF;
- IF EXISTS(SELECT 1 FROM private.varelia_account_access WHERE user_id=p_user_id AND status='pending') THEN
- RAISE EXCEPTION 'La aprobación por código aún no está habilitada'; END IF;
+ SELECT status INTO v_current FROM private.varelia_account_access WHERE user_id=p_user_id;
+
+ -- Los administradores afiliados sí requieren el flujo de aprobación al reactivarse.
+ -- Los vendedores pueden activarse, bloquearse o retirarse individualmente sin pedir código.
+ IF p_status='active' AND coalesce(v_current,'active')<>'active' AND coalesce(v_role,'owner')<>'cashier' THEN
+   RAISE EXCEPTION 'Para reactivar esta cuenta genera un código y apruébalo desde el panel.';
+ END IF;
+
  INSERT INTO private.varelia_account_access(user_id,status,updated_by) VALUES(p_user_id,p_status,auth.uid())
  ON CONFLICT(user_id) DO UPDATE SET status=excluded.status,updated_by=excluded.updated_by,updated_at=now();
  INSERT INTO private.varelia_control_audit(actor_id,target_id,action) VALUES(auth.uid(),p_user_id,p_status);
- RETURN jsonb_build_object('ok',true,'status',p_status);
+ RETURN jsonb_build_object('ok',true,'status',p_status,'role',v_role);
 END $$;
 REVOKE ALL ON FUNCTION public.varelia_control_set_access(uuid,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.varelia_control_set_access(uuid,text) TO authenticated,service_role;
