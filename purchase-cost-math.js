@@ -101,10 +101,11 @@
     let out=String(html||'');
     if(!/^Comprobante\b/i.test(name)||!out.includes('COMPROBANTE INTERNO DE VENTA'))return out;
 
-    // 80 mm: conserva la hoja de 80 mm, contenido de 72 mm -> 60 mm.
-    // 58 mm: conserva la hoja de 58 mm, contenido de 52 mm -> 46 mm.
-    out=out.replace(/\.paper\{width:72mm/g,'.paper{width:60mm');
-    out=out.replace(/\.paper\{width:52mm/g,'.paper{width:46mm');
+    // Mantiene el papel igual y reduce solamente el ancho visual del contenido.
+    // 80 mm: contenido de 72 mm -> 52 mm.
+    // 58 mm: contenido de 52 mm -> 42 mm.
+    out=out.replace(/\.paper\{width:72mm/g,'.paper{width:52mm');
+    out=out.replace(/\.paper\{width:52mm/g,'.paper{width:42mm');
     return out;
   };
 
