@@ -19,6 +19,21 @@
   const visible=list=>isSeller()?list.filter(s=>String(s?.sellerId||'')===sellerId()):list;
   const productFor=item=>(Array.isArray(window.products)?window.products:[]).find(p=>String(p.id)===String(item?.id??item?.productId))||{};
 
+  const setText=(el,value)=>{
+    if(!el)return false;
+    const next=String(value??'');
+    if(el.textContent===next)return false;
+    el.textContent=next;
+    return true;
+  };
+  const setHtml=(el,value)=>{
+    if(!el)return false;
+    const next=String(value??'');
+    if(el.innerHTML===next)return false;
+    el.innerHTML=next;
+    return true;
+  };
+
   function quantitySummary(list){
     let discrete=0;
     const continuous=new Map();
@@ -97,9 +112,7 @@
     const time=start?start.getTime():0;
     const scoped=visible(allSales().filter(s=>{const d=new Date(s?.date||0);return !Number.isNaN(d.getTime())&&d.getTime()>=time}));
     if(scoped.length||start)return scoped;
-    try{
-      if(typeof window.activeSales==='function')return visible(window.activeSales()||[]);
-    }catch{}
+    try{if(typeof window.activeSales==='function')return visible(window.activeSales()||[])}catch{}
     return visible(allSales());
   }
 
@@ -125,13 +138,11 @@
     const card=sec.querySelector('.card');
     if(!card)return;
 
-    const headNotice=sec.querySelector('.head .notice');
-    if(headNotice)headNotice.textContent='Acumulado desde el último cierre de caja. Se muestra aparte de las ventas de hoy.';
-    const title=card.querySelector(':scope > small');
-    if(title)title.textContent='Caja activa · desde el último cierre';
+    setText(sec.querySelector('.head .notice'),'Acumulado desde el último cierre de caja. Se muestra aparte de las ventas de hoy.');
+    setText(card.querySelector(':scope > small'),'Caja activa · desde el último cierre');
     const miniLabels=card.querySelectorAll('.cashGrid .mini small');
-    if(miniLabels[0])miniLabels[0].textContent='Ventas desde último cierre';
-    if(miniLabels[1])miniLabels[1].textContent='Cantidad vendida';
+    setText(miniLabels[0],'Ventas desde último cierre');
+    setText(miniLabels[1],'Cantidad vendida');
 
     const active=activeList();
     const today=todayList();
@@ -141,64 +152,70 @@
     const activeTodayTotal=activeToday.reduce((a,s)=>a+(Number(s?.total)||0),0);
     const older=Math.max(0,activeTotal-activeTodayTotal);
 
-    const totalEl=document.getElementById('cashTotal');
-    const countEl=document.getElementById('cashCount');
+    setText(document.getElementById('cashTotal'),money(activeTotal));
+    setText(document.getElementById('cashCount'),String(active.length));
     const qtyEl=document.getElementById('cashUnits');
-    if(totalEl)totalEl.textContent=money(activeTotal);
-    if(countEl)countEl.textContent=String(active.length);
-    if(qtyEl){qtyEl.textContent=quantitySummary(active);qtyEl.style.fontSize='16px';qtyEl.style.lineHeight='1.25'}
+    if(qtyEl){
+      setText(qtyEl,quantitySummary(active));
+      if(qtyEl.style.fontSize!=='16px')qtyEl.style.fontSize='16px';
+      if(qtyEl.style.lineHeight!=='1.25')qtyEl.style.lineHeight='1.25';
+    }
 
-    // El detalle debe usar EXACTAMENTE la misma lista que el total y la cantidad.
-    // Antes renderCash() podía usar un cashStart antiguo y dejar una venta fuera del detalle.
     const cashProducts=document.getElementById('cashProducts');
     if(cashProducts){
       const rows=aggregateCashItems(active);
-      cashProducts.innerHTML=rows.length?rows.map(row=>`<div class="soldRow"><span>${esc(row.name)}</span><span>${esc(quantityLabel(row.qty,row.unit))}</span><strong>${money(row.total)}</strong></div>`).join(''):'<div class="empty">Sin ventas en esta caja.</div>';
+      const html=rows.length?rows.map(row=>`<div class="soldRow"><span>${esc(row.name)}</span><span>${esc(quantityLabel(row.qty,row.unit))}</span><strong>${money(row.total)}</strong></div>`).join(''):'<div class="empty">Sin ventas en esta caja.</div>';
+      setHtml(cashProducts,html);
     }
 
     const note=ensurePeriodNote(card);
     const start=readCashStart();
     const startText=start?start.toLocaleString('es-PE',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'el último cierre';
-    if(note){
-      if(older>0.0001)note.textContent=`Abierta desde ${startText}. Incluye ${money(older)} de días anteriores; por eso no tiene que coincidir con “Total vendido hoy”.`;
-      else if(Math.abs(activeTotal-todayTotal)>0.0001)note.textContent=`Abierta desde ${startText}. “Total vendido hoy” considera todo el día, mientras esta caja cuenta solo desde su apertura.`;
-      else note.textContent=`Abierta desde ${startText}.`;
-    }
+    let noteText=`Abierta desde ${startText}.`;
+    if(older>0.0001)noteText=`Abierta desde ${startText}. Incluye ${money(older)} de días anteriores; por eso no tiene que coincidir con “Total vendido hoy”.`;
+    else if(Math.abs(activeTotal-todayTotal)>0.0001)noteText=`Abierta desde ${startText}. “Total vendido hoy” considera todo el día, mientras esta caja cuenta solo desde su apertura.`;
+    setText(note,noteText);
 
     const daily=document.getElementById('dailySalesSummary');
     if(daily){
-      const label=daily.querySelector('small');
-      if(label)label.textContent=isSeller()?'MI CAJA · SOLO HOY':'💰 TOTAL VENDIDO · SOLO HOY';
-      const amount=daily.querySelector('.dailySalesAmount');
-      if(amount)amount.textContent=money(todayTotal);
-      const meta=daily.querySelector('.dailySalesMeta');
-      if(meta)meta.textContent=`${today.length} venta${today.length===1?'':'s'} · ${quantitySummary(today)}${isSeller()?' · '+String(profile().full_name||window.vareliaSellerName||'Vendedor'):''}`;
+      setText(daily.querySelector('small'),isSeller()?'MI CAJA · SOLO HOY':'💰 TOTAL VENDIDO · SOLO HOY');
+      setText(daily.querySelector('.dailySalesAmount'),money(todayTotal));
+      setText(daily.querySelector('.dailySalesMeta'),`${today.length} venta${today.length===1?'':'s'} · ${quantitySummary(today)}${isSeller()?' · '+String(profile().full_name||window.vareliaSellerName||'Vendedor'):''}`);
     }
   }
 
   function installRenderHook(){
     const current=window.renderCash;
     if(typeof current!=='function'||current.__vareliaCashConsistencyWrapped)return;
-    const wrapped=function(){const out=current.apply(this,arguments);setTimeout(update,0);return out};
+    const wrapped=function(){
+      const out=current.apply(this,arguments);
+      requestAnimationFrame(update);
+      return out;
+    };
     wrapped.__vareliaCashConsistencyWrapped=true;
     window.renderCash=wrapped;
   }
 
+  let scheduled=false;
+  const scheduleUpdate=()=>{
+    if(scheduled)return;
+    scheduled=true;
+    requestAnimationFrame(()=>{scheduled=false;installRenderHook();update()});
+  };
+
   const boot=()=>{
     installRenderHook();
-    update();
-    [100,400,1000,2200].forEach(ms=>setTimeout(()=>{installRenderHook();update()},ms));
-    setInterval(()=>{installRenderHook();update()},2500);
-    ['varelia:business-scope-ready','varelia:central-stock-updated','varelia:forced-sync-complete','varelia:sync-connected','varelia:sale-recorded'].forEach(name=>window.addEventListener(name,()=>setTimeout(update,80)));
-    window.addEventListener('focus',()=>setTimeout(update,80));
-    window.addEventListener('pageshow',()=>setTimeout(update,80));
+    scheduleUpdate();
+    setTimeout(scheduleUpdate,250);
+    ['varelia:business-scope-ready','varelia:central-stock-updated','varelia:forced-sync-complete','varelia:sync-connected','varelia:sale-recorded'].forEach(name=>window.addEventListener(name,scheduleUpdate));
+    window.addEventListener('focus',scheduleUpdate);
+    window.addEventListener('pageshow',scheduleUpdate);
+    document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')scheduleUpdate()});
   };
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',boot,{once:true}):boot();
 })();
 
 // Mantener en vivo el cálculo de "Me paga con" de la vista principal de venta.
-// Algunos teclados numéricos de Android no disparan de forma fiable el manejador
-// asignado directamente al input cuando el bloque de pago se vuelve a renderizar.
 (()=>{
   if(window.__vareliaReceivedLiveFixV1)return;
   window.__vareliaReceivedLiveFixV1=true;
@@ -208,6 +225,7 @@
     if(raw.includes(',')&&!raw.includes('.'))return Number(raw.replace(',','.'))||0;
     return Number(raw.replace(/,/g,''))||0;
   };
+  const setText=(el,value)=>{if(!el)return;const next=String(value??'');if(el.textContent!==next)el.textContent=next};
 
   function saleTotal(){
     const pos=numberFrom(document.getElementById('vposTotal')?.textContent);
@@ -220,16 +238,15 @@
     const stat=document.getElementById('vStat');
     const diff=document.getElementById('vDiff');
     if(!input||!stat||!diff)return;
-
     const received=Math.max(0,numberFrom(input.value));
     const total=Math.max(0,saleTotal());
     const missing=Math.max(0,total-received);
     const change=Math.max(0,received-total);
     const isMissing=missing>0.004;
-
-    stat.textContent=isMissing?'Falta':'Vuelto';
-    diff.textContent='S/ '+(isMissing?missing:change).toFixed(2);
-    diff.style.color=isMissing?'#b91c1c':'var(--p)';
+    setText(stat,isMissing?'Falta':'Vuelto');
+    setText(diff,'S/ '+(isMissing?missing:change).toFixed(2));
+    const color=isMissing?'#b91c1c':'var(--p)';
+    if(diff.style.color!==color)diff.style.color=color;
   }
 
   let scheduled=false;
@@ -240,18 +257,11 @@
   };
 
   ['input','change','keyup','beforeinput'].forEach(type=>{
-    document.addEventListener(type,event=>{
-      if(event.target?.id==='vReceived')schedule();
-    },true);
+    document.addEventListener(type,event=>{if(event.target?.id==='vReceived')schedule()},true);
   });
+  document.addEventListener('focusout',event=>{if(event.target?.id==='vReceived')schedule()},true);
 
-  document.addEventListener('focusout',event=>{
-    if(event.target?.id==='vReceived')schedule();
-  },true);
-
-  const observer=new MutationObserver(()=>{
-    if(document.getElementById('vReceived'))schedule();
-  });
+  const observer=new MutationObserver(()=>{if(document.getElementById('vReceived'))schedule()});
   const arm=()=>{
     const box=document.getElementById('vposPayFields');
     if(box&&!box.dataset.vareliaReceivedObserved){
