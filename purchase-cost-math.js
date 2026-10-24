@@ -104,8 +104,9 @@
     // Mantiene el papel igual y reduce solamente el ancho visual del contenido.
     // 80 mm: contenido de 72 mm -> 52 mm.
     // 58 mm: contenido de 52 mm -> 42 mm.
-    out=out.replace(/\.paper\{width:72mm/g,'.paper{width:52mm');
+    // Reemplazar primero 52 mm evita que el valor nuevo de 80 mm se vuelva a reducir.
     out=out.replace(/\.paper\{width:52mm/g,'.paper{width:42mm');
+    out=out.replace(/\.paper\{width:72mm/g,'.paper{width:52mm');
     return out;
   };
 
