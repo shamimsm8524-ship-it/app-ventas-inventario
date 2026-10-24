@@ -89,3 +89,45 @@
   };
   document.readyState==='loading'?document.addEventListener('DOMContentLoaded',boot,{once:true}):boot();
 })();
+
+// Ticket interno impreso: mantiene el tamaño de papel configurado, pero hace
+// más angosta únicamente el área de contenido para que no se vea tan estirada.
+(()=>{
+  if(typeof window==='undefined'||window.__vareliaCompactInternalPrintV1)return;
+  window.__vareliaCompactInternalPrintV1=true;
+
+  const compactHtml=(title,html)=>{
+    const name=String(title||'');
+    let out=String(html||'');
+    if(!/^Comprobante\b/i.test(name)||!out.includes('COMPROBANTE INTERNO DE VENTA'))return out;
+
+    // 80 mm: conserva la hoja de 80 mm, contenido de 72 mm -> 60 mm.
+    // 58 mm: conserva la hoja de 58 mm, contenido de 52 mm -> 46 mm.
+    out=out.replace(/\.paper\{width:72mm/g,'.paper{width:60mm');
+    out=out.replace(/\.paper\{width:52mm/g,'.paper{width:46mm');
+    return out;
+  };
+
+  const install=()=>{
+    const bridge=window.VareliaAndroid;
+    if(!bridge||typeof bridge.printHtmlDocument!=='function')return false;
+    if(bridge.printHtmlDocument.__vareliaCompactInternalPrintV1)return true;
+    try{
+      const nativePrint=bridge.printHtmlDocument.bind(bridge);
+      const wrapped=function(title,html){
+        return nativePrint(title,compactHtml(title,html));
+      };
+      wrapped.__vareliaCompactInternalPrintV1=true;
+      bridge.printHtmlDocument=wrapped;
+      return bridge.printHtmlDocument===wrapped;
+    }catch{return false}
+  };
+
+  if(!install()){
+    let tries=0;
+    const timer=setInterval(()=>{
+      tries++;
+      if(install()||tries>=80)clearInterval(timer);
+    },250);
+  }
+})();
