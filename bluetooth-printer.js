@@ -26,7 +26,7 @@
   if(!document.getElementById('vareliaLogoutUILoader')){
     const l=document.createElement('script');
     l.id='vareliaLogoutUILoader';
-    l.src='logout-ui.js?v=20260930-19';
+    l.src='logout-ui.js?v=20261024-fast-local-logout-v1';
     document.body.appendChild(l);
   }
 })();
