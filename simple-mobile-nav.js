@@ -280,7 +280,20 @@
         return;
       }
       if(a==='reports'||a==='profit'||a==='help'){window.vareliaShowExtraView?.(a);return}
-      if(a==='sellers'){document.querySelector('.premiumSellersItem')?.click();return}
+      if(a==='sellers'){
+        const sec=document.getElementById('sellers');
+        const list=document.getElementById('vsellersList');
+        // sellers.js precarga la lista en segundo plano. Si ya existe contenido,
+        // abrirla directamente evita otra petición y el mensaje "Cargando vendedores…".
+        if(sec&&list&&list.children.length){
+          document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v===sec));
+          nav.querySelectorAll('button').forEach(x=>x.classList.toggle('active',x.dataset.mobileTab==='mobileAdminHub'));
+          try{scrollTo({top:0,behavior:'auto'})}catch{scrollTo(0,0)}
+          return;
+        }
+        document.querySelector('.premiumSellersItem')?.click();
+        return;
+      }
       show(a==='purchases'?'purchases':a);
     },true);
   });
