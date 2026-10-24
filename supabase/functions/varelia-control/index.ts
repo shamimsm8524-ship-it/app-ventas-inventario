@@ -24,9 +24,10 @@ Deno.serve(async req => {
       if(!/^[0-9a-f-]{36}$/i.test(String(body.userId||''))||!['active','blocked','removed'].includes(body.status))return respond(400,{error:'Cuenta o estado no válido'});
       const {data,error}=await userClient.rpc('varelia_control_set_access',{p_user_id:body.userId,p_status:body.status});
       if(error)return respond(400,{error:error.message});
-      // Database policies revoke data access immediately, including existing JWTs.
-      const result=await service.auth.admin.updateUserById(body.userId,{ban_duration:body.status==='active'?'none':'876000h'});
-      return respond(200,{...data,session_notice:result.error?'El acceso a datos ya cambió; la revocación de inicio de sesión está pendiente.':null});
+      // El estado en la base y las políticas RLS bloquean los datos. No usamos ban de Auth,
+      // porque la cuenta debe poder autenticarse y ver la pantalla de código/bloqueo.
+      const result=await service.auth.admin.updateUserById(body.userId,{ban_duration:'none'});
+      return respond(200,{...data,session_notice:result.error?'El acceso a datos ya cambió; no se pudo liberar la pantalla de inicio.':null});
     }
 
     if(body.action==='approve'){
@@ -43,9 +44,6 @@ Deno.serve(async req => {
       if(!/^[0-9a-f-]{36}$/i.test(userId))return respond(400,{error:'Cuenta no válida'});
       const {data,error}=await userClient.rpc('varelia_control_reissue_code',{p_user_id:userId});
       if(error)return respond(400,{error:error.message});
-      // Al emitir un código nuevo la cuenta debe poder autenticarse para llegar
-      // a la pantalla de validación. El acceso a datos sigue bloqueado por RLS
-      // mientras permanezca en estado pending.
       const unban=await service.auth.admin.updateUserById(userId,{ban_duration:'none'});
       return respond(200,{...data,session_notice:unban.error?'El código se generó, pero no se pudo liberar el inicio de sesión. Intenta generar otro código.':null});
     }
@@ -64,7 +62,7 @@ Deno.serve(async req => {
         const {error:profileError}=await service.from('profiles').update({full_name:name,role:'cashier',business_id:body.businessId,permissions:{sales:true,products:true,inventory:true,cash:true,reports:false,profit:false}}).eq('id',data.user.id);
         if(profileError){
           await userClient.rpc('varelia_control_set_access',{p_user_id:data.user.id,p_status:'blocked'});
-          await service.auth.admin.updateUserById(data.user.id,{ban_duration:'876000h'});
+          await service.auth.admin.updateUserById(data.user.id,{ban_duration:'none'});
           return respond(409,{error:'La invitación se creó, pero la cuenta quedó bloqueada porque no se pudo vincular al negocio. Revisa la cuenta antes de activarla.'});
         }
       }
