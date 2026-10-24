@@ -43,7 +43,11 @@ Deno.serve(async req => {
       if(!/^[0-9a-f-]{36}$/i.test(userId))return respond(400,{error:'Cuenta no válida'});
       const {data,error}=await userClient.rpc('varelia_control_reissue_code',{p_user_id:userId});
       if(error)return respond(400,{error:error.message});
-      return respond(200,data);
+      // Al emitir un código nuevo la cuenta debe poder autenticarse para llegar
+      // a la pantalla de validación. El acceso a datos sigue bloqueado por RLS
+      // mientras permanezca en estado pending.
+      const unban=await service.auth.admin.updateUserById(userId,{ban_duration:'none'});
+      return respond(200,{...data,session_notice:unban.error?'El código se generó, pero no se pudo liberar el inicio de sesión. Intenta generar otro código.':null});
     }
 
     if(body.action==='invite'){
