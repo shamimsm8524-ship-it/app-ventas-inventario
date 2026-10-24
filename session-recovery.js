@@ -48,13 +48,26 @@
     return true;
   }
 
+  function ensureAccessCodeGate(){
+    if(window.__vareliaAccessCodeGateV1||document.querySelector('script[data-varelia-access-code-gate]'))return true;
+    const s=document.createElement('script');
+    s.src='/access-code-gate.js?v=20261024-v1';
+    s.async=false;
+    s.dataset.vareliaAccessCodeGate='1';
+    s.onerror=()=>{s.remove()};
+    document.head.appendChild(s);
+    return true;
+  }
+
   // Este helper NO vuelve a llamar getSession/getUser/setSession.
   // supabase-auth.js es el único dueño del arranque de sesión para evitar bloqueos
   // por lecturas concurrentes dentro del WebView Android.
   let tries=0;
   const timer=setInterval(()=>{
     tries++;
+    ensureAccessCodeGate();
     if(ensureGoogleButton()||tries>60)clearInterval(timer);
   },150);
+  ensureAccessCodeGate();
   ensureGoogleButton();
 })();
