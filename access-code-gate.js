@@ -47,13 +47,13 @@
     email.textContent=session?.user?.email||'Cuenta conectada';
     if(lastStatus==='pending'){
       title.textContent='Ingresa tu código';
-      text.textContent='Tu cuenta está registrada, pero necesita autorización antes de entrar.';
-      form.hidden=false;note.hidden=false;setMessage('');
+      text.textContent='Tu solicitud de acceso fue enviada. La cuenta principal debe autorizarte antes de entrar.';
+      form.hidden=false;note.hidden=false;note.textContent='El código aparece únicamente en el Panel Principal de Varelia. Pídeselo a la cuenta principal.';setMessage('');
       setTimeout(()=>code.focus(),80);
     }else{
       title.textContent=lastStatus==='removed'?'Acceso retirado':'Cuenta bloqueada';
-      text.textContent='Esta cuenta no puede ingresar todavía. Desde el Panel Principal deben generar un nuevo código para reactivarla.';
-      form.hidden=true;note.hidden=false;note.textContent='Cuando la cuenta principal genere un nuevo código, vuelve a iniciar sesión con esta cuenta.';
+      text.textContent='Esta cuenta no puede ingresar todavía.';
+      form.hidden=true;note.hidden=false;note.textContent=lastStatus==='removed'?'Vuelve a intentarlo para enviar una nueva solicitud de acceso.':'Contacta a la cuenta principal para revisar el acceso.';
     }
   };
   const hide=()=>{
@@ -70,9 +70,23 @@
     try{
       const {data:sessionData,error:sessionError}=await sb.auth.getSession();
       if(sessionError||!sessionData?.session){hide();return}
-      const {data:context,error}=await sb.rpc('varelia_access_context');
+      let {data:context,error}=await sb.rpc('varelia_access_context');
       if(error){console.warn('Varelia access gate',error);return}
       if(context?.allowed===true||context?.principal===true){hide();return}
+
+      // Si el administrador había sido retirado y vuelve a iniciar sesión,
+      // crea automáticamente una nueva solicitud para el Panel Principal.
+      if(String(context?.status||'').toLowerCase()==='removed'){
+        const {data:request,error:requestError}=await sb.rpc('varelia_request_access');
+        if(!requestError&&request?.ok&&String(request?.status||'').toLowerCase()==='pending'){
+          const refreshed=await sb.rpc('varelia_access_context');
+          if(!refreshed.error&&refreshed.data)context=refreshed.data;
+          else context={...(context||{}),status:'pending',allowed:false};
+        }else if(requestError){
+          console.warn('Varelia request access',requestError);
+        }
+      }
+
       show(sessionData.session,context||{});
     }catch(error){console.warn('Varelia access gate check',error)}
     finally{checking=false}
